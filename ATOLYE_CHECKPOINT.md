@@ -1,4 +1,4 @@
-## 3–4 Kasım 2026 — Geliştirici beyni kodu öğrenir; Zanzibar Short'u AYAS'a verildi; portre/konu/sınır düzeltmeleri; onaylı 3 iş yapıldı
+## 3–4 Kasım 2026 — Geliştirici beyni kodu öğrenir; Zanzibar Short'u AYAS'a verildi ve yeniden yapıldı (1 eksik); portre, rozet, rötuş doğrulaması
 
 **Owner (3 Kas akşam):** "kod yazan beyin senin kod değişikliğini deneyim olarak kaydetti mi, nereye ne kod değişikliği
 yaptığını öğrensin, ilerde Claude yokken kendisi kod yazabilmeli; en çok izlenme potansiyeli bir Shorts konusu seç, AYAS'a
@@ -40,8 +40,35 @@ action-firewall-closure 13 + development-center 64 + homepage-v2 13 PASS; tsc 0 
 (yapısal + semantic, tamamlayıcı 15/15). Sipariş izleyicisini yeniden başlatma (taskkill) otomatik modda reddedildi — gerekli
 değil (üretim diskteki yeni kodla ayrı süreçte koşar; izleyicide yalnız kuyruk kontrolü eskidir), owner isterse yeniden başlatır.
 
-**Açık:** Zanzibar Short'unun yeniden yapımı `20261104T042227` (tam konu, Mathews portresi, düzeltmelerle) üretimde — sonucu
-ve kare incelemesi bir sonraki kayıtta.
+**Yeniden yapım `20261104T042227` (4 Kas):** tam konu (378 karakter), $0,53. Senaryo: kanca Halid "They wouldn't dare fire on
+a palace, right?", 9:02'de ateş, "caught fire", gerçek dönem gravürleri ("Bombardement de Zanzibar", "The Crisis at
+Zanzibar"), Alman konsolosluğuna kaçış rotası, final "Please send the bill for shells to Khalid's friends" / "Shortest war,
+longest silence". Owner üretim sırasında izleyiciyi yeniden başlattı → sipariş miks'ten önce kesildi, izleyici kendisi
+devam ettirdi (kayıp yok). İlk tur kurul 7, harita %75, 3 eksik; rötuş turu 1 tarih hatası yazdı ("After Sultan Hamoud
+died…"; ölen Hamad'dı) ve Short'u 60,1 sn'ye uzattı, kurul 6,8 → tur 0 teslim edildi. Bu sırada yapılanlar:
+- **ca9d5ebd** "caught fire/on fire/set fire" ikilileri (`toldWordAt` önceki kelimeyle de dener).
+- **96c7034b** Wikipedia'nın küçük yüz kırpımı portre olur (`LEAD_MIN_HEIGHT` 200; Hamoud'un 192×248 kırpımı); "of
+  Zanzibar" gibi bölge isim sayılmaz (Zanzibar pulları Hamoud'un resmi sayılıyordu).
+- **0e51f202** `hudLayout.badgeEdgeFits`: kenardan kayan rozet başkasının üstüne binmez — konuşan, yoksa az kesilen bütün
+  girer, öbürü söner (5eee7092'nin kuralı Rawson'ı Halid'in parşömeninin üstüne kaydırmıştı).
+- **e8e9d396** Rötuşta Short satırı uzamaz (`SHORT_REWRITE_GROWTH`), yeniden yazımlar `ScriptEngine.checkFacts` ile kaynak
+  bankasına karşı doğrulanır, işaretlenen düşer.
+- Canlıya alındı (e8e9d396), sipariş **ses adımından yeniden üretildi** (önceki deneme `onceki-deneme-1/`, NEDEN.txt):
+  yeni tur 0 **1 eksik** (yalnız Rawson benzerliği 6/10), kurul 7, kalite beyni 8 kare 0 sorun, harita %75, -14,4 LUFS,
+  48 sn; tek bütün rozet, saray yanarken filo. Doğrulama Hamad satırını yakaladı ("doğrulamadan geçmedi, eskisi kalıyor"),
+  ama AYAS'ın kendi talimatındaki yanlış ültimatom tarihini ("delivered at exactly 9:00 AM, August 27") geçirdi; rötuş
+  turu 1 yine 6,8 → tur 0 teslim edildi.
+- **5e8982bf** `DirectorCouncil.newFacts`: yeniden yazım eski satırda olmayan sayı/ay ya da bölümde geçmeyen isim getiremez
+  (iki tarih hatasını modelsiz yakalar). **a41d30fc** Haritalı Short'ta rozetin tek satırı diyalog sayılır
+  (`dialogueSceneRatio(…, {short})`; QC ve yazarın onarım turu — 120 kelimelik Short 159'a itiliyordu).
+- Beyinlere elle 3 ders (`remember`): şef "Short rötuşunda bağlam isteme", mizah "rötuşta espri korunur", araştırma
+  "Zanzibar 1896 Hamad/Hamoud, tarihler". Günün toplam kazancı: kurgu 128→147, kalite 54→64, kostüm 32→41, ses 28→32,
+  mizah 4→7, şef 1→5, araştırma 5→7, ortam 70→72, onarım 14→15.
+
+**Açık:** Owner'ın yükleme kararı (`final.mp4`; Hamoud tariften çizildi — portre düzeltmesi bir sonraki üretimde; geniş
+haritada "Zanzibar Town" ile "ZANZIBAR (BRITISH OCCUPATION)" yazısı çakışıyor, haritanın ilk ~6 sn'si olaysız). Owner'ın
+"Google'dan görüntü" önerisi: lisanssız görsel kullanılmaz, serbest lisanslı kaynaklar genişletildi. Eski canlı kopyalar
+(0d37f455, f112b7b5) silinmeyi bekliyor (owner onayı).
 
 ## 3 Kasım 2026 (akşam, 5) — Short'lar ~%70 haritada (DFT Tarih Shorts incelemesi); dikey pencere haritadaki olayı izler; buton taraması kalıcı skill
 
