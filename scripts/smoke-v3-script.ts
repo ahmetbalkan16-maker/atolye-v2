@@ -11,7 +11,7 @@ import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader"
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { articleSource, factPrompt, readTopic, researchDepth, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
-import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, dialogueSceneRatio, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
@@ -247,7 +247,7 @@ async function main() {
     const openai = new FakeProvider([JSON.stringify(monologue), JSON.stringify(monologue), JSON.stringify({ iddialar: [] })]);
     // Under half a minute: a Short asked no map shares, so the dialogue's revision round is the first call after writing.
     await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 25, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }) });
-    assert.ok(openai.calls[1]!.prompt.includes("only 0% of scenes have two or more lines by visible characters"), "diyalog eksikliği istenmeli");
+    assert.ok(openai.calls[1]!.prompt.includes("only 0% of scenes have dialogue (a map scene"), "diyalog eksikliği istenmeli (Short: harita sahnesinde rozet satırı sayılır)");
   });
 
   await scenario("L a script far below its spoken-word budget gets one expansion round", async () => {
@@ -650,6 +650,22 @@ async function main() {
     assert.ok(clearBattleCards(last)[0]!.includes("kart savaştan önceye (0. satır) alındı"));
     assert.deepEqual(last.bilgi_kartlari, [{ tur: "sayac", satir: 0, bitis_satir: 1, deger: 5, etiket: "x" }]);
     assert.deepEqual(clearBattleCards(wide), []);
+  });
+
+  await scenario("dialogue in a Short told on the map (Zanzibar, 4 Nov 2026): a badge's one line makes a map scene's dialogue; a stage scene still needs two", () => {
+    const line = (karakter: string) => ({ karakter, metin: "x", duygu: "notr" });
+    const ep = {
+      oyuncu_kadrosu: [{ id: "anlatici", gorunur: false }, { id: "khalid", gorunur: true }, { id: "rawson", gorunur: true }],
+      sahneler: [
+        { id: "s1", satirlar: [line("khalid")] },
+        { id: "s2", harita: { merkez: [39.19, -6.16], genislik_km: 30 }, satirlar: [line("anlatici"), line("rawson")] },
+        { id: "s3", harita: { merkez: [39.19, -6.16], genislik_km: 8 }, satirlar: [line("anlatici"), line("khalid")] },
+        { id: "s4", harita: { merkez: [39.19, -6.16], genislik_km: 8 }, satirlar: [line("anlatici")] },
+        { id: "s5", satirlar: [line("rawson"), line("khalid")] },
+      ],
+    } as unknown as Episode;
+    assert.equal(dialogueSceneRatio(ep), 0.2, "a long video as before: only s5");
+    assert.equal(dialogueSceneRatio(ep, { short: true }), 0.6, "a Short: s2, s3 (badge lines) and s5; never the narrator alone, never one line on stage");
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

@@ -1223,7 +1223,7 @@ async function main() {
     const lipsync = synced.flat();
     const factCheck = existsSync(f("dogrulama.json")) ? await readJson<{ durum: string; uygulanan: number; iddialar: unknown[] }>(f("dogrulama.json")) : undefined;
     const cost = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number }>(f("maliyet.json")) : { toplamUsd: 0 };
-    const dialogScenes = dialogueSceneRatio(episode);
+    const dialogScenes = dialogueSceneRatio(episode, { short: shorts });
     const target = episode.hedef_sure_sn;
     const lengthRight = lengthOk(durationS, target);
     // A Short opens on a character's line or move within HOOK_S (owner, 2 Nov 2026); a long video's first words within 10 s.

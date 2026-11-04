@@ -101,10 +101,17 @@ const MAX_REVISIONS = 3;
 const visibleCast = (episode: Episode) => episode.oyuncu_kadrosu.filter((c) => c.gorunur).length;
 
 /** Scenes with at least two lines spoken by visible characters, as a share of all scenes. */
-export function dialogueSceneRatio(episode: Episode): number {
+/**
+ * Share of scenes with dialogue: two or more lines by visible characters. In a Short a map scene counts with one: the
+ * owner's ~70% map Shorts (3 Nov 2026, after DFT Tarih's) tell the moment on the map with a speaking badge's quip, and
+ * the Zanzibar Short scored 20% (a fail) with a badge line in every map scene — the writer was sent to add stage talk
+ * (159 words for a 120-word Short).
+ */
+export function dialogueSceneRatio(episode: Episode, opts: { readonly short?: boolean } = {}): number {
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
   if (!episode.sahneler.length) return 0;
-  return episode.sahneler.filter((s) => s.satirlar.filter((l) => visible.has(l.karakter)).length >= 2).length / episode.sahneler.length;
+  const needs = (s: Episode["sahneler"][number]) => (opts.short && s.harita?.merkez ? 1 : 2);
+  return episode.sahneler.filter((s) => s.satirlar.filter((l) => visible.has(l.karakter)).length >= needs(s)).length / episode.sahneler.length;
 }
 
 /** Scenes furthest below their share of the word target (by sure_hedef), as concrete "add N words here" asks. */
@@ -122,10 +129,10 @@ export function sceneShortfalls(episode: Episode, targetWords: number): string[]
 }
 
 /** How far a script is from its targets: 0 is on target; length and dialogue both count. */
-function revisionGap(episode: Episode, target: number, band: readonly [number, number] = LENGTH_BAND): number {
+function revisionGap(episode: Episode, target: number, band: readonly [number, number] = LENGTH_BAND, short = false): number {
   const words = spokenWords(episode);
   const lengthGap = words < target * band[0] ? target * band[0] - words : words > target * band[1] ? words - target * band[1] : 0;
-  return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode)) + 0.2 * Math.max(0, MIN_VISIBLE_CAST - visibleCast(episode));
+  return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode, { short })) + 0.2 * Math.max(0, MIN_VISIBLE_CAST - visibleCast(episode));
 }
 
 /** First top-level JSON object in a model answer; code fences and chatter around it are ignored. */
@@ -320,14 +327,20 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   let validation = livened.fixes.length ? validateEpisode(written) : state.validation!;
   const targetWords = wordBudget(brief);
   const band = lengthBand(brief);
+  const short = isShorts(brief.hedefSureSn);
   let lengthRounds = 0;
   // Revision attempts for length, dialogue and cast; one is kept only if it is valid and closer to the targets,
   // otherwise the best version so far is tried again.
-  while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords, band) > 0) {
+  while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords, band, short) > 0) {
     lengthRounds++;
     const extra: string[] = [];
-    const ratio = dialogueSceneRatio(written);
-    if (ratio < MIN_DIALOGUE_SCENES) extra.push(`only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`);
+    const ratio = dialogueSceneRatio(written, { short });
+    if (ratio < MIN_DIALOGUE_SCENES)
+      extra.push(
+        short
+          ? `only ${Math.round(ratio * 100)}% of scenes have dialogue (a map scene: a visible character's line from their badge; a stage scene: two or more lines); at least ${MIN_DIALOGUE_SCENES * 100}% must`
+          : `only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`,
+      );
     const cast = visibleCast(written);
     if (cast < MIN_VISIBLE_CAST) extra.push(`only ${cast} visible characters; add ${MIN_VISIBLE_CAST - cast} more fitting the period (costume from the catalog, own colour, own speaking style) and give them lines`);
     // Models stop short of a whole-script word count (the Rubicon script stayed ~20% short after three rounds); a
@@ -341,7 +354,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} kullanılmadı — ${revised.problems.length} sorun: ${revised.problems.slice(0, 3).join("; ").slice(0, 240)}`);
       continue;
     }
-    if (revisionGap(revised.value as Episode, targetWords, band) >= revisionGap(written, targetWords, band)) {
+    if (revisionGap(revised.value as Episode, targetWords, band, short) >= revisionGap(written, targetWords, band, short)) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} hedefe yaklaşmadı (${spokenWords(revised.value as Episode)}/${targetWords} kelime)`);
       continue;
     }
