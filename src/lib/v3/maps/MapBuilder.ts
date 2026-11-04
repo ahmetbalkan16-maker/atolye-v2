@@ -641,8 +641,11 @@ export const TOLD_WORDS = {
   kayip: /^(?:sunk|sink\p{L}*|sank|wreck\p{L}*|destroy\p{L}*|blown|blew|lost|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*|yok\s?edil\p{L}*|parçala\p{L}*|kaybed\p{L}*)$/iu,
   /** Fire opened. */
   ates: /^(?:fire[sd]?|firing|shell\p{L}*|bombard\p{L}*|cannon\p{L}*|guns?|blast\p{L}*|ateş\p{L}*|bombala\p{L}*|döv\p{L}*|topa)$/iu,
-  /** A place hit and burning ("fire" alone is the guns' word: "open fire" came before "the palace is hit"). */
-  yangin: /^(?:hit|struck|burn\p{L}*|ablaze|flames?|blaze\p{L}*|explod\p{L}*|vurul\p{L}*|yan(?:ar|dı|ıyor|gın)\p{L}*|alev\p{L}*|tutuş\p{L}*|isabet\p{L}*)$/iu,
+  /**
+   * A place hit and burning. "fire" alone is the guns' word ("open fire" came before "the palace is hit"); with the word
+   * before it, it is the place's ("caught fire", "on fire", "set fire").
+   */
+  yangin: /^(?:hit|struck|burn\p{L}*|ablaze|flames?|blaze\p{L}*|explod\p{L}*|vurul\p{L}*|yan(?:ar|dı|ıyor|gın)\p{L}*|alev\p{L}*|tutuş\p{L}*|isabet\p{L}*|(?:caught|catch\p{L}*|on|set\p{L}*) fire)$/iu,
 } as const;
 
 /** Seconds from a ship's or gun's first shot to the fire it starts where it aims. */

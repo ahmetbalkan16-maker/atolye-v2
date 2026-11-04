@@ -1996,6 +1996,11 @@ async function main() {
     for (const w of ["fire", "shelled", "bombardment", "ateş", "bombalandı"]) assert.ok(TOLD_WORDS.ates.test(w), w);
     for (const w of ["hit", "ablaze", "burning", "yandı", "alevler"]) assert.ok(TOLD_WORDS.yangin.test(w), w);
     assert.ok(!TOLD_WORDS.kayip.test("sunset") && !TOLD_WORDS.ates.test("fireworks") && !TOLD_WORDS.yangin.test("history"));
+    // "fire" alone is the guns'; "caught fire" (the remake's "The palace, made mostly of wood, caught fire immediately") the place's.
+    assert.ok(!TOLD_WORDS.yangin.test("fire") && TOLD_WORDS.yangin.test("caught fire") && TOLD_WORDS.yangin.test("set fire"));
+    const remake = [{ start: 0, words: [{ text: "opened", start: 1, end: 1.3 }, { text: "fire.", start: 1.3, end: 1.6 }, { text: "wood,", start: 3, end: 3.3 }, { text: "caught", start: 3.4, end: 3.7 }, { text: "fire", start: 3.7, end: 4 }] }];
+    assert.equal(toldWordAt(remake, 0, TOLD_WORDS.yangin), 3.7, "on the pair's second word");
+    assert.equal(toldWordAt(remake, 0, TOLD_WORDS.ates), 1.3, "the guns' fire comes first");
 
     // Built map: the shot starts at 10 s; the fleet fires on "fire", the palace burns on "hit" (not before the shells
     // land), the yacht's first loss on "Sunk".

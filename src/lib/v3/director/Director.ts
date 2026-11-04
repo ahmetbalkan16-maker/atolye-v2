@@ -697,9 +697,11 @@ export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: 
 export function toldWordAt(lines: readonly Pick<LineTiming, "start" | "words">[], index: number | undefined, word: RegExp): number | undefined {
   if (index === undefined || !lines.length) return undefined;
   const order = lines.map((_, i) => i).sort((a, b) => Math.abs(a - index) - Math.abs(b - index) || a - b);
+  const bare = (s: string | undefined) => (s ?? "").replace(/[^\p{L}\p{N}'’-]+/gu, "");
   for (const i of order) {
     const lt = lines[i]!;
-    const hit = lt.words.find((w) => word.test(w.text.replace(/[^\p{L}\p{N}'’-]+/gu, "")));
+    // A word alone, or with the one before it ("caught fire", "set ablaze"): the pair lands on its second word.
+    const hit = lt.words.find((w, j) => word.test(bare(w.text)) || (j > 0 && word.test(`${bare(lt.words[j - 1]!.text)} ${bare(w.text)}`)));
     if (hit) return lt.start + hit.start;
   }
   return undefined;
