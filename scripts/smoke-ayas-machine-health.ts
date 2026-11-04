@@ -19,10 +19,10 @@ assert.equal(evaluateAyasMachineHealth({ ...base, diskFreePercent: 2 }, { stage:
 assert.equal(action({ ramUsedPercent: undefined }), "BLOCK NEW HEAVY WORK", "assert.equal(action({ ramUsedPercent: undefined }), \"BLOCK NEW HEAVY WORK\")");
 assert.equal(action({ gpuPercent: undefined, unavailable: ["gpu"] }), "THROTTLE", "assert.equal(action({ gpuPercent: undefined, unavailable: [\"gpu\"] }), \"THROTTLE\")");
 const cpuSample = (idle: number, user: number) => [{ model: "fixture", speed: 1, times: { idle, user, nice: 0, sys: 0, irq: 0 } }];
-assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(190, 110)), 10);
-assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(100, 100)), undefined);
-assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(90, 110)), undefined);
-assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), []), undefined);
+assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(190, 110)), 10, "assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(190, 110)), 10)");
+assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(100, 100)), undefined, "assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(100, 100)), undefined)");
+assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(90, 110)), undefined, "assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), cpuSample(90, 110)), undefined)");
+assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), []), undefined, "assert.equal(ayasCpuPercentFromSamples(cpuSample(100, 100), []), undefined)");
 
 const canonical = fs.readFileSync("src/lib/production/ProductionPipelineExecutionCanonicalRuntime.ts", "utf8");
 assert.match(canonical, /assertAyasHeavyWorkloadAllowed\(\{ stage: context\.stage, ownedActive: false \}\)/);
