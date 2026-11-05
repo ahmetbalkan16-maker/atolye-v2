@@ -98,7 +98,7 @@ async function main(): Promise<void> {
       const base = { repoRoot: root, observation, fileRegister: null, remainingMs: () => 150_000, registry, experimentStore: store, now: () => NOW };
       // No evaluator script in the checkout: nothing is measured, the status says why.
       await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("measure"); return GAPS; } });
-      assert.deepEqual(calls, []);
+      assert.equal(calls.length, 0, "no evaluator in the checkout: nothing measured");
       const status = () => JSON.parse(fs.readFileSync(ayasControlledEvolutionStatusFile(root), "utf8")) as AyasControlledEvolutionStatus;
       assert.deepEqual([status().measurement, status().plan.reason], ["NOT_MEASURED", "benchmark not measured at this HEAD yet"]);
       fs.writeFileSync(path.join(root, "scripts", "smoke-ayas-cognitive-quality.ts"), "// fixture evaluator\n");
