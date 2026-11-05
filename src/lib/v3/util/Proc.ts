@@ -4,7 +4,12 @@ export interface ProcResult {
   readonly code: number;
   readonly stdout: string;
   readonly stderr: string;
+  /** Set when stdout or stderr reached the in-memory cap and the rest was dropped (a cut JSON never parses). */
+  readonly truncated?: boolean;
 }
+
+/** The default in-memory cap per stream; a call that reads a large JSON passes `maxOutputBytes`. */
+export const PROC_DEFAULT_MAX_OUTPUT = 2 * 1024 * 1024;
 
 export class ProcError extends Error {
   constructor(readonly code: string, message: string, readonly result?: ProcResult) {
@@ -19,12 +24,13 @@ export class ProcError extends Error {
 export function runProcess(
   command: string,
   args: readonly string[],
-  opts: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; onLine?: (line: string) => void; input?: string } = {},
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; onLine?: (line: string) => void; input?: string; maxOutputBytes?: number } = {},
 ): Promise<ProcResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd: opts.cwd, env: opts.env ?? process.env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
-    const cap = 2 * 1024 * 1024;
+    const cap = opts.maxOutputBytes ?? PROC_DEFAULT_MAX_OUTPUT;
     let stdout = "", stderr = "";
+    let truncated = false;
     let pending = "";
     const feed = (chunk: string) => {
       if (!opts.onLine) return;
@@ -35,12 +41,15 @@ export function runProcess(
     };
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
+    // Kept up to exactly `cap` characters; anything past it is dropped and flagged.
     child.stdout.on("data", (d: string) => {
-      if (stdout.length < cap) stdout += d;
+      if (stdout.length + d.length > cap) truncated = true;
+      if (stdout.length < cap) stdout += d.slice(0, cap - stdout.length);
       feed(d);
     });
     child.stderr.on("data", (d: string) => {
-      if (stderr.length < cap) stderr += d;
+      if (stderr.length + d.length > cap) truncated = true;
+      if (stderr.length < cap) stderr += d.slice(0, cap - stderr.length);
       feed(d);
     });
     const timer = opts.timeoutMs
@@ -55,7 +64,7 @@ export function runProcess(
     });
     child.on("close", (code) => {
       if (timer) clearTimeout(timer);
-      resolve({ code: code ?? -1, stdout, stderr });
+      resolve({ code: code ?? -1, stdout, stderr, ...(truncated ? { truncated: true } : {}) });
     });
     if (opts.input !== undefined) child.stdin.end(opts.input, "utf8");
     else child.stdin.end();

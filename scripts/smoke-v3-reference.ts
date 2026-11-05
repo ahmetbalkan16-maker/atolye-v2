@@ -1,7 +1,7 @@
 /**
  * V3 smoke: learning from similar videos (ReferenceStudy) — captions, the pace measures taken alike of a reference and
  * of our own episode, frame notes, the study's lessons and their limits, targets and gaps, study requests, and the
- * memory forgetting a source studied again. No network, no GPU, no model.
+ * memory forgetting a source studied again. No network, no GPU, no model (one local node child prints a 3 MB JSON).
  * Run: npx tsx scripts/smoke-v3-reference.ts
  */
 import assert from "node:assert/strict";
@@ -35,11 +35,18 @@ import {
   sampleTimes,
   shortenQuotes,
   speechMeasures,
+  studyAttempts,
   studyPrompt,
+  type StudyRequest,
+  studyRequestsDue,
+  STUDY_REQUEST_MAX_ATTEMPTS,
+  STUDY_REQUEST_RETRY_AFTER_MS,
   targetsLine,
   transcriptExcerpt,
   youtubeId,
+  YTDLP_JSON_MAX_BYTES,
 } from "../src/lib/v3/council/ReferenceStudy";
+import { PROC_DEFAULT_MAX_OUTPUT, runProcess } from "../src/lib/v3/util/Proc";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -194,6 +201,40 @@ async function main() {
     assert.equal(await forgetSource(root, "kurgu", "referans z"), 1);
     assert.match(readFileSync(file, "utf8"), /\{broken/);
     assert.ok(existsSync(file));
+  });
+
+  await scenario("H2 a yt-dlp JSON over 2 MB is read whole (2026-11-05: 10.4 MB cut at 2097152); a cut output is flagged, never silent", async () => {
+    // A child that prints a 3 MB JSON document, like yt-dlp's caption-heavy --dump-single-json.
+    const big = ["-e", "process.stdout.write(JSON.stringify({ title: 'RECAP', automatic_captions: { en: 'x'.repeat(3 * 1024 * 1024) } }))"];
+    const capped = await runProcess(process.execPath, big);
+    assert.equal(capped.truncated, true, "the default 2 MB cap now says it cut the output");
+    assert.equal(capped.stdout.length, PROC_DEFAULT_MAX_OUTPUT);
+    assert.throws(() => JSON.parse(capped.stdout), /Unterminated string/, "this was the owner's \"incelenemedi\"");
+    const whole = await runProcess(process.execPath, big, { maxOutputBytes: YTDLP_JSON_MAX_BYTES });
+    assert.equal(whole.truncated, undefined);
+    assert.equal((JSON.parse(whole.stdout) as { title: string }).title, "RECAP");
+    assert.equal((await runProcess(process.execPath, ["-e", "process.stdout.write('ok')"])).truncated, undefined, "a small output is untouched");
+  });
+
+  await scenario("H3 a failed link is studied once more an hour later unless the video is closed; the same link sent three times is studied once", () => {
+    const at = (iso: string, durum: StudyRequest["durum"], extra: Partial<StudyRequest> = {}, id = "805SIqgDZIE") =>
+      ({ file: `${iso}-${id}.json`, request: { id, url: `https://www.youtube.com/watch?v=${id}`, kaynak: "ayas", tarih: iso, durum, ...extra } as StudyRequest });
+    const cut = "Unterminated string in JSON at position 2097152 (line 1 column 2097153)";
+    const now = new Date("2026-11-05T16:00:00Z");
+    const list = [
+      at("2026-11-05T13:05:00Z", "hata", { sonuc: cut }), at("2026-11-05T13:09:00Z", "hata", { sonuc: cut }), at("2026-11-05T13:25:00Z", "hata", { sonuc: cut }),
+      at("2026-11-05T15:30:00Z", "hata", { sonuc: cut }, "recentFail0"),
+      at("2026-11-05T10:00:00Z", "hata", { sonuc: "ERROR: Join this channel to get access to members-only content" }, "membersOnly"),
+      at("2026-11-05T10:00:00Z", "hata", { sonuc: cut, deneme: 2, sonDeneme: "2026-11-05T11:00:00Z" }, "triedTwice0"),
+      at("2026-11-05T15:59:00Z", "bekliyor", {}, "waiting0000"),
+      at("2026-11-04T08:23:00Z", "tamam", { sonuc: "3 ders" }, "done0000000"),
+    ];
+    const due = studyRequestsDue(list, now);
+    assert.deepEqual(due.map((g) => [g.id, g.items.length]), [["805SIqgDZIE", 3], ["waiting0000", 1]]);
+    assert.equal(studyAttempts(list[0]!.request), 1, "an old failed request counts as one attempt");
+    assert.equal(studyAttempts(list[6]!.request), 0);
+    assert.equal(STUDY_REQUEST_MAX_ATTEMPTS, 2);
+    assert.deepEqual(studyRequestsDue(list, new Date(Date.parse("2026-11-05T15:30:00Z") + STUDY_REQUEST_RETRY_AFTER_MS)).map((g) => g.id), ["805SIqgDZIE", "recentFail0", "waiting0000"]);
   });
 
   await scenario("I own searches, consolidation and the writer's shares: the same advice never piles up", async () => {

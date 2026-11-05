@@ -374,6 +374,34 @@ export interface StudyRequest {
   readonly tarih: string;
   durum: "bekliyor" | "tamam" | "hata";
   sonuc?: string;
+  /** Attempts made so far (absent on older requests: a "hata" one counts as one attempt). */
+  deneme?: number;
+  /** When the last attempt ended. */
+  sonDeneme?: string;
+}
+
+/** A failed request is studied once more (owner 2026-11-05: links reported "incelenemedi" for a fault on our side). */
+export const STUDY_REQUEST_MAX_ATTEMPTS = 2;
+export const STUDY_REQUEST_RETRY_AFTER_MS = 60 * 60_000;
+/** Failures a second attempt cannot change: the video itself is closed to us. */
+const STUDY_FAILURE_FINAL = /members[- ]only|private video|video has been removed|account .*terminated|copyright (?:claim|grounds)|REFERENCE_NOT_YOUTUBE/i;
+
+export function studyAttempts(request: StudyRequest): number {
+  return request.deneme ?? (request.durum === "hata" ? 1 : 0);
+}
+
+/**
+ * The requests to study now, one group per video (the owner sometimes sends the same link again while the first
+ * waits or failed: one study answers them all). A waiting request is due; a failed one is due again once, an hour
+ * after its last attempt, unless the video itself is closed (members only, private, removed).
+ */
+export function studyRequestsDue<T extends { readonly request: StudyRequest }>(requests: readonly T[], now: Date = new Date()): { readonly id: string; readonly items: readonly T[] }[] {
+  const due = (r: StudyRequest): boolean => r.durum === "bekliyor"
+    || (r.durum === "hata" && studyAttempts(r) < STUDY_REQUEST_MAX_ATTEMPTS && !STUDY_FAILURE_FINAL.test(r.sonuc ?? "")
+      && now.getTime() - Date.parse(r.sonDeneme ?? r.tarih) >= STUDY_REQUEST_RETRY_AFTER_MS);
+  const groups = new Map<string, T[]>();
+  for (const item of requests) if (due(item.request)) groups.set(item.request.id, [...(groups.get(item.request.id) ?? []), item]);
+  return [...groups].map(([id, items]) => ({ id, items }));
 }
 
 export function studyRequestDir(workRoot: string): string {

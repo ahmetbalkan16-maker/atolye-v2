@@ -23,7 +23,7 @@ import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { learnFromCommits, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
-import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
+import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, studyAttempts, type StudyRequest, studyRequestsDue, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
@@ -111,19 +111,25 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     }
   }
   if (task === "istekler") {
-    const waiting = (await listStudyRequests(paths.workRoot)).filter((x) => x.request.durum === "bekliyor");
-    if (!waiting.length) return skip("bekleyen video isteği yok");
+    // Waiting links, plus a failed one once more an hour later; the same video sent twice is studied once.
+    const due = studyRequestsDue(await listStudyRequests(paths.workRoot));
+    if (!due.length) return skip("bekleyen video isteği yok");
     const done: string[] = [];
-    for (const { file, request } of waiting.slice(0, 3)) {
+    for (const { id, items } of due.slice(0, 3)) {
+      let outcome: Pick<StudyRequest, "durum" | "sonuc">;
       try {
-        const r = await studyReference({ paths, id: request.id, neden: `${request.kaynak} isteği`, eye: brainVision(), budget: budget.budget, model: budget.director, log });
-        Object.assign(request, { durum: "tamam", sonuc: `${r.dersler.length} ders: ${r.ozet}`.slice(0, 400) });
+        const r = await studyReference({ paths, id, neden: `${items[0]!.request.kaynak} isteği`, eye: brainVision(), budget: budget.budget, model: budget.director, log });
+        outcome = { durum: "tamam", sonuc: `${r.dersler.length} ders: ${r.ozet}`.slice(0, 400) };
         done.push(`"${r.baslik}" (${r.dersler.length} ders)`);
       } catch (e) {
-        Object.assign(request, { durum: "hata", sonuc: (e as Error).message.slice(0, 300) });
-        done.push(`${request.id} incelenemedi`);
+        outcome = { durum: "hata", sonuc: (e as Error).message.slice(0, 300) };
+        done.push(`${id} incelenemedi (${(e as Error).message.slice(0, 80)})`);
       }
-      await saveStudyRequest(file, request);
+      const at = new Date().toISOString();
+      for (const { file, request } of items) {
+        Object.assign(request, { ...outcome, deneme: studyAttempts(request) + 1, sonDeneme: at });
+        await saveStudyRequest(file, request);
+      }
     }
     return ok(done.join(", "));
   }

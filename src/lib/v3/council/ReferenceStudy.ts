@@ -30,10 +30,23 @@ export function ytDlpPython(paths: Pick<V3Paths, "toolsRoot">): string {
 
 const YTDLP_BASE = ["-m", "yt_dlp", "--js-runtimes", "node", "--no-progress", "--no-warnings", "--no-playlist"];
 
+/**
+ * yt-dlp's `--dump-single-json` lists every automatic-caption translation URL: 10.4 MB for a 2-minute Short on
+ * 2026-11-05 ("RECAP: First Punic War", 9.8 MB of it captions). Under the process helper's default 2 MB cap the JSON
+ * was cut and every such link the owner sent failed as "Unterminated string in JSON at position 2097152".
+ */
+export const YTDLP_JSON_MAX_BYTES = 64 * 1024 * 1024;
+
+/** Runs a yt-dlp command whose stdout is one JSON document and parses it; a cut document is a clear error, not a JSON one. */
+async function ytDlpJson<T>(py: string, args: readonly string[], timeoutMs: number): Promise<T> {
+  const r = await runChecked(py, args, { timeoutMs, maxOutputBytes: YTDLP_JSON_MAX_BYTES });
+  if (r.truncated) throw new Error(`REFERENCE_INFO_TOO_LARGE: yt-dlp bilgisi ${Math.round(YTDLP_JSON_MAX_BYTES / 1024 / 1024)} MB sınırını aştı`);
+  return JSON.parse(r.stdout) as T;
+}
+
 /** YouTube search results (metadata only, nothing downloaded). */
 export async function searchVideos(paths: Pick<V3Paths, "toolsRoot">, query: string, n = 8): Promise<SearchHit[]> {
-  const r = await runChecked(ytDlpPython(paths), [...YTDLP_BASE, "--flat-playlist", "--dump-single-json", `ytsearch${n}:${query}`], { timeoutMs: 120_000 });
-  const entries = (JSON.parse(r.stdout) as { entries?: Record<string, unknown>[] }).entries ?? [];
+  const entries = (await ytDlpJson<{ entries?: Record<string, unknown>[] }>(ytDlpPython(paths), [...YTDLP_BASE, "--flat-playlist", "--dump-single-json", `ytsearch${n}:${query}`], 120_000)).entries ?? [];
   return entries.flatMap((e) => (typeof e.id === "string" ? [{ id: e.id, baslik: String(e.title ?? ""), kanal: String(e.channel ?? e.uploader ?? ""), kanalId: String(e.channel_id ?? ""), sureSn: Number(e.duration) || 0, izlenme: Number(e.view_count) || 0 }] : []));
 }
 
@@ -56,7 +69,7 @@ export async function fetchReference(paths: Pick<V3Paths, "toolsRoot">, id: stri
   const py = ytDlpPython(paths);
   if (!existsSync(py)) throw new Error(`REFERENCE_YTDLP_MISSING: ${py}`);
   const url = `https://www.youtube.com/watch?v=${id}`;
-  const info = JSON.parse((await runChecked(py, [...YTDLP_BASE, "--skip-download", "--dump-single-json", url], { timeoutMs: 180_000 })).stdout) as Record<string, unknown>;
+  const info = await ytDlpJson<Record<string, unknown>>(py, [...YTDLP_BASE, "--skip-download", "--dump-single-json", url], 180_000);
   const subs = (info.subtitles ?? {}) as Record<string, unknown>;
   const auto = (info.automatic_captions ?? {}) as Record<string, unknown>;
   const lang = typeof info.language === "string" && info.language ? info.language : "";
