@@ -1,3 +1,20 @@
+## 5 Kasım 2026 — AYAS sistem durumu "KISMEN BOZUK" / Graphify "ESKİ": kök neden ve düzeltme
+
+**Belirti:** Kontrol Merkezi sağlıkta `KISMEN BOZUK` (DEGRADED), Graphify'da `ESKİ (GRAPH_STALE)` gösteriyordu.
+
+**Kök neden:** Canlı Next süreci `ayas-access-daemon.ps1` üzerinden canonical `atolye-v2` çalışma dizininde
+koşuyor. AYAS'ın uyguladığı `23ff1e73` commit'inden sonra Graphify kapanış yenilemesi yapılmamış; grafik
+`289762b1`'de kalmıştı (`SOURCE_HEAD` ≠ `LAST_ANALYZED_HEAD`). Kod, veri veya yetki hatası yoktu.
+
+**Düzeltme (yalnız `.graphify`, git dışı):** `graphify update --scope all --no-description --no-label .`
+çalıştırıldı. Sonuç: `SOURCE_HEAD` = `LAST_ANALYZED_HEAD` = `GRAPH_BUILT_FROM` = `23ff1e73`; yapısal ve
+anlamsal `CURRENT`; 23.974 node / 68.276 edge / 431 topluluk; 0 anomali; `needs_update` ve
+`.graphify_describe_pending` yok.
+
+**Doğrulama:** `ayas-graphify-status` → `GRAPH_CURRENT`; `ayas-self-improvement-health` → `HEALTHY`
+(bulgu yok); gerçek yerel MCP (`scripts/graphify-local-mcp.mjs`) `graph_stats` → 23.974 / 68.276 / 431.
+Kaynak dosya değişmedi, canonical dalda commit/push yapılmadı.
+
 ## 3–4 Kasım 2026 — Geliştirici beyni kodu öğrenir; Zanzibar Short'u AYAS'a verildi ve yeniden yapıldı (1 eksik); portre, rozet, rötuş doğrulaması
 
 **Owner (3 Kas akşam):** "kod yazan beyin senin kod değişikliğini deneyim olarak kaydetti mi, nereye ne kod değişikliği
