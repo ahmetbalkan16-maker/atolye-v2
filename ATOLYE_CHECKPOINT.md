@@ -1,3 +1,25 @@
+## 5 Kasım 2026 — Gelişim Merkezi'ndeki "KURTARMA GEREKLİ" kaydı: inceleme ve push ile kurtarma
+
+**Belirti:** Gelişim Merkezi'nde 1 öneri `RECOVERY_REQUIRED` ("KURTARMA GEREKLİ") durumundaydı:
+`ayas-proposal-95501c82-4bc9-46d7-b796-766747556813` — `scripts/smoke-ayas-owner-recommendations-view.ts`
+içindeki 15 mesajsız assert çağrısına teşhis mesajı ekleme işi.
+
+**Neden oluştu:** Owner onayı ve yürütme 4 Kasım 10:06'da yapıldı; mutasyon tamamlandı, test `PASS` oldu ve
+commit `23ff1e73` oluştu. Ancak `git push` GitHub'ın geçici `Internal Server Error` yanıtıyla düştü; guard
+mutasyonu geri alamadı ("HEAD moved 289762b → 23ff1e7: the publication is real") ve kayıt `RECOVERY_REQUIRED`
+olarak kapandı. Kod/veri hatası değil, yayınlama hatasıydı.
+
+**İnceleme (salt okunur):** Commit'lenen dosya içeriği onaylı patch artifact ile birebir aynı (11.494 karakter),
+çalışma ağacı temiz, `smoke-ayas-owner-recommendations-view` 13 senaryo `PASS`, stability journal'ında
+`mutationCompletedAt` dolu. Yani değişiklik doğru; eksik olan yalnız origin'e yayınlamaydı.
+
+**Kurtarma:** `git push origin wip/ayas-graphify-final-execution` (`289762b1` → `23ff1e73`). Sonraki discovery
+tick'i kaydı kendisi kapattı: `recoveryResolution.kind = PUBLISHED_VERIFIED`, kanıt commit `23ff1e73`,
+durum `COMPLETED` (5 Kasım 07:32:22Z). Kayıt silinmedi; kanıtla kapandı.
+
+**Doğrulama:** `RECOVERY_REQUIRED` öneri sayısı 0; `ayas-self-improvement-health` → `HEALTHY` (bulgu yok,
+observer `OBSERVING`); Graphify `GRAPH_CURRENT` (`23ff1e73`, HEAD değişmedi). Kaynak kod değiştirilmedi.
+
 ## 5 Kasım 2026 — AYAS sistem durumu "KISMEN BOZUK" / Graphify "ESKİ": kök neden ve düzeltme
 
 **Belirti:** Kontrol Merkezi sağlıkta `KISMEN BOZUK` (DEGRADED), Graphify'da `ESKİ (GRAPH_STALE)` gösteriyordu.
