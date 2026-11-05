@@ -25,10 +25,18 @@ resimde temiz parallax. İlk ayarda (genişlet 15 / bulanık 9) gravürün ince 
 KARSILASTIR-*.mp4` (üst/sol bugünkü, alt/sağ derinlikli). Üretime bağlanmadı; owner izleyip karar verecek (Remotion'a
 katman olarak bağlamak ayrı iş).
 
-**Wan 2.2 TI2V-5B — owner onayı bekliyor (indirilmedi).** Lisans Apache-2.0, diffusers 0.35.2 destekliyor, ama dosyalar
-34,2 GB (transformer fp32 20 GB, umt5 11,4 GB, VAE 2,8 GB); fp16 tek dosyayla ≈ 23 GB. Ortak bina hattında toplu
-indirme owner kararı (`shared-office-network` kuralı). RAM 31,7 GB: metin kodlayıcı ile model aynı anda tutulmamalı
-(önce istemleri kodla, sonra boşalt), kartta grup offload, 480p kısa klip.
+**Wan 2.2 TI2V-5B — indiriliyor (owner: "indirmeyi başlat … bizden onay almadan video üretmesin").** 6 Kas 00:02'de
+başladı: `scripts/v3/wan22_indir.py` (92123dd0, c962fc95), 15 sabit dosya, 24,2 GB → `D:\URETIM\Atolye\v3-tools\models\
+wan22-ti2v-5b` (~10 MB/sn). Transformer Comfy-Org fp16 tek dosyası (10 GB; başlığındaki 825 tensör diffusers 0.35.2
+dönüştürücüsüyle WanTransformer3DModel'e birebir: eksik/fazla/boyut farkı 0), umt5 + Wan 2.2 VAE + tokenizer resmi
+Diffusers deposundan. Kesip yeniden başlatma denendi: biten dosyalar atlandı, yarım VAE 94 MB'tan sürdü. Bitince boyut +
+SHA-256 doğrulanır, `model-manifest.json` yazılır. Durum: `python -I scripts/v3/wan22_indir.py --durum`, kayıt
+`D:\URETIM\private\logs\wan22-indir.log`. **Açılışta sürmesi için owner'ın bir kez çalıştırması gereken komut** (Claude'un
+Başlangıç klasörünü değiştirmesi otomatik izin denetiminde engelli): `& "D:\URETIM\Atolye\v3-tools\gen-venv\Scripts\
+python.exe" -I "D:\URETIM\Atolye\atolye-v2\scripts\v3\wan22_indir.py" --kur`; kısayol indirme bitince kendini siler.
+**Video denemesi owner onayı olmadan başlatılmaz.** Deneme planı: RAM 31,7 GB → önce istemler umt5 ile kodlanıp
+kodlayıcı boşaltılır, sonra transformer (fp16 → bf16 kayıpsız) grup offload ile, 480p kısa klip, SDXL gibi adım arası
+`cool_down` (82/78 °C).
 
 ## 5 Kasım 2026 (gece, 3) — kontrollü evrim açıldı (owner: "sadece kontrollü evrimi yap")
 
