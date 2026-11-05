@@ -1,3 +1,38 @@
+## 5 Kasım 2026 (akşam) — kendini onaran yayın, kanal hedefleri, internet araştırması, inceleme hatası
+
+**Durum:** `feature/cop-adam-v3`'te 728106b5 (AYAS), 2fda9a25 (V3 inceleme), 5e4c6c66 (kanal hedefleri); owner'ın
+"commit et ve canlıya al" onayıyla canlı dala (`wip/ayas-graphify-final-execution`) merge edilip canlıya alındı.
+`data/projects`, MP4'ler ve sipariş verileri değişmedi. Gözlemci yeniden başlatması gerekmez (yürütücü ve discovery her
+tick yeniden başlar; V3 boşta döngüsü ve üretim hattı her çalışmada yeni süreç).
+
+**1. Push hatası / Graphify ESKİ.** Opencode'un yarım işi `D:\ÜRETİM\Atolye\AYAS-SON-CALISMA-YEDEK-20261105-110434`'te
+(ve opencode DB'de) duruyor; canonical'da yapılmış, owner geri almış. İncelendi: sınıflandırıcısı 4 Kasım'ın gerçek
+mesajını (`[remote rejected] … (Internal Server Error)`) "kalıcı" sayıyordu, Graphify onarımı yoktu, sağlığa eklediği
+WARN her kapanışı bozardı (WARN → DEGRADED → kapanış HEALTHY ister). Yerine: `AyasGitPushRetry` (3 yayın yolu),
+`AyasRecoveryReconciliation` + yayıncı (yalnız yürütücüde), `AyasPublicationSelfHeal` (kurtarma push'u + Graphify
+onarımı), `AyasPostPublicationClosure.refreshAyasGraphifyForHead`. `completionRecorded` kök nedeni:
+`AyasDeferredPublicationFinalizer` düzeltildi. Testler: `smoke-ayas-publication-self-heal` (8, gerçek olay mesajı dahil),
+`smoke-ayas-recovery-reconciliation` (21, 7 yeni), `smoke-ayas-proposal-approval-service` (28), güvenlik duvarı (13) ve
+21 regresyon testi.
+
+**4. "İncelenemedi".** Kök neden: `Proc.runProcess` 2 MB sınırı; yt-dlp bilgisi bir videoda 10,4 MB. 4 başarısız istek
+(`G1p6rlDCxq0`, `805SIqgDZIE` ×3) kod canlıya geçince bir saat içinde kendiliğinden yeniden denenir (805… tek inceleme).
+
+**2. Crowns & Doodles.** `content/v3/kanal-hedefleri.json` (tek kaynak), `src/lib/v3/publish/ChannelGoals.ts`,
+`VideoPerformanceStore.ts`, `scripts/v3/kanal.ts`, Short zaman haritası yazara (`ScriptBrief.kisaZamanHaritasi`), QC'ye
+ilk 3 sn + sahne planı satırları ve kanal hedefi notu. `smoke-v3-channel-goals` (9). Belge `docs/v3/09_KANAL_HEDEFLERI.md`.
+Caesar Short'un doğru kimliği `q8JW_i5Gt0M` (küçük q).
+
+**3. İnternet araştırması.** `src/lib/ayas/research/` (arama, link öğrenme, ortak bilgi, Atölye yetenek haritası),
+`scripts/ayas-web-research.ts`, `.gitignore` `/data/brain/knowledge/`. `smoke-ayas-web-research` (9). Canlı denemede
+GitHub/HF/arXiv/HN çalıştı, Wikipedia 429. Envanter ve kopuk halkalar (teknoloji izleme yalnız elle, adaptation
+çağrılmıyor, kontrollü evrim env yok): `docs/AYAS_INTERNET_RESEARCH_AND_SHARED_KNOWLEDGE.md`. İlk araştırma:
+`docs/research/2026-11-05-ucretsiz-ai-video-arastirmasi.md` (+ `.json`, `ayas-web-research.ts ekle` ile canonical'a da
+aktarılabilir).
+
+**Sıradaki:** commit/push (owner); canonical'da `ekle --dosya docs/research/…json`; sohbetten link/arama isteğini arka
+plana bağlamak; Stage 8 → teknoloji izleme; Wan 2.2 TI2V-5B / Depth Anything V2 Small V3 denemesi; PDF kararı; pilot.
+
 ## 5 Kasım 2026 — Gelişim Merkezi'ndeki "KURTARMA GEREKLİ" kaydı: inceleme ve push ile kurtarma
 
 **Belirti:** Gelişim Merkezi'nde 1 öneri `RECOVERY_REQUIRED` ("KURTARMA GEREKLİ") durumundaydı:

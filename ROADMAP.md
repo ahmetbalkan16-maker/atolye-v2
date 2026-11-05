@@ -1,3 +1,12 @@
+## 5 Kasım 2026 — kendini onaran yayın, kanal hedefleri, internet araştırması
+
+Tamam (worktree, commit bekliyor): push hatasında sınırlı tekrar + güncelleme yürütücüsünün kanıtlı kurtarma push'u ve
+Graphify kendini onarma; Crowns & Doodles hedef kaynağı, Short zaman haritası, ilk 3 sn / sahne planı QC'si, yayın
+sonrası ölçüm ve pilot plan (`docs/v3/09_KANAL_HEDEFLERI.md`); AYAS anahtarsız web araması, link öğrenme ve ortak
+bilgi deposu (`docs/AYAS_INTERNET_RESEARCH_AND_SHARED_KNOWLEDGE.md`); V3 video incelemesinin 2 MB kesilme hatası.
+Sıradaki: sohbetten link/arama isteğini arka plana aktarmak; Stage 8 bulgularını teknoloji izleme ve ortak bilgiye
+otomatik bağlamak; Wan 2.2 TI2V-5B ve Depth Anything V2 Small V3 denemesi; PDF bağımlılık kararı; pilot 6 Short.
+
 ## 14 Ekim 2026 — ayrıntılı belgesel hareket sprinti (DEVAM)
 
 Owner ayrıntılı karakter üslubunu kabul etti; oda ölçeği düzeltildi. D'de iki yalnız Ottoman/1480 draft aday (poz atlası ve gerçek13parça rig),6pack24metadata ve94s gerçek sesli/1080p30 yerel önizleme hazır; API0. Senaryo çoğunluk-kopya reddi ve180s30gerçekkarakter/ortamdeğişimi plan kontrolü kaynakta. Asıl joint renderer, portable native üretim adapter'i,180s30değişimli kabul ve qualifiedlive geçiş açık. Mevcut homepage/frozen/authority/$1bütçe/canlıc10d korunur. WIP source kaydı sonrası SONHEADGraphify/CI/health kapanışı gerekir. En güncel adımlar ATOLYE_CHECKPOINT.md ve docs/ATOLYE_ILLUSTRATED_DOCUMENTARY_2026-10-14.md.
