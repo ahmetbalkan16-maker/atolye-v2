@@ -11,11 +11,9 @@ import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupManifestSha256,
-  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV1,
   runtimeBackupFormatVersionV2,
   runtimeBackupFormatVersionV3,
-  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV1,
   runtimeBackupManifestSchemaVersionV2,
   runtimeBackupManifestSchemaVersionV3,
@@ -1398,7 +1396,6 @@ async function main() {
 
     await scenario("independent exact 259 public chain passes and 260 rejects before mutation", () => {
       const slug = "boundary-independent";
-      const relativePath = `${slug}/x.bin`;
       const source = path.join(fixtureProjects, slug, "x.bin");
       const bytes = Buffer.from([0, 1, 2, 253, 254, 255]);
       fs.mkdirSync(path.dirname(source), { recursive: true });

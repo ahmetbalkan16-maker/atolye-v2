@@ -9,7 +9,7 @@ import { classifyProductionDurableAttemptLineage } from
   "../src/lib/production/ProductionDurableAttemptLineageClassifier";
 import { listRegenerationExecutionBindings } from
   "../src/lib/production/ProductionCompletedStageRegenerationStore";
-import type { PipelineJobList, PipelineJobHistory } from "../src/types/pipelineJob";
+import type { PipelineJobHistory } from "../src/types/pipelineJob";
 import type { ProjectPackageManifest } from "../src/types/project";
 
 /**

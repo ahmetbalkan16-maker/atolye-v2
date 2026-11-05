@@ -21,7 +21,6 @@ import {
   AudioPublicationRebindError,
   AudioPublicationRebindConflictError,
   type AudioPublicationIntent,
-  type AudioPublicationDescriptorRebind,
   type AudioPublicationRebindRecordReference,
 } from "../src/lib/audio/AudioPublicationIntentStore";
 import type { PortablePublishedFile } from "../src/lib/runtime/security/PortableNoClobberFilePublisher";
@@ -149,13 +148,6 @@ function rebindFilePath(runtime: CanonicalSmokeRuntime, assetId: string, sequenc
   return path.join(
     runtime.runtimeStorageContext.projectsRoot, runtime.projectSlug,
     "production-execution", "audio-publication-rebinds", `${assetId}.${sequence}.json`,
-  );
-}
-
-function intentFilePath(runtime: CanonicalSmokeRuntime, assetId: string): string {
-  return path.join(
-    runtime.runtimeStorageContext.projectsRoot, runtime.projectSlug,
-    "production-execution", "audio-publication-intents", `${assetId}.json`,
   );
 }
 

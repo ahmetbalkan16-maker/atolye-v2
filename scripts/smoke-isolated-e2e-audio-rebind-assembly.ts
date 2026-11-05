@@ -251,7 +251,7 @@ async function runIsolatedE2E() {
       console.log(`[E2E] Inspection fail-closed PASS.`);
 
       console.log(`[E2E] Step 4: Re-anchoring descriptors via createAudioPublicationDescriptorRebind & createAudioCanonicalDescriptorRebind...`);
-      const publicationRebind = withProjectAuthority(runtime, (authority) =>
+      withProjectAuthority(runtime, (authority) =>
         createAudioPublicationDescriptorRebind({
           projectSlug: runtime.projectSlug,
           projectId,

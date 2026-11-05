@@ -21,8 +21,8 @@ architectural decisions.
   considered done. On this Windows machine use `node scripts/lint-yerel.mjs` instead: under
   `D:\ÜRETİM` the "İ" lower-cases to two characters, ESLint's repo-relative paths shift and none of the
   config's ignores match (`npm run lint` there reports ~167k problems, all from `node_modules`). CI (Linux)
-  runs `npm run lint` unaffected. 13 unused-variable warnings in audited Sprint 129 operator/smoke scripts
-  are pre-existing and left alone (their bytes are evidence).
+  runs `npm run lint` unaffected. The baseline is 0 errors / 0 warnings since 2026-11-05 (the 13 old
+  unused-import warnings in Sprint 129-era operator/smoke scripts were removed; no check pins those files).
 - `npx tsc --noEmit` — required after any change; a change is not considered complete until this
   passes.
 - Smoke tests are plain scripts, not a test framework: `npx tsx scripts/smoke-<name>.ts` runs one

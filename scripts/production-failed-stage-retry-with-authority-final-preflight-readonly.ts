@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
-import { pipelineRetryMaxAttempts, fingerprintPipelineJob } from
+import { pipelineRetryMaxAttempts } from
   "../src/lib/pipeline/PipelineRetryAdmission";
 import { regenerationBindingForExecution } from
   "../src/lib/production/ProductionCompletedStageRegenerationStore";

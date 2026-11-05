@@ -24,7 +24,6 @@ import {
   transitionAudioCompensationState,
   AudioCompensationStoreError,
   AudioCanonicalDescriptorRebindConflictError,
-  type AudioCanonicalDescriptorRebind,
   type AudioCanonicalDescriptorRebindRecordReference,
   type ProtectedAudioCompensationPublication,
 } from "../src/lib/audio/AudioCompensationStore";

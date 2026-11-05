@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -6,8 +5,6 @@ import { ProductionExecutionFilePersistenceAdapter } from
   "../src/lib/production/ProductionExecutionPersistence";
 import { readProductionExecutionRecoverySemanticAuthority } from
   "../src/lib/production/ProductionExecutionRecoveryBootstrap";
-import { classifyProductionDurableAttemptLineage } from
-  "../src/lib/production/ProductionDurableAttemptLineageClassifier";
 
 /**
  * READ-ONLY diagnostic: runs readProductionExecutionRecoverySemanticAuthority
