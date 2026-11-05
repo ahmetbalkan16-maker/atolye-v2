@@ -34,9 +34,9 @@ async function run() {
     // Node's `performance` object has no `.memory` extension (that's a
     // Chrome/Chromium-specific non-standard addition) — this must be
     // reported as unavailable, never fabricated.
-    assert.equal(sample.available, false);
-    assert.equal(sample.usedMb, null);
-    assert.equal(formatMemorySample(sample), "unavailable");
+    assert.equal(sample.available, false, "assert.equal(sample.available, false)");
+    assert.equal(sample.usedMb, null, "assert.equal(sample.usedMb, null)");
+    assert.equal(formatMemorySample(sample), "unavailable", "assert.equal(formatMemorySample(sample), \"unavailable\")");
   });
 
   await scenario("sampleMemoryMb: reports real numbers when performance.memory IS present (simulated)", () => {
@@ -48,18 +48,18 @@ async function run() {
     };
     try {
       const sample = sampleMemoryMb();
-      assert.equal(sample.available, true);
-      assert.equal(sample.usedMb, 50);
-      assert.equal(sample.totalMb, 80);
-      assert.equal(sample.limitMb, 384);
-      assert.equal(formatMemorySample(sample), "used=50MB total=80MB limit=384MB");
+      assert.equal(sample.available, true, "assert.equal(sample.available, true)");
+      assert.equal(sample.usedMb, 50, "assert.equal(sample.usedMb, 50)");
+      assert.equal(sample.totalMb, 80, "assert.equal(sample.totalMb, 80)");
+      assert.equal(sample.limitMb, 384, "assert.equal(sample.limitMb, 384)");
+      assert.equal(formatMemorySample(sample), "used=50MB total=80MB limit=384MB", "assert.equal(formatMemorySample(sample), \"used=50MB total=80MB limit=384MB\")");
     } finally {
       (performance as unknown as { memory?: unknown }).memory = original;
     }
   });
 
   await scenario("FinalizationRegistry support is correctly detected (Node supports it natively)", () => {
-    assert.equal(isFinalizationRegistrySupported(), true);
+    assert.equal(isFinalizationRegistrySupported(), true, "assert.equal(isFinalizationRegistrySupported(), true)");
   });
 
   await scenario("trackBufferFinalization: registration never throws, even for many buffers in a row", () => {
@@ -74,7 +74,7 @@ async function run() {
     // @ts-expect-error — deliberately removing it to test the feature-detection path
     delete globalThis.FinalizationRegistry;
     try {
-      assert.equal(isFinalizationRegistrySupported(), false);
+      assert.equal(isFinalizationRegistrySupported(), false, "assert.equal(isFinalizationRegistrySupported(), false)");
       assert.doesNotThrow(() => trackBufferFinalization(new Uint8Array(10), 0, () => {}));
     } finally {
       globalThis.FinalizationRegistry = original;
@@ -86,14 +86,14 @@ async function run() {
       const inFlight = enterChunkInFlight();
       assert.equal(inFlight, 1, "strictly sequential usage must never see more than 1 in flight");
       const after = exitChunkInFlight();
-      assert.equal(after, 0);
+      assert.equal(after, 0, "assert.equal(after, 0)");
     }
   });
 
   await scenario("concurrency counter: overlapping enter calls (simulated violation) are correctly detectable", () => {
     const first = enterChunkInFlight();
     const second = enterChunkInFlight(); // simulates a real concurrency bug — enter() called again before the first exit()
-    assert.equal(first, 1);
+    assert.equal(first, 1, "assert.equal(first, 1)");
     assert.equal(second, 2, "a second concurrent enter() must report a count > 1 — the violation signal callers check for");
     exitChunkInFlight();
     exitChunkInFlight();

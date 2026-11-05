@@ -58,25 +58,25 @@ function main(): void {
     const inbox = tmpInbox();
     const created = inbox.createProposal(proposalInput() as never);
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.connected, true);
-    assert.equal(view.recommendations.length, 1);
-    assert.equal(view.recommendations[0]?.binding.proposalId, created.proposalId);
-    assert.equal(view.recommendations[0]?.request.recommendation, "PROCEED");
-    assert.equal(view.recommendations[0]?.request.executable, true);
+    assert.equal(view.connected, true, "assert.equal(view.connected, true)");
+    assert.equal(view.recommendations.length, 1, "assert.equal(view.recommendations.length, 1)");
+    assert.equal(view.recommendations[0]?.binding.proposalId, created.proposalId, "assert.equal(view.recommendations[0]?.binding.proposalId, created.proposalId)");
+    assert.equal(view.recommendations[0]?.request.recommendation, "PROCEED", "assert.equal(view.recommendations[0]?.request.recommendation, \"PROCEED\")");
+    assert.equal(view.recommendations[0]?.request.executable, true, "assert.equal(view.recommendations[0]?.request.executable, true)");
   });
 
   scenario("a REVIEW_REQUIRED proposal is never surfaced — deferred internally, not shown to the owner", () => {
     const inbox = tmpInbox();
     inbox.createProposal(proposalInput({ safetyClassification: "REVIEW_REQUIRED" as never, exactFiles: ["src/lib/audio/AudioMixer.ts"], mutationKind: undefined } as never) as never);
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.recommendations.length, 0);
+    assert.equal(view.recommendations.length, 0, "assert.equal(view.recommendations.length, 0)");
   });
 
   scenario("a FORBIDDEN_AUTONOMOUS proposal is never surfaced", () => {
     const inbox = tmpInbox();
     inbox.createProposal(proposalInput({ safetyClassification: "FORBIDDEN_AUTONOMOUS" as never, exactFiles: ["src/lib/ayas/execution/AyasExecutionGateStore.ts"], mutationKind: undefined } as never) as never);
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.recommendations.length, 0);
+    assert.equal(view.recommendations.length, 0, "assert.equal(view.recommendations.length, 0)");
   });
 
   scenario("a non-PENDING proposal (already APPROVED/REJECTED/STALE/etc.) is never re-surfaced", () => {
@@ -84,14 +84,14 @@ function main(): void {
     const created = inbox.createProposal(proposalInput() as never);
     inbox.decide(created.proposalId, "REJECT", "2026-09-18T00:00:01.000Z");
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.recommendations.length, 0);
+    assert.equal(view.recommendations.length, 0, "assert.equal(view.recommendations.length, 0)");
   });
 
   scenario("an insufficient-evidence proposal is never surfaced", () => {
     const inbox = tmpInbox();
     inbox.createProposal(proposalInput({ evidence: [], graphifyEvidence: [] } as never) as never);
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.recommendations.length, 0);
+    assert.equal(view.recommendations.length, 0, "assert.equal(view.recommendations.length, 0)");
   });
 
   scenario("no `.decide(` call is reachable from this module's own source — a page render can never mutate the inbox", () => {
@@ -103,8 +103,8 @@ function main(): void {
   scenario("a broken inbox (throws on load) is reported as disconnected, not crashed", () => {
     const throwingInbox = { load: () => { throw new Error("boom"); }, stateFile: "", save: () => { throw new Error("unused"); }, createProposal: () => { throw new Error("unused"); }, decide: () => { throw new Error("unused"); }, reconcileStale: () => { throw new Error("unused"); }, markStale: () => { throw new Error("unused"); }, consumeApproval: () => { throw new Error("unused"); }, reserveApproval: () => { throw new Error("unused"); }, finalizeApproval: () => { throw new Error("unused"); }, recordResult: () => { throw new Error("unused"); } } as never;
     const view = loadAyasOwnerRecommendationsView(throwingInbox);
-    assert.equal(view.connected, false);
-    assert.equal(view.recommendations.length, 0);
+    assert.equal(view.connected, false, "assert.equal(view.connected, false)");
+    assert.equal(view.recommendations.length, 0, "assert.equal(view.recommendations.length, 0)");
     assert.match(view.error ?? "", /boom/);
   });
 
@@ -112,7 +112,7 @@ function main(): void {
     const inbox = tmpInbox();
     inbox.createProposal(proposalInput({ objective: "assert çağrılarına teşhis mesajı ekle", expectedUserBenefit: "hata ayıklama süresi kısalır" }) as never);
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.recommendations.length, 1);
+    assert.equal(view.recommendations.length, 1, "assert.equal(view.recommendations.length, 1)");
     const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, {
       inbox: { connected: true, pending: [], today: [], history: [] },
       ownerRecommendations: view.recommendations,
@@ -146,8 +146,8 @@ function main(): void {
     inbox.decide(created.proposalId, "APPROVE", "2026-09-18T00:00:01.000Z", "owner-approved: pending execution enablement");
     const view = loadAyasOwnerRecommendationsView(inbox);
     assert.equal(view.recommendations.length, 0, "must not appear as an actionable recommendation any more");
-    assert.equal(view.pendingExecution.length, 1);
-    assert.equal(view.pendingExecution[0]?.proposalId, created.proposalId);
+    assert.equal(view.pendingExecution.length, 1, "assert.equal(view.pendingExecution.length, 1)");
+    assert.equal(view.pendingExecution[0]?.proposalId, created.proposalId, "assert.equal(view.pendingExecution[0]?.proposalId, created.proposalId)");
   });
 
   scenario("a proposal APPROVED via the legacy manual ONAYLA flow (no owner-approved reason) never appears in pendingExecution", () => {
@@ -155,7 +155,7 @@ function main(): void {
     const created = inbox.createProposal(proposalInput() as never);
     inbox.decide(created.proposalId, "APPROVE", "2026-09-18T00:00:01.000Z"); // no reason at all — the legacy `decideAyasApproval` shape
     const view = loadAyasOwnerRecommendationsView(inbox);
-    assert.equal(view.pendingExecution.length, 0);
+    assert.equal(view.pendingExecution.length, 0, "assert.equal(view.pendingExecution.length, 0)");
   });
 
   scenario("the pendingExecution card renders a durable ONAYLANDI notice with no ONAYLA/REDDET/VAZGEÇ action at all", () => {

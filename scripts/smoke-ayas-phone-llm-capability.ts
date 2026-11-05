@@ -30,38 +30,38 @@ function win(over: Partial<AyasPhoneLlmCapabilityWindowLike> = {}): AyasPhoneLlm
 async function run() {
   await scenario("no window → unknown-error, not capable", async () => {
     const r = await detectAyasPhoneLlmCapability(undefined);
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "unknown-error");
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "unknown-error", "assert.equal(r.reason, \"unknown-error\")");
   });
 
   await scenario("insecure context → insecure-context, before even checking navigator.gpu", async () => {
     const r = await detectAyasPhoneLlmCapability(win({ isSecureContext: false }));
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "insecure-context");
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "insecure-context", "assert.equal(r.reason, \"insecure-context\")");
   });
 
   await scenario("no navigator.gpu → webgpu-api-missing", async () => {
     const r = await detectAyasPhoneLlmCapability(win({ navigator: {} }));
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "webgpu-api-missing");
-    assert.equal(r.webgpuApiPresent, false);
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "webgpu-api-missing", "assert.equal(r.reason, \"webgpu-api-missing\")");
+    assert.equal(r.webgpuApiPresent, false, "assert.equal(r.webgpuApiPresent, false)");
   });
 
   await scenario("requestAdapter() resolves null → no-adapter", async () => {
     const r = await detectAyasPhoneLlmCapability(
       win({ navigator: { gpu: { requestAdapter: async () => null } } }),
     );
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "no-adapter");
-    assert.equal(r.webgpuApiPresent, true);
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "no-adapter", "assert.equal(r.reason, \"no-adapter\")");
+    assert.equal(r.webgpuApiPresent, true, "assert.equal(r.webgpuApiPresent, true)");
   });
 
   await scenario("requestAdapter() throws → no-adapter, error message captured", async () => {
     const r = await detectAyasPhoneLlmCapability(
       win({ navigator: { gpu: { requestAdapter: async () => { throw new Error("adapter denied"); } } } }),
     );
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "no-adapter");
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "no-adapter", "assert.equal(r.reason, \"no-adapter\")");
     assert.match(r.detail ?? "", /adapter denied/);
   });
 
@@ -80,10 +80,10 @@ async function run() {
         },
       }),
     );
-    assert.equal(r.capable, false);
-    assert.equal(r.reason, "device-request-failed");
-    assert.equal(r.adapterObtained, true);
-    assert.equal(r.deviceObtained, false);
+    assert.equal(r.capable, false, "assert.equal(r.capable, false)");
+    assert.equal(r.reason, "device-request-failed", "assert.equal(r.reason, \"device-request-failed\")");
+    assert.equal(r.adapterObtained, true, "assert.equal(r.adapterObtained, true)");
+    assert.equal(r.deviceObtained, false, "assert.equal(r.deviceObtained, false)");
   });
 
   await scenario("full success path → capable, adapter vendor + deviceMemory surfaced", async () => {
@@ -100,10 +100,10 @@ async function run() {
         },
       }),
     );
-    assert.equal(r.capable, true);
-    assert.equal(r.reason, null);
-    assert.equal(r.adapterVendor, "apple");
-    assert.equal(r.deviceMemoryGb, 8);
+    assert.equal(r.capable, true, "assert.equal(r.capable, true)");
+    assert.equal(r.reason, null, "assert.equal(r.reason, null)");
+    assert.equal(r.adapterVendor, "apple", "assert.equal(r.adapterVendor, \"apple\")");
+    assert.equal(r.deviceMemoryGb, 8, "assert.equal(r.deviceMemoryGb, 8)");
   });
 
   await scenario("deviceMemory absent (Safari never exposes it) → null, not a failure", async () => {
@@ -116,12 +116,12 @@ async function run() {
         },
       }),
     );
-    assert.equal(r.capable, true);
-    assert.equal(r.deviceMemoryGb, null);
+    assert.equal(r.capable, true, "assert.equal(r.capable, true)");
+    assert.equal(r.deviceMemoryGb, null, "assert.equal(r.deviceMemoryGb, null)");
   });
 
   await scenario("the fixed fail-closed message is exported and non-empty", () => {
-    assert.ok(AYAS_PHONE_LLM_UNAVAILABLE_MESSAGE.length > 0);
+    assert.ok(AYAS_PHONE_LLM_UNAVAILABLE_MESSAGE.length > 0, "assert.ok(AYAS_PHONE_LLM_UNAVAILABLE_MESSAGE.length > 0)");
   });
 
   await scenario("wasmAvailable + userAgent are surfaced (informational, computed before any WebGPU check)", async () => {
@@ -133,8 +133,8 @@ async function run() {
 
   await scenario("wasmAvailable is false when WebAssembly is absent (no mock global set)", async () => {
     const r = await detectAyasPhoneLlmCapability(win({ navigator: { userAgent: "TestBrowser/1.0" } }));
-    assert.equal(r.wasmAvailable, false);
-    assert.equal(r.userAgent, "TestBrowser/1.0");
+    assert.equal(r.wasmAvailable, false, "assert.equal(r.wasmAvailable, false)");
+    assert.equal(r.userAgent, "TestBrowser/1.0", "assert.equal(r.userAgent, \"TestBrowser/1.0\")");
   });
 
   console.log(`AYAS phone LLM capability smoke: PASS (${count} scenarios)`);

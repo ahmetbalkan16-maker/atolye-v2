@@ -38,12 +38,12 @@ async function run() {
   await scenario("absent status file → fully offline/unknown, stale, no throw", () => {
     withStatusFile(null, (statusFilePath) => {
       const health = readAyasPhoneAccessHealth({ statusFilePath });
-      assert.equal(health.appServer, "offline");
-      assert.equal(health.lanAccess, "unknown");
-      assert.equal(health.tunnel, "offline");
-      assert.equal(health.ayasBackend, "offline");
-      assert.equal(health.tunnelUrl, null);
-      assert.equal(health.stale, true);
+      assert.equal(health.appServer, "offline", "assert.equal(health.appServer, \"offline\")");
+      assert.equal(health.lanAccess, "unknown", "assert.equal(health.lanAccess, \"unknown\")");
+      assert.equal(health.tunnel, "offline", "assert.equal(health.tunnel, \"offline\")");
+      assert.equal(health.ayasBackend, "offline", "assert.equal(health.ayasBackend, \"offline\")");
+      assert.equal(health.tunnelUrl, null, "assert.equal(health.tunnelUrl, null)");
+      assert.equal(health.stale, true, "assert.equal(health.stale, true)");
     });
   });
 
@@ -60,12 +60,12 @@ async function run() {
       }),
       (statusFilePath) => {
         const health = readAyasPhoneAccessHealth({ statusFilePath, now: () => now + 5_000 });
-        assert.equal(health.appServer, "online");
-        assert.equal(health.lanAccess, "online");
-        assert.equal(health.tunnel, "online");
-        assert.equal(health.ayasBackend, "online");
-        assert.equal(health.tunnelUrl, "https://aids-undefined-acoustic-rats.trycloudflare.com");
-        assert.equal(health.stale, false);
+        assert.equal(health.appServer, "online", "assert.equal(health.appServer, \"online\")");
+        assert.equal(health.lanAccess, "online", "assert.equal(health.lanAccess, \"online\")");
+        assert.equal(health.tunnel, "online", "assert.equal(health.tunnel, \"online\")");
+        assert.equal(health.ayasBackend, "online", "assert.equal(health.ayasBackend, \"online\")");
+        assert.equal(health.tunnelUrl, "https://aids-undefined-acoustic-rats.trycloudflare.com", "assert.equal(health.tunnelUrl, \"https://aids-undefined-acoustic-rats.trycloudflare.com\")");
+        assert.equal(health.stale, false, "assert.equal(health.stale, false)");
       },
     );
   });
@@ -79,9 +79,9 @@ async function run() {
       }),
       (statusFilePath) => {
         const health = readAyasPhoneAccessHealth({ statusFilePath, now: () => now });
-        assert.equal(health.tunnel, "starting");
-        assert.equal(health.ayasBackend, "degraded");
-        assert.equal(health.tunnelUrl, null);
+        assert.equal(health.tunnel, "starting", "assert.equal(health.tunnel, \"starting\")");
+        assert.equal(health.ayasBackend, "degraded", "assert.equal(health.ayasBackend, \"degraded\")");
+        assert.equal(health.tunnelUrl, null, "assert.equal(health.tunnelUrl, null)");
       },
     );
   });
@@ -97,9 +97,9 @@ async function run() {
       (statusFilePath) => {
         const health = readAyasPhoneAccessHealth({ statusFilePath, now: () => Date.now() });
         assert.equal(health.appServer, "offline", "a stale file must NOT report a frozen 'online'");
-        assert.equal(health.tunnel, "offline");
-        assert.equal(health.ayasBackend, "offline");
-        assert.equal(health.stale, true);
+        assert.equal(health.tunnel, "offline", "assert.equal(health.tunnel, \"offline\")");
+        assert.equal(health.ayasBackend, "offline", "assert.equal(health.ayasBackend, \"offline\")");
+        assert.equal(health.stale, true, "assert.equal(health.stale, true)");
         assert.equal(health.updatedAt, new Date(staleAt).toISOString(), "the stale timestamp itself is still surfaced, diagnostically");
       },
     );
@@ -122,7 +122,7 @@ async function run() {
   await scenario("malformed JSON fails safe, never throws", () => {
     withStatusFile("{ this is not json", (statusFilePath) => {
       assert.doesNotThrow(() => readAyasPhoneAccessHealth({ statusFilePath }));
-      assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline");
+      assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline", "assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, \"offline\")");
     });
   });
 
@@ -133,7 +133,7 @@ async function run() {
         ayasBackend: "online", tunnelUrl: null, updatedAt: new Date().toISOString(),
       }),
       (statusFilePath) => {
-        assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline");
+        assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline", "assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, \"offline\")");
       },
     );
   });
@@ -141,8 +141,8 @@ async function run() {
   await scenario("an oversized file is rejected without reading its content as trusted", () => {
     withStatusFile("x".repeat(5 * 1024), (statusFilePath) => {
       const health = readAyasPhoneAccessHealth({ statusFilePath });
-      assert.equal(health.appServer, "offline");
-      assert.equal(health.stale, true);
+      assert.equal(health.appServer, "offline", "assert.equal(health.appServer, \"offline\")");
+      assert.equal(health.stale, true, "assert.equal(health.stale, true)");
     });
   });
 
@@ -154,7 +154,7 @@ async function run() {
       }),
       (statusFilePath) => {
         // The whole shape validation fails closed on an untrusted URL pattern — offline, not a partial trust.
-        assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline");
+        assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, "offline", "assert.equal(readAyasPhoneAccessHealth({ statusFilePath }).appServer, \"offline\")");
       },
     );
   });
@@ -168,9 +168,9 @@ async function run() {
       }),
       (statusFilePath) => {
         const health = readAyasPhoneAccessHealth({ statusFilePath, now: () => now });
-        assert.equal(health.appServer, "online");
-        assert.equal(health.tunnelUrl, "https://ayas.atolyeayas.com");
-        assert.equal(health.stale, false);
+        assert.equal(health.appServer, "online", "assert.equal(health.appServer, \"online\")");
+        assert.equal(health.tunnelUrl, "https://ayas.atolyeayas.com", "assert.equal(health.tunnelUrl, \"https://ayas.atolyeayas.com\")");
+        assert.equal(health.stale, false, "assert.equal(health.stale, false)");
       },
     );
   });
@@ -192,8 +192,8 @@ async function run() {
 
   await scenario("API route — GET /api/ayas/phone-access returns the SAME bounded health the library computes, no-store", () => {
     const response = getPhoneAccessRoute();
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal(response.status, 200, "assert.equal(response.status, 200)");
+    assert.equal(response.headers.get("Cache-Control"), "no-store", "assert.equal(response.headers.get(\"Cache-Control\"), \"no-store\")");
   });
 
   await scenario("STATIC — the phone-access API route carries no OPEN_* access-gate exemption (stays behind the login gate)", () => {

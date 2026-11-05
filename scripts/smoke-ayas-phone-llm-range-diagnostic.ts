@@ -70,7 +70,7 @@ async function run() {
       assert.equal(seenHeaderSets.length, 2, "exactly 2 requests — one per probe");
       for (const headers of seenHeaderSets) {
         assert.deepEqual(Object.keys(headers), ["Range"], "no header besides Range may be set by this diagnostic");
-        assert.equal(headers.Range, "bytes=0-8388607");
+        assert.equal(headers.Range, "bytes=0-8388607", "assert.equal(headers.Range, \"bytes=0-8388607\")");
       }
     } finally {
       env.fetch = originalFetch;
@@ -112,8 +112,8 @@ async function run() {
       const result = await runRangeDiagnosis(MODEL_05B);
       assert.equal(readerReadWasCalled, false, "reader.read() must NEVER be called by this diagnostic — not even on a healthy 206");
       assert.equal(cancelCallCount, 2, "both probes must release the body via cancel(), one cancel() per probe");
-      assert.equal(result.probeA.bodyRead, false);
-      assert.equal(result.probeB.bodyRead, false);
+      assert.equal(result.probeA.bodyRead, false, "assert.equal(result.probeA.bodyRead, false)");
+      assert.equal(result.probeB.bodyRead, false, "assert.equal(result.probeB.bodyRead, false)");
     } finally {
       env.fetch = originalFetch;
     }
@@ -149,13 +149,13 @@ async function run() {
     try {
       const result = await runRangeDiagnosis(MODEL_05B);
       assert.equal(result.probeA.requestUrl, weightUrl, "probe A must hit the plain, unmodified URL");
-      assert.equal(result.probeA.status, 200);
-      assert.equal(result.probeA.contentRangeHeader, null);
+      assert.equal(result.probeA.status, 200, "assert.equal(result.probeA.status, 200)");
+      assert.equal(result.probeA.contentRangeHeader, null, "assert.equal(result.probeA.contentRangeHeader, null)");
       assert.notEqual(result.probeB.requestUrl, weightUrl, "probe B's URL must differ from probe A's (cache-buster appended)");
       assert.ok(result.probeB.requestUrl.startsWith(`${weightUrl}?ayas_diag=`), "cache-buster must be a query param on the SAME origin URL");
-      assert.equal(result.probeB.status, 206);
+      assert.equal(result.probeB.status, 206, "assert.equal(result.probeB.status, 206)");
       assert.match(result.probeB.contentRangeHeader ?? "", /^bytes 0-8388607\/483003582$/);
-      assert.equal(result.serviceWorkerWouldInterceptThisOrigin, false);
+      assert.equal(result.serviceWorkerWouldInterceptThisOrigin, false, "assert.equal(result.serviceWorkerWouldInterceptThisOrigin, false)");
     } finally {
       env.fetch = originalFetch;
     }
@@ -180,11 +180,11 @@ async function run() {
     }) as typeof env.fetch;
     try {
       const result = await runRangeDiagnosis(MODEL_05B);
-      assert.equal(result.probeA.ok, false);
+      assert.equal(result.probeA.ok, false, "assert.equal(result.probeA.ok, false)");
       assert.match(result.probeA.errorDetail ?? "", /simulated network down/);
-      assert.equal(result.probeA.status, null);
-      assert.equal(result.probeA.bodyRead, false);
-      assert.equal(result.probeB.ok, false);
+      assert.equal(result.probeA.status, null, "assert.equal(result.probeA.status, null)");
+      assert.equal(result.probeA.bodyRead, false, "assert.equal(result.probeA.bodyRead, false)");
+      assert.equal(result.probeB.ok, false, "assert.equal(result.probeB.ok, false)");
     } finally {
       env.fetch = originalFetch;
     }
@@ -250,7 +250,7 @@ async function run() {
     env.fetch = (async () => new Response(fillBuffer(4) as BodyInit, { status: 206, headers: { "content-range": "bytes 0-3/4" } })) as typeof env.fetch;
     try {
       const result = await runRangeDiagnosis(MODEL_05B);
-      assert.equal(result.probeGateway, null);
+      assert.equal(result.probeGateway, null, "assert.equal(result.probeGateway, null)");
       const text = formatRangeDiagnosis(result);
       assert.match(text, /ÇALIŞTIRILMADI/, "the report must say the gateway probe wasn't attempted, not silently omit it");
     } finally {
@@ -273,10 +273,10 @@ async function run() {
         sawGatewayRequest = true;
         assert.equal(
           url,
-          "https://ayas-phone-gateway.example.workers.dev/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx",
+          "https://ayas-phone-gateway.example.workers.dev/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx", "assert.equal(\n          url,\n          \"https://ayas-phone-gateway.example.workers.dev/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx\",\n        )",
         );
-        assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${PHONE_KEY}`);
-        assert.equal((init?.headers as Record<string, string>).Range, "bytes=0-8388607");
+        assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${PHONE_KEY}`, "assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${PHONE_KEY}`)");
+        assert.equal((init?.headers as Record<string, string>).Range, "bytes=0-8388607", "assert.equal((init?.headers as Record<string, string>).Range, \"bytes=0-8388607\")");
         return new Response(fillBuffer(8_388_608) as BodyInit, {
           status: 206,
           headers: {
@@ -294,9 +294,9 @@ async function run() {
       const result = await runRangeDiagnosis(MODEL_05B);
       assert.ok(sawGatewayRequest, "the gateway must actually be called when both pieces of config are present");
       assert.ok(result.probeGateway, "probeGateway must not be null once configured");
-      assert.equal(result.probeGateway!.status, 206);
-      assert.equal(result.probeGateway!.contentRangeHeader, "bytes 0-8388607/483003582");
-      assert.equal(result.probeGateway!.etagHeader, '"927c2ad9b83d24e09f498fe7eb2760a9c07cffd3f86ef24792b13cc14cda6de2"');
+      assert.equal(result.probeGateway!.status, 206, "assert.equal(result.probeGateway!.status, 206)");
+      assert.equal(result.probeGateway!.contentRangeHeader, "bytes 0-8388607/483003582", "assert.equal(result.probeGateway!.contentRangeHeader, \"bytes 0-8388607/483003582\")");
+      assert.equal(result.probeGateway!.etagHeader, '"927c2ad9b83d24e09f498fe7eb2760a9c07cffd3f86ef24792b13cc14cda6de2"', "assert.equal(result.probeGateway!.etagHeader, '\"927c2ad9b83d24e09f498fe7eb2760a9c07cffd3f86ef24792b13cc14cda6de2\"')");
       assert.equal(result.probeGateway!.bodyRead, false, "probe C must never read the body either — same discipline as A/B");
 
       const text = formatRangeDiagnosis(result);

@@ -125,11 +125,11 @@ async function main() {
       },
       async () => {
         const catalog = await loadAyasProjectCatalog();
-        assert.equal(catalog.available, true);
-        assert.equal(catalog.runtimeClassification, "explicit-external");
-        assert.equal(catalog.external, true);
-        assert.equal(catalog.projects.length, 3);
-        assert.deepEqual(new Set(catalog.projects.map((p) => p.projectId)), new Set(["alpha", "beta", "gamma"]));
+        assert.equal(catalog.available, true, "assert.equal(catalog.available, true)");
+        assert.equal(catalog.runtimeClassification, "explicit-external", "assert.equal(catalog.runtimeClassification, \"explicit-external\")");
+        assert.equal(catalog.external, true, "assert.equal(catalog.external, true)");
+        assert.equal(catalog.projects.length, 3, "assert.equal(catalog.projects.length, 3)");
+        assert.deepEqual(new Set(catalog.projects.map((p) => p.projectId)), new Set(["alpha", "beta", "gamma"]), "assert.deepEqual(new Set(catalog.projects.map((p) => p.projectId)), new Set([\"alpha\", \"beta\", \"gamma\"]))");
       },
     );
   });
@@ -148,7 +148,7 @@ async function main() {
       writeProject(legacyRoot, "solo", { id: "solo", title: "Solo (legacy copy)", status: "draft" });
       const catalog = await loadAyasProjectCatalog();
       assert.equal(catalog.projects.length, 1, "only the authoritative root's copy is counted");
-      assert.equal(catalog.projects[0]!.title, "Solo");
+      assert.equal(catalog.projects[0]!.title, "Solo", "assert.equal(catalog.projects[0]!.title, \"Solo\")");
     } finally {
       if (prev === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
       else process.env.ATOLYE_RUNTIME_ROOT = prev;
@@ -168,14 +168,14 @@ async function main() {
       },
       async () => {
         const withVideo = await getAyasProductionProject("with-video");
-        assert.equal(withVideo?.hasFinalVideo, true);
-        assert.equal(withVideo?.finalVideoPath, "with-video/export/bundle/video.mp4");
-        assert.equal(withVideo?.status, "completed");
+        assert.equal(withVideo?.hasFinalVideo, true, "assert.equal(withVideo?.hasFinalVideo, true)");
+        assert.equal(withVideo?.finalVideoPath, "with-video/export/bundle/video.mp4", "assert.equal(withVideo?.finalVideoPath, \"with-video/export/bundle/video.mp4\")");
+        assert.equal(withVideo?.status, "completed", "assert.equal(withVideo?.status, \"completed\")");
 
         const noVideo = await getAyasProductionProject("no-video");
         assert.equal(noVideo?.hasFinalVideo, false, "a completed status must never be reported as hasFinalVideo without a real file");
-        assert.equal(noVideo?.finalVideoPath, undefined);
-        assert.equal(noVideo?.status, "completed");
+        assert.equal(noVideo?.finalVideoPath, undefined, "assert.equal(noVideo?.finalVideoPath, undefined)");
+        assert.equal(noVideo?.status, "completed", "assert.equal(noVideo?.status, \"completed\")");
       },
     );
   });
@@ -243,13 +243,13 @@ async function main() {
       async () => {
         const catalog = await loadAyasProjectCatalog();
         assert.equal(catalog.available, true, "one corrupt project must never fail the whole catalog");
-        assert.equal(catalog.projects.length, 3);
+        assert.equal(catalog.projects.length, 3, "assert.equal(catalog.projects.length, 3)");
         const malformed = catalog.projects.find((p) => p.projectId === "malformed");
-        assert.equal(malformed?.status, "unknown");
+        assert.equal(malformed?.status, "unknown", "assert.equal(malformed?.status, \"unknown\")");
         assert.ok(malformed?.note, "malformed entry carries an explanatory note");
         const empty = catalog.projects.find((p) => p.projectId === "empty-folder");
-        assert.equal(empty?.status, "unknown");
-        assert.ok(empty?.note);
+        assert.equal(empty?.status, "unknown", "assert.equal(empty?.status, \"unknown\")");
+        assert.ok(empty?.note, "assert.ok(empty?.note)");
         const healthy = catalog.projects.find((p) => p.projectId === "healthy");
         assert.equal(healthy?.status, "draft", "a healthy sibling project is unaffected by the corrupt one");
       },

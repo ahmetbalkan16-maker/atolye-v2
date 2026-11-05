@@ -126,34 +126,34 @@ function renderNote(lastReplySource: "llm" | "fallback" | undefined, lastReplyFa
 async function run() {
   await scenario("greeting after history — a greeting back is the model's accepted reply", async () => {
     const done = await turn({ text: "merhaba", history: HISTORY, fetcher: mockOllama(["Merhaba! ", "Nasıl yardımcı olabilirim?"]) });
-    assert.equal(done.source, "llm");
-    assert.equal(done.text, "Merhaba! Nasıl yardımcı olabilirim?");
+    assert.equal(done.source, "llm", "assert.equal(done.source, \"llm\")");
+    assert.equal(done.text, "Merhaba! Nasıl yardımcı olabilirim?", "assert.equal(done.text, \"Merhaba! Nasıl yardımcı olabilirim?\")");
   });
 
   await scenario("selam after history — a greeting reply with content is accepted", async () => {
     const done = await turn({ text: "selam", history: HISTORY, fetcher: mockOllama(["Selam, iyiyim. ", "Sen nasılsın?"]) });
-    assert.equal(done.source, "llm");
+    assert.equal(done.source, "llm", "assert.equal(done.source, \"llm\")");
     assert.match(done.text, /^Selam, iyiyim/);
   });
 
   await scenario("non-greeting after history — an unprompted re-greeting is still rejected", async () => {
     const done = await turn({ text: "Yanıtları kısa tutalım.", history: HISTORY, fetcher: mockOllama(["Merhaba! ", "Tabii."]) });
-    assert.equal(done.source, "fallback");
-    assert.equal(done.reason, "context-quality");
+    assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")");
+    assert.equal(done.reason, "context-quality", "assert.equal(done.reason, \"context-quality\")");
     assert.doesNotMatch(done.text, /^Merhaba/);
   });
 
   await scenario("non-greeting after history — a bare help offer is still rejected", async () => {
     const done = await turn({ text: "Yanıtları kısa tutalım.", history: HISTORY, fetcher: mockOllama(["Nasıl yardımcı olabilirim?"]) });
-    assert.equal(done.source, "fallback");
-    assert.equal(done.reason, "context-quality");
+    assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")");
+    assert.equal(done.reason, "context-quality", "assert.equal(done.reason, \"context-quality\")");
   });
 
   await scenario("greeting with a rejected self-introduction — falls back to a greeting, never 'Anladım.'", async () => {
     const done = await turn({ text: "merhaba", history: HISTORY, fetcher: mockOllama(["Merhaba, ben AYAS."]) });
-    assert.equal(done.source, "fallback");
-    assert.equal(done.reason, "context-quality");
-    assert.equal(done.text, "Merhaba.");
+    assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")");
+    assert.equal(done.reason, "context-quality", "assert.equal(done.reason, \"context-quality\")");
+    assert.equal(done.text, "Merhaba.", "assert.equal(done.text, \"Merhaba.\")");
   });
 
   await scenario("greeting fallbacks mirror the user's greeting", async () => {
@@ -166,8 +166,8 @@ async function run() {
 
   await scenario("greeting turn with an execution claim keeps the safety fallback", async () => {
     const done = await turn({ text: "merhaba", history: HISTORY, fetcher: mockOllama(["Merhaba, ", "yürütme kapısını ", "açıyorum ", "ve başlatıyorum."]) });
-    assert.equal(done.source, "fallback");
-    assert.equal(done.reason, "execution-claim");
+    assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")");
+    assert.equal(done.reason, "execution-claim", "assert.equal(done.reason, \"execution-claim\")");
     assert.match(done.text, /kapalı/i);
   });
 
@@ -180,8 +180,8 @@ async function run() {
       ],
       fetcher: mockOllama([" "]),
     });
-    assert.equal(done.source, "fallback");
-    assert.equal(done.text, "Anladım.");
+    assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")");
+    assert.equal(done.text, "Anladım.", "assert.equal(done.text, \"Anladım.\")");
   });
 
   await scenario("classifier — guarded, deterministic and unreachable reasons", () => {

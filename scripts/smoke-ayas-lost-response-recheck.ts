@@ -65,35 +65,35 @@ function recorder() {
 
 async function main(): Promise<void> {
   await scenario("proposal: PENDING/DEFERRED is NOT_STARTED, APPROVED/RESERVED is RUNNING, every terminal status is SETTLED", () => {
-    assert.equal(ayasProposalProgress(inbox("pending", proposal("PENDING")), ID), "NOT_STARTED");
-    assert.equal(ayasProposalProgress(inbox("pending", proposal("DEFERRED")), ID), "NOT_STARTED");
-    assert.equal(ayasProposalProgress(inbox("history", proposal("APPROVED")), ID), "RUNNING");
-    assert.equal(ayasProposalProgress(inbox("history", proposal("RESERVED")), ID), "RUNNING");
+    assert.equal(ayasProposalProgress(inbox("pending", proposal("PENDING")), ID), "NOT_STARTED", "assert.equal(ayasProposalProgress(inbox(\"pending\", proposal(\"PENDING\")), ID), \"NOT_STARTED\")");
+    assert.equal(ayasProposalProgress(inbox("pending", proposal("DEFERRED")), ID), "NOT_STARTED", "assert.equal(ayasProposalProgress(inbox(\"pending\", proposal(\"DEFERRED\")), ID), \"NOT_STARTED\")");
+    assert.equal(ayasProposalProgress(inbox("history", proposal("APPROVED")), ID), "RUNNING", "assert.equal(ayasProposalProgress(inbox(\"history\", proposal(\"APPROVED\")), ID), \"RUNNING\")");
+    assert.equal(ayasProposalProgress(inbox("history", proposal("RESERVED")), ID), "RUNNING", "assert.equal(ayasProposalProgress(inbox(\"history\", proposal(\"RESERVED\")), ID), \"RUNNING\")");
     for (const status of ["COMPLETED", "FAILED", "STALE", "ABANDONED", "RECOVERY_REQUIRED", "REJECTED"]) {
       assert.equal(ayasProposalProgress(inbox("today", proposal(status)), ID), "SETTLED", status);
     }
   });
 
   await scenario("proposal: an owner-model APPROVE recorded without executing waits for YÜRÜT, so it is SETTLED, not RUNNING", () => {
-    assert.equal(ayasProposalProgress(inbox("history", proposal("APPROVED", { ownerApprovedPendingExecution: true })), ID), "SETTLED");
+    assert.equal(ayasProposalProgress(inbox("history", proposal("APPROVED", { ownerApprovedPendingExecution: true })), ID), "SETTLED", "assert.equal(ayasProposalProgress(inbox(\"history\", proposal(\"APPROVED\", { ownerApprovedPendingExecution: true })), ID), \"SETTLED\")");
   });
 
   await scenario("proposal: missing from a connected view is SETTLED; a disconnected view is UNKNOWN", () => {
-    assert.equal(ayasProposalProgress(inbox("none"), ID), "SETTLED");
-    assert.equal(ayasProposalProgress(inbox("pending", proposal("COMPLETED"), false), ID), "UNKNOWN");
-    assert.equal(ayasProposalProgress(inbox("history", proposal("RESERVED")), "some-other-proposal"), "SETTLED");
+    assert.equal(ayasProposalProgress(inbox("none"), ID), "SETTLED", "assert.equal(ayasProposalProgress(inbox(\"none\"), ID), \"SETTLED\")");
+    assert.equal(ayasProposalProgress(inbox("pending", proposal("COMPLETED"), false), ID), "UNKNOWN", "assert.equal(ayasProposalProgress(inbox(\"pending\", proposal(\"COMPLETED\"), false), ID), \"UNKNOWN\")");
+    assert.equal(ayasProposalProgress(inbox("history", proposal("RESERVED")), "some-other-proposal"), "SETTLED", "assert.equal(ayasProposalProgress(inbox(\"history\", proposal(\"RESERVED\")), \"some-other-proposal\"), \"SETTLED\")");
   });
 
   await scenario("batch: ACCUMULATING/READY_FOR_REVIEW is NOT_STARTED, APPROVED/RESERVED is RUNNING, terminal or missing is SETTLED", () => {
-    assert.equal(ayasMicroBatchProgress(microView(batch("READY_FOR_REVIEW"), "active"), BATCH), "NOT_STARTED");
-    assert.equal(ayasMicroBatchProgress(microView(batch("ACCUMULATING"), "active"), BATCH), "NOT_STARTED");
-    assert.equal(ayasMicroBatchProgress(microView(batch("APPROVED"), "history"), BATCH), "RUNNING");
-    assert.equal(ayasMicroBatchProgress(microView(batch("RESERVED"), "history"), BATCH), "RUNNING");
+    assert.equal(ayasMicroBatchProgress(microView(batch("READY_FOR_REVIEW"), "active"), BATCH), "NOT_STARTED", "assert.equal(ayasMicroBatchProgress(microView(batch(\"READY_FOR_REVIEW\"), \"active\"), BATCH), \"NOT_STARTED\")");
+    assert.equal(ayasMicroBatchProgress(microView(batch("ACCUMULATING"), "active"), BATCH), "NOT_STARTED", "assert.equal(ayasMicroBatchProgress(microView(batch(\"ACCUMULATING\"), \"active\"), BATCH), \"NOT_STARTED\")");
+    assert.equal(ayasMicroBatchProgress(microView(batch("APPROVED"), "history"), BATCH), "RUNNING", "assert.equal(ayasMicroBatchProgress(microView(batch(\"APPROVED\"), \"history\"), BATCH), \"RUNNING\")");
+    assert.equal(ayasMicroBatchProgress(microView(batch("RESERVED"), "history"), BATCH), "RUNNING", "assert.equal(ayasMicroBatchProgress(microView(batch(\"RESERVED\"), \"history\"), BATCH), \"RUNNING\")");
     for (const status of ["COMPLETED", "FAILED", "STALE", "ABANDONED", "RECOVERY_REQUIRED"]) {
       assert.equal(ayasMicroBatchProgress(microView(batch(status), "history"), BATCH), "SETTLED", status);
     }
-    assert.equal(ayasMicroBatchProgress(microView(null, "active"), BATCH), "SETTLED");
-    assert.equal(ayasMicroBatchProgress(microView(batch("RESERVED"), "history", false), BATCH), "UNKNOWN");
+    assert.equal(ayasMicroBatchProgress(microView(null, "active"), BATCH), "SETTLED", "assert.equal(ayasMicroBatchProgress(microView(null, \"active\"), BATCH), \"SETTLED\")");
+    assert.equal(ayasMicroBatchProgress(microView(batch("RESERVED"), "history", false), BATCH), "UNKNOWN", "assert.equal(ayasMicroBatchProgress(microView(batch(\"RESERVED\"), \"history\", false), BATCH), \"UNKNOWN\")");
   });
 
   await scenario("the incident: a lost read, then RUNNING, then COMPLETED ends SETTLED, applies both usable reads and stops reading", async () => {
@@ -103,9 +103,9 @@ async function main(): Promise<void> {
     const applied: AyasApprovalInboxView[] = [];
     const { waits, wait } = recorder();
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasProposalProgress(view, ID), apply: (view) => applied.push(view), wait });
-    assert.equal(progress, "SETTLED");
+    assert.equal(progress, "SETTLED", "assert.equal(progress, \"SETTLED\")");
     assert.equal(source.calls(), 3, "no read after the settled one");
-    assert.deepEqual(applied, [running, done]);
+    assert.deepEqual(applied, [running, done], "assert.deepEqual(applied, [running, done])");
     assert.deepEqual(waits, AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.slice(1, 3), "the first read is immediate; later ones follow the fixed schedule");
     assert.equal(ayasLostResponseErrorCode(progress), null, "a finished run leaves no error; its card shows the outcome");
   });
@@ -113,51 +113,51 @@ async function main(): Promise<void> {
   await scenario("a click that never reached the server (still PENDING) ends NOT_STARTED after one read and keeps the plain transport error", async () => {
     const source = scripted<AyasApprovalInboxView>([inbox("pending", proposal("PENDING"))]);
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasProposalProgress(view, ID), apply: () => undefined, wait: recorder().wait });
-    assert.equal(progress, "NOT_STARTED");
-    assert.equal(source.calls(), 1);
-    assert.equal(ayasLostResponseErrorCode(progress), "NETWORK_ERROR");
+    assert.equal(progress, "NOT_STARTED", "assert.equal(progress, \"NOT_STARTED\")");
+    assert.equal(source.calls(), 1, "assert.equal(source.calls(), 1)");
+    assert.equal(ayasLostResponseErrorCode(progress), "NETWORK_ERROR", "assert.equal(ayasLostResponseErrorCode(progress), \"NETWORK_ERROR\")");
   });
 
   await scenario("every read lost: UNKNOWN after exactly the scheduled number of reads, nothing applied, RESULT_UNKNOWN shown", async () => {
     const source = scripted<AyasApprovalInboxView>([new Error("lost")]);
     let applied = 0;
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasProposalProgress(view, ID), apply: () => { applied += 1; }, wait: recorder().wait });
-    assert.equal(progress, "UNKNOWN");
-    assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length);
-    assert.equal(applied, 0);
-    assert.equal(ayasLostResponseErrorCode(progress), "RESULT_UNKNOWN");
+    assert.equal(progress, "UNKNOWN", "assert.equal(progress, \"UNKNOWN\")");
+    assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length, "assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length)");
+    assert.equal(applied, 0, "assert.equal(applied, 0)");
+    assert.equal(ayasLostResponseErrorCode(progress), "RESULT_UNKNOWN", "assert.equal(ayasLostResponseErrorCode(progress), \"RESULT_UNKNOWN\")");
   });
 
   await scenario("a run that outlasts the schedule ends RUNNING (bounded), keeps the last durable view, and asks the owner to check before retrying", async () => {
     const source = scripted<AyasApprovalInboxView>([inbox("history", proposal("RESERVED"))]);
     let applied = 0;
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasProposalProgress(view, ID), apply: () => { applied += 1; }, wait: recorder().wait });
-    assert.equal(progress, "RUNNING");
-    assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length);
-    assert.equal(applied, AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length);
-    assert.equal(ayasLostResponseErrorCode(progress), "RESULT_UNKNOWN");
+    assert.equal(progress, "RUNNING", "assert.equal(progress, \"RUNNING\")");
+    assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length, "assert.equal(source.calls(), AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length)");
+    assert.equal(applied, AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length, "assert.equal(applied, AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length)");
+    assert.equal(ayasLostResponseErrorCode(progress), "RESULT_UNKNOWN", "assert.equal(ayasLostResponseErrorCode(progress), \"RESULT_UNKNOWN\")");
   });
 
   await scenario("a disconnected read is neither applied nor trusted; the next usable read decides", async () => {
     const source = scripted<AyasApprovalInboxView>([inbox("none", undefined, false), inbox("today", proposal("FAILED"))]);
     const applied: AyasApprovalInboxView[] = [];
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasProposalProgress(view, ID), apply: (view) => applied.push(view), wait: recorder().wait });
-    assert.equal(progress, "SETTLED");
-    assert.equal(applied.length, 1);
-    assert.equal(applied[0]!.connected, true);
+    assert.equal(progress, "SETTLED", "assert.equal(progress, \"SETTLED\")");
+    assert.equal(applied.length, 1, "assert.equal(applied.length, 1)");
+    assert.equal(applied[0]!.connected, true, "assert.equal(applied[0]!.connected, true)");
   });
 
   await scenario("the batch lane settles the same way", async () => {
     const source = scripted<AyasMicroBatchDevelopmentView>([new Error("524"), microView(batch("COMPLETED"), "history")]);
     const progress = await recheckAyasAfterLostResponse({ read: source.read, progress: (view) => ayasMicroBatchProgress(view, BATCH), apply: () => undefined, wait: recorder().wait });
-    assert.equal(progress, "SETTLED");
-    assert.equal(source.calls(), 2);
+    assert.equal(progress, "SETTLED", "assert.equal(progress, \"SETTLED\")");
+    assert.equal(source.calls(), 2, "assert.equal(source.calls(), 2)");
   });
 
   await scenario("the schedule is a fixed, bounded array: immediate first read, at most 10 reads, under 5 minutes of waiting", () => {
-    assert.equal(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS[0], 0);
-    assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length <= 10);
-    assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.reduce<number>((sum, ms) => sum + ms, 0) < 5 * 60_000);
+    assert.equal(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS[0], 0, "assert.equal(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS[0], 0)");
+    assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length <= 10, "assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.length <= 10)");
+    assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.reduce<number>((sum, ms) => sum + ms, 0) < 5 * 60_000, "assert.ok(AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS.reduce<number>((sum, ms) => sum + ms, 0) < 5 * 60_000)");
     const src = fs.readFileSync(path.join(process.cwd(), "src", "components", "brain", "ayasLostResponseRecheck.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     for (const banned of ["setInterval(", "fetch(", "XMLHttpRequest", "child_process"]) assert.ok(!src.includes(banned), `the recheck must not use ${banned}`);
     assert.match(src, /AYAS_LOST_RESPONSE_RECHECK_DELAYS_MS\s*=\s*\[[^\]]*\]\s*as const/);

@@ -13,20 +13,20 @@ const testRegistry = new Map<string, AyasMutationImplementation>([["fixture-muta
 
 async function main() {
   await scenario("an unregistered mutationKind never resolves against the real registry", () => {
-    assert.equal(isAyasMutationKindRegistered("anything"), false);
+    assert.equal(isAyasMutationKindRegistered("anything"), false, "assert.equal(isAyasMutationKindRegistered(\"anything\"), false)");
     assert.throws(() => resolveAyasMutation("anything", []), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_KIND_UNKNOWN");
   });
   await scenario("the real registry's one reviewed entry (first-safe-smoke-coverage-v1) resolves with its exact declared exactFiles", () => {
-    assert.equal(isAyasMutationKindRegistered("first-safe-smoke-coverage-v1"), true);
+    assert.equal(isAyasMutationKindRegistered("first-safe-smoke-coverage-v1"), true, "assert.equal(isAyasMutationKindRegistered(\"first-safe-smoke-coverage-v1\"), true)");
     const impl = resolveAyasMutation("first-safe-smoke-coverage-v1", ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"]);
-    assert.deepEqual(impl.exactFiles, ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"]);
+    assert.deepEqual(impl.exactFiles, ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"], "assert.deepEqual(impl.exactFiles, [\"scripts/smoke-ayas-proposal-terminal-state-dedup.ts\"])");
   });
   await scenario("unknown mutationKind is rejected before any gate/reservation activity", () => {
     assert.throws(() => resolveAyasMutation("does-not-exist", ["src/fixture.ts"], testRegistry), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_KIND_UNKNOWN");
   });
   await scenario("known mutationKind with matching exactFiles resolves", () => {
     const impl = resolveAyasMutation("fixture-mutation", ["src/fixture.ts"], testRegistry);
-    assert.equal(impl, testEntry);
+    assert.equal(impl, testEntry, "assert.equal(impl, testEntry)");
   });
   await scenario("known mutationKind with a scope mismatch is rejected", () => {
     assert.throws(() => resolveAyasMutation("fixture-mutation", ["src/other.ts"], testRegistry), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_SCOPE_MISMATCH");
@@ -40,13 +40,13 @@ async function main() {
     assert.throws(() => resolveAyasMutation("fixture-mutation", [], testRegistry), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_SCOPE_MISMATCH");
   });
   await scenario("isAyasMutationKindRegistered reflects the supplied registry, not a global mutable one", () => {
-    assert.equal(isAyasMutationKindRegistered("fixture-mutation", testRegistry), true);
-    assert.equal(isAyasMutationKindRegistered("fixture-mutation"), false);
+    assert.equal(isAyasMutationKindRegistered("fixture-mutation", testRegistry), true, "assert.equal(isAyasMutationKindRegistered(\"fixture-mutation\", testRegistry), true)");
+    assert.equal(isAyasMutationKindRegistered("fixture-mutation"), false, "assert.equal(isAyasMutationKindRegistered(\"fixture-mutation\"), false)");
   });
   await scenario("M16: the real registry's second reviewed entry (second-safe-smoke-coverage-v1) resolves with its exact declared exactFiles", () => {
-    assert.equal(isAyasMutationKindRegistered("second-safe-smoke-coverage-v1"), true);
+    assert.equal(isAyasMutationKindRegistered("second-safe-smoke-coverage-v1"), true, "assert.equal(isAyasMutationKindRegistered(\"second-safe-smoke-coverage-v1\"), true)");
     const impl = resolveAyasMutation("second-safe-smoke-coverage-v1", ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"]);
-    assert.deepEqual(impl.exactFiles, ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"]);
+    assert.deepEqual(impl.exactFiles, ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"], "assert.deepEqual(impl.exactFiles, [\"scripts/smoke-ayas-machine-health-non-gpu-stage.ts\"])");
   });
   await scenario("M16 end-to-end: second-safe-smoke-coverage-v1's real run() writes its embedded content and its own declared validator actually PASSes", async () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-second-mutation-e2e-"));
@@ -55,9 +55,9 @@ async function main() {
     fs.symlinkSync(path.join(process.cwd(), "src"), path.join(repoRoot, "src"), "junction");
     const impl = resolveAyasMutation("second-safe-smoke-coverage-v1", ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"]);
     const result = await impl.run(repoRoot);
-    assert.deepEqual(result.changedFiles, ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"]);
+    assert.deepEqual(result.changedFiles, ["scripts/smoke-ayas-machine-health-non-gpu-stage.ts"], "assert.deepEqual(result.changedFiles, [\"scripts/smoke-ayas-machine-health-non-gpu-stage.ts\"])");
     assert.deepEqual(result.testResults, ["PASS"], "the embedded content must be real, working test code — not just syntactically valid");
-    assert.equal(fs.existsSync(path.join(repoRoot, "scripts/smoke-ayas-machine-health-non-gpu-stage.ts")), true);
+    assert.equal(fs.existsSync(path.join(repoRoot, "scripts/smoke-ayas-machine-health-non-gpu-stage.ts")), true, "assert.equal(fs.existsSync(path.join(repoRoot, \"scripts/smoke-ayas-machine-health-non-gpu-stage.ts\")), true)");
     fs.rmSync(repoRoot, { recursive: true, force: true });
   });
 

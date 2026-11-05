@@ -62,14 +62,14 @@ async function run() {
   await scenario("record → read-and-clear round-trips every field, and clears both keys", () => {
     recordPhoneLlmCheckpoint("download:start", { modelId: "onnx-community/Qwen2.5-0.5B-Instruct", file: "config.json", percent: null });
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
-    assert.equal(stale!.latest.name, "download:start");
-    assert.equal(stale!.latest.modelId, "onnx-community/Qwen2.5-0.5B-Instruct");
-    assert.equal(stale!.latest.file, "config.json");
-    assert.equal(typeof stale!.latest.at, "number");
+    assert.ok(stale, "assert.ok(stale)");
+    assert.equal(stale!.latest.name, "download:start", "assert.equal(stale!.latest.name, \"download:start\")");
+    assert.equal(stale!.latest.modelId, "onnx-community/Qwen2.5-0.5B-Instruct", "assert.equal(stale!.latest.modelId, \"onnx-community/Qwen2.5-0.5B-Instruct\")");
+    assert.equal(stale!.latest.file, "config.json", "assert.equal(stale!.latest.file, \"config.json\")");
+    assert.equal(typeof stale!.latest.at, "number", "assert.equal(typeof stale!.latest.at, \"number\")");
 
     // A second read finds nothing — the first read cleared it.
-    assert.equal(readAndClearStalePhoneLlmCheckpoints(), null);
+    assert.equal(readAndClearStalePhoneLlmCheckpoints(), null, "assert.equal(readAndClearStalePhoneLlmCheckpoints(), null)");
   });
 
   await scenario("every closure-sprint checkpoint name (file-level and chunk-level) is accepted and recorded in order — chunk:bytes_progress excluded from the milestone history on purpose (see next scenario)", () => {
@@ -100,7 +100,7 @@ async function run() {
     ];
     for (const name of milestoneNames) recordPhoneLlmCheckpoint(name, { modelId: "m" });
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
+    assert.ok(stale, "assert.ok(stale)");
     assert.equal(stale!.latest.name, "generation:end", "latest must be the last one recorded");
     assert.deepEqual(
       stale!.history.map((e) => e.name),
@@ -113,17 +113,17 @@ async function run() {
     recordPhoneLlmCheckpoint("runtime:start", { modelId: "m" });
     recordPhoneLlmCheckpoint("runtime:end", { modelId: "m" });
     clearPhoneLlmCheckpoints();
-    assert.equal(readAndClearStalePhoneLlmCheckpoints(), null);
+    assert.equal(readAndClearStalePhoneLlmCheckpoints(), null, "assert.equal(readAndClearStalePhoneLlmCheckpoints(), null)");
   });
 
   await scenario("chunk:bytes_progress is routed to its own small, bounded tail — never the milestone history", () => {
     for (let i = 0; i < 250; i += 1) recordPhoneLlmCheckpoint("chunk:bytes_progress", { modelId: "m", chunkIndex: 0, percent: i });
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
+    assert.ok(stale, "assert.ok(stale)");
     assert.equal(stale!.history.length, 0, "a pure progress flood must leave the milestone history untouched");
     assert.ok(stale!.progressTail.length <= 5, `progress tail must be small and bounded, was ${stale!.progressTail.length}`);
     // The most recent entries must be the ones kept, not the oldest.
-    assert.equal(stale!.progressTail[stale!.progressTail.length - 1].percent, 249);
+    assert.equal(stale!.progressTail[stale!.progressTail.length - 1].percent, 249, "assert.equal(stale!.progressTail[stale!.progressTail.length - 1].percent, 249)");
   });
 
   await scenario("REGRESSION FIX PROOF: a real-device-scale flood of chunk:bytes_progress (480+ ticks, as an unbounded ~483MB read produced) never evicts milestone checkpoints from EARLIER in the SAME chunk or from other chunks", () => {
@@ -143,7 +143,7 @@ async function run() {
     recordPhoneLlmCheckpoint("chunk:reader_complete", { modelId: "m", chunkIndex: 0, detail: "483003582" });
 
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
+    assert.ok(stale, "assert.ok(stale)");
     const names = stale!.history.map((e) => e.name);
     assert.deepEqual(
       names,
@@ -152,18 +152,18 @@ async function run() {
     );
     // And the crash-recovery banner still gets SOME visibility into how
     // far the read got, from the separate tail — just not all 483 ticks.
-    assert.ok(stale!.progressTail.length > 0 && stale!.progressTail.length <= 5);
-    assert.equal(stale!.progressTail[stale!.progressTail.length - 1].detail, String(483 * 1024 * 1024));
+    assert.ok(stale!.progressTail.length > 0 && stale!.progressTail.length <= 5, "assert.ok(stale!.progressTail.length > 0 && stale!.progressTail.length <= 5)");
+    assert.equal(stale!.progressTail[stale!.progressTail.length - 1].detail, String(483 * 1024 * 1024), "assert.equal(stale!.progressTail[stale!.progressTail.length - 1].detail, String(483 * 1024 * 1024))");
   });
 
   await scenario("chunk-level detail (status/content-range/byte counts) round-trips through the checkpoint entry", () => {
     recordPhoneLlmCheckpoint("chunk:response_status", { modelId: "m", file: "onnx/model_q4f16.onnx", chunkIndex: 3, detail: "206" });
     recordPhoneLlmCheckpoint("chunk:content_range", { modelId: "m", file: "onnx/model_q4f16.onnx", chunkIndex: 3, detail: "bytes 25165824-33554431/483003582" });
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
-    assert.equal(stale!.history[0].chunkIndex, 3);
-    assert.equal(stale!.history[0].detail, "206");
-    assert.equal(stale!.history[1].detail, "bytes 25165824-33554431/483003582");
+    assert.ok(stale, "assert.ok(stale)");
+    assert.equal(stale!.history[0].chunkIndex, 3, "assert.equal(stale!.history[0].chunkIndex, 3)");
+    assert.equal(stale!.history[0].detail, "206", "assert.equal(stale!.history[0].detail, \"206\")");
+    assert.equal(stale!.history[1].detail, "bytes 25165824-33554431/483003582", "assert.equal(stale!.history[1].detail, \"bytes 25165824-33554431/483003582\")");
   });
 
   await scenario("wasLikelyBackgrounded: true when the most recent visibility event before the stall was 'hidden'", () => {
@@ -171,8 +171,8 @@ async function run() {
     recordPhoneLlmCheckpoint("visibility:hidden", { modelId: "m" });
     recordPhoneLlmCheckpoint("chunk:start", { modelId: "m", chunkIndex: 5 }); // stall happens here, mid-background
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
-    assert.equal(wasLikelyBackgrounded(stale!), true);
+    assert.ok(stale, "assert.ok(stale)");
+    assert.equal(wasLikelyBackgrounded(stale!), true, "assert.equal(wasLikelyBackgrounded(stale!), true)");
   });
 
   await scenario("wasLikelyBackgrounded: false when the most recent visibility event was 'visible' (or none at all)", () => {
@@ -180,12 +180,12 @@ async function run() {
     recordPhoneLlmCheckpoint("visibility:visible", { modelId: "m" });
     recordPhoneLlmCheckpoint("persist:start", { modelId: "m" });
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
+    assert.ok(stale, "assert.ok(stale)");
     assert.equal(wasLikelyBackgrounded(stale!), false, "foregrounded again before the stall — not a backgrounding-caused stall");
 
     recordPhoneLlmCheckpoint("verify:start", { modelId: "m" }); // no visibility event at all in this run
     const stale2 = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale2);
+    assert.ok(stale2, "assert.ok(stale2)");
     assert.equal(wasLikelyBackgrounded(stale2!), false, "no visibility evidence → do not claim backgrounding");
   });
 
@@ -218,12 +218,12 @@ async function run() {
     captured.handler?.();
 
     const stale = readAndClearStalePhoneLlmCheckpoints();
-    assert.ok(stale);
+    assert.ok(stale, "assert.ok(stale)");
     assert.deepEqual(
       stale!.history.map((e) => e.name),
-      ["visibility:hidden", "visibility:visible"],
+      ["visibility:hidden", "visibility:visible"], "assert.deepEqual(\n      stale!.history.map((e) => e.name),\n      [\"visibility:hidden\", \"visibility:visible\"],\n    )",
     );
-    assert.ok(stale!.history.every((e) => e.modelId === "model-x"));
+    assert.ok(stale!.history.every((e) => e.modelId === "model-x"), "assert.ok(stale!.history.every((e) => e.modelId === \"model-x\"))");
 
     stop();
     assert.equal(captured.handler, null, "cleanup must detach the listener");
@@ -236,7 +236,7 @@ async function run() {
     try {
       recordPhoneLlmCheckpoint("download:start", { modelId: "m" }); // must not throw
       clearPhoneLlmCheckpoints(); // must not throw
-      assert.equal(readAndClearStalePhoneLlmCheckpoints(), null);
+      assert.equal(readAndClearStalePhoneLlmCheckpoints(), null, "assert.equal(readAndClearStalePhoneLlmCheckpoints(), null)");
     } finally {
       (globalThis as { sessionStorage?: Storage }).sessionStorage = saved;
     }

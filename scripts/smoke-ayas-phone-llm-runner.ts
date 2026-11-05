@@ -60,8 +60,8 @@ async function run() {
   const onnxFile = required.find((f) => f.endsWith(".onnx"))!;
 
   await scenario("empty storage → none, never throws", async () => {
-    assert.equal(await getModelCacheStatus(MODEL_05B), "none");
-    assert.equal(await isModelCached(MODEL_05B), false);
+    assert.equal(await getModelCacheStatus(MODEL_05B), "none", "assert.equal(await getModelCacheStatus(MODEL_05B), \"none\")");
+    assert.equal(await isModelCached(MODEL_05B), false, "assert.equal(await isModelCached(MODEL_05B), false)");
   });
 
   await scenario("old mutable-main cache entries never satisfy a pinned revision", async () => {
@@ -74,21 +74,21 @@ async function run() {
         etag: null, complete: true, updatedAt: Date.now(),
       });
     }
-    assert.equal(await getModelCacheStatus(MODEL_05B), "none");
-    assert.equal(await isModelCached(MODEL_05B), false);
+    assert.equal(await getModelCacheStatus(MODEL_05B), "none", "assert.equal(await getModelCacheStatus(MODEL_05B), \"none\")");
+    assert.equal(await isModelCached(MODEL_05B), false, "assert.equal(await isModelCached(MODEL_05B), false)");
   });
 
   await scenario("runner rejects a non-catalog revision before pipeline loading", async () => {
     const runner = new AyasPhoneLlmRunner();
     const result = await runner.load({ ...MODEL_05B, revision: "0".repeat(40) });
-    assert.equal(result.ok, false);
+    assert.equal(result.ok, false, "assert.equal(result.ok, false)");
     if (!result.ok) assert.match(result.detail, /PHONE_MODEL_REVISION_INVALID/);
-    assert.equal(runner.loadedModelId, null);
+    assert.equal(runner.loadedModelId, null, "assert.equal(runner.loadedModelId, null)");
   });
 
   await scenario("only the .onnx weight file complete (the old single-file check's blind spot) → partial, not complete", async () => {
     await seedComplete(MODEL_05B, onnxFile);
-    assert.equal(await getModelCacheStatus(MODEL_05B), "partial");
+    assert.equal(await getModelCacheStatus(MODEL_05B), "partial", "assert.equal(await getModelCacheStatus(MODEL_05B), \"partial\")");
     assert.equal(await isModelCached(MODEL_05B), false, "a partial download must never be reported as ready");
   });
 
@@ -97,7 +97,7 @@ async function run() {
       if (file === onnxFile) continue;
       await seedComplete(MODEL_05B, file);
     }
-    assert.equal(await getModelCacheStatus(MODEL_05B), "partial");
+    assert.equal(await getModelCacheStatus(MODEL_05B), "partial", "assert.equal(await getModelCacheStatus(MODEL_05B), \"partial\")");
   });
 
   await scenario("tokenizer_config.json complete but config.json missing → NOT falsely counted as config.json (per-file key isolation)", async () => {
@@ -105,13 +105,13 @@ async function run() {
     await seedComplete(MODEL_05B, "tokenizer_config.json");
     await seedComplete(MODEL_05B, onnxFile);
     // 3 of 4 required distinct files complete (config.json missing) → partial, never complete.
-    assert.equal(await getModelCacheStatus(MODEL_05B), "partial");
+    assert.equal(await getModelCacheStatus(MODEL_05B), "partial", "assert.equal(await getModelCacheStatus(MODEL_05B), \"partial\")");
   });
 
   await scenario("all 4 required files complete → complete", async () => {
     for (const file of required) await seedComplete(MODEL_05B, file);
-    assert.equal(await getModelCacheStatus(MODEL_05B), "complete");
-    assert.equal(await isModelCached(MODEL_05B), true);
+    assert.equal(await getModelCacheStatus(MODEL_05B), "complete", "assert.equal(await getModelCacheStatus(MODEL_05B), \"complete\")");
+    assert.equal(await isModelCached(MODEL_05B), true, "assert.equal(await isModelCached(MODEL_05B), true)");
   });
 
   await scenario("a file present but NOT yet marked complete (in-progress download) → partial, not complete", async () => {
@@ -134,13 +134,13 @@ async function run() {
       complete: false, // in flight
       updatedAt: Date.now(),
     });
-    assert.equal(await getModelCacheStatus(MODEL_05B), "partial");
+    assert.equal(await getModelCacheStatus(MODEL_05B), "partial", "assert.equal(await getModelCacheStatus(MODEL_05B), \"partial\")");
   });
 
   await scenario("another model's (1.5B) fully-downloaded files never count toward the 0.5B model's completeness (model-id isolation)", async () => {
     for (const file of getRequiredModelCacheFiles(MODEL_15B)) await seedComplete(MODEL_15B, file);
-    assert.equal(await getModelCacheStatus(MODEL_05B), "none");
-    assert.equal(await getModelCacheStatus(MODEL_15B), "complete");
+    assert.equal(await getModelCacheStatus(MODEL_05B), "none", "assert.equal(await getModelCacheStatus(MODEL_05B), \"none\")");
+    assert.equal(await getModelCacheStatus(MODEL_15B), "complete", "assert.equal(await getModelCacheStatus(MODEL_15B), \"complete\")");
   });
 
   await scenario("model size labels are the real, verified HF repo blob sizes — not placeholders", () => {
@@ -148,8 +148,8 @@ async function run() {
     // against `GET /api/models/<id>?blobs=true`, not estimated.
     assert.match(MODEL_05B.approxSizeLabel, /^~[\d.]+ (MB|GB)$/);
     assert.match(MODEL_15B.approxSizeLabel, /^~[\d.]+ (MB|GB)$/);
-    assert.equal(MODEL_05B.dtype, "q4f16");
-    assert.equal(MODEL_15B.dtype, "q4f16");
+    assert.equal(MODEL_05B.dtype, "q4f16", "assert.equal(MODEL_05B.dtype, \"q4f16\")");
+    assert.equal(MODEL_15B.dtype, "q4f16", "assert.equal(MODEL_15B.dtype, \"q4f16\")");
   });
 
   console.log(`AYAS phone LLM runner smoke: PASS (${count} scenarios)`);
