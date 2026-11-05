@@ -1,4 +1,5 @@
 import { ayasSafePublicFetch } from "../../brain/autonomy/AyasSafePublicFetch";
+import { PDF_MAX_BYTES, PDF_MAX_PAGES, pdfText, type PdfTextResult } from "./AyasPdfText";
 import {
   ATOLYE_STAGES, type AtolyeStage, applicationGate, canonicalUrl, contentHash, type CostClass, type KnowledgeBrain, type KnowledgeKind, type KnowledgeRecord,
   knowledgeId, looksLikeInjection, STAGE_BRAINS,
@@ -11,9 +12,10 @@ import {
  * installed or obeyed; facts are kept as quotes with their source.
  *
  * What it does not do, said plainly rather than faked: no general open-web index without an API key (the key-free
- * official APIs are encyclopedic, code, model, paper and forum search); no PDF, audio, image or video bytes (the safe
- * fetch reads text types only and the repo has no PDF parser) — such a link is recorded as ERISILEMEDI with the reason;
- * a YouTube link's content is studied by the V3 reference study (captions, frames, pace), here only its public oEmbed.
+ * official APIs are encyclopedic, code, model, paper and forum search); no audio, image or video bytes (such a link is
+ * recorded as ERISILEMEDI with the reason). A PDF's text is read (first pages, `AyasPdfText`); a scanned PDF without a
+ * text layer is not OCR'd. A YouTube link's content is studied by the V3 reference study (captions, frames, pace), here
+ * only its public oEmbed.
  */
 
 export type FetchText = (url: string) => Promise<{ readonly ok: true; readonly body: string; readonly contentType: string; readonly finalUrl: string } | { readonly ok: false; readonly code: string; readonly message: string }>;
@@ -21,6 +23,14 @@ export type FetchText = (url: string) => Promise<{ readonly ok: true; readonly b
 export const safeFetchText: FetchText = async (url) => {
   const r = await ayasSafePublicFetch(url, { timeoutMs: 15_000, maxBodyBytes: 1_500_000, acceptTruncatedBody: true });
   return r.ok ? { ok: true, body: r.body, contentType: r.contentType, finalUrl: r.finalUrl } : { ok: false, code: r.code, message: r.message };
+};
+
+/** A document fetch: PDF bytes when the server sends a PDF, else the text body (a `.pdf` link may answer with a page). */
+export type FetchDocument = (url: string) => Promise<{ readonly ok: true; readonly bytes?: Buffer; readonly body: string; readonly contentType: string; readonly finalUrl: string } | { readonly ok: false; readonly code: string; readonly message: string }>;
+
+export const safeFetchDocument: FetchDocument = async (url) => {
+  const r = await ayasSafePublicFetch(url, { timeoutMs: 30_000, maxBodyBytes: PDF_MAX_BYTES, acceptTruncatedBody: true, binaryContentTypes: ["application/pdf"] });
+  return r.ok ? { ok: true, ...(r.bytes ? { bytes: r.bytes } : {}), body: r.body, contentType: r.contentType, finalUrl: r.finalUrl } : { ok: false, code: r.code, message: r.message };
 };
 
 export interface SearchHit { readonly url: string; readonly baslik: string; readonly ozet: string; readonly kaynak: SearchProviderId; readonly tarih?: string; readonly lisans?: string }
@@ -240,8 +250,64 @@ function record(input: {
 
 export interface LinkStudyResult { readonly record: KnowledgeRecord; readonly tur: LinkKind; readonly not: string }
 
+export interface StudyOptions {
+  readonly fetchText?: FetchText;
+  readonly fetchDocument?: FetchDocument;
+  readonly readPdf?: (bytes: Buffer) => Promise<PdfTextResult>;
+  readonly now?: Date;
+  readonly istek?: string;
+}
+
+interface StudyCommon { readonly url: string; readonly now: Date; readonly istek?: string }
+
+const LICENCE_IN_TEXT = /\b(Creative Commons [A-Za-z -]+\d\.\d|CC BY(?:-SA|-NC|-ND)*(?: \d\.\d)?|Apache License,? Version 2\.0|MIT License)\b/;
+
+/** A fetched HTML/text page as a record: title, publisher, date and licence from the page itself. */
+function pageRecord(page: { readonly body: string; readonly contentType: string; readonly finalUrl: string }, common: StudyCommon): LinkStudyResult {
+  const html = page.body;
+  const title = metaContent(html, "og:title") ?? strip(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "");
+  const text = /html/i.test(page.contentType) ? readableText(html) : html;
+  const description = metaContent(html, "description") ?? metaContent(html, "og:description") ?? text.split("\n").find((l) => l.length > 60) ?? "";
+  const published = metaContent(html, "article:published_time") ?? /<time[^>]+datetime=["']([^"']+)["']/i.exec(html)?.[1];
+  const licenceLink = /<a[^>]+rel=["']license["'][^>]*>([\s\S]*?)<\/a>/i.exec(html)?.[1];
+  const licenceText = licenceLink ? strip(licenceLink) : LICENCE_IN_TEXT.exec(text)?.[1];
+  const host = new URL(page.finalUrl).hostname;
+  return {
+    tur: "web",
+    not: `sayfa okundu (${text.length} karakter metin)`,
+    record: record({ ...common, url: page.finalUrl, baslik: title || host, tur: "web", text, ozet: description, yayinci: metaContent(html, "og:site_name") ?? host, ...(published ? { yayinTarihi: published } : {}), ...(licenceText ? { lisansKanit: licenceText } : {}) }),
+  };
+}
+
+/** A PDF: downloaded through the safe fetch (bounded), its text read by `AyasPdfText`, kept like a page. */
+async function studyPdf(url: string, common: StudyCommon, options: StudyOptions): Promise<LinkStudyResult> {
+  const u = new URL(url);
+  let name = u.pathname.split("/").pop() || u.hostname;
+  try { name = decodeURIComponent(name); } catch { /* keep the raw name */ }
+  const unread = (why: string): LinkStudyResult => ({ tur: "pdf", not: why, record: record({ ...common, baslik: name, tur: "pdf", text: "", ozet: why, erisilemedi: why }) });
+  const doc = await (options.fetchDocument ?? safeFetchDocument)(url);
+  if (!doc.ok) return unread(`PDF indirilemedi (${doc.code}: ${doc.message.slice(0, 100)})`);
+  // A ".pdf" address that answers with a page (a landing or login page) is read as that page.
+  if (!doc.bytes) return pageRecord(doc, common);
+  const read = await (options.readPdf ?? pdfText)(doc.bytes);
+  if (!read.ok) return unread(read.reason);
+  const lines = read.text.split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  // The title is the first short capitalised line that is not a notice ("Attention Is All You Need" under arXiv's
+  // permission line, 5 Nov 2026); the summary is the abstract when there is one.
+  const notice = /permission|copyright|©|licen[cs]e|arxiv:|doi\.org|https?:\/\//i;
+  const title = lines.find((l) => l.length >= 8 && l.length <= 120 && /^\p{Lu}/u.test(l) && !/[,;:]$/.test(l) && l.split(" ").length <= 16 && !notice.test(l)) ?? name;
+  const abstract = /\bAbstract\b[\s.:—-]*([\s\S]{80,1200}?)(?:\n\s*\n|\n\s*(?:1\.?\s+)?Introduction\b|$)/i.exec(read.text)?.[1];
+  const ozet = (abstract ? abstract.replace(/\s+/g, " ").trim() : lines.filter((l) => l.length > 60 && !notice.test(l)).slice(0, 3).join(" ") || lines.slice(0, 6).join(" ")).slice(0, 600);
+  const licence = LICENCE_IN_TEXT.exec(read.text)?.[1];
+  return {
+    tur: "pdf",
+    not: `PDF okundu (ilk ${PDF_MAX_PAGES} sayfaya kadar, ${read.text.length} karakter metin${read.kesildi ? ", kısaltıldı" : ""})`,
+    record: record({ ...common, url: doc.finalUrl, baslik: title, tur: "pdf", text: read.text, ozet, yayinci: new URL(doc.finalUrl).hostname, ...(licence ? { lisansKanit: licence } : {}) }),
+  };
+}
+
 /** Studies one link: what it is, what it says, under which terms; a link it cannot read is recorded as such. */
-export async function studyLink(url: string, options: { readonly fetchText?: FetchText; readonly now?: Date; readonly istek?: string } = {}): Promise<LinkStudyResult> {
+export async function studyLink(url: string, options: StudyOptions = {}): Promise<LinkStudyResult> {
   const fetchText = options.fetchText ?? safeFetchText;
   const now = options.now ?? new Date();
   let parsed: URL;
@@ -250,8 +316,9 @@ export async function studyLink(url: string, options: { readonly fetchText?: Fet
   const kind = linkKind(parsed.toString());
   const common = { url: parsed.toString(), now, ...(options.istek ? { istek: options.istek } : {}) };
 
-  if (kind === "pdf" || kind === "media") {
-    const why = kind === "pdf" ? "PDF okunamıyor: güvenli fetch yalnız metin türlerini okur ve projede PDF ayrıştırıcı yok (owner kararı gereken bağımlılık)" : "ses/görüntü/video dosyası indirilmedi: güvenli fetch metin türleri dışını okumaz";
+  if (kind === "pdf") return studyPdf(parsed.toString(), common, options);
+  if (kind === "media") {
+    const why = "ses/görüntü/video dosyası indirilmedi: güvenli fetch metin türleri ve PDF dışını okumaz";
     return { tur: kind, not: why, record: record({ ...common, baslik: parsed.pathname.split("/").pop() || parsed.hostname, tur: kind, text: "", ozet: why, erisilemedi: why }) };
   }
 
@@ -284,21 +351,39 @@ export async function studyLink(url: string, options: { readonly fetchText?: Fet
 
   const page = await fetchText(parsed.toString());
   if (!page.ok) {
+    // A PDF behind an address without ".pdf" (arxiv.org/pdf/…, a download link) is read as a PDF.
+    if (page.code === "AYAS_FETCH_UNSUPPORTED_CONTENT_TYPE" && /application\/pdf/i.test(page.message)) return studyPdf(parsed.toString(), common, options);
     const why = `sayfa okunamadı (${page.code}: ${page.message.slice(0, 100)})`;
     return { tur: kind, not: why, record: record({ ...common, baslik: parsed.hostname, tur: "web", text: "", ozet: why, erisilemedi: why }) };
   }
-  const html = page.body;
-  const title = metaContent(html, "og:title") ?? strip(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "") ?? parsed.hostname;
-  const text = /html/i.test(page.contentType) ? readableText(html) : html;
-  const description = metaContent(html, "description") ?? metaContent(html, "og:description") ?? text.split("\n").find((l) => l.length > 60) ?? "";
-  const published = metaContent(html, "article:published_time") ?? /<time[^>]+datetime=["']([^"']+)["']/i.exec(html)?.[1];
-  const licenceLink = /<a[^>]+rel=["']license["'][^>]*>([\s\S]*?)<\/a>/i.exec(html)?.[1];
-  const licenceText = licenceLink ? strip(licenceLink) : /\b(Creative Commons [A-Za-z -]+\d\.\d|CC BY(?:-SA|-NC|-ND)*(?: \d\.\d)?|Apache License,? Version 2\.0|MIT License)\b/.exec(text)?.[1];
-  return {
-    tur: kind,
-    not: `sayfa okundu (${text.length} karakter metin)`,
-    record: record({ ...common, url: page.finalUrl, baslik: title || parsed.hostname, tur: "web", text, ozet: description, ...(metaContent(html, "og:site_name") ? { yayinci: metaContent(html, "og:site_name")! } : { yayinci: new URL(page.finalUrl).hostname }), ...(published ? { yayinTarihi: published } : {}), ...(licenceText ? { lisansKanit: licenceText } : {}) }),
-  };
+  return pageRecord(page, common);
+}
+
+/** How many of a topic search's first hits are read in full (a page, a README, a PDF), beside every hit's summary. */
+export const TOPIC_STUDY_TOP = 2;
+
+/**
+ * A topic the owner asked AYAS to research from the chat: every provider's hits as records, and the first readable
+ * hits (not YouTube or media) studied as links. Nothing is saved here; the caller stores `records`.
+ */
+export async function researchTopic(sorgu: string, options: StudyOptions & { readonly wait?: (ms: number) => Promise<void> } = {}): Promise<{ readonly report: SearchReport; readonly records: readonly KnowledgeRecord[]; readonly okunan: number; readonly ozet: string }> {
+  const now = options.now ?? new Date();
+  const report = await searchWeb(sorgu, { ...(options.fetchText ? { fetchText: options.fetchText } : {}), ...(options.wait ? { wait: options.wait } : {}) });
+  const records = [...hitRecords(report, now)];
+  let okunan = 0;
+  for (const hit of report.hits.filter((h) => { try { return !["youtube", "media"].includes(linkKind(h.url)); } catch { return false; } }).slice(0, TOPIC_STUDY_TOP)) {
+    try {
+      const r = await studyLink(hit.url, { ...options, now, istek: sorgu });
+      if (r.record.dogrulama.durum === "ERISILEMEDI") continue;
+      // The full reading replaces the hit's one-line summary for the same URL.
+      const at = records.findIndex((x) => x.id === r.record.id);
+      if (at >= 0) records.splice(at, 1);
+      records.push({ ...r.record, etiketler: [...new Set([...r.record.etiketler, `arama:${hit.kaynak}`])] });
+      okunan += 1;
+    } catch { /* the hit's summary stays */ }
+  }
+  const working = report.saglayicilar.filter((p) => p.ok);
+  return { report, records, okunan, ozet: `${report.hits.length} sonuç (${working.map((p) => `${p.id} ${p.sayi}`).join(", ") || "hiçbir sağlayıcı cevap vermedi"}), ${okunan} sayfa tam okundu` };
 }
 
 /** Search hits as knowledge records (one per hit, quoting the provider's own summary); the provider is the source. */

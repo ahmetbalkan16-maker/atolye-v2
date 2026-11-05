@@ -19,6 +19,7 @@ import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { listStudyRequests } from "../../src/lib/v3/council/ReferenceStore";
+import { listLinkRequests, listSearchRequests } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles, listProposals } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, publishLine, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { approvePublish } from "../../src/lib/v3/publish/PublishApproval";
@@ -82,13 +83,16 @@ let lastCycleFailure = 0;
 async function idleImprovement(paths: V3Paths): Promise<void> {
   if (process.env.ATOLYE_V3_GELISIM === "0" || Date.now() - lastCycleFailure < CYCLE_RETRY_MS) return;
   if ((await listOrders(paths.workRoot)).some((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor")) return;
-  const requestsWaiting = (await listStudyRequests(paths.workRoot)).some((x) => x.request.durum === "bekliyor");
+  // A video, a web link or an internet search the owner gave AYAS starts a cycle without waiting for the pause.
+  const requestsWaiting = (await listStudyRequests(paths.workRoot)).some((x) => x.request.durum === "bekliyor")
+    || (await listLinkRequests(paths.repoRoot)).some((x) => x.request.durum === "bekliyor")
+    || (await listSearchRequests(paths.repoRoot)).some((x) => x.request.durum === "bekliyor");
   const everyH = Number(process.env.ATOLYE_V3_GELISIM_ARALIK_SA) || CYCLE_EVERY_H;
   if (!cycleDue(await listCycles(paths.workRoot), { everyH, requestsWaiting })) return;
   const dir = improvementDir(paths.workRoot);
   await fs.mkdir(dir, { recursive: true });
   const logFile = createWriteStream(path.join(dir, "dongu.log"), { flags: "a" });
-  logFile.write(`\n=== ${new Date().toISOString()} gelişim döngüsü${requestsWaiting ? " (video isteği var)" : ""}\n`);
+  logFile.write(`\n=== ${new Date().toISOString()} gelişim döngüsü${requestsWaiting ? " (owner isteği var)" : ""}\n`);
   console.log("gelişim döngüsü başladı");
   const code = await new Promise<number>((resolve) => {
     const child = spawn(process.execPath, [path.join(paths.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), path.join(paths.repoRoot, "scripts", "v3", "gelisim.ts"), "dongu"], { cwd: paths.repoRoot, env: process.env, windowsHide: true });

@@ -163,7 +163,8 @@ export function recallKnowledge(records: readonly KnowledgeRecord[], query: { re
   return records
     .filter((r) => !query.beyin || r.beyinler.includes(query.beyin))
     .map((r) => {
-      const hay = tokens([r.baslik, r.ozet, ...r.kavramlar, ...r.etiketler, ...r.alintilar].join(" "));
+      // The owner's own words for a search ("internette … araştır") are part of what a record is about.
+      const hay = tokens([r.baslik, r.ozet, ...r.kavramlar, ...r.etiketler, ...r.alintilar, r.istek ?? ""].join(" "));
       const hits = new Set(hay.filter((t) => q.has(t))).size;
       const trust = r.dogrulama.durum === "RESMI_KAYNAK" ? 0.5 : r.dogrulama.durum === "COK_KAYNAK" ? 0.3 : 0;
       return { record: r, puan: hits ? hits + trust : 0, eski: Date.parse(r.tekrarKontrol) < now.getTime() };

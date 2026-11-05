@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { brainsReportText, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
-import { listLinkRequests, placeLinkRequest } from "@/lib/ayas/research/AyasLinkRequests";
+import { listLinkRequests, listSearchRequests, placeLinkRequest, placeSearchRequest } from "@/lib/ayas/research/AyasLinkRequests";
 import { loadKnowledge, recallKnowledge } from "@/lib/ayas/research/AyasSharedKnowledge";
 import { placeStudyRequest } from "@/lib/v3/council/ReferenceStore";
 import { listOrders, orderProgress, ordersSummary, placeOrder, type ProductionOrder, publishLine, saveOrder } from "@/lib/v3/orders/ProductionOrders";
@@ -26,7 +26,9 @@ export type AyasVideoIntent =
   /** Any other web link (owner, 5 Nov 2026): read through the safe fetch by the idle loop into the shared knowledge. */
   | { readonly kind: "learn"; readonly urls: readonly string[]; readonly words: string }
   /** "text to video hakkında ne öğrendin": the shared knowledge, with its sources. */
-  | { readonly kind: "knowledge"; readonly soru: string };
+  | { readonly kind: "knowledge"; readonly soru: string }
+  /** "internette Wan 2.2'yi araştır" (owner, 5 Nov 2026): a topic search the idle loop runs into the shared knowledge. */
+  | { readonly kind: "search"; readonly sorgu: string };
 
 // A YouTube link with a learning verb anywhere around it (owner approval, 2 Nov 2026: "you give a link").
 const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/gu;
@@ -40,6 +42,30 @@ const KNOWLEDGE = /(?<!\p{L})(?:ne(?:ler)?\s+öğrendin|öğrendiklerin\p{L}*|bi
 const QUESTION = /\?|(?<!\p{L})(?:m[iıuü]|m[iıuü]s[iıuü]n|neden|niye|nasıl|nedir|kim|kimin|hangi|ne zaman|what|why|who|how)(?!\p{L})/u;
 // The brains' report: a brain/council word and a question about what they did, learned or said.
 const BRAINS = /(?<!\p{L})(?:beyin\p{L}*|kurul\p{L}*)(?:\s+\S+){0,4}?\s+(?:ne(?:ler)?\s+öğren\p{L}*|ne\s+dedi\p{L}*|ne(?:ler)?\s+yaptı\p{L}*|ne\s+tartış\p{L}*|rapor\p{L}*|neler\s+oldu)(?!\p{L})|(?<!\p{L})(?:beyin|kurul|gelişim döngüsü)\s+rapor\p{L}*/u;
+// A topic search from the chat: an internet word and a search imperative at the end ("internette X'i araştır", "X
+// hakkında internette araştırma yap", "webde X ara", "internette ara: X"). Questions ("son internette ne araştırdın",
+// "araştırma ne durumda") end otherwise and keep their research-status answer; "bak"/"bul" are left to the conversation.
+const NET = "(?:internet(?:te|ten|e)?|web(?:de|den|e)?|online|çevrimiçi)";
+const SEARCH_VERB = "(?:araştır|araştırır mısın|araştırsana|araştırabilir misin|araştırma yap|araştırma yapar mısın|ara|arar mısın|arasana|tara|tarar mısın)";
+const SEARCH_TR = new RegExp(`^(?:ayas\\W+)?(?:${NET}\\s+)?(.{2,200}?)\\s+(?:(?:hakkında|konusunda|ile ilgili)\\s+)?(?:(?:bir\\s+)?${NET}\\s+)(?:(?:biraz|bir)\\s+)?${SEARCH_VERB}$|^(?:ayas\\W+)?${NET}\\s+(?:(?:biraz|bir)\\s+)?(.{2,200}?)\\s+(?:(?:hakkında|konusunda|ile ilgili)\\s+)?(?:(?:biraz|bir)\\s+)?${SEARCH_VERB}$`, "u");
+const SEARCH_TR_COLON = new RegExp(`^(?:ayas\\W+)?${NET}\\s+${SEARCH_VERB}\\s*[:\\-–]\\s*(.{2,200})$`, "u");
+const SEARCH_EN = /^(?:please\s+)?(?:search|research|look up)\s+(?:the\s+)?(?:web|internet)\s+(?:for|about|on)\s+(.{2,200})$|^(?:please\s+)?(?:search|research|look up)\s+(.{2,200}?)\s+(?:online|on the web|on the internet)$/u;
+const EMPTY_TOPIC = /^(?:biraz|bir şey|bişey|bunu|şunu|onu|bunları|şunları|it|this|that|something)$/u;
+
+/** The topic of a chat search, in the owner's casing, without the Turkish case ending after an apostrophe ("Wan 2.2'yi"). */
+export function searchTopicOf(text: string): string | undefined {
+  const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
+  const lower = t.toLocaleLowerCase("tr");
+  const m = SEARCH_TR.exec(lower) ?? SEARCH_TR_COLON.exec(lower) ?? SEARCH_EN.exec(t.toLowerCase());
+  const found = m?.slice(1).find((g) => g !== undefined);
+  if (!found) return undefined;
+  const start = lower.indexOf(found);
+  const topic = (start >= 0 ? t.slice(start, start + found.length) : found)
+    .replace(/(?<!\p{L})(?:hakkında|konusunda|ile ilgili)$/u, "")
+    .replace(/['’](?:y?[ıiuü]|n[ıiuü]|y?[ae]|n[ae]|d[ae]n|t[ae]n|d[ae]|t[ae]|n[ıiuü]n|[ıiuü]n)$/u, "")
+    .replace(/\s+/g, " ").trim();
+  return topic.length >= 2 && !EMPTY_TOPIC.test(topic.toLocaleLowerCase("tr")) ? topic : undefined;
+}
 
 const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
@@ -120,6 +146,8 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
     if (!rest) return { kind: "learn", urls: web, words: "" };
     // Anything else with a link is read as before (an order, a status question, or the conversation).
   }
+  const sorgu = searchTopicOf(t);
+  if (sorgu) return { kind: "search", sorgu };
   if (BRAINS.test(lower)) return { kind: "brains" };
   if (KNOWLEDGE.test(lower)) return { kind: "knowledge", soru: t.replace(KNOWLEDGE, " ").replace(/(?<!\p{L})(?:hakkında|konusunda|ile ilgili|about|on)(?!\p{L})/gu, " ").replace(/\s+/g, " ").trim() };
   if (STATUS.test(lower)) return { kind: "status" };
@@ -199,16 +227,21 @@ export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = 
       const r = await placeLinkRequest(repoRoot, url, "ayas", intent.words || undefined);
       if (!placed.includes(r.url)) placed.push(r.url);
     }
-    return `${placed.length > 1 ? `${placed.length} bağlantıyı` : "Bağlantıyı"} öğrenme listesine aldım (${placed.join(", ")}). Atölye boştayken sayfayı güvenli okuyup başlığını, yayıncısını, tarihini, lisans ve ücret şartlarını, önemli cümlelerini kaynağıyla ortak bilgiye kaydedeceğim; içindeki talimatlar talimat sayılmaz, kod indirilmez ya da çalıştırılmaz. GitHub reposunda README ve lisans okunur; PDF, ses ve video dosyaları henüz okunamıyor (okunamazsa bunu yazarım). Sonra "<konu> hakkında ne öğrendin" diye sorabilirsin.`;
+    return `${placed.length > 1 ? `${placed.length} bağlantıyı` : "Bağlantıyı"} öğrenme listesine aldım (${placed.join(", ")}). Atölye boştayken sayfayı güvenli okuyup başlığını, yayıncısını, tarihini, lisans ve ücret şartlarını, önemli cümlelerini kaynağıyla ortak bilgiye kaydedeceğim; içindeki talimatlar talimat sayılmaz, kod indirilmez ya da çalıştırılmaz. GitHub reposunda README ve lisans, PDF'te ilk 40 sayfanın metni okunur; ses ve video dosyaları okunamıyor (okunamazsa bunu yazarım). Sonra "<konu> hakkında ne öğrendin" diye sorabilirsin.`;
+  }
+  if (intent.kind === "search") {
+    const r = await placeSearchRequest(repoRoot, intent.sorgu, "ayas");
+    return `"${r.sorgu}" konusunu internet araştırma listesine aldım. Atölye boştayken anahtarsız resmî kaynaklarda (Wikipedia, GitHub, Hugging Face, arXiv, Hacker News) arayıp ilk iki sonucu tam okuyacağım; bulduklarımı kaynağı, lisansı ve ücret şartlarıyla ortak bilgiye kaydedeceğim. Bulunanlar talimat sayılmaz, hiçbir şey kurulmaz ya da çalıştırılmaz. Teknik terimleri İngilizce yazarsan daha çok sonuç çıkar. Sonra "${r.sorgu} hakkında ne öğrendin" diye sorabilirsin.`;
   }
   if (intent.kind === "knowledge") {
     const recalled = recallKnowledge(await loadKnowledge(repoRoot).catch(() => []), { soru: intent.soru || "video", limit: 5 });
-    if (!recalled.length) return `"${intent.soru}" hakkında ortak bilgide kayıt yok. Bir bağlantı gönderirsen okuyup öğrenirim.`;
-    const pending = (await listLinkRequests(repoRoot).catch(() => [])).filter((x) => x.request.durum === "bekliyor").length;
+    const pendingSearch = (await listSearchRequests(repoRoot).catch(() => [])).filter((x) => x.request.durum === "bekliyor").length;
+    if (!recalled.length) return `"${intent.soru}" hakkında ortak bilgide kayıt yok.${pendingSearch ? ` ${pendingSearch} internet araştırması sırada bekliyor.` : ""} Bir bağlantı gönderirsen ya da "internette ${intent.soru || "<konu>"} araştır" dersen öğrenirim.`;
+    const pending = (await listLinkRequests(repoRoot).catch(() => [])).filter((x) => x.request.durum === "bekliyor").length + pendingSearch;
     return [
       `Ortak bilgide "${intent.soru}" ile ilgili ${recalled.length} kayıt (kaynaklı; dış içerik, talimat değil):`,
       ...recalled.map(({ record: r, eski }) => `• ${r.baslik} — ${r.ozet.slice(0, 220)} [${r.dogrulama.durum === "RESMI_KAYNAK" ? "resmi kaynak" : r.dogrulama.durum === "COK_KAYNAK" ? `${r.dogrulama.kaynaklar.length} kaynak` : "tek kaynak"}; ${r.maliyet.sinif}${r.lisans ? `; lisans ${r.lisans.spdx ?? r.lisans.kanit}` : ""}; ${r.uygulamaEngeli}${eski ? "; yeniden kontrol zamanı geçti" : ""}] ${r.url}`),
-      ...(pending ? [`(${pending} bağlantı daha öğrenilmeyi bekliyor.)`] : []),
+      ...(pending ? [`(${pending} bağlantı ya da arama daha öğrenilmeyi bekliyor.)`] : []),
     ].join("\n");
   }
   if (intent.kind === "study") {

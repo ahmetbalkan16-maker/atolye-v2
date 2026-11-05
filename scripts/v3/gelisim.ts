@@ -9,16 +9,16 @@
  *   npx tsx scripts/v3/gelisim.ts onayla <id> [--not "…"]  # the owner's decision; nothing is built by it
  *   npx tsx scripts/v3/gelisim.ts reddet <id> [--not "…"]
  *
- * Tasks: the owner's links are studied; delivered videos are compared with the references (lessons); the productions'
+ * Tasks: the owner's links and internet searches are studied; delivered videos are compared with the references (lessons); the productions'
  * code wants are collected as proposals; a video similar to a recent episode is searched and studied; the quality
  * brain sits its exam; it tries one new prompt addition and its one tunable setting, kept only when the exam rises by
  * MIN_GAIN points. Code never changes here. Spend: at most 10 cents a cycle; the eye waits for a cool GPU.
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, saveLinkRequest } from "../../src/lib/ayas/research/AyasLinkRequests";
+import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, listSearchRequests, saveLinkRequest } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
-import { studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
+import { researchTopic, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
 import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
 import { listGrades, readiness } from "../../src/lib/v3/council/DevBrain";
@@ -118,8 +118,25 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     const due = studyRequestsDue(await listStudyRequests(paths.workRoot));
     // Other web links the owner gave AYAS (5 Nov 2026): read through the safe public fetch into the shared knowledge.
     const links = linkRequestsDue(await listLinkRequests(paths.repoRoot));
-    if (!due.length && !links.length) return skip("bekleyen video ya da bağlantı isteği yok");
+    // Topics the owner asked AYAS to search the internet for (5 Nov 2026): searched, the first hits read, all sourced.
+    const searches = linkRequestsDue(await listSearchRequests(paths.repoRoot));
+    if (!due.length && !links.length && !searches.length) return skip("bekleyen video, bağlantı ya da arama isteği yok");
     const done: string[] = [];
+    for (const { file, request } of searches.slice(0, 2)) {
+      try {
+        const r = await researchTopic(request.sorgu);
+        const saved = r.records.length ? await saveKnowledge(paths.repoRoot, r.records) : undefined;
+        const fresh = saved?.outcomes.filter((o) => o.sonuc !== "AYNI").length ?? 0;
+        // Every provider failing is worth one more try an hour later; zero relevant hits is an answer.
+        Object.assign(request, { durum: r.report.saglayicilar.some((p) => p.ok) ? "tamam" : "hata", sonuc: `${r.ozet}; ${fresh} yeni/güncel kayıt`.slice(0, 400) });
+        done.push(`arama "${request.sorgu.slice(0, 50)}" (${r.ozet.slice(0, 80)})`);
+      } catch (e) {
+        Object.assign(request, { durum: "hata", sonuc: (e as Error).message.slice(0, 300) });
+        done.push(`arama "${request.sorgu.slice(0, 50)}" yapılamadı`);
+      }
+      Object.assign(request, { deneme: (request.deneme ?? 0) + 1, sonDeneme: new Date().toISOString() });
+      await saveLinkRequest(file, request);
+    }
     for (const { file, request } of links.slice(0, 5)) {
       try {
         const r = await studyLink(request.url, { ...(request.istek ? { istek: request.istek } : {}) });

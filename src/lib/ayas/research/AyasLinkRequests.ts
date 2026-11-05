@@ -53,13 +53,58 @@ export async function listLinkRequests(repoRoot: string): Promise<{ file: string
   return out;
 }
 
-export async function saveLinkRequest(file: string, request: LinkRequest): Promise<void> {
+export async function saveLinkRequest(file: string, request: LinkRequest | SearchRequest): Promise<void> {
   await fs.writeFile(`${file}.tmp`, `${JSON.stringify(request, null, 2)}\n`);
   await fs.rename(`${file}.tmp`, file);
 }
 
-/** Waiting links, and a failed one once more an hour later. */
-export function linkRequestsDue<T extends { readonly request: LinkRequest }>(requests: readonly T[], now: Date = new Date()): T[] {
+/**
+ * A topic the owner asks AYAS to search the internet for ("internette Wan 2.2'yi araştır", 5 Nov 2026). The same
+ * file-only pattern as a link: the live server writes this request, the V3 idle loop searches the key-free official
+ * APIs (`researchTopic`) and saves what it found, with sources, to the shared knowledge.
+ */
+export interface SearchRequest {
+  readonly id: string;
+  readonly sorgu: string;
+  readonly kaynak: string;
+  readonly tarih: string;
+  durum: "bekliyor" | "tamam" | "hata";
+  sonuc?: string;
+  deneme?: number;
+  sonDeneme?: string;
+}
+
+export function searchRequestDir(repoRoot: string): string {
+  return path.join(knowledgeDir(repoRoot), "aramalar");
+}
+
+/** One request per topic (2–200 characters); the same topic already waiting is not queued twice. */
+export async function placeSearchRequest(repoRoot: string, sorgu: string, kaynak: string, now = new Date()): Promise<SearchRequest> {
+  const q = sorgu.replace(/\s+/g, " ").trim();
+  if (q.length < 2 || q.length > 200) throw new Error("SEARCH_REQUEST_INVALID: 2–200 karakter");
+  const same = (a: string) => a.toLocaleLowerCase("tr") === q.toLocaleLowerCase("tr");
+  const waiting = (await listSearchRequests(repoRoot)).find((x) => x.request.durum === "bekliyor" && same(x.request.sorgu));
+  if (waiting) return waiting.request;
+  const dir = searchRequestDir(repoRoot);
+  await fs.mkdir(dir, { recursive: true });
+  const id = createHash("sha256").update(`${q} ${now.toISOString()}`).digest("hex").slice(0, 12);
+  const request: SearchRequest = { id, sorgu: q, kaynak, tarih: now.toISOString(), durum: "bekliyor" };
+  await fs.writeFile(path.join(dir, `${now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "")}-${id}.json`), `${JSON.stringify(request, null, 2)}\n`);
+  return request;
+}
+
+export async function listSearchRequests(repoRoot: string): Promise<{ file: string; request: SearchRequest }[]> {
+  const dir = searchRequestDir(repoRoot);
+  if (!existsSync(dir)) return [];
+  const out: { file: string; request: SearchRequest }[] = [];
+  for (const n of (await fs.readdir(dir)).filter((x) => x.endsWith(".json")).sort()) {
+    try { out.push({ file: path.join(dir, n), request: JSON.parse(await fs.readFile(path.join(dir, n), "utf8")) as SearchRequest }); } catch { /* read next pass */ }
+  }
+  return out;
+}
+
+/** Waiting links or searches, and a failed one once more an hour later. */
+export function linkRequestsDue<T extends { readonly request: Pick<LinkRequest, "durum" | "deneme" | "sonDeneme" | "tarih"> }>(requests: readonly T[], now: Date = new Date()): T[] {
   return requests.filter(({ request: r }) => r.durum === "bekliyor"
     || (r.durum === "hata" && (r.deneme ?? 1) < LINK_REQUEST_MAX_ATTEMPTS && now.getTime() - Date.parse(r.sonDeneme ?? r.tarih) >= LINK_REQUEST_RETRY_AFTER_MS));
 }

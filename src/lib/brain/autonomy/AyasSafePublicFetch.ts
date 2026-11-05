@@ -147,7 +147,17 @@ export interface AyasSafeFetchOptions {
    * sets this — grep for it before adding a new caller that does.
    */
   readonly dangerouslyAllowPrivateNetworkForTests?: boolean;
+  /**
+   * Opt-in binary types (owner, 5 Nov 2026: AYAS should read a PDF it is given). A response of such a type is returned
+   * as `bytes` with an empty `body`; every other check (SSRF, redirects, size, status) is unchanged, and a binary body
+   * over `maxBodyBytes` always fails, `acceptTruncatedBody` or not — a cut PDF cannot be read. Without this option
+   * these types are refused exactly as before.
+   */
+  readonly binaryContentTypes?: readonly AyasSafeFetchBinaryContentType[];
 }
+
+/** The binary types a caller may opt into; only documents a parser in this repo reads. */
+export type AyasSafeFetchBinaryContentType = "application/pdf";
 
 export interface AyasSafeFetchSuccess {
   readonly ok: true;
@@ -160,6 +170,8 @@ export interface AyasSafeFetchSuccess {
   readonly truncated: boolean;
   readonly etag?: string;
   readonly lastModified?: string;
+  /** Only for a type the caller listed in `binaryContentTypes`; `body` is then `""`. */
+  readonly bytes?: Buffer;
 }
 
 export interface AyasSafeFetchFailure {
@@ -332,6 +344,7 @@ interface OneRequestResult {
   readonly status: number;
   readonly headers: http.IncomingHttpHeaders;
   readonly body: string;
+  readonly bytes: Buffer;
   readonly truncated: boolean;
 }
 
@@ -392,7 +405,8 @@ function performOneRequest(url: URL, options: Required<Pick<AyasSafeFetchOptions
             truncated = true;
             if (room > 0) chunks.push(chunk.subarray(0, room));
             total = options.maxBodyBytes;
-            resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8"), truncated: true });
+            const bytes = Buffer.concat(chunks);
+            resolve({ status: res.statusCode ?? 0, headers: res.headers, body: bytes.toString("utf8"), bytes, truncated: true });
             req.destroy();
             return;
           }
@@ -400,7 +414,8 @@ function performOneRequest(url: URL, options: Required<Pick<AyasSafeFetchOptions
           chunks.push(chunk);
         });
         res.on("end", () => {
-          resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8"), truncated });
+          const bytes = Buffer.concat(chunks);
+          resolve({ status: res.statusCode ?? 0, headers: res.headers, body: bytes.toString("utf8"), bytes, truncated });
         });
         res.on("error", () => {
           resolve({ error: fail("AYAS_FETCH_NETWORK_ERROR", "response stream error") });
@@ -477,6 +492,22 @@ async function ayasSafePublicFetchOnce(rawUrl: string, options: AyasSafeFetchOpt
     }
 
     const contentType = typeof result.headers["content-type"] === "string" ? result.headers["content-type"] : "";
+    const binaryType = contentType.split(";")[0]!.trim().toLowerCase();
+    if (!isAllowedContentType(contentType) && (options.binaryContentTypes ?? []).some((t) => t === binaryType)) {
+      if (result.truncated) return fail("AYAS_FETCH_BODY_TOO_LARGE", `binary response exceeded ${maxBodyBytes} bytes`);
+      return {
+        ok: true,
+        status: result.status,
+        notModified: false,
+        finalUrl: validated.url.toString(),
+        contentType,
+        body: "",
+        bytes: result.bytes,
+        truncated: false,
+        etag: typeof result.headers.etag === "string" ? result.headers.etag : undefined,
+        lastModified: typeof result.headers["last-modified"] === "string" ? result.headers["last-modified"] : undefined,
+      };
+    }
     if (!isAllowedContentType(contentType)) {
       return fail("AYAS_FETCH_UNSUPPORTED_CONTENT_TYPE", `unsupported content-type: ${contentType || "(none)"}`);
     }
