@@ -22,6 +22,8 @@ import { developerWindow, EVENING_MAX_JOBS, nextJob, waitingForLimit } from "../
 import { EXAMS_PER_PASS, learnFromCommits, RECIPES_PER_PASS, type ResearchDeps, researchJob, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { listProposals, updateProposal } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders } from "../../src/lib/v3/orders/ProductionOrders";
+import { unloadOllama } from "../../src/lib/v3/util/Gpu";
+import { healthDirs, healthLine, waitForPcHealth } from "../../src/lib/v3/util/PcHealth";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
 const log = (s: string) => console.log(s);
@@ -115,6 +117,15 @@ async function main() {
         const job = nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal));
         if (!job) {
           log("kuyruk boş");
+          break;
+        }
+        // Owner rule (5 Nov 2026: "pc sağlığına her zaman dikkat edilecek"): Claude's build and the studio's checks load
+        // the processor and RAM, so a job starts only on a fit PC (PcHealth, as a production step); a nearly full disk
+        // or RAM that stays short ends the evening, the job keeps its turn.
+        try {
+          log(`sağlık: ${healthLine(await waitForPcHealth(healthDirs(paths), log, { free: () => unloadOllama(log, "RAM az") }))}`);
+        } catch (e) {
+          log(`durdu: PC sağlığı — ${(e as Error).message.slice(0, 200)}`);
           break;
         }
         const done = await runDevJob(job, d);

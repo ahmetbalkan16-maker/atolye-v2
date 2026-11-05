@@ -12,7 +12,8 @@
  * Tasks: the owner's links and internet searches are studied; delivered videos are compared with the references (lessons); the productions'
  * code wants are collected as proposals; a video similar to a recent episode is searched and studied; the quality
  * brain sits its exam; it tries one new prompt addition and its one tunable setting, kept only when the exam rises by
- * MIN_GAIN points. Code never changes here. Spend: at most 10 cents a cycle; the eye waits for a cool GPU.
+ * MIN_GAIN points. Code never changes here. Spend: at most 10 cents a cycle; every local model call waits for a cool
+ * GPU, and every task, video study and exam for a fit PC (RAM, disks, processor; fitPc).
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
@@ -30,6 +31,8 @@ import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kind
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
+import { unloadOllama } from "../../src/lib/v3/util/Gpu";
+import { healthDirs, healthLine, type PcHealth, waitForPcHealth } from "../../src/lib/v3/util/PcHealth";
 import { runProcess } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
 
@@ -42,6 +45,14 @@ const CYCLE_CAP_USD = 0.1;
 /** Code wants are collected from productions of the last this many days. */
 const HARVEST_DAYS = 14;
 const log = (s: string) => console.log(s);
+
+/**
+ * Owner rule (5 Nov 2026: "pc sağlığına her zaman dikkat edilecek"): the brains watch the whole PC as a production step
+ * does, not only the card — every task, video study and exam starts only when RAM, disks and the processor are fit
+ * (PcHealth: short RAM unloads Ollama and rests, a throttling processor rests up to 3 min, a nearly full disk stops).
+ * The card's temperature is kept inside every local model call (coolGpuProvider).
+ */
+const fitPc = (paths: V3Paths): Promise<PcHealth> => waitForPcHealth(healthDirs(paths), log, { free: () => unloadOllama(log, "RAM az") });
 
 const delivered = (o: ProductionOrder) => (o.durum === "teslim" || o.durum === "uyariyla_teslim") && !!o.cikti;
 const readJson = async <T>(file: string): Promise<T> => JSON.parse(await fs.readFile(file, "utf8")) as T;
@@ -63,6 +74,7 @@ async function doneSet(paths: V3Paths, name: string): Promise<{ has: (k: string)
 
 /** Runs the quality exam as the production judges (measured, examples as the brain chose) and returns its report. */
 async function qualityExam(paths: V3Paths, extra: readonly string[], tag: string): Promise<{ dengeli?: number; dogru: number; toplam: number; cevaplar: { tur: string; kusurlu: boolean; dogru: boolean; puan: number; sorunlar: string[]; id: string }[] } | undefined> {
+  await fitPc(paths);
   const tsx = path.join(paths.repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
   const script = path.join(paths.repoRoot, "scripts", "v3", "kalite-sinavi.ts");
   await runProcess(process.execPath, [tsx, script, "hazirla"], { cwd: paths.repoRoot, timeoutMs: 30 * 60_000, onLine: () => undefined });
@@ -151,6 +163,8 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
       await saveLinkRequest(file, request);
     }
     for (const { id, items } of due.slice(0, 3)) {
+      // Outside the try: an unfit PC stops the task without spending the request's attempt.
+      await fitPc(paths);
       let outcome: Pick<StudyRequest, "durum" | "sonuc">;
       try {
         const r = await studyReference({ paths, id, neden: `${items[0]!.request.kaynak} isteği`, eye: brainVision(), budget: budget.budget, model: budget.director, log });
@@ -246,6 +260,8 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
         history[query] = new Date().toISOString();
         await writeAtomic(historyFile, history);
       }
+      // Outside the try: an unfit PC is not the topic's failure.
+      await fitPc(paths);
       try {
         const best = pickSimilar(await searchVideos(paths, query), target, { studied, ...(own ? { ownChannelId: own } : {}) });
         if (!best) done.push(`"${query}": incelenmemiş uygun video yok`);
@@ -399,6 +415,14 @@ async function cycle(paths: V3Paths): Promise<CycleRecord> {
     for (const task of CYCLE_TASKS) {
       if (only && !only.includes(task)) continue;
       if (!process.argv.includes("--zorla") && !taskDue(cycles, task)) continue;
+      // The PC first (it may rest here), then a fresh look at the orders.
+      let health: PcHealth;
+      try {
+        health = await fitPc(paths);
+      } catch (e) {
+        durdu = `PC sağlığı: ${(e as Error).message.slice(0, 200)}`;
+        break;
+      }
       const orders = (await listOrders(paths.workRoot)).map((x) => x.order);
       // An order that came in wins: the cycle stops before the next task.
       if (orders.some((o) => o.durum === "bekliyor")) {
@@ -406,6 +430,7 @@ async function cycle(paths: V3Paths): Promise<CycleRecord> {
         break;
       }
       log(`• ${TASK_NAMES[task]}`);
+      log(`  sağlık: ${healthLine(health)}`);
       const r = await runTask(task, paths, budget, orders).catch((e: Error): Omit<TaskResult, "bitis"> => ({ gorev: task, sonuc: "hata", ayrinti: e.message.slice(0, 300) }));
       log(`  ${r.sonuc}: ${r.ayrinti}`);
       gorevler.push({ ...r, bitis: new Date().toISOString() });
