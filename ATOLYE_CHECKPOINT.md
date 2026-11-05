@@ -1,3 +1,35 @@
+## 5 Kasım 2026 (gece, 4) — boştaki beyinler PC sağlığına bakar; derinlikli kamera (Depth Anything V2 Small) denemesi
+
+**Bakım:** V3 sipariş izleyicisi owner'ın isteğiyle boştayken yeniden başlatıldı (23:17, `yapim.ts` değişikliği devrede).
+11 eski `ayas-live-*` kopyası silindi; kalanlar canlı `6a8d1dc6` + geri dönüş `3d0fdab5`.
+
+**PC sağlığı (owner: "pc sağlığına her zaman dikkat edilecek") — 2acc43b9.** Boştaki V3 beyinleri yalnız GPU sıcaklığını
+tutuyordu (`coolGpuProvider`: her yerel model çağrısı < 74 °C başlar, çağrı içinde 85 °C'de durur). RAM, disk ve
+işlemcinin ısıdan yavaşlaması (`PcHealth.waitForPcHealth`) yalnız üretim adımlarında ve render parçalarındaydı. Artık
+`gelisim.ts` her görevden, her video incelemesinden ve her kalite sınavından önce, `gelistirici.ts aksam` her işten
+önce aynı denetimi yapar (RAM az → Ollama boşaltılır ve dinlenir; işlemci yavaşlıyorsa ≤ 3 dk dinlenir; disk < 10 GB
+→ döngü/akşam durur, istek hakkı yanmaz). Gerçek çalıştırma: `sağlık: GPU 59 °C · işlemci hız %133 yük %25 · RAM 16.3 GB
+boş · D: 666 GB boş · C: 247 GB boş`. Testler: tsc 0, lint 0/0, firewall 13, episode-director 58. İzleyici her döngüyü
+diskten başlattığı için yeniden başlatma gerekmez. Denetlenen ve zaten korumalı olanlar: göz (gemma4) ve yerel metin
+modeli, kalite sınavı hakemi (`coolGpuProvider` + çağrı içi durdurma), üretim ile döngü aynı anda karta yüklenmez
+(izleyici döngünün bitmesini bekler); video incelemede Whisper yok, ffmpeg işlemcide; AYAS tarafında ayrı
+`AyasMachineHealthGuard`/`AyasResourceGovernor` var.
+
+**Derinlikli kamera denemesi (owner: "1. maddeyi dene").** `scripts/v3/derinlik_parallax.py` (gen-venv, yeni paket yok):
+Depth Anything V2 Small (Apache-2.0, 99 MB, revizyon `5426e4f0…` sabit, `v3-tools/hf-cache`; 12 sn'de indi) ile göreli
+derinlik, aynı kamera hareketi iki kez — düz (bugünkü yakınlaşma/kaydırma) ve derinlikli (yakın olan daha çok kayar).
+Tamamen işlemcide, 8 iş parçacığı; GPU 59 °C'de kaldı. 3 sahne (Sezar pazarlık "an" resmi, Kosova minyatürü dikey
+1080×1920, Zanzibar gravürü) 6 sn'lik klip ≈ 16 sn. Sonuç: derinlik haritaları düz minyatürde bile doğru katmanlı;
+resimde temiz parallax. İlk ayarda (genişlet 15 / bulanık 9) gravürün ince halatları gökte hayalet çizgi bıraktı →
+7 / 41 ile kayboldu, varsayılan bu. İzlenecekler: `D:\ÜRETİM\Atolye\v3-runtime\denemeler\2026-11-05-derinlik-parallax\
+KARSILASTIR-*.mp4` (üst/sol bugünkü, alt/sağ derinlikli). Üretime bağlanmadı; owner izleyip karar verecek (Remotion'a
+katman olarak bağlamak ayrı iş).
+
+**Wan 2.2 TI2V-5B — owner onayı bekliyor (indirilmedi).** Lisans Apache-2.0, diffusers 0.35.2 destekliyor, ama dosyalar
+34,2 GB (transformer fp32 20 GB, umt5 11,4 GB, VAE 2,8 GB); fp16 tek dosyayla ≈ 23 GB. Ortak bina hattında toplu
+indirme owner kararı (`shared-office-network` kuralı). RAM 31,7 GB: metin kodlayıcı ile model aynı anda tutulmamalı
+(önce istemleri kodla, sonra boşalt), kartta grup offload, 480p kısa klip.
+
 ## 5 Kasım 2026 (gece, 3) — kontrollü evrim açıldı (owner: "sadece kontrollü evrimi yap")
 
 **Bulgu:** döngü hiç çalışmıyordu ve elle yazılan bir kayıt da çalıştıramazdı: fırsat kanıtı ölçüldüğü HEAD'e ve

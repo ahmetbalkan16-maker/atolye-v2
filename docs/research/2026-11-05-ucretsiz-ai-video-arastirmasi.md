@@ -43,6 +43,14 @@ Kaynaklar: [Wan 2.2 TI2V-5B model kartı](https://huggingface.co/Wan-AI/Wan2.2-T
 | duygu / karakter sesi çeşitliliği | Chatterbox `exaggeration` | karakter repliklerinde 0.5 → 0.7; dinleyici testi |
 | önemli harekette efekt | (NC modeller elendi) | mevcut efekt hattında "hareket = efekt" kuralı |
 
+## Deneme sonucu — Depth Anything V2 Small (5 Kasım 2026 gece)
+
+`scripts/v3/derinlik_parallax.py`: 3 sahne, aynı hareketin düz ve derinlikli hali, tamamen işlemcide (GPU kullanılmadı),
+klip başına ≈ 16 sn. Derinlik haritaları resimde, gravürde ve düz minyatürde doğru katmanlı. İnce çizgiler (gravür
+halatları) ilk ayarda gökte hayalet çizgi bıraktı; derinliği daha geniş yumuşatmak (7 / 41) bunu giderdi. Karşılaştırma
+videoları `v3-runtime/denemeler/2026-11-05-derinlik-parallax/KARSILASTIR-*.mp4`; karar owner'da. Wan 2.2 TI2V-5B
+denemesi 34,2 GB indirme gerektirdiği için owner onayı bekliyor.
+
 ## Araştırılmayanlar (bu oturum)
 
 Müzik (ACE-Step 1.5 zaten kullanılıyor), otomatik kurgu, kapak tasarımı, video kalite metrikleri (VMAF vb.), Türkçe
