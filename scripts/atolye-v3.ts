@@ -70,6 +70,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -797,7 +798,11 @@ async function main() {
         // An episode of a series: the writer is told what the earlier episodes told.
         const dizi = series ? seriesBrief(await loadSeries(paths.workRoot, series.ad), series.no) : undefined;
         if (dizi) log(`dizi: "${dizi.ad}" ${dizi.no}. bölüm — önceki ${dizi.onceki.length} bölüm yazara verildi`);
-        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}) };
+        // A Short's beat map from the channel goals (owner, 5 Nov 2026; content/v3/kanal-hedefleri.json is the one source).
+        const shortS = seconds(arg("--sure") ?? "90");
+        const channelGoals = isShorts(shortS) ? (() => { try { return loadChannelGoals(paths.contentRoot); } catch (e) { log(`  kanal hedefleri okunamadı: ${(e as Error).message.slice(0, 120)}`); return undefined; } })() : undefined;
+        const kisaZamanHaritasi = channelGoals ? shortBeatRule(channelGoals, shortS, dil) : undefined;
+        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
@@ -1230,10 +1235,26 @@ async function main() {
     const opening = openingHook(plan);
     const openingWho = opening ? (episode.oyuncu_kadrosu.find((c) => c.id === opening.castId)?.ad ?? opening.castId) : "";
     const row = (ok: boolean, text: string) => `- [${ok ? "x" : " "}] ${text}`;
+    // The channel goals (content/v3/kanal-hedefleri.json, owner 5 Nov 2026): a Short's first three seconds and its scene
+    // plan are checked here; the audience numbers are only stated in QC.md, to be measured after publishing.
+    const goals = (() => { try { return loadChannelGoals(paths.contentRoot); } catch (e) { log(`  kanal hedefleri okunamadı: ${(e as Error).message.slice(0, 120)}`); return undefined; } })();
+    const narrators = new Set(episode.oyuncu_kadrosu.filter((c) => !c.gorunur).map((c) => c.id));
+    const firstLine = timeline.lines[0];
+    const goalRows = shorts && goals
+      ? [
+          ...openingChecks(goals, {
+            ...(firstLine ? { firstLine: { text: splitDirections(episode.sahneler[firstLine.sceneIndex]?.satirlar[firstLine.lineIndex]?.metin ?? "").speech, byCharacter: !narrators.has(firstLine.speaker), startS: firstLine.start } } : {}),
+            ...(events.length ? { firstVisualEventS: events[0]! } : {}),
+            firstSceneCards: (episode.sahneler[0]?.yazi_karti ?? []).map((k) => k.stil),
+          }),
+          scenePlanCheck(episode.sahneler),
+        ].map((c) => row(c.ok, c.text))
+      : [];
     const qc = [
       shorts
         ? row(!!opening && opening.at <= HOOK_S, `Kanca: ${opening ? `${opening.at.toFixed(1)} sn'de ${openingWho} ${opening.kind === "replik" ? "konuşuyor" : "hareket ediyor"}` : "açılış sahnesinde karakter yok"} (Short: ilk ${HOOK_S} sn içinde karakterin repliği ya da hareketi)`)
         : row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
+      ...goalRows,
       row(avgGap >= 1.5 && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef 2–4)`),
       row(maxGap <= 6, `En uzun olaysız aralık ${maxGap.toFixed(1)} sn (hedef ≤ 6)`),
       row(emptyStretch <= 6, `Karaktersiz en uzun süre ${emptyStretch.toFixed(1)} sn (hedef ≤ 6; ekranda kimsenin olmadığı arşiv/tablo kareleri, kapak hariç)`),
@@ -1260,7 +1281,7 @@ async function main() {
     ];
     await fs.writeFile(
       f("QC.md"),
-      `# QC — ${episode.baslik} (${new Date().toLocaleString("tr-TR")})\n\n${qc.join("\n")}\n\n- Maliyet: $${cost.toplamUsd.toFixed(4)} / $${capUsd.toFixed(2)}\n- Toplam üretim süresi: ${Math.round((Date.now() - t0) / 1000)} sn${preview ? " (önizleme: 486p, 15 fps)" : ""}\n- Sesler: ${Object.entries(voices).map(([c, v]) => `${c}→${v}`).join(", ")}\n\n## Görsel raporu (sahne sahne)\n\n${visuals
+      `# QC — ${episode.baslik} (${new Date().toLocaleString("tr-TR")})\n\n${qc.join("\n")}\n\n- Maliyet: $${cost.toplamUsd.toFixed(4)} / $${capUsd.toFixed(2)}\n- Toplam üretim süresi: ${Math.round((Date.now() - t0) / 1000)} sn${preview ? " (önizleme: 486p, 15 fps)" : ""}\n- Sesler: ${Object.entries(voices).map(([c, v]) => `${c}→${v}`).join(", ")}\n\n${goals ? `${channelGoalNote(goals, durationS)}\n` : ""}## Görsel raporu (sahne sahne)\n\n${visuals
         .map((v, i) => `- ${v.donemGorseli === "bulunamadi" || v.set.esikAlti ? "⚠ " : ""}${episode.sahneler[i]!.id}: ${v.not}. Set: ${v.set.kaynak}${v.set.secim ? ` (${verdictLine(v.set.secim)})` : ""}${v.set.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}`)
         .join("\n")}\n`,
     );

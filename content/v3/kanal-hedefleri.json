@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "aciklama": "Crowns & Doodles için tek hedef kaynağı (owner, 5 Kasım 2026). Hedefler kanalımıza özel deney hedefleridir; YouTube'un garanti ettiği eşikler değildir. Okuyan: src/lib/v3/publish/ChannelGoals.ts. Değiştirince: npx tsx scripts/v3/kanal.ts hedefler",
+  "kanal": {
+    "ad": "Crowns & Doodles",
+    "kanalId": "UC3u0Kx_T49g9qdLFOagsN8A",
+    "adres": "https://youtube.com/@crownsanddoodles",
+    "dil": "en-US"
+  },
+  "baslangic": {
+    "kaynak": "YouTube Studio, owner'ın 5 Kasım 2026 incelemesi",
+    "kanal": {
+      "donem": { "bas": "2026-10-07", "bit": "2026-11-03" },
+      "goruntuleme": 1203,
+      "izlenmeSaat": 3.9,
+      "abone": 2,
+      "yeniIzleyiciPayi": 0.667,
+      "araSiraIzleyenPayi": 0.333,
+      "duzenliIzleyenPayi": { "enFazla": 0.001, "not": "Studio: %0,1'in altında" },
+      "izlemeyiSecenler": 0.519,
+      "kaydiranlar": 0.481,
+      "trafik": { "shortsAkisi": 0.968, "youtubeArama": 0.008 },
+      "ulkeler": [
+        { "ulke": "US", "pay": 0.255, "goruntuleme": 307, "ortIzlemeSn": 30 },
+        { "ulke": "IN", "pay": 0.096, "goruntuleme": 116, "ortIzlemeSn": 19 },
+        { "ulke": "DE", "pay": 0.080, "goruntuleme": 96, "ortIzlemeSn": 22 },
+        { "ulke": "PH", "pay": 0.074, "goruntuleme": 89, "ortIzlemeSn": 16 },
+        { "ulke": "GB", "pay": 0.041, "goruntuleme": 49, "ortIzlemeSn": 20 },
+        { "ulke": "TR", "pay": 0.026, "goruntuleme": 31, "ortIzlemeSn": 18 },
+        { "ulke": "CA", "pay": 0.023, "goruntuleme": 28, "ortIzlemeSn": 32 }
+      ],
+      "eksik": ["izleyicilerin aktif saatleri (Studio: yeterli veri yok)", "izleyicilerin izlediği diğer kanallar (Studio: yeterli veri yok)"]
+    },
+    "video": {
+      "videoId": "q8JW_i5Gt0M",
+      "baslik": "Never Kidnap a Future Emperor",
+      "tur": "short",
+      "sureSn": 44,
+      "goruntuleme": 1190,
+      "aktifIzlenme": 560,
+      "benzersizIzleyici": 542,
+      "izlenmeSaat": 3.8,
+      "ortIzlemeSn": 23,
+      "izlemeyiSecenler": 0.52,
+      "kaydiranlar": 0.48,
+      "not": "Owner 45 sn yazdı; yt-dlp 44 sn ölçtü (5 Kasım 2026). Video verisi kanal verisiyle karıştırılmaz."
+    }
+  },
+  "hedefler": {
+    "short": {
+      "durum": "ILK_DENEY",
+      "izlemeyiSecenler": { "min": 0.58, "max": 0.60, "baslangic": 0.52 },
+      "ortIzlenmeOrani": { "min": 0.578, "max": 0.622, "baslangic": 0.523, "not": "45 sn'lik videoda 26–28 sn; süreye bölünmüş oran, 30 ve 60 sn'lik videolar kendi süreleriyle ölçülür" },
+      "izlenmeye": ["düzenli izleyici payı zamanla artmalı", "aboneye dönüşüm izlenir (abone kazanımı / görüntüleme)", "yorum ve beğeni artmalı"]
+    },
+    "uzun": {
+      "durum": "HEDEF_TANIMLANMADI",
+      "not": "Kanalda ölçülmüş uzun video verisi yok; ilk uzun videonun 7 günlük verisiyle belirlenecek. Tahminî hedef konmadı."
+    }
+  },
+  "diziler": [
+    {
+      "id": "insane-moments",
+      "ad": "History's Most Insane Moments",
+      "oncelik": 1,
+      "konular": "şaşırtıcı tarihsel olaylar, inanılmaz tesadüfler, komik ve dramatik anlar",
+      "anlatim": "Caesar Short'unun yaklaşımı: karakterin şaşırtıcı repliğiyle açılış, anlatıcı + diyalog, finalde başı tamamlayan espri"
+    },
+    {
+      "id": "wars-changed",
+      "ad": "Wars That Changed Everything",
+      "oncelik": 2,
+      "konular": "kısa savaşlar, beklenmedik zaferler, askerî hatalar, dönüm noktaları"
+    },
+    {
+      "id": "rise-fall-empires",
+      "ad": "Rise and Fall of Empires",
+      "oncelik": 3,
+      "konular": "Roma, Osmanlı, Moğol ve diğer büyük uygarlıklar"
+    }
+  ],
+  "shortsYapisi": {
+    "referansSureSn": 45,
+    "not": "Süreler esnektir; hikâyenin doğal akışı bozulmaz. Kanca mutlak 0–2 sn'dir, diğer bölümler sürenin payıyla ölçeklenir.",
+    "bolumler": [
+      { "id": "kanca", "basSn": 0, "bitSn": 2, "tr": "Güçlü diyalog, şaşırtıcı olay ya da soru", "en": "the hook: a character's surprising line, event or question" },
+      { "id": "baglam", "basSn": 2, "bitSn": 9, "tr": "Olayın ve tarihsel bağlamın kurulması", "en": "set up who, where and when (one wider map beat is fine)" },
+      { "id": "catisma", "basSn": 9, "bitSn": 24, "tr": "Karakter çatışması, mizah ve gerilim", "en": "the clash: characters argue, joke and raise the stakes" },
+      { "id": "doruk", "basSn": 24, "bitSn": 38, "tr": "Hikâyenin en güçlü gelişmesi ve karşılığı", "en": "the strongest turn and its historical payoff (the threat made good)" },
+      { "id": "final", "basSn": 38, "bitSn": 45, "tr": "Akılda kalan final, espri ya da yorum sorusu", "en": "a memorable closing quip that runs back into the first line, or a one-line question to the viewer (never \"subscribe\")" }
+    ],
+    "ilkUcSaniye": {
+      "kancaSn": 2,
+      "ilkSatirEnFazlaKelime": 8,
+      "gorselOlayIlkSn": 3,
+      "kartYok": true
+    }
+  },
+  "olcumAnlari": ["48s", "7g"],
+  "pilot": {
+    "ad": "Crowns & Doodles pilot 1",
+    "not": "6 Short, ~45 sn. Yayın saati etkisi konu ve süreden ayrılabilsin diye her dizi iki farklı saate düşer, her saate iki farklı dizi düşer. 6 videodan kesin sonuç çıkarılmaz; yalnız ilk eğilimler raporlanır.",
+    "saatDilimi": "Europe/Istanbul",
+    "hedefSureSn": 45,
+    "videolar": [
+      { "no": 1, "dizi": "insane-moments", "tur": "olay", "konu": "The Cadaver Synod: Pope Stephen VI puts his dead predecessor Formosus on trial", "donem": "897", "saat": "19:00", "dogruluk": "Belgelenmiş (Liutprand, Auxilius); cesedin yerine bir diyakozun cevap verdiği kayıtlıdır. Repliklerin kendisi kurgudur." },
+      { "no": 2, "dizi": "wars-changed", "tur": "savas", "konu": "The Anglo-Zanzibar War: the shortest war in history", "donem": "1896", "saat": "20:00", "dogruluk": "Süre kaynaklara göre 38–45 dk. Bu konunun Short'u 4 Kasım 2026'da üretildi, yükleme kararı owner'da (yeniden üretim gerekmez)." },
+      { "no": 3, "dizi": "rise-fall-empires", "tur": "hukumdar", "konu": "Mehmed II drags his fleet over the hills into the Golden Horn", "donem": "1453", "saat": "21:00", "dogruluk": "22 Nisan 1453; gemi sayısı kaynaklara göre ~67–72, sayı temkinli verilir." },
+      { "no": 4, "dizi": "insane-moments", "tur": "olay", "konu": "The Dancing Plague of Strasbourg", "donem": "1518", "saat": "21:00", "dogruluk": "Belediye kayıtlarında var; dansçı ve ölüm sayıları tartışmalı, temkinli verilir." },
+      { "no": 5, "dizi": "wars-changed", "tur": "savas", "konu": "The Great Emu War: Australia's army against the emus", "donem": "1932", "saat": "19:00", "dogruluk": "Binbaşı G. P. W. Meredith'in raporu; öldürülen emu sayıları raporun iddiasıdır, temkinli verilir." },
+      { "no": 6, "dizi": "rise-fall-empires", "tur": "hukumdar", "konu": "Genghis Khan's envoys shaved and killed: Khwarazm's fatal insult", "donem": "1218", "saat": "20:00", "dogruluk": "Juvaini ve Nasawi anlatır; ayrıntılar kaynaklara göre değişir, temkinli verilir." }
+    ]
+  }
+}
