@@ -1,0 +1,111 @@
+{
+  "aciklama": "5 Kasım 2026 web araştırması (Claude, WebSearch + AYAS güvenli fetch): ücretsiz/açık kaynak AI video ve belgesel üretim araçları. İçe aktarma: npx tsx scripts/ayas-web-research.ts ekle --dosya docs/research/2026-11-05-ucretsiz-ai-video-bulgulari.json. Kaynaklar birbiriyle çeliştiğinde not yazıldı; resmi sayfa her zaman üstündür.",
+  "bulgular": [
+    {
+      "url": "https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B",
+      "baslik": "Wan 2.2 TI2V-5B (Alibaba) — metinden ve görselden video, Apache-2.0",
+      "ozet": "Metinden ve görselden 720p 24 fps video. Resmi kod 24 GB VRAM istiyor; ComfyUI'nin yerel offload'u ve Q8 GGUF ile 12 GB kartlarda (RTX 4070/3080 Ti) çalıştıran kurulum rehberleri var. FP8 ağırlığı yok, Ampere'de FP8 hızlandırmaz. Atölye'nin A2000 12 GB kartı için en olası yerel görselden-video adayı.",
+      "alintilar": ["TI2V-5B supports both text-to-video and image-to-video generation at 720P resolution with 24fps", "The Wan2.2 5B version should fit well on 8GB vram with the ComfyUI native offloading", "No FP8 weight file for TI2V-5B"],
+      "kaynaklar": ["https://www.thundercompute.com/blog/wan-2-2-comfyui-ai-video-model", "https://smeltcore.com/recipes/wan-2-2-ti2v-5b-on-rtx-3080-ti-720p-text-image-to-video-in-comfyui/", "https://willitrunai.com/blog/wan-2-2-vram-requirements"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["Apache 2.0 with free weights, and commercial use allowed", "official Wan code specifies at least 24GB for TI2V-5B with offloading; a five-second 720p clip takes under nine minutes"] },
+      "lisans": { "spdx": "Apache-2.0", "kanit": "Hugging Face model kartı: Apache 2.0" },
+      "asamalar": ["animation", "visuals", "cost"],
+      "yayinci": "Wan-AI (Alibaba)", "yayinTarihi": "2025-07-28", "resmi": true,
+      "etiketler": ["image-to-video", "text-to-video", "12gb"],
+      "firsatlar": ["Dönem görseli ve 'an' resimlerine kısa kamera/kalabalık hareketi (görselden video) — V3 deneme çalışmasında 3 sahne, GPU 85 °C korumasıyla", "Ölçüt: kalite beyni 'anlatılanı gösterme' puanı ve üretim süresi"]
+    },
+    {
+      "url": "https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B",
+      "baslik": "Wan 2.1 T2V-1.3B — 8 GB'ta çalışan küçük metinden video modeli, Apache-2.0",
+      "ozet": "Wan 2.1'in 1.3B sürümü 8 GB VRAM'de çalışıyor; 14B sürümü tam hassasiyette 40 GB+, INT8/FP8 ile 24 GB. Kalitesi 5B/14B'den düşük; hızlı deneme ve ara çekimler için.",
+      "alintilar": ["the 1.3B model runs on as little as 8GB", "the 14B model needs 40GB+ VRAM at full precision, runs on 24GB consumer GPUs with INT8/FP8 quantization"],
+      "kaynaklar": ["https://www.thundercompute.com/blog/best-open-source-ai-video-generation-models", "https://willitrunai.com/blog/wan-2-2-vram-requirements"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["Wan 2.x listed as Apache 2.0, allowed for commercial use, and runnable locally"] },
+      "lisans": { "spdx": "Apache-2.0", "kanit": "Apache 2.0 (kaynak karşılaştırmaları)" },
+      "asamalar": ["animation", "cost"], "etiketler": ["text-to-video", "8gb"]
+    },
+    {
+      "url": "https://huggingface.co/Lightricks/LTX-2/blob/main/LICENSE",
+      "baslik": "LTX-2 / LTX-2.5 (Lightricks) — açık ağırlık, sesli video; özel topluluk lisansı",
+      "ozet": "Ses ve görüntüyü birlikte üreten açık ağırlıklı model (Ocak 2026, LTX-2.5 güncel). Lisans Apache DEĞİL: 'LTX-2 Community License' — yıllık geliri 10 milyon $ altındaki şirketlere ticari kullanım serbest, ince ayar devri için ücretli lisans gerekebilir. Resmi gereksinim 32 GB+ VRAM (FP8); topluluk nicemlemeleri 8–24 GB iddia ediyor. Bizim 12 GB kartta tam kalite gerçekçi değil.",
+      "alintilar": ["free for academic research and for commercial use by companies with less than $10M in annual recurring revenue", "NVIDIA GPU with 32GB+ VRAM, 32GB system RAM, 100GB free storage, CUDA 12.7+"],
+      "kaynaklar": ["https://www.therundown.ai/tools/ltx-2", "https://ltx.io/blog/open-source-video-generation-models-guide", "https://www.globenewswire.com/news-release/2026/01/06/3213304/0/en/lightricks-open-sources-ltx-2-the-first-production-ready-audio-and-video-generation-model-with-truly-open-weights.html"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["open-weight rather than open source, because the license includes revenue thresholds, use restrictions, and redistribution duties"] },
+      "lisans": { "kanit": "LTX-2 Community License Agreement (5 Ocak 2026), < 10M $ ARR ticari serbest" },
+      "asamalar": ["animation", "audio", "cost"], "yayinci": "Lightricks", "yayinTarihi": "2026-01-06", "resmi": true,
+      "etiketler": ["text-to-video", "native-audio", "32gb"],
+      "firsatlar": ["Şimdilik değil: 12 GB kartta tam kalite yok; yeni PC (16 GB+) geldiğinde yeniden değerlendir"]
+    },
+    {
+      "url": "https://www.thundercompute.com/blog/best-open-source-ai-video-generation-models",
+      "baslik": "HunyuanVideo 1.5 (Tencent) — 14 GB FP8, Tencent Community License",
+      "ozet": "1080p'ye kadar; FP8 ve CPU metin kodlayıcı offload'uyla 14 GB, FP16'da 24 GB. Lisans Tencent Community License — bölge ve kullanım kısıtları içerebilir; resmi lisans metni okunmadan kullanılmamalı (bu araştırmada okunmadı).",
+      "alintilar": ["It needs 14GB VRAM with FP8 plus CPU text-encoder offload, or 24GB at FP16, at up to 1080p."],
+      "kaynaklar": ["https://morphic.com/resources/list/best-open-source-ai-video-models"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["Under the Tencent Community License"] },
+      "lisans": { "kanit": "Tencent Community License (resmi metin okunmadı)" },
+      "asamalar": ["animation", "cost"], "etiketler": ["text-to-video", "14gb"]
+    },
+    {
+      "url": "https://github.com/resemble-ai/chatterbox",
+      "baslik": "Chatterbox (Resemble AI) — MIT, duygu abartma kontrolü, filigranlı çıktı",
+      "ozet": "MIT lisanslı, 0.5B; ~5 sn sesten klonlama ve 'exaggeration' (duygu yoğunluğu) ayarı. Tüm çıktılar PerTh ile izlenebilir filigran taşır. Atölye'de Türkçe için zaten kullanılıyor; karakter seslerine duygu katmak için exaggeration ayarı denenebilir.",
+      "alintilar": ["MIT license, and commercial use is allowed, though all output is watermarked (traceable via PerTh)", "an emotion exaggeration control"],
+      "kaynaklar": ["https://www.cartesia.ai/learn/open-source-tts", "https://localaimaster.com/blog/kokoro-vs-xtts-vs-chatterbox"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["MIT, 0.5B parameters, cloning from ~5 seconds of audio"] },
+      "lisans": { "spdx": "MIT", "kanit": "MIT (çıktıda PerTh filigranı)" },
+      "asamalar": ["voice"], "resmi": true, "etiketler": ["tts", "expressive", "kullaniliyor"],
+      "firsatlar": ["Karakter repliklerinde exaggeration 0.5→0.7 deneyi; ölçüt: dinleyici testi ve konuşma payı"]
+    },
+    {
+      "url": "https://github.com/SWivid/F5-TTS",
+      "baslik": "F5-TTS — kod MIT ama ağırlıklar CC-BY-NC (ticari kullanılamaz)",
+      "ozet": "Kodu MIT olsa da yayınlanan ağırlıklar eğitim verisi nedeniyle CC-BY-NC. Gelir amaçlı kanalda kullanılamaz; bazı listeler yalnız kod lisansını yazdığı için 'MIT' diye yanlış gösteriyor.",
+      "alintilar": ["the code is MIT, but the released weights are CC-BY-NC — non-commercial — because of the dataset they were trained on"],
+      "kaynaklar": ["https://www.cartesia.ai/learn/open-source-tts", "https://www.codesota.com/guides/tts-models"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["weights CC-BY-NC"] },
+      "lisans": { "spdx": "MIT", "kanit": "kod MIT; ağırlıklar CC-BY-NC 4.0 (non-commercial)" },
+      "asamalar": ["voice"], "etiketler": ["tts", "nc-weights"]
+    },
+    {
+      "url": "https://github.com/hkchengrex/MMAudio",
+      "baslik": "MMAudio (Sony AI) — videodan senkron efekt; ağırlıklar CC-BY-NC",
+      "ozet": "Videoya senkron ses efekti üretir (müzik/konuşma değil), en küçük model 157M. Kod MIT, ağırlıklar CC-BY-NC 4.0 — gelir amaçlı kanalda kullanılamaz. Ama 'hareket anına efekt' fikri Atölye'nin mevcut MOSS-SoundEffect + Kenney hattında kural olarak uygulanabilir.",
+      "alintilar": ["checkpoints are released on Hugging Face under the CC-BY-NC 4.0 license", "generating sound effects (not music or speech) that are synced perfectly with the video"],
+      "kaynaklar": ["https://huggingface.co/hkchengrex/MMAudio", "https://github.com/hkchengrex/MMAudio/blob/main/LICENSE"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["code MIT; weights CC-BY-NC"] },
+      "lisans": { "spdx": "MIT", "kanit": "kod MIT; ağırlıklar CC-BY-NC 4.0 (non-commercial)" },
+      "asamalar": ["audio"], "resmi": true, "etiketler": ["video-to-audio", "sfx", "nc-weights"]
+    },
+    {
+      "url": "https://github.com/DepthAnything/Depth-Anything-V2",
+      "baslik": "Depth Anything V2 Small — Apache-2.0 derinlik haritası (2.5D parallax kamera için)",
+      "ozet": "Tek görselden derinlik haritası; yalnız Small (24.8M, ~95 MB) Apache-2.0, Base/Large/Giant CC-BY-NC. Dönem görsellerine ve çizilmiş setlere derinliğe göre katmanlı parallax kamera hareketi (zoom/pan) vermek için küçük, yerel bir yapı taşı. Eğitim verisinden doğan ticari risk sorusu açık (issue #320).",
+      "alintilar": ["Only the Depth-Anything-V2-Small model uses the Apache-2.0 license. The Depth-Anything-V2-Base/Large/Giant models use the CC-BY-NC-4.0 license."],
+      "kaynaklar": ["https://github.com/DepthAnything/Depth-Anything-V2/issues/162", "https://github.com/DepthAnything/Depth-Anything-V2/issues/320"],
+      "maliyet": { "sinif": "ACIK_KAYNAK_YEREL", "kanit": ["24.8M parameters, about 95 MB"] },
+      "lisans": { "spdx": "Apache-2.0", "kanit": "Depth-Anything-V2-Small: Apache-2.0 (bakımcı onayı, issue #162)" },
+      "asamalar": ["animation", "scenes", "visuals"], "resmi": true, "etiketler": ["depth", "parallax", "camera"],
+      "firsatlar": ["Owner'ın 'daha güçlü kamera hareketi, yakın plan, zoom/pan' isteği için: Remotion'da derinlik katmanlı parallax deneyi; ölçüt: Short'ta her sahnede kamera hareketi + kalite beyni puanı"]
+    },
+    {
+      "url": "https://renderflowai.com/blog/free-ai-video-generator-no-sign-up/",
+      "baslik": "Hesapsız ücretsiz çevrimiçi video üreticileri (Upsampler, Pixelbin, FlatAI, HF Spaces) — kısa ve kotalı",
+      "ozet": "Bağımsız incelemeler: hesapsız araçların hepsinde günlük kota, seçili modeller (çoğu Wan/LTX), 4–10 sn klip, 480p–1080p; bir kısmında filigran. 'Sınırsız/filigransız' iddiaları çoğu kez yalnız şirketin kendi sayfasında. Ticari kullanım şartları incelenmedi — üretime alınmadan her birinin hizmet şartı okunmalı.",
+      "alintilar": ["each still has a constraint such as a daily allowance, selected free models, fewer controls, or a watermark", "Short clips are the norm (about 4–10 seconds, at 480p–1080p)"],
+      "kaynaklar": ["https://pexo.ai/blog/best-ai-video-generator-free-no-sign-up-4790", "https://www.aitooldiscovery.com/guides/ai-video-generator-no-sign-up"],
+      "maliyet": { "sinif": "UCRETSIZ_HESAPSIZ", "kanit": ["Pixelbin also generates up to 3 watermark-free videos per month with no account", "Upsampler: select Wan and LTX models; daily generation limit"] },
+      "asamalar": ["animation", "cost"], "etiketler": ["online", "no-account", "quota"],
+      "firsatlar": ["Otomasyona uygun değil (kota, şart, API yok); yerel Wan 2.2 aynı modeli kotasız verir"]
+    },
+    {
+      "url": "https://www.aitooldiscovery.com/guides/ai-video-generator-no-sign-up",
+      "baslik": "Hesaplı ücretsiz katman / deneme kredisi: Kling AI (günlük kredi), Runway (25 kredi)",
+      "ozet": "Daha uzun (15–60 sn) üretim hesap istiyor: Kling AI günlük 66 ücretsiz kredi, Runway kayıtta 25 kredi. Tek kaynak; kredi miktarları sık değişir, resmi fiyat sayfasından doğrulanmadı.",
+      "alintilar": ["longer video generation (15-60 seconds) requires a free or paid account on platforms like Runway (25 free credits after sign-up) or Kling AI (66 free daily credits)"],
+      "kaynaklar": [],
+      "maliyet": { "sinif": "DENEME_KREDISI", "kanit": ["Runway (25 free credits after sign-up)", "Kling AI (66 free daily credits)"] },
+      "asamalar": ["animation", "cost"], "etiketler": ["online", "account", "credits"]
+    }
+  ]
+}

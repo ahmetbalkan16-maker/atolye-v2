@@ -104,15 +104,12 @@ function defaultHealth(repoRoot: string): { readonly verdict?: unknown; readonly
   }
 }
 
-/** Runs exactly once after a successful push. Any failure is intentionally surfaced to the existing guarded-publication recovery path. */
-export function closeAyasPostPublication(expectedHead: string, deps: AyasPostPublicationClosureDeps): AyasPostPublicationClosureResult {
-  const remoteName = deps.remoteName ?? "origin";
-  const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  const localHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
-  const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
-  if (localHead !== expectedHead || remoteHead !== expectedHead) {
-    throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_HEAD_UNVERIFIED", `published HEAD mismatch: expected ${expectedHead}, local ${localHead}, remote ${remoteHead}`);
-  }
+/**
+ * The closure's Graphify half: the established refresh, then proof that the graph was analyzed at `expectedHead`
+ * and is intact. Also run on its own by the update executor's Graphify self-heal (owner, 2026-11-05) for a HEAD whose
+ * publication closure never ran — e.g. a push that failed and was completed later.
+ */
+export function refreshAyasGraphifyForHead(expectedHead: string, deps: AyasPostPublicationClosureDeps): AyasGraphIntegrity {
   (deps.refreshGraphify ?? (() => defaultRefreshGraphify(deps.repoRoot)))();
   const readGraph = deps.readGraphifyBranch ?? (() => defaultGraphifyBranch(deps.repoRoot));
   const nowMs = deps.nowMs ?? Date.now;
@@ -130,6 +127,19 @@ export function closeAyasPostPublication(expectedHead: string, deps: AyasPostPub
   if (integrity.duplicateIds !== 0 || integrity.danglingEdges !== 0 || integrity.selfLoops !== 0) {
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_INTEGRITY_FAILED", "Graphify integrity checks did not pass");
   }
+  return integrity;
+}
+
+/** Runs exactly once after a successful push. Any failure is intentionally surfaced to the existing guarded-publication recovery path. */
+export function closeAyasPostPublication(expectedHead: string, deps: AyasPostPublicationClosureDeps): AyasPostPublicationClosureResult {
+  const remoteName = deps.remoteName ?? "origin";
+  const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const localHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
+  const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
+  if (localHead !== expectedHead || remoteHead !== expectedHead) {
+    throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_HEAD_UNVERIFIED", `published HEAD mismatch: expected ${expectedHead}, local ${localHead}, remote ${remoteHead}`);
+  }
+  const integrity = refreshAyasGraphifyForHead(expectedHead, deps);
   const health = (deps.runHealth ?? (() => defaultHealth(deps.repoRoot)))();
   if (health.verdict !== "HEALTHY" || health.ownerActionRecommended !== false) {
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_HEALTH_UNHEALTHY", "AYAS self-improvement health did not certify the published HEAD");

@@ -4,7 +4,9 @@
  *   npx tsx --env-file-if-exists=.env.local scripts/ayas-update-executor.ts [--dry-run]
  *
  * Started by the observer on every tick while the machine is ALLOW and the tree is clean (and runnable by hand). It
- * does at most one job and exits, the owner's clicks first:
+ * does at most one job and exits. First the self-heal of an unfinished publication (owner, 2026-11-05,
+ * AyasPublicationSelfHeal): an owner-approved commit whose push failed is proven and pushed (never forced), and a
+ * HEAD whose Graphify closure never completed gets the closure's refresh. Then the owner's clicks:
  *   - LIVE_PUBLISH: a committed and pushed update whose live copy is not yet published (bounded attempts).
  *   - APPLY: an owner "Uygula" on a passed trial: commit + push through the guarded dependency-update lane, Graphify
  *     closure, then the live publish (AyasUpdateApplyRunner; CLAUDE.md standing exception for this click).
@@ -35,6 +37,8 @@ import { resolveAyasChatModelProfile } from "../src/lib/ayas/AyasModelProfile";
 import { runAyasChatModelBenchmark } from "../src/lib/ayas/model/AyasChatModelBenchmark";
 import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
 import { createAyasModelOperationStore, selectAyasModelJob } from "../src/lib/brain/autonomy/AyasModelOperationStore";
+import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { collectAyasGraphHealFacts, countAyasOpenRecoveries, decideAyasGraphHeal, runAyasGraphHeal, runAyasPublicationRecovery } from "../src/lib/brain/autonomy/AyasPublicationSelfHeal";
 import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { readAyasOwnerChatActivityAt } from "../src/lib/ayas/AyasOwnerChatActivity";
@@ -127,6 +131,35 @@ async function main(): Promise<void> {
     const models = createAyasModelOperationStore();
     for (const entry of models.loadJobs().switches) if (entry.status === "RUNNING") reconcileAyasModelSwitchOrphan(entry, { repoRoot: root, store: models });
     if (git(["status", "--porcelain"]).length) return report("SKIPPED_DIRTY_TREE");
+
+    // Self-heal 1: an owner-approved commit whose push failed (2026-11-04: GitHub "Internal Server Error").
+    if (process.env.AYAS_PUBLICATION_RECOVERY !== "0") {
+      const inbox = createAyasApprovalInboxStore();
+      if (dryRun && countAyasOpenRecoveries(inbox)) return report("DRY_RUN", { job: "PUBLICATION_RECOVERY", open: countAyasOpenRecoveries(inbox) });
+      const recovery = dryRun ? undefined : runAyasPublicationRecovery({ repoRoot: root, now: new Date().toISOString(), inbox });
+      if (recovery) {
+        const summary = {
+          at: new Date().toISOString(),
+          skipped: recovery.result.skipped ?? null,
+          resolved: recovery.result.resolved.map((entry) => `${entry.proposalId}:${entry.kind}:${entry.evidence.slice(0, 12)}`),
+          unresolved: recovery.result.unresolved.map((entry) => `${entry.proposalId}:${entry.reason}`),
+          autoPushed: recovery.result.autoPushed ?? [],
+          closure: recovery.closure ?? null,
+        };
+        fs.writeFileSync(path.join(trials.rootDir, "publication-recovery.json"), `${JSON.stringify(summary, null, 2)}\n`);
+        if (recovery.result.pushedHead) return report("PUBLICATION_RECOVERY_PUSHED", { head: recovery.result.pushedHead.slice(0, 8), proposals: summary.autoPushed.length, closure: recovery.closure?.ok ? "OK" : recovery.closure?.code });
+      }
+    }
+
+    // Self-heal 2: a HEAD whose Graphify closure never completed (graph-dependent discovery waits on it).
+    const graphHeal = collectAyasGraphHealFacts(root, trials.rootDir);
+    const healDecision = decideAyasGraphHeal(graphHeal);
+    if (healDecision.kind === "HEAL") {
+      if (dryRun) return report("DRY_RUN", { job: "GRAPH_HEAL", head: graphHeal.head.slice(0, 8) });
+      const healed = runAyasGraphHeal(graphHeal.head, { repoRoot: root, storeRoot: trials.rootDir });
+      return report(healed.ok ? "GRAPH_HEAL_OK" : "GRAPH_HEAL_FAILED", { head: graphHeal.head.slice(0, 8), detail: healed.detail });
+    }
+
     const head = git(["rev-parse", "HEAD"]);
     const approvalState = createAyasUpdateApprovalStore().load();
 
@@ -199,7 +232,7 @@ async function main(): Promise<void> {
         ...(done.failureReason ? { reason: done.failureReason } : done.lastError ? { note: done.lastError } : {}),
       });
     }
-    if (job.kind === "NONE") return report("IDLE", { reason: job.reason, autoLive: autoLive.reason });
+    if (job.kind === "NONE") return report("IDLE", { reason: job.reason, autoLive: autoLive.reason, graph: healDecision.kind === "NONE" ? healDecision.reason : undefined });
     if (dryRun) return report("DRY_RUN", { job: job.kind, reason: job.reason, sourceId: job.approval.sourceId, targetVersion: job.approval.targetVersion, head });
 
     const trialRoots = resolveAyasUpdateTrialRoots(root);

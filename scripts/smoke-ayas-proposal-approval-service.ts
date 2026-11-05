@@ -312,11 +312,15 @@ async function main(): Promise<void> {
         const journal = createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!;
         assert.equal(journal.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION");
         assert.ok(Array.isArray(journal.changedFiles));
+        assert.equal(journal.reliabilityAudit?.completionRecorded, false, "not recorded before the closure returns");
       },
     });
     assert.equal(result.ok, true);
     const journal = createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!;
     assert.equal(journal.phase, "RESULT_RECORDED");
+    // 2026-11-05: the deferred path copied the pending audit unchanged, so every one-click publication said false.
+    assert.equal(journal.reliabilityAudit?.completionRecorded, true, "the recorded result is audited as recorded");
+    assert.equal(journal.reliabilityAudit?.mutationStarted, true);
   });
 
   await scenario("a post-push Graphify closure failure preserves the published commit and becomes recovery-required, never a false success", async () => {
@@ -386,6 +390,7 @@ async function main(): Promise<void> {
     assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 1);
     assert.equal(state.decisions.filter((entry) => entry.proposalId === proposal.proposalId && entry.finalizationOutcome === "EXECUTED").length, 1);
     assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.phase, "RESULT_RECORDED");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.reliabilityAudit?.completionRecorded, true);
   });
 
   await scenario("a crash after result persistence during finalization resumes the same receipt without replaying or duplicating the result", async () => {
@@ -403,6 +408,7 @@ async function main(): Promise<void> {
     assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 1);
     assert.equal(state.decisions.find((entry) => entry.reservationId === receipt.reservationId)!.finalizationOutcome, "EXECUTED");
     assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.phase, "RESULT_RECORDED");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.reliabilityAudit?.completionRecorded, true, "the resumed finalization records it too");
   });
 
   await scenario("crash window after push before finalizer reloads the receipt, fails closed, and never guesses terminal success or replays mutation", async () => {

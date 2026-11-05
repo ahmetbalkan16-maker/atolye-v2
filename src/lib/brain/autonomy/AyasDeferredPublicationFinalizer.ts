@@ -22,6 +22,22 @@ function validateDurableReceipt(durable: ReturnType<ReturnType<typeof createAyas
   }
 }
 
+/**
+ * The journal entry that says the result is recorded. The immediate (non-deferred) path sets
+ * `completionRecorded: true` together with RESULT_RECORDED; this path copied the pending entry
+ * unchanged, so every one-click publication's audit said "no completion recorded" (99 such
+ * entries by 2026-11-05) and the regression-bypass counter never saw a completed publication.
+ * Earlier entries keep their bytes — they are the forensic record.
+ */
+function resultRecordedEntry(durable: NonNullable<ReturnType<ReturnType<typeof createAyasExecutionJournal>["read"]>>, updatedAt: string): typeof durable {
+  return {
+    ...durable,
+    phase: "RESULT_RECORDED",
+    updatedAt,
+    ...(durable.reliabilityAudit ? { reliabilityAudit: { ...durable.reliabilityAudit, completionRecorded: true } } : {}),
+  };
+}
+
 function hasMatchingResult(state: ReturnType<AyasApprovalInboxHandle["load"]>, receipt: AyasDeferredPublicationReceipt): boolean {
   return state.results.some((result) => result.proposalId === receipt.proposalId &&
     result.authorizationId === receipt.authorizationId && result.outcome === "COMPLETED" &&
@@ -51,7 +67,7 @@ export function finalizeAyasDeferredPublication(receipt: AyasDeferredPublication
     if (decision.finalizationOutcome !== "EXECUTED" || proposal.status !== "COMPLETED" || !resultAlreadyRecorded) {
       throw new AyasDeferredPublicationFinalizerError("AYAS_DEFERRED_RECEIPT_ALREADY_FINALIZED", receipt.executionId);
     }
-    journal.record({ ...durable, phase: "RESULT_RECORDED", updatedAt: new Date().toISOString() });
+    journal.record(resultRecordedEntry(durable, new Date().toISOString()));
     return;
   }
   if (proposal.status !== "RESERVED" && (proposal.status !== "COMPLETED" || !resultAlreadyRecorded)) {
@@ -60,7 +76,7 @@ export function finalizeAyasDeferredPublication(receipt: AyasDeferredPublication
   const completedAt = new Date().toISOString();
   if (!resultAlreadyRecorded) deps.inbox.recordResult({ resultId: "ayas-result-" + receipt.proposalId + "-" + Date.now(), proposalId: receipt.proposalId, authorizationId: receipt.authorizationId, startedAt: receipt.mutationCompletedAt, completedAt, changedFiles: receipt.changedFiles, diffFingerprint: receipt.diffFingerprint, testsRun: receipt.testsRun, testResults: receipt.testResults, outcome: "COMPLETED", gateAuditIdentity: receipt.authorizationId, operatorReviewStatus: "WAITING_REVIEW" }, "COMPLETED");
   deps.inbox.finalizeApproval(receipt.reservationId, "EXECUTED", completedAt);
-  journal.record({ ...durable, phase: "RESULT_RECORDED", updatedAt: completedAt });
+  journal.record(resultRecordedEntry(durable, completedAt));
 }
 
 export function markAyasDeferredPublicationRecoveryRequired(receipt: AyasDeferredPublicationReceipt, deps: { readonly gateRoot: string; readonly inbox: AyasApprovalInboxHandle; readonly reason: string }): void {

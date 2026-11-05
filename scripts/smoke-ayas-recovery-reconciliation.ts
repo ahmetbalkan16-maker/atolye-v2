@@ -10,6 +10,7 @@ import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecut
 import { ayasPublicationOperationName } from "../src/lib/brain/autonomy/AyasGuardedPublication";
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { ayasProposalPublicationOperation, reconcileAyasRecoveryRequiredProposals } from "../src/lib/brain/autonomy/AyasRecoveryReconciliation";
+import { runAyasPublicationRecovery } from "../src/lib/brain/autonomy/AyasPublicationSelfHeal";
 
 /**
  * Owner decision 2026-10-16: a RECOVERY_REQUIRED proposal closes itself once
@@ -66,17 +67,17 @@ function fixture(name: string): Fixture {
 }
 
 /** A real proposal driven through APPROVE -> reserve -> finalize(RECOVERY_REQUIRED), with its frozen artifact. */
-function recoveryProposal(f: Fixture, file: string, at: string): AyasInboxProposal {
+function recoveryProposal(f: Fixture, file: string, at: string, baseHead: string = f.baseHead): AyasInboxProposal {
   const artifactId = `ayas-patch-artifact-${crypto.randomUUID()}`;
   const artifact = f.artifacts.freeze({
-    artifactId, candidateId: `fixture-${file}`, generatorIdentity: "fixture-generator", baseBranch: BRANCH, baseHead: f.baseHead,
+    artifactId, candidateId: `fixture-${file}`, generatorIdentity: "fixture-generator", baseBranch: BRANCH, baseHead,
     exactFiles: [file], allowedRoots: ["scripts"], replacements: [{ filePath: file, expectedHash: null, content: APPROVED, allowCreate: false }],
     validatorScripts: [], graphifyEvidence: ["fixture witness"], safetyClassification: "SAFE", problemStatement: "fixture", rationale: "fixture",
     expectedUserBenefit: "fixture", expectedBehaviorChange: "fixture", unchangedBehavior: "fixture", risk: "low", productionImpact: "none",
     sandboxValidationSummary: [], generatedAt: at,
   });
   const proposal = f.inbox.createProposal({
-    createdAt: at, baseBranch: BRANCH, baseHead: f.baseHead, objective: `fixture change for ${file}`, currentProblem: "fixture problem",
+    createdAt: at, baseBranch: BRANCH, baseHead, objective: `fixture change for ${file}`, currentProblem: "fixture problem",
     selectionReason: "fixture selection", expectedUserBenefit: "fixture benefit", expectedBehaviorChange: "one constant changes",
     unchangedBehavior: "everything else", riskIfNotDone: "fixture risk", technicalRisk: "low", productionImpact: "none", rationale: "fixture rationale",
     evidence: ["fixture evidence"], graphifyEvidence: ["fixture witness"], candidateRank: 1, risk: "low", safetyClassification: "SAFE",
@@ -115,6 +116,13 @@ function commitApproved(f: Fixture, file: string, at: string): string {
 }
 
 const reconcile = (f: Fixture, now: string) => reconcileAyasRecoveryRequiredProposals({ repoRoot: f.repo, inbox: f.inbox, now, gateRoot: f.gateRoot, artifactStore: f.artifacts });
+/** The update executor's pass (owner, 2026-11-05): the same proof, plus a fetch and one non-force push. */
+const selfHeal = (f: Fixture, now: string, seams: Partial<Pick<Parameters<typeof runAyasPublicationRecovery>[0], "fetchRemote" | "push">> = {}) => {
+  const closed: string[] = [];
+  const run = runAyasPublicationRecovery({ repoRoot: f.repo, inbox: f.inbox, now, gateRoot: f.gateRoot, artifactStore: f.artifacts, closure: (head) => { closed.push(head); }, ...seams });
+  return { run, closed };
+};
+const remoteHeadOf = (f: Fixture) => git(f.repo, ["ls-remote", "origin", `refs/heads/${BRANCH}`]).split(/\s+/)[0];
 const statusOf = (f: Fixture, id: string) => f.inbox.load().proposals.find((p) => p.proposalId === id)!.status;
 const T0 = "2026-10-16T08:00:00.000Z";
 const ATTEMPT = { startedAt: "2026-10-16T08:00:00.500Z", updatedAt: "2026-10-16T08:01:00.000Z" };
@@ -284,6 +292,110 @@ async function main(): Promise<void> {
       const again = f.inbox.createProposal(input);
       assert.notEqual(again.proposalId, p.proposalId);
       assert.equal(again.status, "PENDING");
+    });
+
+    /* --- self-heal (owner, 2026-11-05): the executor's pass completes a failed push of a proven commit --- */
+
+    await scenario("2026-11-04 incident: the approved commit exists only locally; the executor's pass pushes it once, proves it, closes it and runs the closure — discovery's pass never pushes", () => {
+      const f = fixture("heal-incident");
+      const file = "scripts/smoke-recovery-fixture-a.ts";
+      const p = recoveryProposal(f, file, T0);
+      journal(f, p, ATTEMPT, true);
+      stability(f, [{ operation: ayasProposalPublicationOperation(p.proposalId), state: "RECOVERY_REQUIRED", at: ATTEMPT.updatedAt }]);
+      const sha = commitApproved(f, file, "2026-10-16T08:00:30Z");
+      const readOnly = reconcile(f, NOW);
+      assert.deepEqual(readOnly, { resolved: [], unresolved: [{ proposalId: p.proposalId, reason: "MUTATION_NOT_PUBLISHED" }] }, "no publisher: same shape and result as before");
+      assert.equal(remoteHeadOf(f), f.baseHead, "the read-only pass published nothing");
+      const { run, closed } = selfHeal(f, NOW);
+      assert.deepEqual(run?.result.autoPushed, [{ proposalId: p.proposalId, commitSha: sha }]);
+      assert.equal(run?.result.pushedHead, sha);
+      assert.deepEqual(run?.closure, { ok: true });
+      assert.deepEqual(closed, [sha], "the post-publication closure ran for the pushed HEAD");
+      assert.equal(remoteHeadOf(f), sha);
+      assert.equal(statusOf(f, p.proposalId), "COMPLETED");
+      assert.deepEqual(f.inbox.load().results.at(-1)!.recoveryResolution, { kind: "PUBLISHED_VERIFIED", evidence: sha, resolvedAt: NOW, resolvedBy: "ayas-recovery-reconciliation" });
+      assert.equal(selfHeal(f, NOW).run, undefined, "nothing left: the next pass makes no Git call at all");
+    });
+
+    await scenario("two failed pushes in a row: both proven commits go out in one push and both close", () => {
+      const f = fixture("heal-chain");
+      const first = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, first, ATTEMPT, true);
+      const a = commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:20Z");
+      const second = recoveryProposal(f, "scripts/smoke-recovery-fixture-b.ts", T0, a);
+      journal(f, second, ATTEMPT, true);
+      const b = commitApproved(f, "scripts/smoke-recovery-fixture-b.ts", "2026-10-16T08:00:40Z");
+      const { run } = selfHeal(f, NOW);
+      assert.deepEqual(run?.result.autoPushed?.map((entry) => entry.commitSha).sort(), [a, b].sort());
+      assert.equal(remoteHeadOf(f), b);
+      assert.equal(statusOf(f, first.proposalId), "COMPLETED");
+      assert.equal(statusOf(f, second.proposalId), "COMPLETED");
+    });
+
+    await scenario("anything else between the remote and HEAD (a foreign commit) blocks the push: nothing is published", () => {
+      const f = fixture("heal-foreign");
+      const p = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, p, ATTEMPT, true);
+      commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:30Z");
+      fs.writeFileSync(path.join(f.repo, "scripts", "smoke-recovery-fixture-c.ts"), "export const foreign = true;\n");
+      git(f.repo, ["commit", "-q", "-am", "someone else's work"]);
+      const { run, closed } = selfHeal(f, NOW);
+      assert.deepEqual(run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_BLOCKED" }]);
+      assert.deepEqual(run?.result.autoPushed, []);
+      assert.equal(run?.result.pushedHead, undefined);
+      assert.deepEqual(closed, []);
+      assert.equal(remoteHeadOf(f), f.baseHead);
+      assert.equal(statusOf(f, p.proposalId), "RECOVERY_REQUIRED");
+    });
+
+    await scenario("the remote moved meanwhile (the other PC pushed): blocked, never forced, the remote keeps its commit", () => {
+      const f = fixture("heal-remote-moved");
+      const p = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, p, ATTEMPT, true);
+      commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:30Z");
+      const other = path.join(path.dirname(f.repo), "other");
+      execFileSync("git", ["clone", "-q", "-b", BRANCH, path.join(path.dirname(f.repo), "remote.git"), other], { windowsHide: true });
+      fs.writeFileSync(path.join(other, "scripts", "smoke-recovery-fixture-c.ts"), "export const otherPc = true;\n");
+      git(other, ["commit", "-q", "-am", "other PC"]);
+      git(other, ["push", "-q", "origin", BRANCH]);
+      const moved = git(other, ["rev-parse", "HEAD"]);
+      const { run } = selfHeal(f, NOW);
+      assert.deepEqual(run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_BLOCKED" }]);
+      assert.equal(remoteHeadOf(f), moved, "the other PC's commit is untouched");
+    });
+
+    await scenario("the remote cannot be reached: AUTO_PUSH_DEFERRED, and a later pass pushes it", () => {
+      const f = fixture("heal-offline");
+      const p = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, p, ATTEMPT, true);
+      const sha = commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:30Z");
+      assert.deepEqual(selfHeal(f, NOW, { fetchRemote: () => false }).run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_DEFERRED" }]);
+      assert.equal(remoteHeadOf(f), f.baseHead);
+      assert.equal(selfHeal(f, NOW).run?.result.pushedHead, sha);
+    });
+
+    await scenario("a push that still fails after its retries keeps the record open (AUTO_PUSH_FAILED); no closure runs", () => {
+      const f = fixture("heal-push-fails");
+      const p = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, p, ATTEMPT, true);
+      commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:30Z");
+      const { run, closed } = selfHeal(f, NOW, { push: () => { throw new Error("remote: Internal Server Error"); } });
+      assert.deepEqual(run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_FAILED" }]);
+      assert.deepEqual(closed, []);
+      assert.equal(statusOf(f, p.proposalId), "RECOVERY_REQUIRED");
+    });
+
+    await scenario("a dirty tree or a detached HEAD blocks the push", () => {
+      const f = fixture("heal-dirty");
+      const p = recoveryProposal(f, "scripts/smoke-recovery-fixture-a.ts", T0);
+      journal(f, p, ATTEMPT, true);
+      const sha = commitApproved(f, "scripts/smoke-recovery-fixture-a.ts", "2026-10-16T08:00:30Z");
+      fs.writeFileSync(path.join(f.repo, "untracked.txt"), "work in progress\n");
+      assert.deepEqual(selfHeal(f, NOW).run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_BLOCKED" }]);
+      fs.rmSync(path.join(f.repo, "untracked.txt"));
+      git(f.repo, ["checkout", "-q", "--detach", sha]);
+      assert.deepEqual(selfHeal(f, NOW).run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_BLOCKED" }]);
+      assert.equal(remoteHeadOf(f), f.baseHead);
     });
 
     console.log(`PASS (${count} scenarios)`);

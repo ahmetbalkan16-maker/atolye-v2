@@ -6,6 +6,7 @@ import path from "node:path";
 import { recordAyasAutoLiveAttempt, type AyasAutoLiveAttempt } from "./AyasAutoLivePublish";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
+import { pushAyasBranchWithRetry } from "./AyasGitPushRetry";
 import type { AyasUpdateApplyDecisionRecord } from "./AyasUpdateApprovalStore";
 import { resolveAyasNpmCli, runAyasCommand, type AyasChildEnv, type AyasCommandRunner } from "./AyasUpdateTrialRunner";
 import {
@@ -112,7 +113,8 @@ function publishDependencyUpdate(trial: AyasUpdateTrialRecord, artifacts: { read
     return { ok: false, stage: "COMMIT", reason: error instanceof Error ? error.message : String(error) };
   }
   const branch = git(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  try { git(repoRoot, ["push", remoteName, branch]); } catch (error) {
+  // A server error or a dropped connection is tried again (bounded, never force).
+  try { pushAyasBranchWithRetry(repoRoot, remoteName, branch); } catch (error) {
     return { ok: false, stage: "PUSH", reason: error instanceof Error ? error.message : String(error), commitSha };
   }
   const remoteHead = git(repoRoot, ["rev-parse", `${remoteName}/${branch}`]);

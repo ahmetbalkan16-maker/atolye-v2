@@ -14,6 +14,7 @@ import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
+import { pushAyasBranchWithRetry } from "./AyasGitPushRetry";
 
 /**
  * M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization the user
@@ -295,10 +296,11 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
   try {
     deps.onAfterCommitBeforePush?.();
-    git(deps.repoRoot, ["push", remoteName, branch]);
+    // A server error or a dropped connection is tried again (bounded, never force).
+    pushAyasBranchWithRetry(deps.repoRoot, remoteName, branch);
   } catch (error) {
     // The commit already exists locally and is never rewritten/reset here —
-    // a push failure is reported as-is; a human decides whether to retry.
+    // a push failure is reported as-is after the bounded retries.
     const message = error instanceof Error ? error.message : String(error);
     requireRecovery(message);
     return { ok: false, code: "AYAS_MICRO_BATCH_PUSH_FAILED", stage: "PUSH", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };

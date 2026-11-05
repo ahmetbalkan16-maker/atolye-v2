@@ -129,6 +129,9 @@ graphify-out/
 # never trips on its own durable state.
 /data/brain/self-improvement/goals/
 /data/brain/self-improvement/external-research/
+# 2026-11-05 — the shared web knowledge (AyasSharedKnowledge): learned at runtime, never tracked, so an unignored
+# store can never turn the observer's tree dirty (PAUSED_DIRTY_REPO / SKIPPED_DIRTY_TREE).
+/data/brain/knowledge/
 
 # M21.4 — durable sandbox-unvalidatable suppression records
 # (AyasSandboxUnvalidatableStore). Same status as the sibling

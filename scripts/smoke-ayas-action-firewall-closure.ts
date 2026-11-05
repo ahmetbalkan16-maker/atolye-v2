@@ -119,6 +119,8 @@ const SELF_DEVELOPMENT: Readonly<Record<string, Guard>> = {
 };
 const PUBLICATION: Readonly<Record<string, Guard>> = {
   "src/lib/brain/autonomy/AyasDeferredPublicationFinalizer.ts": "OWNER_PUBLICATION",
+  // 2026-11-05: the lanes' one `git push <remote> <branch>`, retried on a server error (never force).
+  "src/lib/brain/autonomy/AyasGitPushRetry.ts": "OWNER_PUBLICATION",
   "src/lib/brain/autonomy/AyasGuardedPublication.ts": "OWNER_PUBLICATION",
   "src/lib/brain/autonomy/AyasPatchArtifactMutation.ts": "OWNER_LEASE",
   "src/lib/brain/autonomy/AyasPostPublicationClosure.ts": "OWNER_PUBLICATION",
@@ -213,6 +215,11 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       "src/lib/brain/autonomy/AyasDependencyVulnerabilities.ts": "OWNER_LEASE",
       "src/lib/brain/autonomy/AyasUpdateApplyRunner.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasModelTrialRunner.ts": "OWNER_LEASE",
+      // 2026-11-05 self-heal: completes the push of an owner-approved commit proven by its own durable record, and
+      // re-runs the publication closure's Graphify refresh for a HEAD whose closure never completed.
+      "src/lib/brain/autonomy/AyasPublicationSelfHeal.ts": "OWNER_PUBLICATION",
+      // The proof itself stays read-only Git; the push is injected by the self-heal above.
+      "src/lib/brain/autonomy/AyasRecoveryReconciliation.ts": "READ_ONLY_PROBE",
     },
   },
   "scripts/ayas-owner-approval-resume.ts": {
@@ -303,6 +310,9 @@ const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   "scripts/ayas-graphify-status.ts": "operator CLI; read-only Graphify state",
   "scripts/ayas-propose.ts": "operator CLI (npm run ayas:propose); a person-triggered proposal producer",
   "scripts/ayas-release-provenance.ts": "operator CLI; read-only SBOM and release provenance (lockfile, Graphify state, pinned identities)",
+  // 2026-11-05: GETs to key-free public APIs and the owner's own links, all through AyasSafePublicFetch; writes only
+  // data/brain/knowledge (and, with --v3, one V3 study request). No agent, server or daemon imports it.
+  "scripts/ayas-web-research.ts": "operator CLI (owner or Claude); web search and link study through the safe public fetch into the shared knowledge store",
   "scripts/lib/AyasRetrievalEvaluation.ts": "evaluation library; imported only by evaluation smokes",
   "scripts/live-ayas-action-runtime-reliability.ts": "operator-run live acceptance with the real local model; read tools only",
   "scripts/live-ayas-action-runtime.ts": "operator-run live acceptance with the real local model; read tools only",

@@ -14,6 +14,7 @@ import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from 
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
+import { pushAyasBranchWithRetry } from "./AyasGitPushRetry";
 import { ayasTraceErrorCode, startAyasTrace, type AyasTraceEvidenceSink, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
 import { createAyasOperationEvidenceStore, createAyasTraceEvidenceSink } from "../../ayas/observability/AyasOperationEvidenceStore";
 import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
@@ -430,10 +431,12 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   }
 
   // --- push, never force ---
+  // A server error or a dropped connection is tried again (bounded); a real answer
+  // (remote moved, auth, protection) stops at once and lands in the same catch as before.
   const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
   try {
     deps.onAfterCommitBeforePush?.();
-    git(deps.repoRoot, ["push", remoteName, branch]);
+    pushAyasBranchWithRetry(deps.repoRoot, remoteName, branch);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     requireRecovery(message);
