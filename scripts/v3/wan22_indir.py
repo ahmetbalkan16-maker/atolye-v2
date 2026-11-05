@@ -12,13 +12,13 @@ and HTTP Range), into one folder; then every file's size and SHA-256 are checked
 - text encoder (umt5-xxl), VAE (Wan 2.2's own, z 48), tokenizer, scheduler, configs: Wan-AI's Diffusers repo.
 Both Apache-2.0. ~24.2 GB on D (an HDD): the PC's other work is unaffected, the card is not used.
 
-The scheduled task "Atolye Wan22 Indir" (`--kur`) starts it hidden at every logon until the download is complete;
-then it deletes the task itself. A second start while one runs exits at once (pid lock). A network error waits and
+The Startup-folder shortcut "Atolye Wan22 Indir" (`--kur`; no admin) starts it hidden at every logon until the download
+is complete; then it deletes the shortcut itself. A second start while one runs exits at once (pid lock). A network error waits and
 tries again (1 → 10 min); a nearly full disk stops it.
 
   pythonw.exe -I wan22_indir.py           # download / resume (hidden; the task runs this)
   python.exe  -I wan22_indir.py --durum   # how far it is
-  python.exe  -I wan22_indir.py --kur     # register the logon task
+  python.exe  -I wan22_indir.py --kur     # the logon shortcut (the owner runs this: Claude may not edit Startup)
 """
 import hashlib
 import json
@@ -127,17 +127,32 @@ def sha256(path):
     return h.hexdigest()
 
 
+def startup_link():
+    """The user's Startup-folder shortcut (no admin needed; the studio's other launchers start the same way)."""
+    return Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / f"{TASK}.lnk"
+
+
 def remove_task():
-    r = subprocess.run(["schtasks", "/Delete", "/TN", TASK, "/F"], capture_output=True, text=True)
-    log(f"başlangıç görevi kaldırıldı: {TASK}" if r.returncode == 0 else f"başlangıç görevi yoktu/kaldırılamadı: {(r.stderr or r.stdout).strip()[:200]}")
+    link = startup_link()
+    if link.exists():
+        link.unlink()
+        log(f"başlangıç kısayolu kaldırıldı: {link}")
+    # A scheduled task of the same name, should one have been made by hand.
+    subprocess.run(["schtasks", "/Delete", "/TN", TASK, "/F"], capture_output=True, text=True)
 
 
 def register_task():
+    """The Startup shortcut that runs this hidden (pythonw) at every logon until the download is complete."""
     pyw = Path(sys.executable).with_name("pythonw.exe")
-    cmd = f'"{pyw}" -I "{Path(__file__).resolve()}"'
-    r = subprocess.run(["schtasks", "/Create", "/TN", TASK, "/SC", "ONLOGON", "/TR", cmd, "/RL", "LIMITED", "/F"], capture_output=True, text=True)
-    print((r.stdout or r.stderr).strip())
-    return r.returncode
+    script = Path(__file__).resolve()
+    ps = (
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:LINK);"
+        "$s.TargetPath=$env:PYW;$s.Arguments=('-I \"'+$env:SCRIPT+'\"');$s.WorkingDirectory=$env:WORKDIR;$s.WindowStyle=7;$s.Save()"
+    )
+    env = {**os.environ, "LINK": str(startup_link()), "PYW": str(pyw), "SCRIPT": str(script), "WORKDIR": str(script.parent)}
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, env=env)
+    print(f"başlangıç kısayolu: {startup_link()}" if r.returncode == 0 and startup_link().exists() else f"kısayol yazılamadı: {(r.stderr or r.stdout).strip()[:300]}")
+    return 0 if startup_link().exists() else 1
 
 
 def download():
