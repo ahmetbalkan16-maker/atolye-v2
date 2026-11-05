@@ -39,7 +39,7 @@ scenario("the heading names the tool, the release and the verified source words,
 scenario("bridged candidates carry that heading", () => {
   const [candidate] = discoverAyasResearchProposalCandidates([note()], []);
   assert.equal(candidate!.objective, ayasResearchProposalTitle(note()), "assert.equal(candidate!.objective, ayasResearchProposalTitle(note()))");
-  assert.equal(candidate!.objective, 'ComfyUI: "Implement the asset export API locally" — Atölye için uyarlama tasarımını incele');
+  assert.equal(candidate!.objective, 'ComfyUI: "Implement the asset export API locally" — Atölye için uyarlama tasarımını incele', "assert.equal(candidate!.objective, 'ComfyUI: \"Implement the asset export API locally\" — Atölye için uyarlama tasarımını incele')");
 });
 
 scenario("a tool's release notes never become a design review, approved, stale or new (owner, 26 Oct 2026)", () => {
@@ -58,8 +58,8 @@ scenario("a tool's release notes never become a design review, approved, stale o
     assert.equal(discoverAyasResearchProposalCandidates([f], []).length, 0, f.sourceUrl);
     assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE")], () => ["loop:gap-measured"]).length, 0, `${f.sourceUrl} (stale, gate open)`);
   }
-  assert.deepEqual(noise.map((f) => ayasResearchFindingRelease(f)), ["v0.43.0", "v0.40.12-rc0", "b11952", "b11918", "b11912", "b11923", "16.4.3"]);
-  assert.equal(ayasResearchFindingRelease(finding({ sourceUrl: "https://github.com/langchain-ai/langchain/releases/tag/langchain-core%3D%3D1.6.11" })), "langchain-core==1.6.11");
+  assert.deepEqual(noise.map((f) => ayasResearchFindingRelease(f)), ["v0.43.0", "v0.40.12-rc0", "b11952", "b11918", "b11912", "b11923", "16.4.3"], "assert.deepEqual(noise.map((f) => ayasResearchFindingRelease(f)), [\"v0.43.0\", \"v0.40.12-rc0\", \"b11952\", \"b11918\", \"b11912\", \"b11923\", \"16.4.3\"])");
+  assert.equal(ayasResearchFindingRelease(finding({ sourceUrl: "https://github.com/langchain-ai/langchain/releases/tag/langchain-core%3D%3D1.6.11" })), "langchain-core==1.6.11", "assert.equal(ayasResearchFindingRelease(finding({ sourceUrl: \"https://github.com/langchain-ai/langchain/releases/tag/langchain-core%3D%3D1.6.11\" })), \"langchain-core==1.6.11\")");
   assert.equal(ayasResearchFindingRelease(note()), undefined, "a changelog page is not a release tag");
   assert.equal(ayasResearchFindingRelease(makeFinding({})), undefined, "the shared fixture's /releases/ path names no tag");
   assert.equal(discoverAyasResearchProposalCandidates([...noise, note()], []).length, 1, "only the non-release finding is offered");
