@@ -32,10 +32,10 @@ const NOW = "2026-09-17T12:00:00.000Z";
 
 scenario("an empty environment returns connected:true with the full registry listed as NEVER_CHECKED, never crashes", () => {
   const view = withTempCwd(() => loadAyasResearchEngineStatusView(NOW));
-  assert.equal(view.connected, true);
-  assert.equal(view.sources.length, resolveAyasResearchSourceRegistry().length);
-  assert.ok(view.sources.every((s) => s.status === "NEVER_CHECKED"));
-  assert.equal(view.digest.sourcesRegistered, resolveAyasResearchSourceRegistry().length);
+  assert.equal(view.connected, true, "assert.equal(view.connected, true)");
+  assert.equal(view.sources.length, resolveAyasResearchSourceRegistry().length, "assert.equal(view.sources.length, resolveAyasResearchSourceRegistry().length)");
+  assert.ok(view.sources.every((s) => s.status === "NEVER_CHECKED"), "assert.ok(view.sources.every((s) => s.status === \"NEVER_CHECKED\"))");
+  assert.equal(view.digest.sourcesRegistered, resolveAyasResearchSourceRegistry().length, "assert.equal(view.digest.sourcesRegistered, resolveAyasResearchSourceRegistry().length)");
 });
 
 scenario("a scheduler state file with a recorded cadence is reflected verbatim in the view", () => {
@@ -48,16 +48,16 @@ scenario("a scheduler state file with a recorded cadence is reflected verbatim i
     });
     return loadAyasResearchEngineStatusView(NOW);
   });
-  assert.equal(view.nextLightAt, "2026-09-17T18:00:00.000Z");
-  assert.equal(view.nextDeepAt, "2026-09-18T12:00:00.000Z");
-  assert.equal(view.lastSuccessfulResearchAt, NOW);
-  assert.equal(view.lastScheduledFor, "2026-09-17T06:00:00.000Z");
-  assert.equal(view.lastExecutedAt, NOW);
-  assert.equal(view.lastMissedCount, 2);
-  assert.equal(view.totalMissedOccurrences, 7);
-  assert.equal(view.totalAttempts, 3);
-  assert.equal(view.pendingGoalCatchUpCount, 0);
-  assert.equal(view.awaitingOwnerGoalCount, 0);
+  assert.equal(view.nextLightAt, "2026-09-17T18:00:00.000Z", "assert.equal(view.nextLightAt, \"2026-09-17T18:00:00.000Z\")");
+  assert.equal(view.nextDeepAt, "2026-09-18T12:00:00.000Z", "assert.equal(view.nextDeepAt, \"2026-09-18T12:00:00.000Z\")");
+  assert.equal(view.lastSuccessfulResearchAt, NOW, "assert.equal(view.lastSuccessfulResearchAt, NOW)");
+  assert.equal(view.lastScheduledFor, "2026-09-17T06:00:00.000Z", "assert.equal(view.lastScheduledFor, \"2026-09-17T06:00:00.000Z\")");
+  assert.equal(view.lastExecutedAt, NOW, "assert.equal(view.lastExecutedAt, NOW)");
+  assert.equal(view.lastMissedCount, 2, "assert.equal(view.lastMissedCount, 2)");
+  assert.equal(view.totalMissedOccurrences, 7, "assert.equal(view.totalMissedOccurrences, 7)");
+  assert.equal(view.totalAttempts, 3, "assert.equal(view.totalAttempts, 3)");
+  assert.equal(view.pendingGoalCatchUpCount, 0, "assert.equal(view.pendingGoalCatchUpCount, 0)");
+  assert.equal(view.awaitingOwnerGoalCount, 0, "assert.equal(view.awaitingOwnerGoalCount, 0)");
 });
 
 scenario("a source's per-check state (OK/ERROR + failure count) is resolved into that source's own row", () => {
@@ -68,10 +68,10 @@ scenario("a source's per-check state (OK/ERROR + failure count) is resolved into
   });
   const [firstSource] = resolveAyasResearchSourceRegistry();
   const row = view.sources.find((s) => s.sourceId === firstSource!.sourceId);
-  assert.ok(row);
-  assert.equal(row!.status, "ERROR");
-  assert.equal(row!.consecutiveFailures, 3);
-  assert.equal(view.digest.sourcesFailingNow, 1);
+  assert.ok(row, "assert.ok(row)");
+  assert.equal(row!.status, "ERROR", "assert.equal(row!.status, \"ERROR\")");
+  assert.equal(row!.consecutiveFailures, 3, "assert.equal(row!.consecutiveFailures, 3)");
+  assert.equal(view.digest.sourcesFailingNow, 1, "assert.equal(view.digest.sourcesFailingNow, 1)");
 });
 
 scenario("a source changed within the last 24h counts toward sourcesChangedLast24h; one changed 3 days ago does not", () => {
@@ -82,7 +82,7 @@ scenario("a source changed within the last 24h counts toward sourcesChangedLast2
     stateStore.write({ sourceId: b!.sourceId, lastCheckedAt: NOW, lastChangedAt: "2026-09-14T00:00:00.000Z", status: "OK", consecutiveFailures: 0 }); // 3 days ago
     return loadAyasResearchEngineStatusView(NOW);
   });
-  assert.equal(view.digest.sourcesChangedLast24h, 1);
+  assert.equal(view.digest.sourcesChangedLast24h, 1, "assert.equal(view.digest.sourcesChangedLast24h, 1)");
 });
 
 scenario("findings recorded in the last 24h are counted; an older finding is not", () => {
@@ -91,7 +91,7 @@ scenario("findings recorded in the last 24h are counted; an older finding is not
     store.record({ provider: "Recent", capability: "x", problemSolved: "y", sourceUrl: "https://example.com/a", isOfficialSource: true, featureDate: null, lastCheckedAt: NOW, confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "" });
     return loadAyasResearchEngineStatusView(NOW);
   });
-  assert.equal(view.digest.findingsLast24h, 1);
+  assert.equal(view.digest.findingsLast24h, 1, "assert.equal(view.digest.findingsLast24h, 1)");
 });
 
 scenario("an uncertain recovery stays pending only until a later cycle completes; a running goal job is running, not uncertain", () => {
@@ -99,7 +99,7 @@ scenario("an uncertain recovery stays pending only until a later cycle completes
     createAyasResearchSchedulerStateStore().write({ schemaVersion: "1", consecutiveFailures: 1, lastUncertainRunId: "old-run", lastReconciledAt: "2026-09-17T11:00:00.000Z", lastExecutedAt: "2026-09-17T05:00:00.000Z" });
     return loadAyasResearchEngineStatusView(NOW);
   });
-  assert.equal(pending.uncertainOutcomePendingReview, true);
+  assert.equal(pending.uncertainOutcomePendingReview, true, "assert.equal(pending.uncertainOutcomePendingReview, true)");
   const settled = withTempCwd(() => {
     createAyasResearchSchedulerStateStore().write({ schemaVersion: "1", consecutiveFailures: 0, lastUncertainRunId: "old-run", lastReconciledAt: "2026-09-17T05:00:00.000Z", lastExecutedAt: "2026-09-17T11:00:00.000Z" });
     return loadAyasResearchEngineStatusView(NOW);
@@ -116,8 +116,8 @@ scenario("an uncertain recovery stays pending only until a later cycle completes
     return loadAyasResearchEngineStatusView(NOW);
   });
   assert.equal(running.uncertainOutcomePendingReview, false, "an in-flight run is not an uncertain outcome");
-  assert.equal(running.runningGoalCount, 1);
-  assert.equal(running.uncertainGoalCount, 0);
+  assert.equal(running.runningGoalCount, 1, "assert.equal(running.runningGoalCount, 1)");
+  assert.equal(running.uncertainGoalCount, 0, "assert.equal(running.uncertainGoalCount, 0)");
 });
 
 console.log(`AYAS research engine status view smoke: PASS (${count} scenarios)`);
