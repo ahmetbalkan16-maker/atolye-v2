@@ -78,12 +78,12 @@ async function run() {
     try {
       const result = await runSingleChunkNetworkDiagnostic(MODEL_05B);
       assert.equal(result.ok, true, `expected all steps to pass: ${JSON.stringify(result.steps)}`);
-      assert.equal(result.httpStatus, 206);
+      assert.equal(result.httpStatus, 206, "assert.equal(result.httpStatus, 206)");
       assert.match(result.contentRangeHeader ?? "", /^bytes 0-8388607\/83886080$/);
-      assert.equal(result.corsOriginHeader, "*");
-      assert.equal(result.etagHeader, '"real-etag-abc123"');
-      assert.equal(result.bytesWritten, CHUNK_SIZE_BYTES);
-      assert.equal(result.bytesReadBackBeforeReload, CHUNK_SIZE_BYTES);
+      assert.equal(result.corsOriginHeader, "*", "assert.equal(result.corsOriginHeader, \"*\")");
+      assert.equal(result.etagHeader, '"real-etag-abc123"', "assert.equal(result.etagHeader, '\"real-etag-abc123\"')");
+      assert.equal(result.bytesWritten, CHUNK_SIZE_BYTES, "assert.equal(result.bytesWritten, CHUNK_SIZE_BYTES)");
+      assert.equal(result.bytesReadBackBeforeReload, CHUNK_SIZE_BYTES, "assert.equal(result.bytesReadBackBeforeReload, CHUNK_SIZE_BYTES)");
       assert.equal(result.bytesReadBackAfterReload, CHUNK_SIZE_BYTES, "must survive the simulated reload (fresh indexedDB connection)");
 
       const stepNames = result.steps.map((s) => s.name);
@@ -96,7 +96,7 @@ async function run() {
         "idb_readback_before_reload",
         "idb_readback_after_simulated_reload",
         "cleanup",
-      ]);
+      ], "assert.deepEqual(stepNames, [\n        \"network_fetch\",\n        \"range_honored\",\n        \"cors_header_present\",\n        \"content_range_present\",\n        \"idb_write\",\n        \"idb_readback_before_reload\",\n        \"idb_readback_after_simulated_reload\",\n        \"cleanup\",\n      ])");
 
       // Never touches the real model's own storage key.
       const realUrl = buildRemoteResourceUrl(MODEL_05B, WEIGHT_FILE);
@@ -113,9 +113,9 @@ async function run() {
     }) as typeof env.fetch;
     try {
       const result = await runSingleChunkNetworkDiagnostic(MODEL_05B);
-      assert.equal(result.ok, false);
-      assert.equal(result.steps[0].name, "network_fetch");
-      assert.equal(result.steps[0].ok, false);
+      assert.equal(result.ok, false, "assert.equal(result.ok, false)");
+      assert.equal(result.steps[0].name, "network_fetch", "assert.equal(result.steps[0].name, \"network_fetch\")");
+      assert.equal(result.steps[0].ok, false, "assert.equal(result.steps[0].ok, false)");
     } finally {
       env.fetch = originalFetch;
     }
@@ -131,10 +131,10 @@ async function run() {
       })) as typeof env.fetch;
     try {
       const result = await runSingleChunkNetworkDiagnostic(MODEL_05B);
-      assert.equal(result.httpStatus, 200);
+      assert.equal(result.httpStatus, 200, "assert.equal(result.httpStatus, 200)");
       const rangeStep = result.steps.find((s) => s.name === "range_honored");
       assert.equal(rangeStep?.ok, false, "a 200 instead of 206 must be flagged as a failed step, not ignored");
-      assert.equal(result.ok, false);
+      assert.equal(result.ok, false, "assert.equal(result.ok, false)");
     } finally {
       env.fetch = originalFetch;
     }
@@ -144,15 +144,15 @@ async function run() {
     const result = await runIdbOnlyDiagnostic();
     assert.equal(result.ok, true, `expected all steps to pass: ${JSON.stringify(result.steps)}`);
     const stepNames = result.steps.map((s) => s.name);
-    assert.deepEqual(stepNames, ["indexeddb_available", "put", "get_length", "get_content", "delete_confirmed"]);
+    assert.deepEqual(stepNames, ["indexeddb_available", "put", "get_length", "get_content", "delete_confirmed"], "assert.deepEqual(stepNames, [\"indexeddb_available\", \"put\", \"get_length\", \"get_content\", \"delete_confirmed\"])");
   });
 
   await scenario("IndexedDB-only diagnostic: IndexedDB unavailable → fails closed at the first step, no network attempted", async () => {
     uninstallFakeIndexedDb();
     try {
       const result = await runIdbOnlyDiagnostic();
-      assert.equal(result.ok, false);
-      assert.deepEqual(result.steps, [{ name: "indexeddb_available", ok: false, detail: "indexedDB is not available in this browser/context" }]);
+      assert.equal(result.ok, false, "assert.equal(result.ok, false)");
+      assert.deepEqual(result.steps, [{ name: "indexeddb_available", ok: false, detail: "indexedDB is not available in this browser/context" }], "assert.deepEqual(result.steps, [{ name: \"indexeddb_available\", ok: false, detail: \"indexedDB is not available in this browser/context\" }])");
     } finally {
       installFakeIndexedDb();
     }
