@@ -1,3 +1,9 @@
+## 2026-11-05 (night, 2) — Controlled self-evolution switched on
+
+- The Stage 15 cycle now builds its Stage 13 register itself each discovery tick: the registered benchmark is measured at the current HEAD in the research sandbox (once per HEAD, at most two attempts) and every failing non-held-out capability × dimension becomes a HEAD-bound `LOCAL_EVALUATOR` opportunity (`AyasControlledEvolutionLocalGaps`). A hand-written register went stale with every commit, so the cycle had never run.
+- On by default; `AYAS_CONTROLLED_EVOLUTION=0` or an explicitly empty `AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE` turns it off; a register path is still read. Status in the git-ignored `data/brain/self-improvement/evolution/last-cycle.json`.
+- Measured at 3d0fdab5: `cognitive-quality` 55/55, nothing to evolve; the one registered strategy is already applied. The cycle, sandbox, inbox and owner approval are unchanged.
+
 ## 2026-11-05 (night) — PDFs, topic search from chat, recovery push for every lane, Stage 8 → technology watch, lint 0/0
 
 - PDFs are read: the safe public fetch returns PDF bytes only when a caller lists `binaryContentTypes: ["application/pdf"]` (every other check unchanged; a truncated PDF always fails; without the option the old refusal stands). Text comes from Git for Windows' `pdftotext` (no new npm dependency; no shell, 15 MB, 40 pages, 30 s, temp copy removed; no OCR). PDF addresses without `.pdf` (arxiv.org/pdf/…) are read too.

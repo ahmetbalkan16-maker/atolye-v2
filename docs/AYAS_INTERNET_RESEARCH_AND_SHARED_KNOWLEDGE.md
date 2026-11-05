@@ -31,7 +31,7 @@ V2, V2-V3 ve V3 ayrı projeler değil: tek GitHub deposunun (`ahmetbalkan16-make
 | Teknoloji değerlendirme | **bağlandı (5 Kasım gece)** | Discovery, araştırma-iyileştirme kirası altında `runAyasTechnologyWatchStep` (kayıt `data/brain/self-improvement/technology-watch/`); aktarım Stage 13'e gönderilmez. Stage 8 bulguları ayrıca `mirrorAyasResearchFindings` ile ortak bilgiye |
 | Araştırma → iyileştirme | ÇALIŞIYOR | `AyasResearchImprovementCycle` discovery'de (`discovery.research-improvement-cycle`) |
 | Adaptation | **bağlandı (5 Kasım gece)** | `compareWithAtolye` ilk aday için `planAyasAdaptation` (aşamanın kod kanıtı dosyalarıyla); `eksikler` yönetişim yolunu yazar |
-| Kontrollü evrim | **KAPALI** | discovery'de bağlı, ama `AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE` canlı `.env.local`'da yok → hiç çalışmıyor. Owner'ın yazacağı fırsat kaydı gerektirir; sahte kayıtla açılmadı |
+| Kontrollü evrim | **AÇIK (5 Kasım gece, owner)** | Kayıt artık güncel HEAD'in ölçülen açıklarından kendiliğinden kurulur (`AyasControlledEvolutionLocalGaps`); şu an `cognitive-quality` 55/55, evrimleştirilecek açık yok. Deney için düşen vaka + sahip-incelemeli strateji gerekir (`docs/AYAS_CONTROLLED_SELF_EVOLUTION.md`) |
 | Onaylı geliştirme | ÇALIŞIYOR | Gelişim Merkezi tek tık yayınları; bu oturumda push tekrarı + kendini onarma eklendi |
 | `completionRecorded` tutarsızlığı | **kök neden bulundu, düzeltildi** | `AyasDeferredPublicationFinalizer` `RESULT_RECORDED` yazarken denetimi kopyalıyordu; `true` yapan satır yalnız ertelenmemiş yolda (`AyasAutonomyDaemon.ts`). 99 eski kayıt adli kayıt olarak değiştirilmedi |
 
@@ -94,4 +94,4 @@ gelistirici, Kalite → kalite, Yönetmen/Prodüksiyon → sef.
 2. ~~Stage 8 → ortak bilgi ve teknoloji izleme~~ — yapıldı (5 Kasım gece).
 3. Wan 2.2 TI2V-5B ve Depth Anything V2 Small için V3 deneme çalışması (ayrı çıktı, GPU 85 °C koruması).
 4. ~~PDF~~ — yapıldı, yeni bağımlılık olmadan (Git for Windows `pdftotext`). Taranmış PDF için OCR hâlâ yok.
-5. Kontrollü evrim: owner'ın incelediği bir Stage 8 stratejisi ve kayıt dosyası olmadan çalışmaz (bilinçli kapalı).
+5. ~~Kontrollü evrimi açmak~~ — yapıldı (5 Kasım gece). Sıradaki: ölçülen bir açık çıktığında ona sahip-incelemeli strateji yazmak.

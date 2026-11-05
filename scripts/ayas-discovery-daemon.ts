@@ -29,6 +29,7 @@ import { promoteAyasResearchExperimentEvidence } from "../src/lib/brain/autonomy
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE, runAyasResearchImprovementCycle, type AyasResearchImprovementCycleResult } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
 import { readAyasControlledEvolutionRegister, resolveAyasControlledEvolutionRegisterFile, runAyasControlledSelfEvolutionCycle } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle";
+import { ayasControlledEvolutionMode, prepareAyasControlledEvolutionRegister, recordAyasControlledEvolutionOutcome } from "../src/lib/ayas/evolution/AyasControlledEvolutionLocalGaps";
 import { mirrorAyasResearchFindings } from "../src/lib/ayas/research/AyasResearchFindingKnowledge";
 import { runAyasTechnologyWatchStep, type AyasTechnologyWatchStepSummary } from "../src/lib/ayas/technology/AyasTechnologyWatchStep";
 
@@ -111,7 +112,8 @@ async function main(): Promise<void> {
   const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
   const researchImprovementEnabled = process.env.AYAS_RESEARCH_IMPROVEMENT_ENABLED !== "0";
   const evolutionFile = resolveAyasControlledEvolutionRegisterFile(root, process.env.AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE);
-  const evolutionDue = Boolean(evolutionFile) && observation.repoClean && observation.graphifyFresh && observation.machineAction === "ALLOW";
+  // Owner, 2026-11-05: on by default, from the measured gaps at HEAD; AYAS_CONTROLLED_EVOLUTION=0 (or an empty register path) is off.
+  const evolutionDue = ayasControlledEvolutionMode(process.env) === "AUTO" && observation.repoClean && observation.graphifyFresh && observation.machineAction === "ALLOW";
   const researchSources = resolveAyasResearchSourceRegistry();
   const capabilities: AyasDiscoveryRunCapability[] = ["discovery.proposal-inbox", "discovery.novel-patch-sandbox", "discovery.micro-batch-accumulation"];
   if (researchSchedulerEnabled) capabilities.push("discovery.research-scheduler-tick");
@@ -221,11 +223,14 @@ async function main(): Promise<void> {
   // as the read-only qualification CLI. Missing input admits nothing. Any
   // failure is isolated before the existing discovery and owner-review flow.
   let controlledEvolutionCandidate: Awaited<ReturnType<typeof runAyasControlledSelfEvolutionCycle>> = null;
-  if (evolutionFile && evolutionDue && leased("discovery.controlled-evolution-cycle")) {
+  if (evolutionDue && leased("discovery.controlled-evolution-cycle")) {
     try {
       controlledEvolutionCandidate = await runAyasControlledSelfEvolutionCycle({ repoRoot: root, observation,
-        register: readAyasControlledEvolutionRegister(evolutionFile), inbox,
+        register: await prepareAyasControlledEvolutionRegister({ repoRoot: root, observation,
+          fileRegister: evolutionFile ? readAyasControlledEvolutionRegister(evolutionFile) : null,
+          remainingMs: () => Math.max(0, AYAS_DISCOVERY_CHILD_WORK_CEILING_MS - (Date.now() - childStartedAt)) }), inbox,
         remainingMs: () => Math.max(0, AYAS_DISCOVERY_CHILD_WORK_CEILING_MS - (Date.now() - childStartedAt)) });
+      recordAyasControlledEvolutionOutcome(root, controlledEvolutionCandidate);
     } catch (error) {
       observation.gaps.push(`controlled evolution cycle failed: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`);
     }

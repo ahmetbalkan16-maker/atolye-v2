@@ -28,8 +28,8 @@ const MAX_REGISTER_BYTES = 2 * 1024 * 1024;
 const HEX64 = /^[0-9a-f]{64}$/;
 const sha256 = (value: string): string => crypto.createHash("sha256").update(value, "utf8").digest("hex");
 
-/** REVIEW_REQUIRED remains the path default; only the exact reviewed output can enter TEMP. */
-function currentReviewedPatchMatches(repoRoot: string, head: string, strategy: AyasControlledEvolutionCandidate["strategy"]): boolean {
+/** REVIEW_REQUIRED remains the path default; only the exact reviewed output can enter TEMP. Exported for the cycle's status report. */
+export function currentReviewedPatchMatches(repoRoot: string, head: string, strategy: AyasControlledEvolutionCandidate["strategy"]): boolean {
   if (classifyPatchSet(strategy.exactFiles).level === "SAFE") return true;
   const manifest = strategy.reviewedExactPatch;
   if (!manifest || strategy.exactFiles.length !== 1) return false;

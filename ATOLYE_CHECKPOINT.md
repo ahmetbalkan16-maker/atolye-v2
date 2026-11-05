@@ -1,3 +1,22 @@
+## 5 Kasım 2026 (gece, 3) — kontrollü evrim açıldı (owner: "sadece kontrollü evrimi yap")
+
+**Bulgu:** döngü hiç çalışmıyordu ve elle yazılan bir kayıt da çalıştıramazdı: fırsat kanıtı ölçüldüğü HEAD'e ve
+evaluator hash'ine bağlı, her commit'te bayatlar. Tek kayıtlı strateji (`exp-memory-render-tool-supersession`) zaten
+uygulanmış (kaynak hash'i `eba4907c…` beklenir, şimdi `c5139a0f…`). Tek benchmark `cognitive-quality` 55/55.
+
+**Yapılan:** `AyasControlledEvolutionLocalGaps` — keşif süreci her tick'te, mevcut `discovery.controlled-evolution-cycle`
+kirası altında, benchmark'ı güncel HEAD'de araştırma sandbox'ında ölçer (HEAD başına bir kez, en çok iki deneme,
+değerlendirici depoda yoksa ölçmez), düşen her yetenek × boyut için HEAD'e bağlı bir `LOCAL_EVALUATOR` fırsatı üretir,
+operatör dosyasını yanına ekler, değişmeyen döngüye verir. Varsayılan açık; `AYAS_CONTROLLED_EVOLUTION=0` ya da boş
+`AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE` kapatır. Durum: `data/brain/self-improvement/evolution/last-cycle.json`
+(`.gitignore`'da). Döngü, sandbox, artifact, gelen kutusu ve owner tıklaması değişmedi.
+
+**Gerçek ölçüm (3d0fdab5, 3,2 sn):** 55/55, açık yok → "nothing to evolve". Döngü canlı ama şu an işi yok; bir vaka
+düştüğünde ve onu kapsayan sahip-incelemeli bir strateji olduğunda deneyi kendisi başlatır, strateji yoksa durumu
+NEEDS_EXPERIMENT_DESIGN olarak yazar. Belge: `docs/AYAS_CONTROLLED_SELF_EVOLUTION.md`.
+
+Test: `smoke-ayas-controlled-evolution-local-gaps` (6, yeni); sabitli evrim ve keşif takımları değişmeden geçti.
+
 ## 5 Kasım 2026 (gece, 2) — açıklar kapatıldı: PDF, sohbetten arama, kurtarma push'u, Stage 8 → teknoloji izleme, uyarlama; lint 0/0; CI yeniden yeşil
 
 **Durum:** `feature/cop-adam-v3`: 31de2bdb (lint), c37fdf25 (PDF + arama), 56973cd4 (EVAL v71), a3e72eaa (kurtarma push'u),
