@@ -15,7 +15,7 @@ function copy(file: string) {
   for (const match of content.matchAll(/(?:from\s+|import\s*)["'](\.[^"']+)["']/g)) {
     const base = path.resolve(path.dirname(path.join(repo, file)), match[1]!);
     const found = [base + ".ts", base + ".tsx", path.join(base, "index.ts")].find((f) => fs.existsSync(f));
-    if (found) { const rel = path.relative(repo, found); assert.ok(!rel.startsWith("..") && !path.isAbsolute(rel)); copy(rel); }
+    if (found) { const rel = path.relative(repo, found); assert.ok(!rel.startsWith("..") && !path.isAbsolute(rel), "assert.ok(!rel.startsWith(\"..\") && !path.isAbsolute(rel))"); copy(rel); }
   }
 }
 const pure = "src/lib/ayas/observability/AyasReliabilitySlo.ts";
@@ -43,6 +43,6 @@ try {
   }
   console.log(`AYAS reliability SLO mutation audit: PASS (${mutants.length}/${mutants.length} caught; TEMP overlay)`);
 } finally {
-  assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir())); assert.ok(path.basename(root).startsWith("ayas-slo-audit-"));
+  assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()), "assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()))"); assert.ok(path.basename(root).startsWith("ayas-slo-audit-"), "assert.ok(path.basename(root).startsWith(\"ayas-slo-audit-\"))");
   fs.rmSync(root, { recursive: true, force: true });
 }
