@@ -79,16 +79,16 @@ async function scenario(name: string, test: () => void | Promise<void>) {
 
 async function run() {
   await scenario("1. empty storage → no meta, status 'none'", async () => {
-    assert.equal(await getMeta(URL_A), undefined);
-    assert.equal(await getFileIdbStatus(URL_A), "none");
+    assert.equal(await getMeta(URL_A), undefined, "assert.equal(await getMeta(URL_A), undefined)");
+    assert.equal(await getFileIdbStatus(URL_A), "none", "assert.equal(await getFileIdbStatus(URL_A), \"none\")");
   });
 
   await scenario("2. chunk write → readable back byte-for-byte", async () => {
     const bytes = bytesOfLength(1234, 9);
     await putChunk(URL_A, 0, bytes);
     const readBack = await getChunk(URL_A, 0);
-    assert.ok(readBack);
-    assert.deepEqual([...readBack!], [...bytes]);
+    assert.ok(readBack, "assert.ok(readBack)");
+    assert.deepEqual([...readBack!], [...bytes], "assert.deepEqual([...readBack!], [...bytes])");
     assert.equal(await getChunk(URL_A, 1), undefined, "a different chunk index must not exist yet");
   });
 
@@ -96,18 +96,18 @@ async function run() {
     const meta = makeMeta({ downloadedBytes: 500, downloadedChunkCount: 1 });
     await putMeta(meta);
     const readBack = await getMeta(URL_A);
-    assert.deepEqual(readBack, meta);
+    assert.deepEqual(readBack, meta, "assert.deepEqual(readBack, meta)");
   });
 
   await scenario("4. incomplete state → status 'partial'", async () => {
     await putMeta(makeMeta({ complete: false, downloadedChunkCount: 1, downloadedBytes: CHUNK_SIZE }));
-    assert.equal(await getFileIdbStatus(URL_A), "partial");
+    assert.equal(await getFileIdbStatus(URL_A), "partial", "assert.equal(await getFileIdbStatus(URL_A), \"partial\")");
   });
 
   await scenario("5. complete state → status 'complete'", async () => {
     const meta = makeMeta({ complete: true, downloadedChunkCount: 3, downloadedBytes: meta_totalBytesOf() });
     await putMeta(meta);
-    assert.equal(await getFileIdbStatus(URL_A), "complete");
+    assert.equal(await getFileIdbStatus(URL_A), "complete", "assert.equal(await getFileIdbStatus(URL_A), \"complete\")");
   });
 
   await scenario("6. reload simulation: a fresh status read after 'closing the page' still finds the same complete record", async () => {
@@ -117,10 +117,10 @@ async function run() {
     await putChunk(URL_A, 2, bytesOfLength(100));
     // "Reload" = nothing but time passing and re-reading fresh — no reset()
     // here (that would be the corruption/empty-storage case, not a reload).
-    assert.equal(await getFileIdbStatus(URL_A), "complete");
+    assert.equal(await getFileIdbStatus(URL_A), "complete", "assert.equal(await getFileIdbStatus(URL_A), \"complete\")");
     const response = buildResponseFromStoredChunks(URL_A, (await getMeta(URL_A))!);
     const body = await response.arrayBuffer();
-    assert.equal(body.byteLength, meta_totalBytesOf());
+    assert.equal(body.byteLength, meta_totalBytesOf(), "assert.equal(body.byteLength, meta_totalBytesOf())");
   });
 
   await scenario("7. corrupt chunk detected: isResumePointIntact catches a wrong-length last chunk", async () => {
@@ -128,7 +128,7 @@ async function run() {
     await putMeta(meta);
     await putChunk(URL_A, 0, bytesOfLength(CHUNK_SIZE));
     await putChunk(URL_A, 1, bytesOfLength(CHUNK_SIZE - 1)); // corrupt: one byte short
-    assert.equal(await isResumePointIntact(meta), false);
+    assert.equal(await isResumePointIntact(meta), false, "assert.equal(await isResumePointIntact(meta), false)");
   });
 
   await scenario("7b. corrupt chunk detected: isResumePointIntact catches a MISSING last chunk", async () => {
@@ -136,14 +136,14 @@ async function run() {
     await putMeta(meta);
     await putChunk(URL_A, 0, bytesOfLength(CHUNK_SIZE));
     // chunk 1 never written — meta claims it is, storage disagrees.
-    assert.equal(await isResumePointIntact(meta), false);
+    assert.equal(await isResumePointIntact(meta), false, "assert.equal(await isResumePointIntact(meta), false)");
   });
 
   await scenario("7c. an intact resume point passes isResumePointIntact", async () => {
     const meta = makeMeta({ downloadedChunkCount: 2, downloadedBytes: CHUNK_SIZE * 2 });
     await putChunk(URL_A, 0, bytesOfLength(CHUNK_SIZE));
     await putChunk(URL_A, 1, bytesOfLength(CHUNK_SIZE)); // chunk 1 is NOT the last chunk overall (chunkCount=3), so full chunkSize is correct
-    assert.equal(await isResumePointIntact(meta), true);
+    assert.equal(await isResumePointIntact(meta), true, "assert.equal(await isResumePointIntact(meta), true)");
   });
 
   await scenario("8. recovery: deleteModelFile removes a corrupt record cleanly, leaving a fresh 'none' status", async () => {
@@ -154,9 +154,9 @@ async function run() {
 
     await deleteModelFile(URL_A, meta.chunkCount);
 
-    assert.equal(await getMeta(URL_A), undefined);
-    assert.equal(await getChunk(URL_A, 0), undefined);
-    assert.equal(await getChunk(URL_A, 1), undefined);
+    assert.equal(await getMeta(URL_A), undefined, "assert.equal(await getMeta(URL_A), undefined)");
+    assert.equal(await getChunk(URL_A, 0), undefined, "assert.equal(await getChunk(URL_A, 0), undefined)");
+    assert.equal(await getChunk(URL_A, 1), undefined, "assert.equal(await getChunk(URL_A, 1), undefined)");
     assert.equal(await getFileIdbStatus(URL_A), "none", "must be able to start a clean re-download after recovery");
   });
 
@@ -169,8 +169,8 @@ async function run() {
 
     await deleteModelFile(URL_A, meta.chunkCount);
 
-    assert.equal(await getFileIdbStatus(URL_A), "none");
-    assert.equal(await getChunk(URL_A, 0), undefined);
+    assert.equal(await getFileIdbStatus(URL_A), "none", "assert.equal(await getFileIdbStatus(URL_A), \"none\")");
+    assert.equal(await getChunk(URL_A, 0), undefined, "assert.equal(await getChunk(URL_A, 0), undefined)");
   });
 
   await scenario("10. offline retrieval: a complete record streams back out as a well-formed Response with no network involved", async () => {
@@ -181,17 +181,17 @@ async function run() {
     await putChunk(URL_A, 2, bytesOfLength(100, 3));
 
     const response = buildResponseFromStoredChunks(URL_A, meta);
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("content-length"), String(meta.totalBytes));
+    assert.equal(response.status, 200, "assert.equal(response.status, 200)");
+    assert.equal(response.headers.get("content-length"), String(meta.totalBytes), "assert.equal(response.headers.get(\"content-length\"), String(meta.totalBytes))");
     const body = new Uint8Array(await response.arrayBuffer());
-    assert.equal(body.byteLength, meta.totalBytes);
+    assert.equal(body.byteLength, meta.totalBytes, "assert.equal(body.byteLength, meta.totalBytes)");
     // Spot-check ordering: first bytes come from chunk 0 (fill=1), last bytes from chunk 2 (fill=3).
-    assert.equal(body[0], 1);
-    assert.equal(body[body.length - 1], 3);
+    assert.equal(body[0], 1, "assert.equal(body[0], 1)");
+    assert.equal(body[body.length - 1], 3, "assert.equal(body[body.length - 1], 3)");
   });
 
   await scenario("isIndexedDbAvailable() reflects the global correctly", () => {
-    assert.equal(isIndexedDbAvailable(), true);
+    assert.equal(isIndexedDbAvailable(), true, "assert.equal(isIndexedDbAvailable(), true)");
   });
 
   console.log(`AYAS phone LLM IndexedDB storage smoke: PASS (${count} scenarios)`);
