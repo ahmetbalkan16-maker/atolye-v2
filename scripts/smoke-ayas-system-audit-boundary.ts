@@ -14,9 +14,9 @@ async function main() {
     const deps = createLocalAyasAuditCollector(root, { repository: () => ({ head: AUDIT_HEAD, branch: "codex/fixture" }), graph: async () => auditGraphFixture() });
     deps.clock = () => AUDIT_NOW; deps.declaredSuites = 166; deps.readSource = () => Buffer.from("source fixture");
     const empty = await collectAyasSystemAudit(deps);
-    assert.equal(empty.report.closure, "STATIC_AUDIT_COMPLETE");
-    assert.equal(empty.input.coverage.executed, 0);
-    assert.equal(empty.input.evidence.filter(e => e.state === "NOT_RUN").length, 30); checks++;
+    assert.equal(empty.report.closure, "STATIC_AUDIT_COMPLETE", "assert.equal(empty.report.closure, \"STATIC_AUDIT_COMPLETE\")");
+    assert.equal(empty.input.coverage.executed, 0, "assert.equal(empty.input.coverage.executed, 0)");
+    assert.equal(empty.input.evidence.filter(e => e.state === "NOT_RUN").length, 30, "assert.equal(empty.input.evidence.filter(e => e.state === \"NOT_RUN\").length, 30)"); checks++;
     assert.throws(() => createLocalAyasAuditCollector(root, { ...deps }).readSource("arbitrary-file"), /AUDIT_SOURCE_NOT_REGISTERED/); checks++;
     const brain = path.join(root, "data/brain"); fs.mkdirSync(brain, { recursive: true });
     const credential = path.join(brain, "secret-canary.json"); fs.writeFileSync(credential, "synthetic canary");
@@ -24,23 +24,23 @@ async function main() {
     fs.openSync = ((file: Parameters<typeof fs.openSync>[0], ...args: [Parameters<typeof fs.openSync>[1], Parameters<typeof fs.openSync>[2]?]) => {
       assert.notEqual(String(file), credential, "CREDENTIAL_BODY_MUST_NOT_OPEN"); return originalOpen(file, ...args);
     }) as typeof fs.openSync;
-    try { const inv = inventoryAyasAuditProtectedRoots(root); assert.equal(inv.complete, false); assert.equal(inv.exclusions?.credentialFiles, 1); } finally { fs.openSync = originalOpen; } checks++;
+    try { const inv = inventoryAyasAuditProtectedRoots(root); assert.equal(inv.complete, false, "assert.equal(inv.complete, false)"); assert.equal(inv.exclusions?.credentialFiles, 1, "assert.equal(inv.exclusions?.credentialFiles, 1)"); } finally { fs.openSync = originalOpen; } checks++;
     const media = path.join(brain, "large-media.bin"), fd = fs.openSync(media, "w");
     try { fs.ftruncateSync(fd, 16 * 1024 * 1024 + 1); } finally { fs.closeSync(fd); }
-    const inv = inventoryAyasAuditProtectedRoots(root); assert.equal(inv.exclusions?.sizeOrByteBudgetFiles, 1); assert.equal(inv.complete, false); checks++;
+    const inv = inventoryAyasAuditProtectedRoots(root); assert.equal(inv.exclusions?.sizeOrByteBudgetFiles, 1, "assert.equal(inv.exclusions?.sizeOrByteBudgetFiles, 1)"); assert.equal(inv.complete, false, "assert.equal(inv.complete, false)"); checks++;
     const excluded = await collectAyasSystemAudit(deps);
-    assert.equal(excluded.report.closure, "BLOCKED"); assert.deepEqual(excluded.protectedExclusionsBefore, excluded.protectedExclusionsAfter); checks++;
+    assert.equal(excluded.report.closure, "BLOCKED", "assert.equal(excluded.report.closure, \"BLOCKED\")"); assert.deepEqual(excluded.protectedExclusionsBefore, excluded.protectedExclusionsAfter, "assert.deepEqual(excluded.protectedExclusionsBefore, excluded.protectedExclusionsAfter)"); checks++;
     let probes = 0; deps.repository = () => ({ head: ++probes === 1 ? AUDIT_HEAD : "2".repeat(40), branch: "codex/fixture" });
-    const drift = await collectAyasSystemAudit(deps); assert.equal(drift.branchOrHeadChanged, true); assert.equal(drift.report.closure, "BLOCKED"); checks++;
+    const drift = await collectAyasSystemAudit(deps); assert.equal(drift.branchOrHeadChanged, true, "assert.equal(drift.branchOrHeadChanged, true)"); assert.equal(drift.report.closure, "BLOCKED", "assert.equal(drift.report.closure, \"BLOCKED\")"); checks++;
     fs.mkdirSync(path.join(root, "scripts"));
     fs.writeFileSync(path.join(root, "scripts/ayas-graphify-status.ts"), 'throw Error("UNTRUSTED_REPO_CODE_RAN")');
-    const facts = await createAyasAuditOperatorProbes(root).graph(); assert.equal(facts.sourceHead, null); checks++;
+    const facts = await createAyasAuditOperatorProbes(root).graph(); assert.equal(facts.sourceHead, null, "assert.equal(facts.sourceHead, null)"); checks++;
     const current = createAyasAuditOperatorProbes(process.cwd()).repository(); assert.match(current.head ?? "", /^[a-f0-9]{40}$/); checks++;
-    const currentGraph = await createAyasAuditOperatorProbes(process.cwd()).graph(); assert.equal(currentGraph.sourceHead, current.head); checks++;
+    const currentGraph = await createAyasAuditOperatorProbes(process.cwd()).graph(); assert.equal(currentGraph.sourceHead, current.head, "assert.equal(currentGraph.sourceHead, current.head)"); checks++;
     console.log(JSON.stringify({ status: "PASS", checks, scope: "TEMP_FIXED_READ_ONLY_PROBES_NO_AUTHORITY_NO_CREDENTIAL_BODY", sourceExistenceDoesNotQualifyTestOrLive: true }));
   } finally {
-    assert.equal(path.dirname(fs.realpathSync.native(root)).toLowerCase(), fs.realpathSync.native(os.tmpdir()).toLowerCase());
-    assert.ok(path.basename(root).startsWith("ayas-audit-boundary-")); fs.rmSync(root, { recursive: true, force: true });
+    assert.equal(path.dirname(fs.realpathSync.native(root)).toLowerCase(), fs.realpathSync.native(os.tmpdir()).toLowerCase(), "assert.equal(path.dirname(fs.realpathSync.native(root)).toLowerCase(), fs.realpathSync.native(os.tmpdir()).toLowerCase())");
+    assert.ok(path.basename(root).startsWith("ayas-audit-boundary-"), "assert.ok(path.basename(root).startsWith(\"ayas-audit-boundary-\"))"); fs.rmSync(root, { recursive: true, force: true });
   }
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });
