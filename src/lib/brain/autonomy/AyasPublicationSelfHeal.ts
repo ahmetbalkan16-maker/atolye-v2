@@ -4,8 +4,12 @@ import path from "node:path";
 
 import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import { ayasGitFailureMessage, fetchAyasRemoteBranch, pushAyasBranchWithRetry } from "./AyasGitPushRetry";
+import type { AyasMicroBatchStoreHandle } from "./AyasMicroBatch";
+import { countAyasOpenMicroBatchRecoveries, createAyasMicroBatchArtifactView, createAyasMicroBatchRecoveryInbox } from "./AyasMicroBatchRecovery";
+import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
+import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import { closeAyasPostPublication, refreshAyasGraphifyForHead } from "./AyasPostPublicationClosure";
-import { isAyasPublicationInFlight, reconcileAyasRecoveryRequiredProposals, type AyasRecoveryReconciliationResult } from "./AyasRecoveryReconciliation";
+import { ayasMicroBatchPublicationOperation, isAyasPublicationInFlight, reconcileAyasRecoveryRequiredProposals, type AyasRecoveryReconciliationResult } from "./AyasRecoveryReconciliation";
 
 /**
  * Self-heal after a publication that did not finish (owner, 2026-11-05: "böyle hatalarda sistemin kendi kendini
@@ -17,7 +21,8 @@ import { isAyasPublicationInFlight, reconcileAyasRecoveryRequiredProposals, type
  *  1. Publication recovery. An owner-approved commit whose push failed stays local and RECOVERY_REQUIRED. The
  *     recovery pass (AyasRecoveryReconciliation with a publisher) proves it is exactly the approved change on its
  *     approved base, fetches, pushes it once without force, and closes the record PUBLISHED_VERIFIED; then the
- *     ordinary post-publication closure (Graphify + health) runs for the pushed HEAD.
+ *     ordinary post-publication closure (Graphify + health) runs for the pushed HEAD. The same proof covers a micro
+ *     batch (AyasMicroBatchRecovery) and, in AyasUpdateApplyRunner, an "Uygula" whose push failed.
  *
  *  2. Graphify self-heal. A HEAD whose graph is still not fresh well after its commit — its publication closure
  *     failed or never ran — gets the closure's own Graphify refresh and verification, a bounded number of times.
@@ -33,8 +38,8 @@ export function ayasGateRoot(repoRoot: string): string {
 
 /* ------------------------------------------------------------ 1. recovery --- */
 
-export function countAyasOpenRecoveries(inbox: AyasApprovalInboxHandle): number {
-  return inbox.load().proposals.filter((proposal) => proposal.status === "RECOVERY_REQUIRED").length;
+export function countAyasOpenRecoveries(inbox: AyasApprovalInboxHandle, batchStore?: AyasMicroBatchStoreHandle): number {
+  return inbox.load().proposals.filter((proposal) => proposal.status === "RECOVERY_REQUIRED").length + (batchStore ? countAyasOpenMicroBatchRecoveries(batchStore) : 0);
 }
 
 export interface AyasPublicationRecoveryRun {
@@ -53,29 +58,52 @@ export interface AyasPublicationRecoveryDeps {
   readonly push?: (repoRoot: string, remoteName: string, branch: string) => void;
   readonly closure?: (head: string) => void;
   readonly probe?: Parameters<typeof reconcileAyasRecoveryRequiredProposals>[0]["probe"];
-  readonly artifactStore?: Parameters<typeof reconcileAyasRecoveryRequiredProposals>[0]["artifactStore"];
+  readonly artifactStore?: AyasPatchArtifactStore;
   readonly gateRoot?: string;
+  /** The micro-batch lane (2026-11-05): its RECOVERY_REQUIRED batches get the same proof and push. */
+  readonly microBatchStore?: AyasMicroBatchStoreHandle;
+  readonly microItemStore?: AyasMicroItemStore;
 }
 
 /** Returns undefined when no record waits for recovery (no Git call is made then). */
 export function runAyasPublicationRecovery(deps: AyasPublicationRecoveryDeps): AyasPublicationRecoveryRun | undefined {
   const inbox = deps.inbox ?? createAyasApprovalInboxStore();
-  if (!countAyasOpenRecoveries(inbox)) return undefined;
+  const batchStore = deps.microBatchStore;
+  const proposalsOpen = countAyasOpenRecoveries(inbox) > 0;
+  const batchesOpen = batchStore !== undefined && countAyasOpenMicroBatchRecoveries(batchStore) > 0;
+  if (!proposalsOpen && !batchesOpen) return undefined;
   const remoteName = deps.remoteName ?? "origin";
   const fetchRemote = deps.fetchRemote ?? ((root, remote, branch) => fetchAyasRemoteBranch(root, remote, branch));
   const push = deps.push ?? ((root, remote, branch) => { pushAyasBranchWithRetry(root, remote, branch); });
-  const result = reconcileAyasRecoveryRequiredProposals({
-    repoRoot: deps.repoRoot, inbox, now: deps.now, remoteName,
+  const artifacts = deps.artifactStore ?? createAyasPatchArtifactStore();
+  const publisher = {
+    fetch: ({ repoRoot, remoteName: remote, branch }: { readonly repoRoot: string; readonly remoteName: string; readonly branch: string }) => fetchRemote(repoRoot, remote, branch),
+    push: ({ repoRoot, remoteName: remote, branch }: { readonly repoRoot: string; readonly remoteName: string; readonly branch: string }) => {
+      try { push(repoRoot, remote, branch); return { ok: true }; } catch (error) { return { ok: false, message: ayasGitFailureMessage(error) }; }
+    },
+  };
+  const pass = (lane: { readonly inbox: AyasApprovalInboxHandle; readonly artifactStore: AyasPatchArtifactStore; readonly publicationOperation?: (id: string) => string }) => reconcileAyasRecoveryRequiredProposals({
+    repoRoot: deps.repoRoot, inbox: lane.inbox, now: deps.now, remoteName, artifactStore: lane.artifactStore, publisher,
     ...(deps.gateRoot ? { gateRoot: deps.gateRoot } : {}),
     ...(deps.probe ? { probe: deps.probe } : {}),
-    ...(deps.artifactStore ? { artifactStore: deps.artifactStore } : {}),
-    publisher: {
-      fetch: ({ repoRoot, remoteName: remote, branch }) => fetchRemote(repoRoot, remote, branch),
-      push: ({ repoRoot, remoteName: remote, branch }) => {
-        try { push(repoRoot, remote, branch); return { ok: true }; } catch (error) { return { ok: false, message: ayasGitFailureMessage(error) }; }
-      },
-    },
+    ...(lane.publicationOperation ? { publicationOperation: lane.publicationOperation } : {}),
   });
+  // Proposals first, then batches: each pass pushes only a chain made entirely of its own proven commits, so a
+  // proposal's and a batch's failed pushes stacked on each other stay blocked for a human (never seen so far).
+  const parts = [
+    ...(proposalsOpen ? [pass({ inbox, artifactStore: artifacts })] : []),
+    ...(batchesOpen ? [pass({
+      inbox: createAyasMicroBatchRecoveryInbox(batchStore!, deps.microItemStore ?? createAyasMicroItemStore()),
+      artifactStore: createAyasMicroBatchArtifactView(batchStore!, artifacts), publicationOperation: ayasMicroBatchPublicationOperation,
+    })] : []),
+  ];
+  const pushedHead = parts.map((part) => part.pushedHead).filter((head): head is string => !!head).at(-1);
+  const skipped = parts.find((part) => part.skipped)?.skipped;
+  const result: AyasRecoveryReconciliationResult = {
+    ...(skipped ? { skipped } : {}),
+    resolved: parts.flatMap((part) => part.resolved), unresolved: parts.flatMap((part) => part.unresolved),
+    autoPushed: parts.flatMap((part) => part.autoPushed ?? []), ...(pushedHead ? { pushedHead } : {}),
+  };
   if (!result.pushedHead) return { result };
   try {
     (deps.closure ?? ((head) => { closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName }); }))(result.pushedHead);

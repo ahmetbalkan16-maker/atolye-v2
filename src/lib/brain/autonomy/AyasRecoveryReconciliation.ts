@@ -101,6 +101,8 @@ export interface AyasRecoveryReconciliationDeps {
   readonly probe?: AyasRecoveryRepoProbe;
   /** Present only in the update executor: may complete a failed push of a proven commit. */
   readonly publisher?: AyasRecoveryPublisher;
+  /** The guarded publication's operation name for a record; default the proposal lane's (a micro batch passes its own). */
+  readonly publicationOperation?: (proposalId: string) => string;
 }
 
 export interface AyasRecoveryReconciliationResult {
@@ -117,6 +119,11 @@ export interface AyasRecoveryReconciliationResult {
 /** Same string `AyasGuardedPublication.ayasPublicationOperationName("proposal", id)` writes (pinned by its smoke). */
 export function ayasProposalPublicationOperation(proposalId: string): string {
   return `ayas-publication:proposal:${proposalId}`;
+}
+
+/** Same string `ayasPublicationOperationName("micro-batch", id)` writes. */
+export function ayasMicroBatchPublicationOperation(batchId: string): string {
+  return `ayas-publication:micro-batch:${batchId}`;
 }
 
 /** Stability states that end a transaction; anything else is a publication in flight. */
@@ -221,8 +228,9 @@ export function reconcileAyasRecoveryRequiredProposals(deps: AyasRecoveryReconci
   /** The proposals whose approved commit exists only locally, with that commit (filled by `settle`). */
   const localOnly = new Map<string, { readonly proposal: AyasInboxProposal; readonly sha: string; readonly proven: (ref: string) => boolean }>();
 
+  const operationOf = deps.publicationOperation ?? ayasProposalPublicationOperation;
   const settle = (proposal: AyasInboxProposal): AyasRecoverySettlement => {
-    const latest = stability.filter((row) => row.operation === ayasProposalPublicationOperation(proposal.proposalId)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1);
+    const latest = stability.filter((row) => row.operation === operationOf(proposal.proposalId)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1);
     if (latest?.state === "ROLLED_BACK") return { kind: "ROLLBACK_VERIFIED", evidence: latest.transactionId };
 
     const entry = latestRecoveryJournal(journal, proposal.proposalId);

@@ -11,7 +11,9 @@ import { admitAyasOwnerApproval, type AyasOwnerAdmissionAction, type AyasOwnerAd
 import { classifyAyasDependencyUpdateImpact, classifyAyasRuntimeImpact } from "../src/lib/brain/autonomy/AyasProposalRuntimeImpact";
 import { createAyasResearchSchedulerStateStore, ayasResearchSchedulerStateSchemaVersion } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { createAyasStabilityTransactionStore } from "../src/lib/brain/autonomy/AyasRuntimeStabilityTransaction";
-import { createAyasLivePublisher, reconcileAyasUpdateApplyOrphan, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
+import {
+  createAyasLivePublisher, isAyasUpdateApplyPushPending, reconcileAyasUpdateApplyOrphan, recoverAyasUpdateApplyPushes, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies,
+} from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import {
   AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApply, decideAyasUpdateApproval, isAyasUpdateApplyOwnerAdmitted, listAyasUpdateApplyDecisions,
   type AyasUpdateApplyDecisionRecord,
@@ -288,6 +290,62 @@ async function main(): Promise<void> {
     assert.ok(done.status === "RECOVERY_REQUIRED" || done.status === "FAILED", done.status);
     assert.equal(done.commitSha, git(f.repoRoot, "rev-parse", "HEAD"), "the commit stays for a human");
     assert.match(done.reasons!.join(" "), /PUSH/); assert.deepEqual(f.published, []);
+  });
+
+  await scenario("self-heal: the failed push of a proven Uygula commit is completed once (never forced); it then goes live like an uninterrupted one", async () => {
+    const f = makeFixture();
+    const trial = await seedPassedTrial(f);
+    const decision = await applyDecision(f, trial);
+    git(f.repoRoot, "remote", "set-url", "origin", path.join(f.base, "missing-remote.git"));
+    const failed = await runAyasUpdateApply(decision, trial, f.deps);
+    assert.equal(isAyasUpdateApplyPushPending(failed), true);
+    const heal = (over: Partial<Parameters<typeof recoverAyasUpdateApplyPushes>[0]> = {}) => recoverAyasUpdateApplyPushes({ repoRoot: f.repoRoot, store: f.trials, gateRoot: f.deps.gateRoot, postPublicationClosure: f.deps.postPublicationClosure, ...over });
+    assert.deepEqual(heal().map((entry) => entry.outcome), ["DEFERRED"], "the remote still cannot be reached: wait");
+    git(f.repoRoot, "remote", "set-url", "origin", f.remoteDir);
+    assert.deepEqual(heal({ push: () => { throw new Error("remote: Internal Server Error"); } }).map((entry) => entry.outcome), ["FAILED"]);
+    assert.notEqual(git(f.remoteDir, "rev-parse", "master"), failed.commitSha);
+    const healed = heal();
+    assert.deepEqual(healed.map((entry) => [entry.outcome, entry.commitSha]), [["PUSHED", failed.commitSha]]);
+    assert.equal(git(f.remoteDir, "rev-parse", "master"), failed.commitSha);
+    const record = f.trials.load().applies!.find((entry) => entry.applyId === failed.applyId)!;
+    assert.deepEqual([record.status, record.pushed, record.livePending, record.closure?.ok], ["COMPLETED", true, true, true]);
+    assert.deepEqual(f.closures, [failed.commitSha], "the Graphify closure ran for the pushed commit");
+    assert.equal(readAyasCanonicalSyncRequest(f.trials.rootDir)?.commitSha, failed.commitSha);
+    assert.deepEqual(heal(), [], "nothing left");
+    const live = await runAyasUpdateLivePublish(record, f.deps);
+    assert.deepEqual([live.live?.status, live.livePending, f.published], ["PUBLISHED", false, [failed.commitSha]]);
+  });
+
+  await scenario("self-heal refuses what it cannot prove: other bytes, a commit on top, or a moved remote stay for a human", async () => {
+    // A commit whose package files are not the tested bytes.
+    const f = makeFixture();
+    const trial = await seedPassedTrial(f);
+    const decision = await applyDecision(f, trial);
+    git(f.repoRoot, "remote", "set-url", "origin", path.join(f.base, "missing-remote.git"));
+    const failed = await runAyasUpdateApply(decision, trial, f.deps);
+    git(f.repoRoot, "remote", "set-url", "origin", f.remoteDir);
+    const heal = () => recoverAyasUpdateApplyPushes({ repoRoot: f.repoRoot, store: f.trials, gateRoot: f.deps.gateRoot, postPublicationClosure: f.deps.postPublicationClosure });
+    fs.writeFileSync(path.join(f.repoRoot, "README.md"), "someone else\n"); git(f.repoRoot, "commit", "-qam", "someone else's work on top");
+    assert.deepEqual(heal().map((entry) => entry.outcome), ["BLOCKED"], "HEAD is not the apply's commit");
+    git(f.repoRoot, "reset", "-q", "--hard", failed.commitSha!);
+    const other = path.join(f.base, "other");
+    execFileSync("git", ["clone", "-q", f.remoteDir, other], { windowsHide: true });
+    git(other, "config", "user.email", "o@example.com"); git(other, "config", "user.name", "o");
+    fs.writeFileSync(path.join(other, "README.md"), "other PC\n"); git(other, "commit", "-qam", "other PC"); git(other, "push", "-q", "origin", "HEAD:master");
+    const moved = git(f.remoteDir, "rev-parse", "master");
+    assert.deepEqual(heal().map((entry) => entry.outcome), ["BLOCKED"], "the remote moved: never forced");
+    assert.equal(git(f.remoteDir, "rev-parse", "master"), moved);
+    const g = makeFixture();
+    const trialG = await seedPassedTrial(g);
+    const decisionG = await applyDecision(g, trialG);
+    git(g.repoRoot, "remote", "set-url", "origin", path.join(g.base, "missing-remote.git"));
+    const failedG = await runAyasUpdateApply(decisionG, trialG, g.deps);
+    git(g.repoRoot, "remote", "set-url", "origin", g.remoteDir);
+    fs.writeFileSync(path.join(g.repoRoot, "package-lock.json"), LOCK.replace("16.4.1", "16.9.9"));
+    git(g.repoRoot, "commit", "-q", "--amend", "-a", "--no-edit");
+    g.trials.upsertApply({ ...failedG, commitSha: git(g.repoRoot, "rev-parse", "HEAD") });
+    assert.deepEqual(recoverAyasUpdateApplyPushes({ repoRoot: g.repoRoot, store: g.trials, gateRoot: g.deps.gateRoot }).map((entry) => entry.outcome), ["BLOCKED"], "not the tested lock bytes");
+    assert.equal(git(g.remoteDir, "rev-parse", "master"), trialG.baseHead);
   });
 
   await scenario("a live publish rolled back by its health check stays pending and is published again, bounded", async () => {

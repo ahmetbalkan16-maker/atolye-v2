@@ -9,8 +9,11 @@ import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasIn
 import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecutionJournal";
 import { ayasPublicationOperationName } from "../src/lib/brain/autonomy/AyasGuardedPublication";
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
-import { ayasProposalPublicationOperation, reconcileAyasRecoveryRequiredProposals } from "../src/lib/brain/autonomy/AyasRecoveryReconciliation";
-import { runAyasPublicationRecovery } from "../src/lib/brain/autonomy/AyasPublicationSelfHeal";
+import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
+import { createAyasMicroBatchRecoveryInbox } from "../src/lib/brain/autonomy/AyasMicroBatchRecovery";
+import { createAyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
+import { ayasMicroBatchPublicationOperation, ayasProposalPublicationOperation, reconcileAyasRecoveryRequiredProposals } from "../src/lib/brain/autonomy/AyasRecoveryReconciliation";
+import { countAyasOpenRecoveries, runAyasPublicationRecovery } from "../src/lib/brain/autonomy/AyasPublicationSelfHeal";
 
 /**
  * Owner decision 2026-10-16: a RECOVERY_REQUIRED proposal closes itself once
@@ -113,6 +116,42 @@ function commitApproved(f: Fixture, file: string, at: string): string {
   git(f.repo, ["add", "--", file]);
   git(f.repo, ["commit", "-q", "-m", "test(ayas): apply approved priority-safe improvement"], { GIT_COMMITTER_DATE: at, GIT_AUTHOR_DATE: at });
   return git(f.repo, ["rev-parse", "HEAD"]);
+}
+
+/** Commits the approved content of several files at once (a micro batch's one commit). */
+function commitApprovedFiles(f: Fixture, files: readonly string[], at: string): string {
+  for (const file of files) fs.writeFileSync(path.join(f.repo, file), APPROVED);
+  git(f.repo, ["add", "--", ...files]);
+  git(f.repo, ["commit", "-q", "-m", "chore(ayas): micro batch"], { GIT_COMMITTER_DATE: at, GIT_AUTHOR_DATE: at });
+  return git(f.repo, ["rev-parse", "HEAD"]);
+}
+
+/** A real micro batch, one item per file, driven through ready -> APPROVE -> reserve -> finalize(RECOVERY_REQUIRED). */
+function recoveryBatch(f: Fixture, files: readonly string[], at: string) {
+  const root = path.dirname(f.gateRoot);
+  const store = createAyasMicroBatchStore({ rootDir: path.join(root, "batch-brain") });
+  const items = createAyasMicroItemStore({ rootDir: path.join(root, "micro-items") });
+  const refs = files.map((file) => {
+    const artifact = f.artifacts.freeze({
+      artifactId: `ayas-patch-artifact-${crypto.randomUUID()}`, candidateId: `fixture-${file}`, generatorIdentity: "fixture-generator", baseBranch: BRANCH, baseHead: f.baseHead,
+      exactFiles: [file], allowedRoots: ["scripts"], replacements: [{ filePath: file, expectedHash: null, content: APPROVED, allowCreate: false }],
+      validatorScripts: [], graphifyEvidence: ["fixture witness"], safetyClassification: "SAFE", problemStatement: "fixture", rationale: "fixture",
+      expectedUserBenefit: "fixture", expectedBehaviorChange: "fixture", unchangedBehavior: "fixture", risk: "low", productionImpact: "none",
+      sandboxValidationSummary: [], generatedAt: at,
+    });
+    const item = items.create({ discoveryClass: "fixture", semanticKey: `fixture:${file}`, baseHead: f.baseHead, patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash,
+      exactFiles: [file], validatorScripts: [], safetyClassification: "SAFE", graphifyEvidence: ["fixture witness"], reason: "fixture", expectedBenefit: "fixture", risk: "low", generatedAt: at, validatedAt: at });
+    items.transition(item.microItemId, "SANDBOX_VALIDATED", at);
+    items.transition(item.microItemId, "BATCHED", at);
+    return { microItemId: item.microItemId, semanticKey: item.semanticKey, patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash, exactFiles: [file] };
+  });
+  const batch = store.createOrVersion({ batchVersion: 1, baseHead: f.baseHead, baseBranch: BRANCH, items: refs, exactFilesUnion: [...files], validatorUnion: [], worktreeBaseHead: f.baseHead, createdAt: at, validationSummary: ["fixture"], aggregateRisk: "low" });
+  store.markReadyForReview(batch.batchId, at);
+  store.decide(batch.batchId, "APPROVE", batch.batchHash, at);
+  const reservation = store.reserveApproval(batch.batchId, batch.batchHash, f.baseHead, at);
+  store.finalizeApproval(reservation.reservationId, "RECOVERY_REQUIRED", at);
+  const asProposal = createAyasMicroBatchRecoveryInbox(store, items).load().proposals[0]!;
+  return { store, items, batchId: batch.batchId, itemIds: refs.map((ref) => ref.microItemId), asProposal };
 }
 
 const reconcile = (f: Fixture, now: string) => reconcileAyasRecoveryRequiredProposals({ repoRoot: f.repo, inbox: f.inbox, now, gateRoot: f.gateRoot, artifactStore: f.artifacts });
@@ -396,6 +435,44 @@ async function main(): Promise<void> {
       git(f.repo, ["checkout", "-q", "--detach", sha]);
       assert.deepEqual(selfHeal(f, NOW).run?.result.unresolved, [{ proposalId: p.proposalId, reason: "AUTO_PUSH_BLOCKED" }]);
       assert.equal(remoteHeadOf(f), f.baseHead);
+    });
+
+    /* --- the micro-batch lane (2026-11-05): the same proof and push over a RECOVERY_REQUIRED batch --- */
+
+    await scenario("micro batch: the operation name is the guarded publication's; the batch's two-item commit is proven, pushed once and closed COMPLETED with its items EXECUTED", () => {
+      assert.equal(ayasMicroBatchPublicationOperation("ayas-micro-batch-x"), ayasPublicationOperationName("micro-batch", "ayas-micro-batch-x"));
+      const f = fixture("heal-micro-batch");
+      const b = recoveryBatch(f, ["scripts/smoke-recovery-fixture-a.ts", "scripts/smoke-recovery-fixture-b.ts"], T0);
+      journal(f, b.asProposal, ATTEMPT, true);
+      stability(f, [{ operation: ayasMicroBatchPublicationOperation(b.batchId), state: "RECOVERY_REQUIRED", at: ATTEMPT.updatedAt }]);
+      const sha = commitApprovedFiles(f, ["scripts/smoke-recovery-fixture-a.ts", "scripts/smoke-recovery-fixture-b.ts"], "2026-10-16T08:00:30Z");
+      assert.equal(countAyasOpenRecoveries(f.inbox, b.store), 1, "the executor counts the open batch");
+      const closed: string[] = [];
+      const run = runAyasPublicationRecovery({ repoRoot: f.repo, inbox: f.inbox, now: NOW, gateRoot: f.gateRoot, artifactStore: f.artifacts, microBatchStore: b.store, microItemStore: b.items, closure: (head) => { closed.push(head); } });
+      assert.deepEqual(run?.result.autoPushed, [{ proposalId: b.batchId, commitSha: sha }]);
+      assert.deepEqual(closed, [sha]);
+      assert.equal(remoteHeadOf(f), sha);
+      const after = b.store.load();
+      assert.equal(after.batches.find((x) => x.batchId === b.batchId)!.status, "COMPLETED");
+      assert.deepEqual(after.results.at(-1)!.testResults, [`ayas-recovery-reconciliation PUBLISHED_VERIFIED: ${sha}`]);
+      assert.deepEqual(b.itemIds.map((id) => b.items.load(id).state), ["EXECUTED", "EXECUTED"]);
+      assert.equal(runAyasPublicationRecovery({ repoRoot: f.repo, inbox: f.inbox, now: NOW, gateRoot: f.gateRoot, artifactStore: f.artifacts, microBatchStore: b.store, microItemStore: b.items }), undefined, "nothing left");
+    });
+
+    await scenario("micro batch: a commit holding only part of the batch is not its publication; a guard-proven rollback closes it FAILED", () => {
+      const f = fixture("heal-micro-batch-partial");
+      const b = recoveryBatch(f, ["scripts/smoke-recovery-fixture-a.ts", "scripts/smoke-recovery-fixture-b.ts"], T0);
+      journal(f, b.asProposal, ATTEMPT, true);
+      commitApprovedFiles(f, ["scripts/smoke-recovery-fixture-a.ts"], "2026-10-16T08:00:30Z");
+      const heal = () => runAyasPublicationRecovery({ repoRoot: f.repo, inbox: f.inbox, now: NOW, gateRoot: f.gateRoot, artifactStore: f.artifacts, microBatchStore: b.store, microItemStore: b.items, closure: () => { throw new Error("no closure expected"); } });
+      assert.deepEqual(heal()?.result.unresolved, [{ proposalId: b.batchId, reason: "MUTATION_NOT_PUBLISHED" }]);
+      assert.equal(remoteHeadOf(f), f.baseHead, "nothing pushed");
+      git(f.repo, ["reset", "-q", "--hard", f.baseHead]);
+      const [tx] = stability(f, [{ operation: ayasMicroBatchPublicationOperation(b.batchId), state: "ROLLED_BACK", at: ATTEMPT.updatedAt }]);
+      assert.deepEqual(heal()?.result.resolved, [{ proposalId: b.batchId, kind: "ROLLBACK_VERIFIED", evidence: tx }]);
+      assert.equal(b.store.load().batches.find((x) => x.batchId === b.batchId)!.status, "FAILED");
+      assert.deepEqual(b.itemIds.map((id) => b.items.load(id).state), ["BATCHED", "BATCHED"], "unpublished items are not EXECUTED");
+      assert.throws(() => createAyasMicroBatchRecoveryInbox(b.store, b.items).decide(b.batchId, "APPROVE", NOW, "x"), /AYAS_MICRO_BATCH_RECOVERY_UNSUPPORTED|not part of a batch recovery/);
     });
 
     console.log(`PASS (${count} scenarios)`);

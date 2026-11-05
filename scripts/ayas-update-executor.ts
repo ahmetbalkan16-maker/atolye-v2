@@ -43,7 +43,10 @@ import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/b
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { readAyasOwnerChatActivityAt } from "../src/lib/ayas/AyasOwnerChatActivity";
 import { AYAS_LIVE_APP_PATHS, decideAyasAutoLivePublish, readAyasAutoLiveAttempts, type AyasAutoLiveFacts } from "../src/lib/brain/autonomy/AyasAutoLivePublish";
-import { reconcileAyasUpdateApplyOrphan, runAyasAutoLivePublish, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
+import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
+import {
+  isAyasUpdateApplyPushPending, reconcileAyasUpdateApplyOrphan, recoverAyasUpdateApplyPushes, runAyasAutoLivePublish, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies,
+} from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import { createAyasUpdateApprovalStore, listAyasUpdateApplyDecisions, listAyasUpdateApprovals } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { resolveAyasUpdateTrialRoots, runAyasUpdateTrial } from "../src/lib/brain/autonomy/AyasUpdateTrialRunner";
 import {
@@ -135,8 +138,10 @@ async function main(): Promise<void> {
     // Self-heal 1: an owner-approved commit whose push failed (2026-11-04: GitHub "Internal Server Error").
     if (process.env.AYAS_PUBLICATION_RECOVERY !== "0") {
       const inbox = createAyasApprovalInboxStore();
-      if (dryRun && countAyasOpenRecoveries(inbox)) return report("DRY_RUN", { job: "PUBLICATION_RECOVERY", open: countAyasOpenRecoveries(inbox) });
-      const recovery = dryRun ? undefined : runAyasPublicationRecovery({ repoRoot: root, now: new Date().toISOString(), inbox });
+      // The micro-batch lane's RECOVERY_REQUIRED batches get the same proof (2026-11-05).
+      const microBatchStore = createAyasMicroBatchStore();
+      if (dryRun && countAyasOpenRecoveries(inbox, microBatchStore)) return report("DRY_RUN", { job: "PUBLICATION_RECOVERY", open: countAyasOpenRecoveries(inbox, microBatchStore) });
+      const recovery = dryRun ? undefined : runAyasPublicationRecovery({ repoRoot: root, now: new Date().toISOString(), inbox, microBatchStore });
       if (recovery) {
         const summary = {
           at: new Date().toISOString(),
@@ -148,6 +153,15 @@ async function main(): Promise<void> {
         };
         fs.writeFileSync(path.join(trials.rootDir, "publication-recovery.json"), `${JSON.stringify(summary, null, 2)}\n`);
         if (recovery.result.pushedHead) return report("PUBLICATION_RECOVERY_PUSHED", { head: recovery.result.pushedHead.slice(0, 8), proposals: summary.autoPushed.length, closure: recovery.closure?.ok ? "OK" : recovery.closure?.code });
+      }
+      // The dependency-update lane: an "Uygula" whose commit stood but whose push failed (2026-11-05).
+      const pendingUpdatePush = (trials.load().applies ?? []).filter(isAyasUpdateApplyPushPending).length;
+      if (pendingUpdatePush && dryRun) return report("DRY_RUN", { job: "UPDATE_PUSH_RECOVERY", open: pendingUpdatePush });
+      if (pendingUpdatePush) {
+        const updates = recoverAyasUpdateApplyPushes({ repoRoot: root, store: trials });
+        fs.writeFileSync(path.join(trials.rootDir, "update-push-recovery.json"), `${JSON.stringify({ at: new Date().toISOString(), updates }, null, 2)}\n`);
+        const pushed = updates.filter((entry) => entry.outcome === "PUSHED" || entry.outcome === "ALREADY_ON_REMOTE");
+        if (pushed.length) return report("UPDATE_PUSH_RECOVERED", { commits: pushed.map((entry) => entry.commitSha.slice(0, 8)) });
       }
     }
 

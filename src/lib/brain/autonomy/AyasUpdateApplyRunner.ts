@@ -6,7 +6,8 @@ import path from "node:path";
 import { recordAyasAutoLiveAttempt, type AyasAutoLiveAttempt } from "./AyasAutoLivePublish";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
-import { pushAyasBranchWithRetry } from "./AyasGitPushRetry";
+import { fetchAyasRemoteBranch, pushAyasBranchWithRetry } from "./AyasGitPushRetry";
+import { isAyasPublicationInFlight } from "./AyasRecoveryReconciliation";
 import type { AyasUpdateApplyDecisionRecord } from "./AyasUpdateApprovalStore";
 import { resolveAyasNpmCli, runAyasCommand, type AyasChildEnv, type AyasCommandRunner } from "./AyasUpdateTrialRunner";
 import {
@@ -248,6 +249,78 @@ export function reconcileAyasUpdateApplyOrphan(apply: AyasUpdateApplyRecord, dep
   }
   deps.store.upsertApply(next);
   return next;
+}
+
+export type AyasUpdatePushRecoveryOutcome = "PUSHED" | "ALREADY_ON_REMOTE" | "DEFERRED" | "BLOCKED" | "FAILED";
+export interface AyasUpdatePushRecovery { readonly applyId: string; readonly commitSha: string; readonly outcome: AyasUpdatePushRecoveryOutcome; readonly reason: string }
+
+/** An "Uygula" whose commit stood but whose push failed (the guard never resets after a commit). */
+export function isAyasUpdateApplyPushPending(apply: AyasUpdateApplyRecord): boolean {
+  return !!apply.commitSha && apply.pushed !== true && (apply.status === "FAILED" || apply.status === "RECOVERY_REQUIRED");
+}
+
+/**
+ * Self-heal for the dependency-update lane (owner, 2026-11-05: "böyle hatalarda sistem kendi kendini düzeltsin"): the
+ * same shape as the proposal lane's recovery push. The local commit must be exactly this apply's: its trial trailer,
+ * the trial's base HEAD as its only parent, exactly the trial's two files, each with the tested bytes. After a fetch
+ * the remote branch must still be that base (anything else is someone else's work) and HEAD this commit; then one
+ * plain push (never force), the remote proven, and the apply finishes as an uninterrupted one does: COMPLETED with the
+ * live publish pending (the executor's next run), the canonical sync request and the Graphify closure.
+ */
+export function recoverAyasUpdateApplyPushes(deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now" | "remoteName" | "gateRoot" | "postPublicationClosure"> & {
+  readonly fetchRemote?: (repoRoot: string, remoteName: string, branch: string) => boolean;
+  readonly push?: (repoRoot: string, remoteName: string, branch: string) => void;
+}): readonly AyasUpdatePushRecovery[] {
+  const now = deps.now ?? (() => new Date().toISOString());
+  const remoteName = deps.remoteName ?? "origin";
+  const gateRoot = deps.gateRoot ?? path.join(deps.repoRoot, "data", "brain", "self-improvement");
+  const tryGit = (args: readonly string[]): string | undefined => { try { return git(deps.repoRoot, args); } catch { return undefined; } };
+  const showRaw = (commit: string, file: string): string | undefined => {
+    try { return execFileSync("git", ["show", `${commit}:${file}`], { cwd: deps.repoRoot, encoding: "utf8", windowsHide: true, timeout: 120_000, maxBuffer: 64_000_000, stdio: ["ignore", "pipe", "ignore"] }); } catch { return undefined; }
+  };
+  const out: AyasUpdatePushRecovery[] = [];
+  for (const apply of (deps.store.load().applies ?? []).filter(isAyasUpdateApplyPushPending)) {
+    const commitSha = apply.commitSha!;
+    const done = (outcome: AyasUpdatePushRecoveryOutcome, reason: string) => { out.push({ applyId: apply.applyId, commitSha, outcome, reason }); };
+    if (isAyasPublicationInFlight(gateRoot, now())) { done("DEFERRED", "bir yayın şu an sürüyor"); continue; }
+    const trial = deps.store.load().trials.find((entry) => entry.trialId === apply.trialId);
+    if (!trial || !isAyasUpdateTrialIntact(trial, deps.store.readArtifacts(trial.trialId))) { done("BLOCKED", "deneme kaydı ya da denenen paket dosyaları yok/bozuk"); continue; }
+    const files = [...dependencyFilesOf(trial)].sort();
+    const branch = tryGit(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+    if (!branch || tryGit(["status", "--porcelain"]) !== "") { done("BLOCKED", "dal yok ya da çalışma ağacı temiz değil"); continue; }
+    const message = tryGit(["log", "-1", "--format=%B", commitSha]) ?? "";
+    const parents = (tryGit(["rev-list", "--parents", "-n", "1", commitSha]) ?? "").split(/\s+/).filter(Boolean).slice(1);
+    const changed = (tryGit(["diff", "--name-only", trial.baseHead, commitSha]) ?? "").split(/\r?\n/).filter(Boolean).sort();
+    const [lockFile, jsonFile] = dependencyFilesOf(trial) as readonly [string, string];
+    const bytesMatch = [[jsonFile, trial.packageJsonSha256], [lockFile, trial.packageLockSha256]].every(([file, expected]) => { const text = showRaw(commitSha, file!); return text !== undefined && ayasUpdateTrialSha256(text) === expected; });
+    if (!message.includes(`AYAS-Update-Trial: ${trial.trialId}`) || JSON.stringify(parents) !== JSON.stringify([trial.baseHead]) || JSON.stringify(changed) !== JSON.stringify(files) || !bytesMatch) {
+      done("BLOCKED", "yereldeki commit bu güncellemenin denenen değişikliği olarak kanıtlanamadı"); continue;
+    }
+    if (!(deps.fetchRemote ?? fetchAyasRemoteBranch)(deps.repoRoot, remoteName, branch)) { done("DEFERRED", "uzak depoya ulaşılamadı"); continue; }
+    const remoteRef = `${remoteName}/${branch}`;
+    const onRemote = (): boolean => tryGit(["merge-base", "--is-ancestor", commitSha, remoteRef]) !== undefined;
+    let outcome: AyasUpdatePushRecoveryOutcome;
+    if (onRemote()) outcome = "ALREADY_ON_REMOTE";
+    else {
+      if (tryGit(["rev-parse", "HEAD"]) !== commitSha || tryGit(["rev-parse", remoteRef]) !== trial.baseHead) { done("BLOCKED", "uzak dal ya da HEAD bu commit'in tabanında değil (başka bir iş var)"); continue; }
+      try { (deps.push ?? pushAyasBranchWithRetry)(deps.repoRoot, remoteName, branch); } catch (error) { done("FAILED", `push yine olmadı: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`); continue; }
+      if (tryGit(["rev-parse", remoteRef]) !== commitSha) { done("FAILED", "push başarılı dedi ama uzak dalda commit görünmüyor"); continue; }
+      outcome = "PUSHED";
+    }
+    let record: AyasUpdateApplyRecord = { ...apply, status: "COMPLETED", pushed: true, livePending: true, finishedAt: now(),
+      reasons: [...(apply.reasons ?? []), outcome === "PUSHED" ? "push yarıda kalmıştı; commit kanıtlanıp kendiliğinden gönderildi" : "commit uzak dalda bulundu"].slice(-6) };
+    deps.store.upsertApply(record);
+    const syncProblem = requestCanonicalSync(record, trial, commitSha, deps);
+    if (syncProblem) { record = { ...record, reasons: [...(record.reasons ?? []), syncProblem].slice(-6) }; deps.store.upsertApply(record); }
+    try {
+      (deps.postPublicationClosure ?? ((head) => { closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName }); }))(commitSha);
+      deps.store.upsertApply({ ...record, closure: { ok: true, summary: "Graphify yeni HEAD için güncel" } });
+    } catch (error) {
+      deps.store.upsertApply({ ...record, closure: { ok: false, summary: (error instanceof Error ? error.message : String(error)).slice(0, 400) } });
+    }
+    done(outcome, outcome === "PUSHED" ? "kanıtlandı ve gönderildi" : "zaten uzak dalda");
+  }
+  return out;
 }
 
 /**
