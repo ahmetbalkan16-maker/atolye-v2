@@ -76,7 +76,7 @@ export function resolveAyasPreReasoningIntent(text: string, history: readonly Ay
   // Atölye's brains ("kurul raporu ver") and a video to study name their own subject, so they go before the self-healing
   // report center's general "rapor ver"; every other video intent keeps its place below.
   const studio = detectAyasVideoIntent(text);
-  if (studio?.kind === "brains" || studio?.kind === "study") return { kind: "video", video: studio };
+  if (studio?.kind === "brains" || studio?.kind === "study" || studio?.kind === "learn" || studio?.kind === "knowledge") return { kind: "video", video: studio };
   const reportIntent = detectAyasReportIntent(text);
   if (reportIntent) return { kind: "report-center", reportIntent };
   const researchIntent = detectAyasResearchStatusIntent(text);

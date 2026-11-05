@@ -102,16 +102,27 @@ export interface SearchReport {
 }
 
 /** Searches every key-free provider (or the chosen ones), deduplicated by canonical URL. One failing provider is reported, not fatal. */
-export async function searchWeb(query: string, options: { readonly fetchText?: FetchText; readonly providers?: readonly SearchProviderId[] } = {}): Promise<SearchReport> {
+/**
+ * Wikimedia answers a burst from a shared address with `429` and `retry-after: 4` (x-envoy-ratelimited, seen 5 Nov 2026
+ * from the office line): one wait of a few seconds and a single second try, never a loop.
+ */
+export const SEARCH_RATE_LIMIT_WAIT_MS = 6_000;
+
+export async function searchWeb(query: string, options: { readonly fetchText?: FetchText; readonly providers?: readonly SearchProviderId[]; readonly wait?: (ms: number) => Promise<void> } = {}): Promise<SearchReport> {
   const q = query.trim();
   if (q.length < 2 || q.length > 300) throw new Error("WEB_SEARCH_QUERY_INVALID: 2–300 karakter");
   const fetchText = options.fetchText ?? safeFetchText;
+  const wait = options.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const chosen = SEARCH_PROVIDERS.filter((p) => !options.providers || options.providers.includes(p.id));
   const seen = new Set<string>();
   const hits: SearchHit[] = [];
   const saglayicilar: { id: SearchProviderId; ok: boolean; sayi: number; hata?: string }[] = [];
   for (const p of chosen) {
-    const r = await fetchText(p.url(q));
+    let r = await fetchText(p.url(q));
+    if (!r.ok && r.code === "AYAS_FETCH_RATE_LIMITED") {
+      await wait(SEARCH_RATE_LIMIT_WAIT_MS);
+      r = await fetchText(p.url(q));
+    }
     if (!r.ok) { saglayicilar.push({ id: p.id, ok: false, sayi: 0, hata: `${r.code}: ${r.message}`.slice(0, 160) }); continue; }
     let found: SearchHit[];
     try { found = p.parse(r.body); } catch (e) { saglayicilar.push({ id: p.id, ok: false, sayi: 0, hata: `yanıt okunamadı: ${(e as Error).message.slice(0, 100)}` }); continue; }

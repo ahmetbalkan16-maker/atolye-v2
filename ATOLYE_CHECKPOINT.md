@@ -1,3 +1,21 @@
+## 5 Kasım 2026 (gece) — canlıda doğrulama sonrası açıkların kapatılması
+
+İlk geçiş canlı: `ayas-live-1653925a` PUBLISHED (15:25Z, dış erişim healthy), canonical Graphify CURRENT, sağlık
+HEALTHY; yürütücünün yeni kurtarma adımı çalıştı, açık kurtarma yok. Canlı doğrulamada bulunup düzeltilenler:
+
+- **Altyazı:** gerçek "RECAP: First Punic War" (805SIqgDZIE) artık 10 MB bilgiyi okuyor ama altyazı bulamıyordu —
+  `en-US` beyanlı videonun otomatik izi `en`/`en-orig`. 43 referansın 16'sı altyazısız incelenmişti (14'ü bu
+  yüzden, OverSimplified bölümlerinin hepsi). `pickCaptionTrack` düzeltildi (34 satır). Bu 14 video, düzeltme canlıya
+  geçince V3 boşta döngüsüne yeniden inceleme isteği olarak verildi (kaynak `altyazi-onarimi`, döngü başına 3).
+- **Wikipedia 429:** UA değil, Wikimedia'nın kısa hız sınırı; 6 sn bekle + bir kez daha. Beş sağlayıcının beşi çalışıyor.
+- **Sohbetten link öğrenme:** YouTube dışı link → istek dosyası → boşta döngüsü → ortak bilgi; "… hakkında ne
+  öğrendin" → kaynaklı cevap. Biten V3 video incelemeleri de ortak bilgiye yazılıyor.
+- Testler: web-research 11, reference 12, intent-routing 37, video-order 9, cognitive-quality 55, firewall 13.
+
+Hâlâ açık (karar/bağımlılık gerektiren): PDF okuma (güvenli fetch'e ikili mod + ayrıştırıcı bağımlılığı), sohbetten
+konu araması, Stage 8 → teknoloji izleme, Adaptation/kontrollü evrim (owner kaydı), mikro-batch ve güncelleme
+yolunda kurtarma push'u, Analytics API, pilot üretimi.
+
 ## 5 Kasım 2026 (akşam) — kendini onaran yayın, kanal hedefleri, internet araştırması, inceleme hatası
 
 **Durum:** `feature/cop-adam-v3`'te 728106b5 (AYAS), 2fda9a25 (V3 inceleme), 5e4c6c66 (kanal hedefleri); owner'ın

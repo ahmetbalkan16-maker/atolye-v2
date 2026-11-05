@@ -16,6 +16,9 @@
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, saveLinkRequest } from "../../src/lib/ayas/research/AyasLinkRequests";
+import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
+import { studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
 import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
 import { listGrades, readiness } from "../../src/lib/v3/council/DevBrain";
@@ -113,14 +116,31 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
   if (task === "istekler") {
     // Waiting links, plus a failed one once more an hour later; the same video sent twice is studied once.
     const due = studyRequestsDue(await listStudyRequests(paths.workRoot));
-    if (!due.length) return skip("bekleyen video isteği yok");
+    // Other web links the owner gave AYAS (5 Nov 2026): read through the safe public fetch into the shared knowledge.
+    const links = linkRequestsDue(await listLinkRequests(paths.repoRoot));
+    if (!due.length && !links.length) return skip("bekleyen video ya da bağlantı isteği yok");
     const done: string[] = [];
+    for (const { file, request } of links.slice(0, 5)) {
+      try {
+        const r = await studyLink(request.url, { ...(request.istek ? { istek: request.istek } : {}) });
+        const saved = await saveKnowledge(paths.repoRoot, [r.record]);
+        Object.assign(request, { durum: r.record.dogrulama.durum === "ERISILEMEDI" ? "hata" : "tamam", sonuc: `${r.not}; ${saved.outcomes[0]!.sonuc}: ${r.record.baslik}`.slice(0, 400) });
+        done.push(`bağlantı "${r.record.baslik.slice(0, 60)}" (${r.not.slice(0, 60)})`);
+      } catch (e) {
+        Object.assign(request, { durum: "hata", sonuc: (e as Error).message.slice(0, 300) });
+        done.push(`bağlantı ${request.url.slice(0, 60)} okunamadı`);
+      }
+      Object.assign(request, { deneme: (request.deneme ?? 0) + 1, sonDeneme: new Date().toISOString() });
+      await saveLinkRequest(file, request);
+    }
     for (const { id, items } of due.slice(0, 3)) {
       let outcome: Pick<StudyRequest, "durum" | "sonuc">;
       try {
         const r = await studyReference({ paths, id, neden: `${items[0]!.request.kaynak} isteği`, eye: brainVision(), budget: budget.budget, model: budget.director, log });
         outcome = { durum: "tamam", sonuc: `${r.dersler.length} ders: ${r.ozet}`.slice(0, 400) };
         done.push(`"${r.baslik}" (${r.dersler.length} ders)`);
+        // What the brains learned from the video is findable by AYAS and the other brains too (lessons quoted only).
+        if (r.dersler.length) await saveKnowledge(paths.repoRoot, [knowledgeFromStudy(r)]).catch((e: Error) => log(`  ortak bilgiye yazılamadı: ${e.message.slice(0, 120)}`));
       } catch (e) {
         outcome = { durum: "hata", sonuc: (e as Error).message.slice(0, 300) };
         done.push(`${id} incelenemedi (${(e as Error).message.slice(0, 80)})`);

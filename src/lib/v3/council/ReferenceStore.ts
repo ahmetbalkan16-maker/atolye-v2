@@ -437,6 +437,30 @@ export async function saveStudyRequest(file: string, request: StudyRequest): Pro
   await fs.rename(`${file}.tmp`, file);
 }
 
+/**
+ * The caption track to study: the video's own language, manual first, else YouTube's automatic track of its sound
+ * ("-orig"); a translated track is never asked for (429). A declared "en-US" is also looked up as "en" — YouTube keys
+ * automatic tracks by the base language (5 Nov 2026: OverSimplified's "RECAP: First Punic War" declared en-US, had
+ * "en"/"en-orig", and was studied without captions).
+ */
+export function pickCaptionTrack(info: { readonly language?: unknown; readonly subtitles?: unknown; readonly automatic_captions?: unknown }): { readonly track: string; readonly manual: boolean } | undefined {
+  const subs = Object.keys((info.subtitles ?? {}) as Record<string, unknown>).filter((k) => k !== "live_chat");
+  const auto = (info.automatic_captions ?? {}) as Record<string, unknown>;
+  const lang = typeof info.language === "string" ? info.language : "";
+  const orig = Object.keys(auto).find((k) => k.endsWith("-orig"))?.replace(/-orig$/, "");
+  const wants = [...new Set([lang, lang.split("-")[0] ?? "", orig ?? ""].filter(Boolean))];
+  if (!wants.length) return subs[0] ? { track: subs[0], manual: true } : undefined;
+  for (const w of wants) {
+    const m = subs.find((k) => k === w || k.startsWith(`${w}-`));
+    if (m) return { track: m, manual: true };
+  }
+  for (const w of wants) {
+    if (auto[`${w}-orig`]) return { track: `${w}-orig`, manual: false };
+    if (auto[w]) return { track: w, manual: false };
+  }
+  return undefined;
+}
+
 /** A YouTube watch/shorts/youtu.be link's video id, or undefined (only YouTube is studied). */
 export function youtubeId(url: string): string | undefined {
   const m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/.exec(url.trim());

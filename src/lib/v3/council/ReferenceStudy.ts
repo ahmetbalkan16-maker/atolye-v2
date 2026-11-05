@@ -5,7 +5,7 @@ import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked, runProcess } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { forgetSource, hasSimilarLesson, remember } from "./ExperienceMemory";
-import { type Caption, cutMeasures, FRAME_KINDS_REF, FRAME_NOTE_PROMPT, type FrameNote, frameShares, measuresLine, parseFrameNote, parseJson3, parseStudy, type ReferenceRecord, referenceDir, sampleTimes, type SearchHit, speechMeasures, STUDY_BRAINS, studyPrompt, transcriptExcerpt, type VideoMeasures } from "./ReferenceStore";
+import { type Caption, cutMeasures, FRAME_KINDS_REF, FRAME_NOTE_PROMPT, type FrameNote, frameShares, measuresLine, parseFrameNote, parseJson3, parseStudy, pickCaptionTrack, type ReferenceRecord, referenceDir, sampleTimes, type SearchHit, speechMeasures, STUDY_BRAINS, studyPrompt, transcriptExcerpt, type VideoMeasures } from "./ReferenceStore";
 
 /**
  * Learning from similar videos — the download and the study (yt-dlp, ffmpeg, the eye, the text model). The measures,
@@ -70,14 +70,10 @@ export async function fetchReference(paths: Pick<V3Paths, "toolsRoot">, id: stri
   if (!existsSync(py)) throw new Error(`REFERENCE_YTDLP_MISSING: ${py}`);
   const url = `https://www.youtube.com/watch?v=${id}`;
   const info = await ytDlpJson<Record<string, unknown>>(py, [...YTDLP_BASE, "--skip-download", "--dump-single-json", url], 180_000);
-  const subs = (info.subtitles ?? {}) as Record<string, unknown>;
-  const auto = (info.automatic_captions ?? {}) as Record<string, unknown>;
   const lang = typeof info.language === "string" && info.language ? info.language : "";
-  // The video's own language: its declared one, else the automatic track YouTube made from its sound ("-orig").
-  const orig = Object.keys(auto).find((k) => k.endsWith("-orig"))?.replace(/-orig$/, "");
-  const want = lang || orig || "";
-  const manual = want ? Object.keys(subs).find((k) => k === want || k.startsWith(`${want}-`)) : Object.keys(subs)[0];
-  const track = manual ?? (want && auto[`${want}-orig`] ? `${want}-orig` : want && auto[want] ? want : undefined);
+  const picked = pickCaptionTrack(info);
+  const track = picked?.track;
+  const manual = picked?.manual ? picked.track : undefined;
   let captions: Caption[] = [];
   if (track) {
     await runProcess(py, [...YTDLP_BASE, "--skip-download", manual ? "--write-subs" : "--write-auto-subs", "--sub-langs", track, "--sub-format", "json3", "-o", path.join(dir, "ref.%(ext)s"), url], { timeoutMs: 180_000 });

@@ -313,6 +313,8 @@ const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   // 2026-11-05: GETs to key-free public APIs and the owner's own links, all through AyasSafePublicFetch; writes only
   // data/brain/knowledge (and, with --v3, one V3 study request). No agent, server or daemon imports it.
   "scripts/ayas-web-research.ts": "operator CLI (owner or Claude); web search and link study through the safe public fetch into the shared knowledge store",
+  // 2026-11-05: the idle loop reads the links the owner gave AYAS (the live server only wrote the request file).
+  "scripts/v3/gelisim.ts": "the V3 idle loop, a child of the order watcher (scripts/v3/yapim.ts); reads owner-given links through the safe public fetch into the shared knowledge store",
   "scripts/lib/AyasRetrievalEvaluation.ts": "evaluation library; imported only by evaluation smokes",
   "scripts/live-ayas-action-runtime-reliability.ts": "operator-run live acceptance with the real local model; read tools only",
   "scripts/live-ayas-action-runtime.ts": "operator-run live acceptance with the real local model; read tools only",

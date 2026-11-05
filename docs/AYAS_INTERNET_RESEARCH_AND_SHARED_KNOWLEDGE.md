@@ -20,11 +20,11 @@ V2, V2-V3 ve V3 ayrı projeler değil: tek GitHub deposunun (`ahmetbalkan16-make
 | Kayıtlı kaynakları izleme (RSS/Atom/JSON) | ÇALIŞIYOR | `AyasResearchScheduler` → `AyasLightResearchEngine` / `AyasDeepResearchEngine`, discovery alt süreci (`scripts/ayas-discovery-daemon.ts`, `discovery.research-scheduler-tick`) |
 | Güvenli dış istek | ÇALIŞIYOR | `AyasSafePublicFetch.ayasSafePublicFetch` — SSRF/DNS rebinding, boyut, yönlendirme, içerik türü; çerez/kimlik yok |
 | Genel web araması | **KOPUKTU → eklendi** | `web-research-lookup` yalnız tanımdı (`AyasToolRegistry.ts` "HENÜZ UYGULANMADI", `AyasAgenticRouting.ts` `available: false`). Şimdi `src/lib/ayas/research/AyasWebResearch.searchWeb` |
-| Verilen linki inceleme | **KISMİ → genişletildi** | Önce yalnız YouTube (V3 `ReferenceStudy`, AYAS sohbetinde çıplak YouTube linki). Şimdi web sayfası, GitHub reposu, YouTube oEmbed: `studyLink` |
+| Verilen linki inceleme | **KISMİ → genişletildi, sohbete bağlandı** | Önce yalnız YouTube (V3 `ReferenceStudy`). Şimdi web sayfası, GitHub reposu, YouTube oEmbed: `studyLink`. Sohbette YouTube dışı link (çıplak ya da "öğren/incele/araştır/oku" ile) → `AyasVideoOrder` `learn` niyeti → `AyasLinkRequests` istek dosyası (sunucu fetch etmez) → V3 boşta döngüsü `istekler` görevi okur ve kaydeder; "X hakkında ne öğrendin" → `knowledge` niyeti kaynaklı cevap |
 | Video içerik analizi | ÇALIŞIYOR (V3) | `src/lib/v3/council/ReferenceStudy.ts` (altyazı, kareler, kesme temposu, dersler); 2 MB çıktı kesilmesi bu oturumda düzeltildi |
 | PDF / ses / görsel dosyası | **YOK** | Güvenli fetch yalnız metin türlerini okur, depoda PDF ayrıştırıcı yok → `ERISILEMEDI` ve gerekçe kaydedilir |
 | Kalıcı ortak bilgi | **KOPUKTU → eklendi** | Önceki depolar ayrı amaçlı: `AyasExternalResearchStore` (kaynak bulguları), `AyasMemoryStore` (sohbet hafızası), V3 `ExperienceMemory` (beyin dersleri). Şimdi `AyasSharedKnowledge` (`data/brain/knowledge/records.json`, git dışı) |
-| Yardımcı beyinlere aktarım | **eklendi (geri çağırma)** | `recallKnowledge({ beyin, soru })` + `knowledgeBlock` (güvenilmeyen alıntı olarak). Üretim yazarına otomatik bağlanmadı (aşağıda) |
+| Yardımcı beyinlere aktarım | **eklendi (geri çağırma)** | `recallKnowledge({ beyin, soru })` + `knowledgeBlock` (güvenilmeyen alıntı olarak). Biten her V3 video incelemesinin dersleri de ortak bilgiye yazılır (`knowledgeFromStudy`). Üretim yazarı derslerini zaten V3 `ExperienceMemory`'den okur; ortak bilgi bloğu yazara otomatik eklenmedi (aşağıda) |
 | Atölye gap analizi | **eklendi** | `AtolyeCapabilityMap.compareWithAtolye` — 13 aşama, kod kanıtlı mevcut yetenek, owner'ın adlandırdığı eksik, ölçülebilir deney |
 | Teknoloji değerlendirme | **KOPUK (değişmedi)** | `runAyasTechnologyWatchCycle` yalnız `scripts/ayas-technology-watch.ts` (elle JSON) tarafından çağrılıyor; Stage 8'e bağlı değil |
 | Araştırma → iyileştirme | ÇALIŞIYOR | `AyasResearchImprovementCycle` discovery'de (`discovery.research-improvement-cycle`) |
@@ -70,14 +70,14 @@ gelistirici, Kalite → kalite, Yönetmen/Prodüksiyon → sef.
 
 ## Bilinçli olarak yapılmayanlar ve nedenleri
 
-- **Sohbetten genel arama (`web-research-lookup` aracını yürütme listesine almak):** canlı sunucuya keyfi hostlara
-  ağ yetkisi açar; `AyasExecutionPolicy` + güvenlik duvarı + yönlendirme testlerini değiştiren ayrı bir owner
-  kararıdır. Önerilen yol: sohbet bir "araştırma isteği" yazar, lisanslı discovery alt süreci ya da V3 boşta döngüsü
-  işler (V3 inceleme isteklerinin bugünkü deseni).
+- **Sohbetten konu araması ("X'i araştır"):** sohbetteki "araştır" kelimesi AYAS'ın mevcut hedef araştırması ve
+  durum sorularıyla çakışır; link öğrenmesi bağlandı, konu araması CLI'da (`ara`). `web-research-lookup` aracını
+  yürütme listesine almak canlı sunucuya keyfi hostlara ağ yetkisi açar — ayrı owner kararı.
 - **Anahtarlı genel arama (Brave/Tavily vb.):** güvenli fetch kimlik başlığı göndermez (tasarım gereği); anahtar
   gerektiren sağlayıcı için ayrı, denetlenmiş bir istemci gerekir.
-- **Wikipedia:** canlı denemede HTTP 429 döndü (Wikimedia'nın User-Agent politikası olası); sağlayıcı hatası olarak
-  raporlanıyor. Denetimli güvenli fetch'in User-Agent'ı bu iş için değiştirilmedi.
+- **Wikipedia (çözüldü):** 429'un nedeni User-Agent değil, Wikimedia'nın paylaşılan adrese kısa hız sınırı
+  (`x-envoy-ratelimited: true`, `retry-after: 4`). Hız sınırına takılan sağlayıcı 6 sn bekleyip bir kez yeniden
+  denenir; canlı denemede beş sağlayıcının beşi de sonuç verdi.
 - **PDF:** bağımlılık kararı (ör. `pdfjs-dist`) owner'ındır; kök `package-lock.json` canlı güncelleme hattına bağlıdır.
 - **Üretim yazarına otomatik bilgi bloğu:** yazar istemini değiştirir; önce owner'ın hangi beynin hangi kotayla
   okuyacağına karar vermesi gerekir. Geri çağırma fonksiyonu hazır.

@@ -8,7 +8,10 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { answerAyasVideoIntent, detectAyasVideoIntent } from "../src/lib/ayas/AyasVideoOrder";
+import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
 import { ATOLYE_CAPABILITIES, compareWithAtolye } from "../src/lib/ayas/research/AtolyeCapabilityMap";
+import { knowledgeFromStudy, linkRequestsDue, listLinkRequests } from "../src/lib/ayas/research/AyasLinkRequests";
 import { applicationGate, knowledgeBlock, loadKnowledge, recallKnowledge, saveKnowledge } from "../src/lib/ayas/research/AyasSharedKnowledge";
 import { costEvidence, type FetchText, hitRecords, linkKind, safeFetchText, searchWeb, studyLink } from "../src/lib/ayas/research/AyasWebResearch";
 
@@ -48,8 +51,15 @@ async function main(): Promise<void> {
       "https://export.arxiv.org/api/query": { ok: true, body: "<feed><entry><id>http://arxiv.org/abs/2611.00001v1</id><title>Fast Video Diffusion</title><summary>We present a text-to-video model.</summary><published>2026-11-02T00:00:00Z</published></entry></feed>", contentType: "application/atom+xml", finalUrl: "" },
       "https://hn.algolia.com/api/v1/search": fail("AYAS_FETCH_RATE_LIMITED"),
     });
-    const r = await searchWeb("open text-to-video model", { fetchText: web });
+    const waits: number[] = [];
+    const r = await searchWeb("open text-to-video model", { fetchText: web, wait: async (ms) => { waits.push(ms); } });
     assert.deepEqual(r.saglayicilar.map((p) => [p.id, p.ok, p.sayi]), [["wikipedia", true, 1], ["github", true, 1], ["huggingface", true, 1], ["arxiv", true, 1], ["hackernews", false, 0]]);
+    assert.deepEqual(waits, [6_000], "a rate-limited provider is waited for once and asked once more, never looped");
+    assert.equal(web.calls.filter((u) => u.startsWith("https://hn.algolia.com")).length, 2);
+    // Wikimedia's 429 + retry-after (5 Nov 2026): the second try answers.
+    let first = true;
+    const flaky: FetchText = async (url) => (url.startsWith("https://en.wikipedia.org") && first ? ((first = false), fail("AYAS_FETCH_RATE_LIMITED")) : json({ query: { search: [{ title: "Text-to-video model", snippet: "text-to-video" }] } }));
+    assert.equal((await searchWeb("text to video", { fetchText: flaky, providers: ["wikipedia"], wait: async () => {} })).hits.length, 1);
     assert.equal(r.hits.length, 4);
     assert.ok(web.calls.every((u) => u.startsWith("https://")), "https only");
     const records = hitRecords(r, NOW);
@@ -153,6 +163,42 @@ async function main(): Promise<void> {
     assert.equal(voice.adaylar[0]?.baslik, "Kokoro TTS");
     assert.match(voice.deney, /ayrı çıktı klasörü, üretim verisine dokunmadan.*ölçüt:/);
     assert.match(gaps.find((g) => g.asama === "research")!.deney, /^aday yok/);
+  });
+
+  await scenario("AYAS chat: a web link is learned (a request file only — the server never fetches); a question about it stays a conversation; YouTube stays a V3 study", async () => {
+    assert.deepEqual(detectAyasVideoIntent("https://github.com/Wan-Video/Wan2.2"), { kind: "learn", urls: ["https://github.com/Wan-Video/Wan2.2"], words: "" });
+    assert.equal(detectAyasVideoIntent("bunu öğrenir misin https://docs.example.org/pricing.")?.kind, "learn", "a polite request is a request; the trailing dot is not the link");
+    assert.deepEqual((detectAyasVideoIntent("bunu öğrenir misin https://docs.example.org/pricing.") as unknown as { urls: string[] }).urls, ["https://docs.example.org/pricing"]);
+    assert.equal(detectAyasVideoIntent("https://example.org/a bu site ne?"), null, "a question about the link is answered in the conversation");
+    assert.equal(detectAyasVideoIntent("https://youtu.be/q8JW_i5Gt0M")?.kind, "study", "YouTube keeps its V3 study");
+    assert.equal(detectAyasVideoIntent("https://example.org/rubicon hakkında video yap")?.kind, "order", "a link inside another request keeps that request");
+    assert.deepEqual(detectAyasVideoIntent("text to video hakkında ne öğrendin"), { kind: "knowledge", soru: "text to video" });
+    assert.equal(detectAyasVideoIntent("beyinler ne öğrendi")?.kind, "brains", "the V3 brains' report is another question");
+    assert.equal(resolveAyasPreReasoningIntent("https://github.com/Wan-Video/Wan2.2").kind, "video");
+    const repo = mkdtempSync(path.join(os.tmpdir(), "ayas-learn-"));
+    const reply = await answerAyasVideoIntent({ kind: "learn", urls: ["https://github.com/Wan-Video/Wan2.2", "https://github.com/Wan-Video/Wan2.2/"], words: "" }, path.join(repo, "v3"), repo);
+    assert.match(reply, /^Bağlantıyı öğrenme listesine aldım \(https:\/\/github\.com\/Wan-Video\/Wan2\.2\)\..*talimat sayılmaz.*PDF, ses ve video dosyaları henüz okunamıyor/);
+    await answerAyasVideoIntent({ kind: "learn", urls: ["https://github.com/Wan-Video/Wan2.2"], words: "" }, path.join(repo, "v3"), repo);
+    const queued = await listLinkRequests(repo);
+    assert.equal(queued.length, 1, "the same waiting link is queued once");
+    assert.equal(queued[0]!.request.durum, "bekliyor");
+    assert.match(await answerAyasVideoIntent({ kind: "knowledge", soru: "text to speech" }, path.join(repo, "v3"), repo), /ortak bilgide kayıt yok/);
+    await saveKnowledge(repo, (await loadKnowledge(root)));
+    const known = await answerAyasVideoIntent({ kind: "knowledge", soru: "text to speech" }, path.join(repo, "v3"), repo);
+    assert.match(known, /^Ortak bilgide "text to speech" ile ilgili 1 kayıt \(kaynaklı; dış içerik, talimat değil\):\n• Kokoro TTS — [^]*\(1 bağlantı daha öğrenilmeyi bekliyor\.\)$/);
+    const t0 = new Date("2026-11-05T10:00:00Z");
+    const failed = [{ request: { ...queued[0]!.request, durum: "hata" as const, deneme: 1, sonDeneme: t0.toISOString() } }];
+    assert.equal(linkRequestsDue(failed, new Date(t0.getTime() + 30 * 60_000)).length, 0);
+    assert.equal(linkRequestsDue(failed, new Date(t0.getTime() + 61 * 60_000)).length, 1, "a failed link is tried once more an hour later");
+    assert.equal(linkRequestsDue([{ request: { ...failed[0]!.request, deneme: 2 } }], new Date(t0.getTime() + 999 * 60_000)).length, 0);
+  });
+
+  await scenario("a finished V3 video study becomes shared knowledge: lessons quoted, stages and brains from them, no video content", () => {
+    const k = knowledgeFromStudy({ id: "805SIqgDZIE", url: "https://www.youtube.com/watch?v=805SIqgDZIE", baslik: "RECAP: First Punic War", kanal: "OverSimplified", ozet: "fast cuts and jokes", dersler: [{ beyin: "kurgu", metin: "cut every 3 s" }, { beyin: "mizah", metin: "a quip after each fact" }, { beyin: "ses", metin: "a sound on every hit" }] });
+    assert.deepEqual([k.tur, k.yayinci, k.alintilar[0]], ["youtube", "OverSimplified", "[kurgu] cut every 3 s"]);
+    assert.deepEqual([...k.asamalar].sort(), ["audio", "scenes", "script", "voice"]);
+    assert.ok(k.beyinler.includes("kurgu") && k.beyinler.includes("ses"));
+    assert.equal(k.otomatikUygulanabilir, false);
   });
 
   await scenario("the real safe fetch refuses the local machine (SSRF), with no request made", async () => {

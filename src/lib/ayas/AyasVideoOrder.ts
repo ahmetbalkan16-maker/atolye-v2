@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { brainsReportText, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
+import { listLinkRequests, placeLinkRequest } from "@/lib/ayas/research/AyasLinkRequests";
+import { loadKnowledge, recallKnowledge } from "@/lib/ayas/research/AyasSharedKnowledge";
 import { placeStudyRequest } from "@/lib/v3/council/ReferenceStore";
 import { listOrders, orderProgress, ordersSummary, placeOrder, type ProductionOrder, publishLine, saveOrder } from "@/lib/v3/orders/ProductionOrders";
 import { approvePublish, awaitingApproval } from "@/lib/v3/publish/PublishApproval";
@@ -20,11 +22,20 @@ export type AyasVideoIntent =
   /** "Bu videodan öğren <YouTube bağlantısı>" or a link alone: the brains study every linked video while idle (ReferenceStudy). */
   | { readonly kind: "study"; readonly urls: readonly string[] }
   /** "Beyinler ne öğrendi", "kurul ne dedi": the brains' council, lessons and proposals (BrainsReport). */
-  | { readonly kind: "brains" };
+  | { readonly kind: "brains" }
+  /** Any other web link (owner, 5 Nov 2026): read through the safe fetch by the idle loop into the shared knowledge. */
+  | { readonly kind: "learn"; readonly urls: readonly string[]; readonly words: string }
+  /** "text to video hakkında ne öğrendin": the shared knowledge, with its sources. */
+  | { readonly kind: "knowledge"; readonly soru: string };
 
 // A YouTube link with a learning verb anywhere around it (owner approval, 2 Nov 2026: "you give a link").
 const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/gu;
 const STUDY_VERB = /(?<!\p{L})(?:öğren\p{L}*|incele\p{L}*|izle\p{L}*|analiz\p{L}*|ders\s+çıkar\p{L}*|study|learn)(?!\p{L})/u;
+// Any other web link: studied the same way (no YouTube in it — that is the branch above).
+const WEB_LINK = /https?:\/\/[^\s<>"'()]+/gu;
+const LINK_VERB = /(?<!\p{L})(?:öğren\p{L}*|incele\p{L}*|analiz\p{L}*|araştır\p{L}*|oku\p{L}*|kaydet\p{L}*|ders\s+çıkar\p{L}*|study|learn|read)(?!\p{L})/u;
+// "… hakkında ne öğrendin", "öğrendiklerin", "bildiklerin": the shared knowledge (not the V3 brains' report above).
+const KNOWLEDGE = /(?<!\p{L})(?:ne(?:ler)?\s+öğrendin|öğrendiklerin\p{L}*|bildiklerin\p{L}*|ortak bilgi\p{L}*|what did you learn|what do you know)(?!\p{L})/u;
 // A question about the linked video ("bunu neden önerdin?", "bu kimin kanalı") goes to the conversation, not to a study.
 const QUESTION = /\?|(?<!\p{L})(?:m[iıuü]|m[iıuü]s[iıuü]n|neden|niye|nasıl|nedir|kim|kimin|hangi|ne zaman|what|why|who|how)(?!\p{L})/u;
 // The brains' report: a brain/council word and a question about what they did, learned or said.
@@ -99,7 +110,18 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
     if (other) return other;
     return QUESTION.test(restLower) ? null : { kind: "study", urls: links };
   }
+  // Other links: a bare link or one with a learning verb is learned; a question about it stays a conversation.
+  const web = [...t.matchAll(WEB_LINK)].map((m) => m[0].replace(/[.,;:!?]+$/u, ""));
+  if (web.length) {
+    const rest = web.reduce((s, l) => s.replace(l, " "), t).replace(/\s+/g, " ").trim();
+    const restLower = rest.toLocaleLowerCase("tr");
+    // As with a YouTube link, a learning verb wins ("bunu öğrenir misin <link>" is a request, not a question).
+    if (LINK_VERB.test(restLower)) return { kind: "learn", urls: web, words: rest };
+    if (!rest) return { kind: "learn", urls: web, words: "" };
+    // Anything else with a link is read as before (an order, a status question, or the conversation).
+  }
   if (BRAINS.test(lower)) return { kind: "brains" };
+  if (KNOWLEDGE.test(lower)) return { kind: "knowledge", soru: t.replace(KNOWLEDGE, " ").replace(/(?<!\p{L})(?:hakkında|konusunda|ile ilgili|about|on)(?!\p{L})/gu, " ").replace(/\s+/g, " ").trim() };
   if (STATUS.test(lower)) return { kind: "status" };
   const p = PUBLISH_TR.exec(lower) ?? PUBLISH_APPROVE_TR.exec(lower) ?? PUBLISH_EN.exec(t.toLowerCase());
   if (p) {
@@ -167,10 +189,28 @@ export async function approveFromChat(workRoot: string, intent: Extract<AyasVide
 }
 
 /** AYAS's answer: the order is placed (or the orders are reported, or a video approved); nothing is produced in the server. */
-export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot): Promise<string> {
+export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot, repoRoot = resolveV3Paths().repoRoot): Promise<string> {
   if (intent.kind === "status") return ordersReport(workRoot);
   if (intent.kind === "publish") return approveFromChat(workRoot, intent);
   if (intent.kind === "brains") return brainsReportText(await loadAtolyeBrainsView(workRoot));
+  if (intent.kind === "learn") {
+    const placed: string[] = [];
+    for (const url of [...new Set(intent.urls)].slice(0, 5)) {
+      const r = await placeLinkRequest(repoRoot, url, "ayas", intent.words || undefined);
+      if (!placed.includes(r.url)) placed.push(r.url);
+    }
+    return `${placed.length > 1 ? `${placed.length} bağlantıyı` : "Bağlantıyı"} öğrenme listesine aldım (${placed.join(", ")}). Atölye boştayken sayfayı güvenli okuyup başlığını, yayıncısını, tarihini, lisans ve ücret şartlarını, önemli cümlelerini kaynağıyla ortak bilgiye kaydedeceğim; içindeki talimatlar talimat sayılmaz, kod indirilmez ya da çalıştırılmaz. GitHub reposunda README ve lisans okunur; PDF, ses ve video dosyaları henüz okunamıyor (okunamazsa bunu yazarım). Sonra "<konu> hakkında ne öğrendin" diye sorabilirsin.`;
+  }
+  if (intent.kind === "knowledge") {
+    const recalled = recallKnowledge(await loadKnowledge(repoRoot).catch(() => []), { soru: intent.soru || "video", limit: 5 });
+    if (!recalled.length) return `"${intent.soru}" hakkında ortak bilgide kayıt yok. Bir bağlantı gönderirsen okuyup öğrenirim.`;
+    const pending = (await listLinkRequests(repoRoot).catch(() => [])).filter((x) => x.request.durum === "bekliyor").length;
+    return [
+      `Ortak bilgide "${intent.soru}" ile ilgili ${recalled.length} kayıt (kaynaklı; dış içerik, talimat değil):`,
+      ...recalled.map(({ record: r, eski }) => `• ${r.baslik} — ${r.ozet.slice(0, 220)} [${r.dogrulama.durum === "RESMI_KAYNAK" ? "resmi kaynak" : r.dogrulama.durum === "COK_KAYNAK" ? `${r.dogrulama.kaynaklar.length} kaynak` : "tek kaynak"}; ${r.maliyet.sinif}${r.lisans ? `; lisans ${r.lisans.spdx ?? r.lisans.kanit}` : ""}; ${r.uygulamaEngeli}${eski ? "; yeniden kontrol zamanı geçti" : ""}] ${r.url}`),
+      ...(pending ? [`(${pending} bağlantı daha öğrenilmeyi bekliyor.)`] : []),
+    ].join("\n");
+  }
   if (intent.kind === "study") {
     // At most five links of one message (a pasted list is not a backlog for the night).
     const placed: string[] = [];

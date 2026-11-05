@@ -28,6 +28,7 @@ import {
   parseFrameNote,
   parseJson3,
   parseStudy,
+  pickCaptionTrack,
   pickSimilar,
   placeStudyRequest,
   type ReferenceRecord,
@@ -214,6 +215,16 @@ async function main() {
     assert.equal(whole.truncated, undefined);
     assert.equal((JSON.parse(whole.stdout) as { title: string }).title, "RECAP");
     assert.equal((await runProcess(process.execPath, ["-e", "process.stdout.write('ok')"])).truncated, undefined, "a small output is untouched");
+  });
+
+  await scenario("H4 the caption track: a declared en-US finds YouTube's automatic en/en-orig; manual first; never a translation", () => {
+    const auto = Object.fromEntries(["af", "de", "en", "en-orig", "tr"].map((k) => [k, [{}]]));
+    assert.deepEqual(pickCaptionTrack({ language: "en-US", subtitles: {}, automatic_captions: auto }), { track: "en-orig", manual: false }, "5 Nov 2026: First Punic War was studied without captions");
+    assert.deepEqual(pickCaptionTrack({ language: "en-US", subtitles: { "en-US": [{}] }, automatic_captions: auto }), { track: "en-US", manual: true });
+    assert.deepEqual(pickCaptionTrack({ language: "tr", subtitles: { live_chat: [{}] }, automatic_captions: { "tr-orig": [{}], en: [{}] } }), { track: "tr-orig", manual: false });
+    assert.deepEqual(pickCaptionTrack({ subtitles: {}, automatic_captions: { "de-orig": [{}], en: [{}] } }), { track: "de-orig", manual: false }, "no declared language: the sound's own track");
+    assert.equal(pickCaptionTrack({ language: "fr", subtitles: {}, automatic_captions: { en: [{}] } }), undefined, "never a translated track");
+    assert.equal(pickCaptionTrack({}), undefined);
   });
 
   await scenario("H3 a failed link is studied once more an hour later unless the video is closed; the same link sent three times is studied once", () => {
