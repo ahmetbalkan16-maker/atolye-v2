@@ -11,7 +11,7 @@ ilk videolarda **owner onayı olmadan yükleme yok**; Fiverr'de insan döngüde 
 > Studio'ya kendisi koyar. Bağlantı istenirse aşağıdaki adımlar geçerlidir (önce test kullanıcısı ya da yayınlanmış uygulama).
 
 > **3 Kasım 2026 (akşam):** owner kanalın adını **Crowns & Doodles** (`@CrownsAndDoodles`) yaptı (aşağıdaki 1. bulgu
-> kapandı; kanal kimliği aynı) ve Sezar Short'unu elle yükledi: `Q8JW_i5Gt0M` "Never Kidnap a Future Emperor"; sipariş
+> kapandı; kanal kimliği aynı) ve Sezar Short'unu elle yükledi: `q8JW_i5Gt0M` (küçük q; büyük harfli yazım yok, 5 Kasım'da yt-dlp ile doğrulandı) "Never Kidnap a Future Emperor"; sipariş
 > `elle: true` işaretli, AYAS onu bir daha yüklemez.
 
 ## Nasıl çalışır

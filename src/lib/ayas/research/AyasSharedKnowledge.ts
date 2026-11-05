@@ -31,6 +31,32 @@ export const STAGE_BRAINS: Readonly<Record<AtolyeStage, readonly KnowledgeBrain[
   voice: ["ses"], audio: ["ses"], assembly: ["kurgu", "sef"], thumbnail: ["ortam"], seo: ["sef"], youtube: ["sef"], quality: ["kalite"], cost: ["sef", "gelistirici"],
 };
 
+/** Words that tie a text to a pipeline stage. */
+const STAGE_WORDS: Readonly<Record<AtolyeStage, RegExp>> = {
+  research: /\b(?:fact[- ]?check|historian|primary source|citation|archive|wikipedia|research)\b/i,
+  script: /\b(?:script|screenplay|storytelling|narrative|dialogue|hook|retention|writer)\b/i,
+  scenes: /\b(?:storyboard|scene|shot list|pacing|cut|transition)\b/i,
+  visuals: /\b(?:image generation|text-to-image|diffusion|sdxl|flux|illustration|composition|lighting|style)\b/i,
+  animation: /\b(?:animation|animate|image[- ]to[- ]video|text[- ]to[- ]video|video generation|video model|videos? from (?:text|images?)|(?:create|generate|generating) videos?|motion|camera (?:move|control)|parallax|lip ?sync|puppet)\b/i,
+  voice: /\b(?:tts|text-to-speech|voice (?:clone|cloning|over)|speech synthesis|narration|voice actor)\b/i,
+  audio: /\b(?:music generation|soundtrack|sound effects?|sfx|foley|audio mix|mixing|loudness)\b/i,
+  assembly: /\b(?:video edit(?:ing|or)|montage|ffmpeg|remotion|timeline|render(?:ing)?|subtitles?)\b/i,
+  thumbnail: /\b(?:thumbnail|cover image|click-?through)\b/i,
+  seo: /\b(?:seo|keyword|title optimi[sz]ation|tags|description)\b/i,
+  youtube: /\b(?:youtube|shorts|analytics|upload|channel)\b/i,
+  quality: /\b(?:quality (?:check|assessment|metric)|benchmark|vmaf|evaluation|artifact detection)\b/i,
+  // Only explicit terms: "open source" alone is on nearly every repository and says nothing about running cost.
+  cost: /\b(?:free (?:tier|plan)|pricing|credits?|quota|self-host(?:ed|ing)?|run(?:s)? locally|vram|\d+ ?gb (?:gpu|vram))\b/i,
+};
+
+export function stagesOf(text: string): AtolyeStage[] {
+  return ATOLYE_STAGES.filter((s) => STAGE_WORDS[s].test(text));
+}
+
+export function brainsOf(stages: readonly AtolyeStage[]): KnowledgeBrain[] {
+  return [...new Set(stages.flatMap((s) => STAGE_BRAINS[s]))];
+}
+
 /** The four free kinds the owner keeps apart, plus paid and unknown. */
 export const COST_CLASSES = ["UCRETSIZ_HESAPSIZ", "UCRETSIZ_HESAPLI", "ACIK_KAYNAK_YEREL", "DENEME_KREDISI", "UCRETLI", "BILINMIYOR"] as const;
 export type CostClass = (typeof COST_CLASSES)[number];

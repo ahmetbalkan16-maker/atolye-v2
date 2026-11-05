@@ -115,6 +115,7 @@ async function main(): Promise<void> {
       console.log(`\n[${g.asama}] ${g.eksik} — ölçüt: ${g.olcut}`);
       for (const a of g.adaylar) console.log(`  • ${a.baslik} (${a.maliyet}, ${a.dogrulama}) ${a.url}`);
       console.log(`  → ${g.deney}`);
+      if (g.uyarlama) console.log(`  ⚖ uyarlama yolu: ${g.uyarlama.yol} — ${g.uyarlama.neden}`);
     }
     return;
   }

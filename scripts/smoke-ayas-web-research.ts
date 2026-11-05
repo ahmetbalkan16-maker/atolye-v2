@@ -5,7 +5,7 @@
  * Run: npx tsx scripts/smoke-ayas-web-research.ts
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -13,9 +13,12 @@ import path from "node:path";
 import { ayasSafePublicFetch } from "../src/lib/brain/autonomy/AyasSafePublicFetch";
 import { answerAyasVideoIntent, detectAyasVideoIntent } from "../src/lib/ayas/AyasVideoOrder";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
-import { ATOLYE_CAPABILITIES, compareWithAtolye } from "../src/lib/ayas/research/AtolyeCapabilityMap";
+import { adaptationFindingOf, ATOLYE_CAPABILITIES, compareWithAtolye } from "../src/lib/ayas/research/AtolyeCapabilityMap";
 import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, listSearchRequests, placeSearchRequest } from "../src/lib/ayas/research/AyasLinkRequests";
 import { pdfText, pdfToTextBinary } from "../src/lib/ayas/research/AyasPdfText";
+import { isAyasFindingWorthKnowing, knowledgeFromResearchFindings, mirrorAyasResearchFindings } from "../src/lib/ayas/research/AyasResearchFindingKnowledge";
+import { ayasTechnologyWatchDir, runAyasTechnologyWatchStep } from "../src/lib/ayas/technology/AyasTechnologyWatchStep";
+import type { AyasExternalResearchFinding } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
 import { applicationGate, knowledgeBlock, loadKnowledge, recallKnowledge, saveKnowledge } from "../src/lib/ayas/research/AyasSharedKnowledge";
 import { costEvidence, type FetchDocument, type FetchText, hitRecords, linkKind, researchTopic, safeFetchText, searchWeb, studyLink, TOPIC_STUDY_TOP } from "../src/lib/ayas/research/AyasWebResearch";
 
@@ -209,6 +212,13 @@ async function main(): Promise<void> {
     assert.equal(voice.adaylar[0]?.baslik, "Kokoro TTS");
     assert.match(voice.deney, /ayrı çıktı klasörü, üretim verisine dokunmadan.*ölçüt:/);
     assert.match(gaps.find((g) => g.asama === "research")!.deney, /^aday yok/);
+    // The adaptation pipeline (M22.8) routes the first candidate over the stage's own files: V3 code needs review, and a
+    // single-source record with unresolved licence/cost facts is never an autonomous lane.
+    assert.equal(gaps.find((g) => g.asama === "research")!.uyarlama, undefined, "no candidate, no routing");
+    assert.deepEqual(voice.uyarlama?.dosyalar, ["src/lib/v3/tts/Tts.ts"]);
+    assert.ok(voice.uyarlama && ["REVIEW_REQUIRED", "FORBIDDEN_AUTONOMOUS"].includes(voice.uyarlama.yol), voice.uyarlama?.yol);
+    const finding = adaptationFindingOf((await loadKnowledge(root))[0]!, ATOLYE_CAPABILITIES.find((s) => s.asama === "voice")!);
+    assert.deepEqual([finding.treatedSourceAsUntrusted, finding.atolyeGapStatus, finding.isOfficialSource], [true, "missing", false]);
   });
 
   await scenario("AYAS chat: a web link is learned (a request file only — the server never fetches); a question about it stays a conversation; YouTube stays a V3 study", async () => {
@@ -291,6 +301,46 @@ async function main(): Promise<void> {
     assert.ok(recallKnowledge(await loadKnowledge(repo), { soru: "Wan 2.2 hakkında", now: NOW }).length >= 1);
     const dead = await researchTopic("Wan 2.2", { fetchText: fixtureWeb({}), now: NOW, wait: async () => {} });
     assert.ok(dead.report.saglayicilar.every((p) => !p.ok) && dead.records.length === 0, "no provider answering is a failure the loop retries later");
+  });
+
+  const stage8 = (over: Record<string, unknown> = {}) => ({
+    schemaVersion: "1", findingId: `ayas-research-11111111-2222-4333-8444-${String(Math.floor(Math.random() * 1e12)).padStart(12, "0")}`, recordedAt: "2026-11-04T10:00:00.000Z",
+    provider: "LosslessCut", capability: "keyframe cut fix at export", category: "VIDEO_EDITING", problemSolved: "Improving video export quality by applying keyframecutfix when cutting at non-keyframes",
+    sourceUrl: "https://github.com/mifi/lossless-cut/releases/tag/v3.66.0", isOfficialSource: true, featureDate: null, lastCheckedAt: "2026-11-04T10:00:00.000Z", confidence: "medium",
+    licenseCostStatus: "open-source", licenseCostNotes: "GPL-2.0 desktop app", atolyeGapStatus: "missing", atolyeGapNotes: "", treatedSourceAsUntrusted: true, ...over,
+  }) as unknown as AyasExternalResearchFinding;
+
+  await scenario("Stage 8 findings reach the shared knowledge: one sourced record per page, keyword-only matches left out, nothing rewritten when nothing is new", async () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), "ayas-stage8-knowledge-"));
+    const a = stage8();
+    const b = stage8({ capability: "export presets", problemSolved: "Adds named export presets so the same container and codec settings are reused" });
+    const keyword = stage8({ sourceUrl: "https://github.com/ollama/ollama/releases/tag/v0.40.9", provider: "Ollama", capability: "SUBTITLES", problemSolved: "SUBTITLES" });
+    assert.deepEqual([isAyasFindingWorthKnowing(a), isAyasFindingWorthKnowing(keyword)], [true, false]);
+    const record = knowledgeFromResearchFindings([a, b]);
+    assert.deepEqual([record.baslik, record.tur, record.dogrulama.durum, record.maliyet.sinif], ["LosslessCut: keyframe cut fix at export; export presets", "github", "RESMI_KAYNAK", "ACIK_KAYNAK_YEREL"]);
+    assert.equal(record.alintilar.length, 2);
+    assert.ok(record.asamalar.includes("assembly") && record.beyinler.includes("gelistirici") && record.etiketler.includes("stage8-arastirma"));
+    assert.equal(record.otomatikUygulanabilir, false);
+    assert.equal(await mirrorAyasResearchFindings(repo, [a, b, keyword]), 1, "two findings of one release page are one record; the keyword match is not kept");
+    const file = path.join(repo, "data", "brain", "knowledge", "records.json");
+    const before = statSync(file).mtimeMs;
+    assert.equal(await mirrorAyasResearchFindings(repo, [a, b, keyword]), 0);
+    assert.equal(statSync(file).mtimeMs, before, "nothing new: the store is not rewritten every tick");
+    assert.equal(await mirrorAyasResearchFindings(repo, [{ ...a, lastCheckedAt: "2026-11-05T10:00:00.000Z" }]), 1, "checked again since: refreshed");
+    assert.match(await answerAyasVideoIntent({ kind: "knowledge", soru: "LosslessCut export" }, path.join(repo, "v3"), repo), /LosslessCut: keyframe cut fix at export.*resmi kaynak/);
+  });
+
+  await scenario("Stage 8 findings reach the technology watch: assessed against the kept register, nothing handed off, a second pass adds nothing", () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), "ayas-tech-watch-step-"));
+    writeFileSync(path.join(repo, "package.json"), JSON.stringify({ dependencies: { next: "16.0.0" }, devDependencies: { tsx: "4.0.0" } }));
+    const findings = [stage8({ findingId: "ayas-research-11111111-2222-4333-8444-000000000001" }), stage8({ findingId: "ayas-research-11111111-2222-4333-8444-000000000002", provider: "Frame Weaver", capability: "stock b-roll matching", category: "BROLL", problemSolved: "finds b-roll for a scene description", sourceUrl: "https://updates.example.net/posts/frame-weaver-2", isOfficialSource: false, licenseCostStatus: "free-tier-available" })];
+    const first = runAyasTechnologyWatchStep({ repoRoot: repo, findings, now: NOW.toISOString() });
+    assert.deepEqual([first.extracted, first.technologies, first.handoffs, first.executionAuthority], [2, 2, 0, "NONE"]);
+    assert.ok(existsSync(path.join(ayasTechnologyWatchDir(repo), "register.json")) && existsSync(path.join(ayasTechnologyWatchDir(repo), "last-cycle.json")));
+    const second = runAyasTechnologyWatchStep({ repoRoot: repo, findings, now: NOW.toISOString() });
+    assert.deepEqual([second.extracted, second.skipped, second.technologies], [0, 2, 2], "the register keeps what it saw");
+    writeFileSync(path.join(ayasTechnologyWatchDir(repo), "register.json"), "{ not json");
+    assert.equal(runAyasTechnologyWatchStep({ repoRoot: repo, findings, now: NOW.toISOString() }).extracted, 2, "an unreadable register is kept aside and the watch starts over");
   });
 
   await scenario("a finished V3 video study becomes shared knowledge: lessons quoted, stages and brains from them, no video content", () => {

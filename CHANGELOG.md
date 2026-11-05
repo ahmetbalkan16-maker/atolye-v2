@@ -1,3 +1,13 @@
+## 2026-11-05 (night) — PDFs, topic search from chat, recovery push for every lane, Stage 8 → technology watch, lint 0/0
+
+- PDFs are read: the safe public fetch returns PDF bytes only when a caller lists `binaryContentTypes: ["application/pdf"]` (every other check unchanged; a truncated PDF always fails; without the option the old refusal stands). Text comes from Git for Windows' `pdftotext` (no new npm dependency; no shell, 15 MB, 40 pages, 30 s, temp copy removed; no OCR). PDF addresses without `.pdf` (arxiv.org/pdf/…) are read too.
+- AYAS chat: "internette X araştır", "webde X ara", "search the web for X" become a search request file; the V3 idle loop searches the five key-free providers, reads the first two readable hits in full and stores everything with its source. Research-status questions keep their answers. The order watcher starts a cycle at once for a waiting link or search.
+- Publication self-heal now covers the micro-batch lane (`AyasMicroBatchRecovery` feeds a RECOVERY_REQUIRED batch to the same proof) and "Uygula" (`recoverAyasUpdateApplyPushes`: trailer, single parent = trial base, exactly the two package files with the tested bytes; one plain push while the remote is still at that base).
+- Stage 8 → Stage 14: the discovery child runs one bounded technology-watch pass over the recorded findings (register in the git-ignored `data/brain/self-improvement/technology-watch/`, nothing handed off) and mirrors findings that say something into the shared knowledge, one record per source page.
+- `compareWithAtolye` routes each gap's first candidate through the M22.8 adaptation pipeline over the stage's own code files; `ayas-web-research.ts eksikler` prints the governance lane.
+- AYAS Safe CI had been red since 1653925a: two EVAL-pinned smokes changed without a pin bump. EVAL manifest 15F.4-v71 re-pins `smoke-ayas-action-firewall-closure.ts` and `smoke-ayas-proposal-approval-service.ts` (v70 archived byte-identical).
+- Lint is 0 errors / 0 warnings: the 13 old unused-import warnings in Sprint 129-era scripts were removed (no check pins those files).
+
 ## 2026-11-05 (later) — Links learned from chat, captions found again, Wikipedia answers
 
 - AYAS chat: a non-YouTube web link (bare, or with öğren/incele/araştır/oku) becomes a link request file (`AyasLinkRequests`; the live server never fetches); the V3 idle loop's `istekler` task reads it through the safe public fetch into the shared knowledge, retrying a failure once an hour later. "<konu> hakkında ne öğrendin" answers from the shared knowledge with sources, licence, cost class and the application gate. Finished V3 video studies are also written to the shared knowledge (`knowledgeFromStudy`).

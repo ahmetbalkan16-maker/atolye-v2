@@ -22,13 +22,15 @@ V2, V2-V3 ve V3 ayrı projeler değil: tek GitHub deposunun (`ahmetbalkan16-make
 | Genel web araması | **KOPUKTU → eklendi** | `web-research-lookup` yalnız tanımdı (`AyasToolRegistry.ts` "HENÜZ UYGULANMADI", `AyasAgenticRouting.ts` `available: false`). Şimdi `src/lib/ayas/research/AyasWebResearch.searchWeb` |
 | Verilen linki inceleme | **KISMİ → genişletildi, sohbete bağlandı** | Önce yalnız YouTube (V3 `ReferenceStudy`). Şimdi web sayfası, GitHub reposu, YouTube oEmbed: `studyLink`. Sohbette YouTube dışı link (çıplak ya da "öğren/incele/araştır/oku" ile) → `AyasVideoOrder` `learn` niyeti → `AyasLinkRequests` istek dosyası (sunucu fetch etmez) → V3 boşta döngüsü `istekler` görevi okur ve kaydeder; "X hakkında ne öğrendin" → `knowledge` niyeti kaynaklı cevap |
 | Video içerik analizi | ÇALIŞIYOR (V3) | `src/lib/v3/council/ReferenceStudy.ts` (altyazı, kareler, kesme temposu, dersler); 2 MB çıktı kesilmesi bu oturumda düzeltildi |
-| PDF / ses / görsel dosyası | **YOK** | Güvenli fetch yalnız metin türlerini okur, depoda PDF ayrıştırıcı yok → `ERISILEMEDI` ve gerekçe kaydedilir |
+| PDF | **eklendi (5 Kasım gece)** | Güvenli fetch'te açıkça istenen `binaryContentTypes: ["application/pdf"]`; metin `AyasPdfText` (Git for Windows `pdftotext`, kabuksuz, 15 MB / 40 sayfa / 30 sn, OCR yok). `.pdf`siz PDF adresleri de okunur |
+| Ses / görsel / video dosyası | **YOK** | İndirilmez → `ERISILEMEDI` ve gerekçe kaydedilir (video içeriği V3 referans incelemesinde) |
+| Sohbetten konu araması | **eklendi (5 Kasım gece)** | "internette X araştır" → `AyasLinkRequests.placeSearchRequest` (istek dosyası, sunucu fetch etmez) → boşta döngüsü `researchTopic` |
 | Kalıcı ortak bilgi | **KOPUKTU → eklendi** | Önceki depolar ayrı amaçlı: `AyasExternalResearchStore` (kaynak bulguları), `AyasMemoryStore` (sohbet hafızası), V3 `ExperienceMemory` (beyin dersleri). Şimdi `AyasSharedKnowledge` (`data/brain/knowledge/records.json`, git dışı) |
 | Yardımcı beyinlere aktarım | **eklendi (geri çağırma)** | `recallKnowledge({ beyin, soru })` + `knowledgeBlock` (güvenilmeyen alıntı olarak). Biten her V3 video incelemesinin dersleri de ortak bilgiye yazılır (`knowledgeFromStudy`). Üretim yazarı derslerini zaten V3 `ExperienceMemory`'den okur; ortak bilgi bloğu yazara otomatik eklenmedi (aşağıda) |
 | Atölye gap analizi | **eklendi** | `AtolyeCapabilityMap.compareWithAtolye` — 13 aşama, kod kanıtlı mevcut yetenek, owner'ın adlandırdığı eksik, ölçülebilir deney |
-| Teknoloji değerlendirme | **KOPUK (değişmedi)** | `runAyasTechnologyWatchCycle` yalnız `scripts/ayas-technology-watch.ts` (elle JSON) tarafından çağrılıyor; Stage 8'e bağlı değil |
+| Teknoloji değerlendirme | **bağlandı (5 Kasım gece)** | Discovery, araştırma-iyileştirme kirası altında `runAyasTechnologyWatchStep` (kayıt `data/brain/self-improvement/technology-watch/`); aktarım Stage 13'e gönderilmez. Stage 8 bulguları ayrıca `mirrorAyasResearchFindings` ile ortak bilgiye |
 | Araştırma → iyileştirme | ÇALIŞIYOR | `AyasResearchImprovementCycle` discovery'de (`discovery.research-improvement-cycle`) |
-| Adaptation | **KOPUK** | `AyasAdaptationPipeline`'ın test dışında çağıranı yok |
+| Adaptation | **bağlandı (5 Kasım gece)** | `compareWithAtolye` ilk aday için `planAyasAdaptation` (aşamanın kod kanıtı dosyalarıyla); `eksikler` yönetişim yolunu yazar |
 | Kontrollü evrim | **KAPALI** | discovery'de bağlı, ama `AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE` canlı `.env.local`'da yok → hiç çalışmıyor. Owner'ın yazacağı fırsat kaydı gerektirir; sahte kayıtla açılmadı |
 | Onaylı geliştirme | ÇALIŞIYOR | Gelişim Merkezi tek tık yayınları; bu oturumda push tekrarı + kendini onarma eklendi |
 | `completionRecorded` tutarsızlığı | **kök neden bulundu, düzeltildi** | `AyasDeferredPublicationFinalizer` `RESULT_RECORDED` yazarken denetimi kopyalıyordu; `true` yapan satır yalnız ertelenmemiş yolda (`AyasAutonomyDaemon.ts`). 99 eski kayıt adli kayıt olarak değiştirilmedi |
@@ -70,23 +72,26 @@ gelistirici, Kalite → kalite, Yönetmen/Prodüksiyon → sef.
 
 ## Bilinçli olarak yapılmayanlar ve nedenleri
 
-- **Sohbetten konu araması ("X'i araştır"):** sohbetteki "araştır" kelimesi AYAS'ın mevcut hedef araştırması ve
-  durum sorularıyla çakışır; link öğrenmesi bağlandı, konu araması CLI'da (`ara`). `web-research-lookup` aracını
-  yürütme listesine almak canlı sunucuya keyfi hostlara ağ yetkisi açar — ayrı owner kararı.
+- **Sohbetten konu araması (5 Kasım gece bağlandı):** çakışmayı önlemek için yalnız açık bir internet kelimesi
+  ("internette", "webde", "online") ve cümle sonunda arama emri olan istekler aramadır; "son internette ne araştırdın" gibi
+  sorular durum cevabında kalır. Arama yine canlı sunucuda değil, boşta döngüsünde yapılır; `web-research-lookup` aracı
+  yürütme listesine alınmadı (canlı sunucuya keyfi hostlara ağ yetkisi açmamak için).
 - **Anahtarlı genel arama (Brave/Tavily vb.):** güvenli fetch kimlik başlığı göndermez (tasarım gereği); anahtar
   gerektiren sağlayıcı için ayrı, denetlenmiş bir istemci gerekir.
 - **Wikipedia (çözüldü):** 429'un nedeni User-Agent değil, Wikimedia'nın paylaşılan adrese kısa hız sınırı
   (`x-envoy-ratelimited: true`, `retry-after: 4`). Hız sınırına takılan sağlayıcı 6 sn bekleyip bir kez yeniden
   denenir; canlı denemede beş sağlayıcının beşi de sonuç verdi.
-- **PDF:** bağımlılık kararı (ör. `pdfjs-dist`) owner'ındır; kök `package-lock.json` canlı güncelleme hattına bağlıdır.
+- **PDF (5 Kasım gece çözüldü):** npm bağımlılığı eklenmedi; makinede zaten olan Git for Windows `pdftotext` kullanılıyor
+  (Linux/macOS'ta poppler; başka yerdeyse `AYAS_PDFTOTEXT`). Bulunamazsa bağlantı gerekçesiyle `ERISILEMEDI` kaydedilir.
 - **Üretim yazarına otomatik bilgi bloğu:** yazar istemini değiştirir; önce owner'ın hangi beynin hangi kotayla
   okuyacağına karar vermesi gerekir. Geri çağırma fonksiyonu hazır.
-- **Teknoloji izleme ve adaptation'ı Stage 8'e bağlamak:** discovery'nin yetki ve kira (lease) sınırını değiştirir;
-  ayrı sprint (aşağıda öneri).
+- **Teknoloji izleme ve adaptation (5 Kasım gece bağlandı):** kira sınırı değişmedi — yeni bir yetenek eklenmedi, adım mevcut
+  `discovery.research-improvement-cycle` kirası altında ve yalnız yerel dosyalarla çalışır; aktarımlar Stage 13'e gönderilmez.
 
 ## Sonraki adımlar
 
-1. Sohbetten link/arama isteği → istek dosyası → arka planda `studyLink`/`searchWeb` (V3 boşta döngüsüne bir görev).
-2. Stage 8 bulgularını `AyasSharedKnowledge`'a ve `runAyasTechnologyWatchCycle`'a otomatik aktaran discovery adımı.
+1. ~~Sohbetten link/arama isteği~~ — yapıldı (5 Kasım gece).
+2. ~~Stage 8 → ortak bilgi ve teknoloji izleme~~ — yapıldı (5 Kasım gece).
 3. Wan 2.2 TI2V-5B ve Depth Anything V2 Small için V3 deneme çalışması (ayrı çıktı, GPU 85 °C koruması).
-4. PDF için bağımlılık kararı.
+4. ~~PDF~~ — yapıldı, yeni bağımlılık olmadan (Git for Windows `pdftotext`). Taranmış PDF için OCR hâlâ yok.
+5. Kontrollü evrim: owner'ın incelediği bir Stage 8 stratejisi ve kayıt dosyası olmadan çalışmaz (bilinçli kapalı).

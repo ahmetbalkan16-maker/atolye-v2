@@ -1,3 +1,49 @@
+## 5 Kasım 2026 (gece, 2) — açıklar kapatıldı: PDF, sohbetten arama, kurtarma push'u, Stage 8 → teknoloji izleme, uyarlama; lint 0/0; CI yeniden yeşil
+
+**Durum:** `feature/cop-adam-v3`: 31de2bdb (lint), c37fdf25 (PDF + arama), 56973cd4 (EVAL v71), a3e72eaa (kurtarma push'u),
+ardından Stage 8 köprüsü + uyarlama + belgeler. Canlıya alma bu kayıttan sonra (owner'ın görev sonu kararı).
+
+1. **Lint 0 hata / 0 uyarı.** Eski 13 uyarı Sprint 129 dönemi operatör/smoke betiklerinde kullanılmayan import/değişkendi.
+   "Byte'ları kanıt" notu doğrulanmadı: hiçbir test bu dosyaları sabitlemiyor (EVAL manifesti ve `AyasEvalPinnedFiles`'ta
+   yoklar; yalnız eski lint kayıtları ve tarihsel `SOURCE_DIGESTS` anlık görüntüsünde geçiyorlar). Silindi, davranış aynı.
+2. **CI 15:21'den beri kırmızıydı (bu oturumda bulundu).** 728106b5/0a804497 sabitli iki testi
+   (`smoke-ayas-action-firewall-closure.ts`, `smoke-ayas-proposal-approval-service.ts`) değiştirmiş, pinleri güncellememişti →
+   CF49 kapanışı MISMATCH, bağımsızlık sertifikası senaryoyu okuyamıyordu. EVAL **15F.4-v71** (v70 birebir arşiv, iki pin
+   commit'lenmiş blob'dan). Yerelde CF49 CLOSED_PASS 12/12, yardstick 7, sertifika 13.
+3. **PDF okuma.** Güvenli fetch'e yalnız açıkça istenince açılan `binaryContentTypes: ["application/pdf"]` (diğer tüm denetimler
+   aynı; kesilmiş PDF hep ret; seçeneksiz eski ret aynen). Metin: Git for Windows'un `pdftotext`'i (yeni npm bağımlılığı yok;
+   kabuksuz, 15 MB, 40 sayfa, 30 sn, geçici kopya silinir; OCR yok). `.pdf`siz adresler (arxiv.org/pdf/…) de okunur. Gerçek:
+   "Attention Is All You Need" başlık + Abstract doğru. Modül güvenlik duvarında `OFF_SURFACE` (`AyasPdfText`).
+4. **Sohbetten konu araması.** "internette X araştır", "X hakkında internette araştırma yap", "webde X ara", "search the web
+   for X" → `data/brain/knowledge/aramalar/` istek dosyası (canlı sunucu fetch etmez) → V3 boşta döngüsü `istekler` görevi:
+   beş anahtarsız kaynak, ilk iki okunabilir sonuç tam okunur, kaynaklı ortak bilgiye; hiçbir sağlayıcı cevap vermezse bir
+   saat sonra bir kez daha. "son internette ne araştırdın" ve "araştırma ne durumda" eski cevaplarını korur. Sipariş
+   izleyicisi bekleyen bağlantı/aramada döngüyü 4 saati beklemeden başlatır (**`yapim.ts` değişti → izleyici yeniden
+   başlatılmalı**).
+5. **Kurtarma push'u mikro-batch ve Uygula yollarında.** `AyasMicroBatchRecovery` RECOVERY_REQUIRED batch'i aynı kanıt
+   motoruna tek öneri gibi verir (öğe artifact'lerinin doğrulanmış birleşimi); kanıt motoruna yalnız yayın işlem adı
+   parametresi eklendi. `recoverAyasUpdateApplyPushes`: trailer + tek ebeveyn = deneme tabanı + tam iki dosya + test edilmiş
+   baytlar; uzak dal hâlâ tabandaysa bir kez zorlamasız push, sonra kesintisiz Uygula gibi biter (canlı yayın sonraki tick).
+6. **Stage 8 → teknoloji izleme + ortak bilgi.** Keşif süreci, araştırma-iyileştirme kirası altında: `runAyasTechnologyWatchStep`
+   (kayıt `data/brain/self-improvement/technology-watch/`, `.gitignore`'a eklendi; tur başına 40 bulgu; aktarım sayılır,
+   Stage 13'e gönderilmez) ve `mirrorAyasResearchFindings` (anlamlı açıklaması olan bulgular, kaynak sayfa başına bir kayıt;
+   yalnız anahtar kelimeli sürüm eşleşmeleri alınmaz; yeni yoksa dosya yazılmaz). Gerçek veriyle kuru deneme: 297 bulgu →
+   35 teknoloji, hepsi `RESEARCH_REQUIRED`/`BLOCKED` (izinler/lisans bilinmiyor), 0 aktarım — dürüst sonuç.
+7. **Uyarlama (M22.8) bağlandı.** `compareWithAtolye` her eksiğin ilk adayı için `planAyasAdaptation`'ı o aşamanın kod
+   kanıtı dosyalarıyla çalıştırır; `ayas-web-research.ts eksikler` yönetişim yolunu yazar (V3 kodu → inceleme gerekli).
+
+Testler: web-research 17, safe-public-fetch 24, firewall 13, recovery-reconciliation 23, update-apply 14, observer-autostart
+41 (ASCII TEMP), discovery-run-firewall 13, discovery-registry 15, graphify-integration 47 ve keşif sürecini okuyan diğer
+takımlar; tam liste commit mesajlarında. tsc 0, lint 0/0.
+
+**Hâlâ açık — owner kararı/eylemi gerekiyor (kodla kapanmaz):**
+- **Kontrollü evrim:** `AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE` canlı ortamda yok ve üretim Stage 8 strateji kaydı boş; bir kayıt
+  dosyası tek başına deney başlatamaz (`docs/AYAS_CONTROLLED_SELF_EVOLUTION.md`). Owner'ın incelediği bir strateji commit'i gerekir.
+- **YouTube Analytics API:** OAuth uygulaması Testing'de; yayınlamak için ana sayfa + gizlilik + şartlar bağlantısı gerekiyor,
+  owner elle yüklemeyi seçti (3 Kasım). Ölçümler `scripts/v3/kanal.ts kaydet` ile elle.
+- **Pilot üretimi:** `kanal-hedefleri.json` pilotunda 5 yeni Short (2 numara Zanzibar zaten üretildi) ≈ 7–8 sa GPU + OpenAI
+  kredisi; başlatma owner onayında.
+
 ## 5 Kasım 2026 (gece) — canlıda doğrulama sonrası açıkların kapatılması
 
 İlk geçiş canlı: `ayas-live-1653925a` PUBLISHED (15:25Z, dış erişim healthy), canonical Graphify CURRENT, sağlık

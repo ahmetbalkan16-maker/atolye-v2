@@ -180,6 +180,8 @@ graphify-out/
 # discovery daemon; left untracked it would make the next tick's repoClean
 # check fail and halt the loop itself, the same failure as research-novelty.
 /data/brain/self-improvement/research-improvement/
+# Stage 8 → Stage 14 technology-watch register (2026-11-05), written by the same discovery step.
+/data/brain/self-improvement/technology-watch/
 
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.

@@ -29,6 +29,8 @@ import { promoteAyasResearchExperimentEvidence } from "../src/lib/brain/autonomy
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE, runAyasResearchImprovementCycle, type AyasResearchImprovementCycleResult } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
 import { readAyasControlledEvolutionRegister, resolveAyasControlledEvolutionRegisterFile, runAyasControlledSelfEvolutionCycle } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle";
+import { mirrorAyasResearchFindings } from "../src/lib/ayas/research/AyasResearchFindingKnowledge";
+import { runAyasTechnologyWatchStep, type AyasTechnologyWatchStepSummary } from "../src/lib/ayas/technology/AyasTechnologyWatchStep";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -197,6 +199,17 @@ async function main(): Promise<void> {
       observation.gaps.push(`research patch promotion failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  // Stage 8 → Stage 14 and the shared knowledge (2026-11-05), under the same capability: the recorded findings go
+  // through one bounded technology-watch pass (assessments only, no hand-off submitted) and the ones that say
+  // something are kept, sourced, where AYAS and the brains recall from. Local files only; a failure is a gap.
+  let technologyWatch: AyasTechnologyWatchStepSummary | undefined;
+  let knowledgeMirrored = 0;
+  if (researchImprovementEnabled && leased("discovery.research-improvement-cycle")) {
+    try { technologyWatch = runAyasTechnologyWatchStep({ repoRoot: root, findings: researchFindings, now }); }
+    catch (error) { observation.gaps.push(`technology watch failed: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`); }
+    try { knowledgeMirrored = await mirrorAyasResearchFindings(root, researchFindings); }
+    catch (error) { observation.gaps.push(`research knowledge mirror failed: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`); }
+  }
   const inboxForResearch = inbox.load();
   const researchCandidates = [
     // With the loop enabled, a finding becomes a design-review proposal only when the loop says a design is what is missing; a failed cycle admits none.
@@ -302,6 +315,8 @@ async function main(): Promise<void> {
     researchImprovementAdmission: improvement?.admission ?? null,
     researchImprovementExperimentVerdict: improvement?.experiment?.verdict ?? null,
     researchImprovementStaleProposals: improvement?.staleProposals ?? [],
+    technologyWatch: technologyWatch ? { extracted: technologyWatch.extracted, deferred: technologyWatch.deferred, technologies: technologyWatch.technologies, handoffs: technologyWatch.handoffs } : null,
+    researchKnowledgeMirrored: knowledgeMirrored,
     ownerReviewRejected: ownerReview.rejected.map((r) => r.proposalId),
     ownerReviewDeferred: ownerReview.deferred.map((d) => d.proposalId),
     ownerReviewRecommended: ownerReview.recommended.map((r) => r.binding.proposalId),
