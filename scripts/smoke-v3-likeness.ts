@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { designParts, hatShapeNotes, type PartRecord, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { designParts, failedPartFinding, hatShapeNotes, partAlternatives, type PartRecord, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
 import { erasFor, periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
@@ -525,6 +525,48 @@ async function main() {
     scenarios++;
   } catch (e) {
     console.error("FAIL L4 the people library keeps a likeness whose only failed part is an accessory");
+    throw e;
+  }
+
+  try {
+    // Approved Kostüm beyni proposal (Caesar and the pirates): a failed part tells its last rejection beside the parts the
+    // studio already has that could replace it; another person's face part is never offered.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-alternatif-"));
+    const lib = path.join(root, "_kutuphane", "kostum", "gardirop");
+    mkdirSync(lib, { recursive: true });
+    const items = {
+      "roman-legionary-helmet-0a0b0c": { slot: "head", not: "Roman legionary helmet with a red crest" },
+      "golden-laurel-wreath-a1b2c3": { slot: "head", not: "golden laurel wreath" },
+      "laurel-wreath-crown-d4e5f6": { slot: "head", not: "Augustus's laurel wreath crown" },
+      "golden-laurel-sceptre-777777": { slot: "hand", not: "golden laurel sceptre" },
+      "pompey-s-short-brown-hair-111111": { slot: "hair", not: "Pompey's short brown hair" },
+      "short-brown-hair-222222": { slot: "hair", not: "short brown hair" },
+    };
+    writeFileSync(path.join(lib, "pack.json"), JSON.stringify({ schema: 1, id: "gardirop", title: "gardırop", items }));
+    const paths = { workRoot: root, repoRoot: process.cwd() } as V3Paths;
+    let calls = 0;
+    const noSvg = { generate: async () => (calls++, { result: { content: "I cannot draw that.", finishReason: "stop", refused: false, complete: true, truncated: false }, used: { provider: "mock" } }) };
+    const lines: string[] = [];
+    const wreath = { slot: "head" as const, tarif: "Caesar's golden laurel wreath" };
+    const hair = { slot: "hair" as const, tarif: "Caesar's short brown hair" };
+    const out = await designParts({ paths, orders: [wreath, hair], donem: "75 BC", budget: noSvg as never, model: { provider: "mock" } as never, judge: noSvg as never, workDir: path.join(root, "is"), log: (s) => lines.push(s) });
+    assert.equal(calls, 6, "three rounds each");
+    assert.deepEqual(out.records.map((r) => r.kaynak), ["basarisiz", "basarisiz"]);
+    assert.deepEqual(out.records[0]!.alternatifler, ["gardirop/golden-laurel-wreath-a1b2c3", "gardirop/laurel-wreath-crown-d4e5f6"], "most shared words first; the helmet and the sceptre are not a wreath");
+    assert.deepEqual(out.records[1]!.alternatifler, ["gardirop/short-brown-hair-222222", "ortak/sac-kisa-yan"], "the hand-drawn haircut too; never Pompey's hair");
+    assert.ok(lines.some((l) => l.includes(`"Caesar's golden laurel wreath" 3 turda kabul edilmedi; bu parça kostümden çıkarıldı — yerine geçebilecek: gardirop/golden-laurel-wreath-a1b2c3, gardirop/laurel-wreath-crown-d4e5f6`)), lines.join("\n"));
+    // The finding: the reason and the replacements in one line, the generic advice only when nothing is similar.
+    const shelf = Object.entries(items).map(([id, it]) => ({ ref: `gardirop/${id}`, slot: it.slot as never, not: it.not }));
+    const finding = failedPartFinding(wreath, out.records[0]!.sorunlar!, partAlternatives(wreath, shelf));
+    assert.match(finding.ayrinti, /^"Caesar's golden laurel wreath" 3 turda kabul edilmedi, kostümden çıkarıldı; son ret — tur 3: no svg in the answer$/);
+    assert.equal(finding.oneri, "kütüphanede yerine geçebilecek: gardirop/golden-laurel-wreath-a1b2c3 (golden laurel wreath); gardirop/laurel-wreath-crown-d4e5f6 (Augustus's laurel wreath crown) — senaryoda bu parça yazılabilir");
+    assert.equal(failedPartFinding({ slot: "back", tarif: "pirate's red cloak" }, [], partAlternatives({ slot: "back", tarif: "pirate's red cloak" }, shelf)).oneri, "tarifi sadeleştir ya da benzer bir kütüphane parçası kullan");
+    assert.deepEqual(partAlternatives({ slot: "hand", tarif: "sceptre" }, shelf).map((a) => a.ref), ["gardirop/golden-laurel-sceptre-777777"], "a one-word order needs one shared word");
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "Roman laurel" }, shelf).map((a) => a.ref), [], "two words: one in common is not enough");
+    rmSync(root, { recursive: true, force: true });
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L5 a failed part reports its last rejection and the library parts that could replace it");
     throw e;
   }
 

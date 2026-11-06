@@ -598,3 +598,8 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   planı, ara resim) Ken Burns kaymasında 2.5D hareket eder — Depth Anything V2 Small işlemcide resim başına birkaç
   saniyede yer değiştirme haritası çıkarır (`render/DepthMaps.ts`, `derinlik_parallax.py --harita`), Remotion SVG
   `feDisplacementMap` ile oynatır (`scene/DepthFilter.tsx`). Kart yok, ek RAM yok; `ATOLYE_V3_DERINLIK=0` kapatır.
+- Kostüm beyninin onaylı önerisi (Sezar ve korsanlar: "reddedilme sebepleri ve alternatif öneriler daha hızlı
+  değerlendirilebilmeli"): 3 turda kabul edilmeyen parçanın bulgusu artık son ret sebebini ve stüdyonun elindeki,
+  aynı yuvadan en çok kelimesi ortak en fazla 3 parçayı (`pack/item` + notu) tek satırda verir; başka bir kişinin yüz
+  parçası önerilmez (`PartDesigner.partAlternatives`, `failedPartFinding`; `gardirop.json` kaydında `alternatifler`).
+  Üretim hiçbir parçayı kendiliğinden değiştirmez; karar senaryoda verilir.

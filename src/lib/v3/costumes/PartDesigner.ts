@@ -9,10 +9,10 @@ import { renderWithRemotion } from "../render/RemotionRunner";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
-import type { DebateEntry } from "../council/Council";
+import type { DebateEntry, Finding } from "../council/Council";
 import { recall, remember } from "../council/ExperienceMemory";
 import { type BrainDeps, chiefOnPart, findPartReference, historianOnPart, type PartReference } from "../wardrobe/WardrobeBrain";
-import { type CostumePackManifest, costumesRoot, svgBody } from "./CostumePackLoader";
+import { type CostumePackManifest, costumesRoot, packCatalog, svgBody } from "./CostumePackLoader";
 import { familyPart } from "./PartFamilies";
 
 /**
@@ -82,6 +82,51 @@ export function foreignFacePart(ref: string, names: readonly string[]): boolean 
   const words = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
   const mine = new Set(names.flatMap(words));
   return !words(owner).some((w) => mine.has(w));
+}
+
+/** A part the studio already has: "pack/item", its slot and its note (who may wear it, or the order it was drawn for). */
+export interface ShelfPart {
+  readonly ref: string;
+  readonly slot: PartSlot;
+  readonly not?: string;
+}
+
+const FACE_SLOTS: readonly PartSlot[] = ["beard", "mustache", "hair"];
+const STOP_WORDS = new Set(["the", "and", "with", "for", "his", "her", "its", "from"]);
+const partWords = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+
+/**
+ * Parts the studio already has that could stand in for an order that failed, best first: the same slot, sharing at
+ * least two words of the order's description (one for a one-word order) with the part's id or note, never a face part
+ * drawn for another named person (foreignFacePart). Approved Kostüm beyni proposal (Caesar and the pirates, 2 Nov
+ * 2026: "the reasons a part was rejected and the alternatives must be judged faster"): a failed part only said
+ * "3 rounds, removed", and its reasons were spread over the rounds of the debate.
+ */
+export function partAlternatives(order: PartOrder, shelf: readonly ShelfPart[], max = 3): ShelfPart[] {
+  const want = new Set(partWords(order.tarif));
+  const need = Math.min(2, want.size);
+  if (!need) return [];
+  return shelf
+    .filter((p) => p.slot === order.slot && !(FACE_SLOTS.includes(p.slot) && foreignFacePart(p.ref, [order.tarif])))
+    .map((p, i) => ({ p, i, shared: new Set(partWords(`${p.ref.replace(/^.*\//, "")} ${p.not ?? ""}`).filter((w) => want.has(w))).size }))
+    .filter((x) => x.shared >= need)
+    .sort((a, b) => b.shared - a.shared || a.i - b.i)
+    .slice(0, max)
+    .map((x) => x.p);
+}
+
+/** The finding for a part that failed every round: its last rejection beside what could replace it, in one line. */
+export function failedPartFinding(order: PartOrder, problems: readonly string[], alternatives: readonly ShelfPart[]): Finding {
+  const last = problems[problems.length - 1];
+  return {
+    beyin: "kostum",
+    onem: "eksik",
+    baslik: "parça tasarlanamadı",
+    ayrinti: `"${order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi, kostümden çıkarıldı${last ? `; son ret — ${last.slice(0, 240)}` : ""}`,
+    oneri: alternatives.length ? `kütüphanede yerine geçebilecek: ${alternatives.map((a) => `${a.ref}${a.not ? ` (${a.not})` : ""}`).join("; ")} — senaryoda bu parça yazılabilir` : "tarifi sadeleştir ya da benzer bir kütüphane parçası kullan",
+    tur: "veri",
+    yer: order.tarif,
+  };
 }
 
 /**
@@ -238,6 +283,15 @@ async function readLibrary(root: string): Promise<CostumePackManifest> {
   return { schema: 1, id: WARDROBE_PACK, title: "Atölye gardırobu (yapay zekâ tasarımı, hakem onaylı)", items: {} };
 }
 
+/** Every part the studio already has: the hand-drawn packs, then the wardrobe library (with this run's new parts). */
+async function shelfParts(paths: V3Paths, wardrobe: Readonly<Record<string, LibraryItem>>): Promise<ShelfPart[]> {
+  const packs = (await packCatalog(costumesRoot(paths.repoRoot))).filter((p) => p.pack !== WARDROBE_PACK);
+  return [
+    ...packs.flatMap((p) => Object.entries(p.items).flatMap(([slot, ids]) => (ids ?? []).map((id) => ({ ref: `${p.pack}/${id}`, slot: slot as PartSlot, ...(p.notes?.[id] ? { not: p.notes[id] } : {}) })))),
+    ...Object.entries(wardrobe).map(([id, it]) => ({ ref: `${WARDROBE_PACK}/${id}`, slot: it.slot, not: it.not })),
+  ];
+}
+
 /** A sample part of the same slot from the hand-drawn packs, as the style and frame reference. */
 async function referencePart(paths: V3Paths, slot: PartSlot): Promise<string> {
   const prefer: Readonly<Record<PartSlot, string>> = { head: "ottoman-1453/zaganos-migferi", beard: "ottoman-1453/sakal-genc", mustache: "ottoman-1453/biyik-pala", hand: "ottoman-1453/kilic", back: "ottoman-1453/zaganos-migferi", hair: "ortak/sac-kisa-yan", chest: "ortak/altin-zincir" };
@@ -357,6 +411,8 @@ export interface PartRecord {
   readonly denemeler: number;
   readonly secim?: CandidateVerdict;
   readonly sorunlar?: readonly string[];
+  /** A failed part: the parts the studio already has that could replace it ("pack/item", partAlternatives), best first. */
+  readonly alternatifler?: readonly string[];
 }
 
 /**
@@ -492,15 +548,17 @@ export async function designParts(input: {
     }
     pending = pending.filter((p) => p.tries >= 0);
   }
-  for (const p of pending) {
+  const shelf = pending.length ? await shelfParts(paths, items).catch((): ShelfPart[] => []) : [];
+  const failed = pending.map((p) => ({ p, alternatives: partAlternatives(p.order, shelf) }));
+  for (const { p, alternatives } of failed) {
     made.set(key(p.order), undefined);
-    records.push({ tarif: p.order.tarif, slot: p.order.slot, kaynak: "basarisiz", denemeler: p.tries, sorunlar: p.problems });
+    records.push({ tarif: p.order.tarif, slot: p.order.slot, kaynak: "basarisiz", denemeler: p.tries, sorunlar: p.problems, ...(alternatives.length ? { alternatifler: alternatives.map((a) => a.ref) } : {}) });
     await remember(paths.workRoot, { bolum: input.donem, beyin: "kostum", tur: "ders", konu: p.order.tarif, metin: `"${p.order.tarif}" was not accepted in ${MAX_ROUNDS} rounds; last problem: ${p.problems[p.problems.length - 1] ?? "unknown"}` }).catch(() => undefined);
-    log(`⚠ gardırop: "${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi; bu parça kostümden çıkarıldı`);
+    log(`⚠ gardırop: "${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi; bu parça kostümden çıkarıldı${alternatives.length ? ` — yerine geçebilecek: ${alternatives.map((a) => a.ref).join(", ")}` : ""}`);
   }
   if (input.brain) {
     for (const t of talks) input.brain.council.debate("kostum", `parça: ${t.order.tarif}`, t.talk);
-    for (const p of pending) input.brain.council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: `"${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi, kostümden çıkarıldı`, oneri: "tarifi sadeleştir ya da benzer bir kütüphane parçası kullan", tur: "veri", yer: p.order.tarif });
+    for (const { p, alternatives } of failed) input.brain.council.find(failedPartFinding(p.order, p.problems, alternatives));
   }
   const manifest: CostumePackManifest = { ...library, items };
   await fs.writeFile(path.join(dir, "pack.json"), `${JSON.stringify(manifest, null, 2)}\n`);
