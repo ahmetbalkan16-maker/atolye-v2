@@ -1,3 +1,25 @@
+## 6 Kasım 2026 (akşam) — Waterloo dersleri beyinlere aktarıldı; kişi kütüphanesi aksesuar yüzünden yüz atmaz
+
+Owner: "bu videodaki hataları, tecrübeyi beyinlere aktardın mı?" Cevap: kod düzeltmeleri canlıdaydı ama beyinlerin deneyim
+hafızasında yalnız üretimin kendi genel "önlem" notları vardı. Yapılanlar:
+- **Kalite beyni** (`kalite-sinavi.ts ogret`, tur 0 videosu): `waterloo-short-yanlis-portre` (20 sn, `resim`: Blücher
+  konuşurken ekranda Wellington portresi) ve `waterloo-short-prusya-yok` (32 sn, `yakin-harita`: Prusyalılar anlatılırken
+  harita boş). Tur 0'da bu iki karede anlatı puanı 1–2/10 idi ama kare puanı hata saymamıştı; anlatı uyarısı da 7 satırın
+  hepsine çıktığı için ayırt edici değildi. Final kare temiz örnek olarak öğretilmedi (orada da etiketler biniyor).
+- **Kostüm beyni** (`_kutuphane/deneyim/kostum.jsonl`, `… 1815 benzerlik` konusuyla): Blücher 1813–1816 portrelerinde beyaz
+  gür bıyık + kısa beyaz favori, "clean-shaven" notu/hakemi yanlış; Wellington 1815'te (Lawrence) gür, koyu, kıvırcık saçlı,
+  "quite bald" notu yanlış (yüz uzunluğu ve kemerli burun doğruydu).
+- **Şef beyni**: rötuş turunun satır yeniden yazımı esprileri zayıflattı (kurul 7 → 7), oturan espri dönemsel olsun diye
+  yeniden yazılmaz (`ise_yaramadi`).
+- **Geliştirici beyni**: 7 düzeltme commit'i zaten `kod.jsonl`'da; ders yalnız kaçan tahminde/kalınan sınavda yazılır.
+- **Kişi kütüphanesi** (kod): Blücher hiç kaydedilmemişti — `keepLikenesses` herhangi bir parça (madalya + kuşak) tutmazsa
+  kişiyi atıyordu. Yeni `IDENTITY_SLOTS` (sakal, bıyık, saç, şapka): yalnız bunlar tutmazsa kişi saklanmaz; göğüs/el
+  aksesuarı tutmazsa yüz saklanır. Bu bölümün Blücher'i (7/10, portreli) kodun yazacağı biçimde elle
+  `_kutuphane/kisiler/gebhard-leberecht-von-blucher--1815.json` (+ `.kontrol.json`, hakem notları olduğu gibi) olarak kaydedildi.
+
+**Doğrulama:** tsc 0; lint 0/0; smoke-v3-likeness 23 PASS (yeni L4 eski kodda FAIL), smoke-v3-episode-director 58 PASS;
+`likenessHistory` Blücher'i 1 sürüm 7/10 okuyor.
+
 ## 6 Kasım 2026 (sabah, 2) — geliştirme kuyruğu işlendi; Waterloo Short'u (Napolyon'un son savaşı)
 
 Owner: "kuyrukta olan atölye beyinlerini işleme al sonra bir shorts videosu yapalım konu napolyonun kaybettiği

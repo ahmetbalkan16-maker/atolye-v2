@@ -9,14 +9,14 @@ import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { designParts, hatShapeNotes, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { designParts, hatShapeNotes, type PartRecord, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
 import { erasFor, periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -501,6 +501,32 @@ async function main() {
     assert.ok(prompt.indexOf("PERIOD DRESS") > prompt.indexOf("COSTUME CATALOG") && prompt.indexOf("PERIOD DRESS") < prompt.indexOf("ALLOWED VALUES"));
     assert.ok(!writingPrompt({ konu: "Waterloo", donem: "1815", hedefSureSn: 60, ton: "mizahi", dil: "en" }, []).includes("PERIOD DRESS"));
   });
+
+  try {
+    // Waterloo, 6 Nov 2026: Blücher's checked face was dropped because his medals failed. A failed medal, sash or sword
+    // keeps the likeness; a failed moustache, beard, hair or hat does not (the face is incomplete).
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kisi-sakla-"));
+    const paths = { workRoot: root } as unknown as V3Paths;
+    const ep = episode();
+    const rec = (castId: string, kisi: string, siparisler: string[]): LikenessRecord => ({ castId, kisi, donem: "1815", kaynak: "tasarim", tarif: "t", siparisler, sorunlar: [] });
+    const records = [rec("caesar", "Gebhard Leberecht von Blücher", ["Blücher's medals and orange sash", "Blücher's white moustache"]), rec("senator", "Arthur Wellesley", ["Wellington's bicorne"])];
+    const parts: PartRecord[] = [
+      { tarif: "Blücher's medals and orange sash", slot: "chest", kaynak: "basarisiz", denemeler: 3 },
+      { tarif: "Blücher's white moustache", slot: "mustache", kaynak: "tasarim", denemeler: 2 },
+      { tarif: "Wellington's bicorne", slot: "head", kaynak: "basarisiz", denemeler: 3 },
+    ];
+    const kept = await keepLikenesses(paths, ep, records, parts);
+    assert.deepEqual([...kept.keys()], ["caesar"], "a failed medal keeps the face; a failed hat does not");
+    assert.deepEqual(personVersions(paths, "Gebhard Leberecht von Blücher", "1815").map((x) => path.basename(x)), ["gebhard-leberecht-von-blucher--1815.json"]);
+    assert.ok(!existsSync(path.join(peopleDir(paths), "arthur-wellesley--1815.json")));
+    const failedMoustache = parts.map((p) => (p.slot === "mustache" ? { ...p, kaynak: "basarisiz" as const } : p));
+    assert.equal((await keepLikenesses(paths, ep, [rec("legionary", "Someone Else", ["Blücher's white moustache"])], failedMoustache)).size, 0, "a failed moustache: not kept");
+    rmSync(root, { recursive: true, force: true });
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L4 the people library keeps a likeness whose only failed part is an accessory");
+    throw e;
+  }
 
   try {
     // The archivist: a known era costs nothing; a missing one is written once, checked, kept and found next time.

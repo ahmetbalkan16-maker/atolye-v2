@@ -496,14 +496,23 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
 }
 
 /**
- * After the wardrobe made the parts: likenesses whose parts all came out are kept in the people library (append-only:
- * an existing file is never overwritten), so the next episode with this person in this period reuses them.
+ * The part slots a person is recognised by. When one of them failed, the likeness is incomplete and is not kept, so the
+ * next episode designs it again (Blücher without his moustache, Waterloo, 6 Nov 2026). A failed medal, sash or sword
+ * was only left off the costume and the face is whole. That same day Blücher's 7/10 face was thrown away because his
+ * medals failed, and his next episode would have started from nothing.
+ */
+export const IDENTITY_SLOTS: ReadonlySet<PartSlot> = new Set<PartSlot>(["beard", "mustache", "hair", "head"]);
+
+/**
+ * After the wardrobe made the parts: likenesses whose identity parts (IDENTITY_SLOTS) all came out are kept in the
+ * people library (append-only: an existing file is never overwritten), so the next episode with this person in this
+ * period reuses them.
  */
 export async function keepLikenesses(paths: V3Paths, episode: Episode, records: readonly LikenessRecord[], parts: readonly PartRecord[]): Promise<Map<string, string>> {
   const kept = new Map<string, string>();
   await fs.mkdir(peopleDir(paths), { recursive: true });
   for (const r of records.filter((x) => x.kaynak === "tasarim")) {
-    if (r.siparisler.some((t) => parts.some((p) => p.tarif === t && p.kaynak === "basarisiz"))) continue;
+    if (parts.some((p) => p.kaynak === "basarisiz" && IDENTITY_SLOTS.has(p.slot) && r.siparisler.includes(p.tarif))) continue;
     const c = episode.oyuncu_kadrosu.find((x) => x.id === r.castId);
     const file = nextPersonFile(paths, r.kisi, r.donem);
     if (!c?.kostum || existsSync(file)) continue;
