@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { designParts, hatShapeNotes, type PartRecord, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { designParts, hatShapeNotes, type OwnedPart, type PartRecord, partKey, partOrders, partProblems, partPrompt, SAME_PART_SHARE, similarOwnPart } from "../src/lib/v3/costumes/PartDesigner";
 import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
 import { erasFor, periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
@@ -469,6 +469,50 @@ async function main() {
     scenarios++;
   } catch (e) {
     console.error("FAIL L1 parametric families draw the Waterloo parts for free");
+    throw e;
+  }
+
+  try {
+    // Waterloo, 6 Nov 2026: Blücher's "Prussian and allied medals and orange sash" failed three rounds while the library
+    // held his 10/10 "orange sash and Prussian medals" — the same person's part said in other words is that part.
+    const sash = "Gebhard Leberecht von Blücher's orange sash and Prussian medals";
+    const lib: OwnedPart[] = [
+      { id: "sash", slot: "chest", tarif: sash, donem: "1815" },
+      { id: "orders", slot: "chest", tarif: "Gebhard Leberecht von Blücher's Prussian orders and medals", donem: "1815" },
+      { id: "baton", slot: "hand", tarif: "Gebhard Leberecht von Blücher's marshal's baton", donem: "1815" },
+      { id: "beard", slot: "beard", tarif: "Miloš Obilić's short-trimmed dark brown beard", donem: "1389" },
+      { id: "helmet", slot: "head", tarif: "Roman legionary helmet with red crest", donem: "49 BC" },
+    ];
+    const order = { slot: "chest" as const, tarif: "Gebhard Leberecht von Blücher's Prussian and allied medals and orange sash" };
+    assert.equal(similarOwnPart(order, "1815", lib)?.id, "sash", "the closest of the person's chest parts");
+    assert.ok(similarOwnPart(order, "1815", lib)!.share >= SAME_PART_SHARE);
+    assert.equal(similarOwnPart(order, "1813", lib), undefined, "another period: drawn for that year");
+    assert.equal(similarOwnPart({ ...order, tarif: "Arthur Wellesley's Prussian and allied medals and orange sash" }, "1815", lib), undefined, "another person's part is never theirs");
+    assert.equal(similarOwnPart({ ...order, slot: "back" }, "1815", lib), undefined, "another slot");
+    assert.equal(similarOwnPart({ slot: "hand", tarif: "Gebhard Leberecht von Blücher's gold marshal's baton" }, "1815", lib), undefined, "a real difference (gold) is drawn");
+    assert.equal(similarOwnPart({ slot: "beard", tarif: "Milos Obilic's short, trimmed dark brown beard" }, "1389", lib)?.id, "beard", "punctuation and diacritics do not make another part");
+    assert.equal(similarOwnPart({ slot: "head", tarif: "Roman legionary helmet with a red crest" }, "49 BC", lib), undefined, "an ownerless order keeps the exact match only");
+    // In the wardrobe: found in the library without a model; a redesign the art director asked for is drawn anew.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-benzer-parca-"));
+    const dir = path.join(root, "_kutuphane", "kostum", "gardirop");
+    mkdirSync(dir, { recursive: true });
+    const cap = "Harry Rawson's white Royal Navy peaked cap with gold trim and badge";
+    writeFileSync(path.join(dir, "pack.json"), JSON.stringify({ schema: 1, id: "gardirop", title: "t", items: { "harry-rawson-cap-1a2b3c": { slot: "head", not: cap } } }));
+    writeFileSync(path.join(dir, "harry-rawson-cap-1a2b3c.json"), JSON.stringify({ tarif: cap, slot: "head", donem: "1896" }));
+    writeFileSync(path.join(dir, "harry-rawson-cap-1a2b3c.svg"), "<svg/>\n");
+    const asked = { slot: "head" as const, tarif: "Harry Rawson's white Royal Navy officer's peaked cap with gold trim" };
+    assert.equal(familyPart(asked), undefined, "no family draws it: only the library or the designer");
+    const paths = { workRoot: root, repoRoot: process.cwd() } as V3Paths;
+    const noModel = { generate: async () => { throw new Error("the model was called"); } };
+    const run = (redraw: boolean) => designParts({ paths, orders: [asked], donem: "1896", budget: noModel as never, model: { provider: "mock" } as never, judge: noModel as never, workDir: path.join(root, "is"), log: () => undefined, ...(redraw ? { likeness: new Map([[partKey(asked), { redraw: true }]]) } : {}) });
+    const r = await run(false);
+    assert.deepEqual(r.records.map((x) => [x.kaynak, x.id]), [["kutuphane", "harry-rawson-cap-1a2b3c"]]);
+    assert.equal(r.made.get(partKey(asked)), "harry-rawson-cap-1a2b3c");
+    await assert.rejects(run(true), /the model was called/, "a retouch's redesign is not taken from the library");
+    rmSync(root, { recursive: true, force: true });
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L1b the same person's part said in other words comes from the library");
     throw e;
   }
 

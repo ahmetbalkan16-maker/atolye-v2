@@ -76,8 +76,11 @@ export interface LikenessRecord {
 export interface LikenessOutcome {
   readonly episode: Episode;
   readonly records: LikenessRecord[];
-  /** Part key → the person's portrait and face, for the wardrobe (see designParts). */
-  readonly references: Map<string, { ref?: PartReference; look?: V3Look }>;
+  /**
+   * Part key → the person's portrait and face, for the wardrobe (see designParts). `redraw`: the person was redesigned
+   * with the art director's differences, so the part is drawn anew rather than taken from a similar library part.
+   */
+  readonly references: Map<string, { ref?: PartReference; look?: V3Look; redraw?: boolean }>;
   /** Portrait previews by cast id, for the side-by-side check. */
   readonly portraits: Map<string, PortraitResult>;
 }
@@ -391,7 +394,7 @@ function withCostume(episode: Episode, castId: string, kostum: CastCostume): Epi
 export async function designLikenesses(episode: Episode, deps: LikenessDeps): Promise<LikenessOutcome> {
   const { paths, log } = deps;
   const records: LikenessRecord[] = [];
-  const references = new Map<string, { ref?: PartReference; look?: V3Look }>();
+  const references = new Map<string, { ref?: PartReference; look?: V3Look; redraw?: boolean }>();
   const portraits = new Map<string, PortraitResult>();
   const known = await knownRefs(paths);
   let current = episode;
@@ -475,7 +478,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
         portrait && o.slot !== "hand"
           ? { title: portrait.candidate.title, url: portrait.candidate.descriptionUrl, credit: portrait.candidate.credit, description: `${wiki} as in this portrait, drawn as they looked in ${episode.donem}. ${note?.gorunus ?? ""} ${note?.giyim ?? ""}`.replace(/\s+/g, " ").trim().slice(0, 400), imageB64: portrait.preview.toString("base64") }
           : undefined;
-      references.set(partKey(o), { ...(ref ? { ref } : {}), ...(look ? { look } : {}) });
+      references.set(partKey(o), { ...(ref ? { ref } : {}), ...(look ? { look } : {}), ...(fixes ? { redraw: true } : {}) });
     }
     talk.push({ rol: "Tasarımcı", metin: `${applied.tarif || "kart yazıldı"}${orders.length ? ` | gardıroptan: ${orders.map((o) => o.tarif).join("; ")}` : ""}` });
     records.push({

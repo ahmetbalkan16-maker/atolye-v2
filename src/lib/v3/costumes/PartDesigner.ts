@@ -11,6 +11,7 @@ import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import type { DebateEntry } from "../council/Council";
 import { recall, remember } from "../council/ExperienceMemory";
+import { overlap } from "../council/TextOverlap";
 import { type BrainDeps, chiefOnPart, findPartReference, historianOnPart, type PartReference } from "../wardrobe/WardrobeBrain";
 import { type CostumePackManifest, costumesRoot, svgBody } from "./CostumePackLoader";
 import { familyPart } from "./PartFamilies";
@@ -51,6 +52,53 @@ const partSlug = (tarif: string) => tarif.toLowerCase().normalize("NFD").replace
 /** One key per ordered part (slot + description), shared by the orders, the library and the likeness references. */
 export const partKey = (o: PartOrder) => `${o.slot}:${o.tarif.toLowerCase().replace(/\s+/g, " ").trim()}`;
 const key = partKey;
+
+/**
+ * How much of its words (after the owner's name) an order must share with a library part of the same person to be that
+ * part said again. On 6 Nov 2026 the library held 11 such pairs drawn twice, each a paid design run that may fail
+ * ("Miloš Obilić's short, trimmed dark brown beard" / "… short-trimmed dark brown beard", 1.0; Wellington's "black order
+ * sash with star" / "… and star medal", 0.8), while a real difference stays below ("marshal's baton" / "gold marshal's
+ * baton", 0.67).
+ */
+export const SAME_PART_SHARE = 0.75;
+
+const STOP_WORDS = /\b(and|the|with|his|her|its|for|from)\b/gi;
+const foldName = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").replace(/[^a-z0-9]+/g, " ").trim();
+
+/** "Gebhard Leberecht von Blücher's orange sash" → its owner (folded) and the item's own words; ownerless → undefined. */
+function ownerAndItem(tarif: string): { owner: string; item: string } | undefined {
+  const m = /^(.+?)['’]s\s+(.+)$/.exec(tarif.trim());
+  return m ? { owner: foldName(m[1]!), item: m[2]!.replace(STOP_WORDS, " ") } : undefined;
+}
+
+/** A library part with what its own record says: the description it was drawn for and the period it was drawn for. */
+export interface OwnedPart {
+  readonly id: string;
+  readonly slot: PartSlot;
+  readonly tarif: string;
+  readonly donem?: string;
+}
+
+/**
+ * The library part a named person's order means in other words: same owner, same slot, same period, and the item's words
+ * shared by at least SAME_PART_SHARE (the closest wins). Waterloo, 6 Nov 2026: the likeness designer ordered "Blücher's
+ * Prussian and allied medals and orange sash", the library held his 10/10 "orange sash and Prussian medals" from the
+ * round before, the exact-text lookup missed it and the new drawing failed three rounds, so Blücher went without. An
+ * ownerless order is never matched this way: similar words may mean another thing.
+ */
+export function similarOwnPart(order: PartOrder, donem: string, parts: readonly OwnedPart[]): { id: string; share: number } | undefined {
+  const want = ownerAndItem(order.tarif);
+  if (!want) return undefined;
+  let best: { id: string; share: number } | undefined;
+  for (const p of parts) {
+    if (p.slot !== order.slot || !p.donem || p.donem.trim() !== donem.trim()) continue;
+    const have = ownerAndItem(p.tarif);
+    if (!have || have.owner !== want.owner) continue;
+    const share = overlap(want.item, have.item);
+    if (share >= SAME_PART_SHARE && (!best || share > best.share)) best = { id: p.id, share };
+  }
+  return best;
+}
 
 /** Every "yeni:" request in the cast's and the crowds' costumes, once each. */
 export function partOrders(episode: Episode): PartOrder[] {
@@ -378,7 +426,7 @@ export async function designParts(input: {
    * Parts of a real person's likeness, by part key: their portrait as the reference (instead of a museum search) and
    * their face, so the part is drawn and tried on for that face.
    */
-  readonly likeness?: ReadonlyMap<string, { readonly ref?: PartReference; readonly look?: V3Look }>;
+  readonly likeness?: ReadonlyMap<string, { readonly ref?: PartReference; readonly look?: V3Look; readonly redraw?: boolean }>;
 }): Promise<{ made: Map<string, string | undefined>; records: PartRecord[] }> {
   const { paths, log } = input;
   const root = wardrobeRoot(paths);
@@ -391,12 +439,26 @@ export async function designParts(input: {
   const byTarif = new Map(Object.entries(library.items).map(([id, it]) => [key({ slot: it.slot, tarif: it.not ?? "" }), id]));
   let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; look?: V3Look; lessons?: string[]; talk: DebateEntry[] }[] = [];
   const talks: { order: PartOrder; talk: DebateEntry[] }[] = [];
+  // The same person's parts with the period each was drawn for (its own record), for orders the exact text misses.
+  const owned: OwnedPart[] = [];
+  if (input.orders.some((o) => !byTarif.has(key(o))))
+    for (const [id, it] of Object.entries(library.items as Record<string, LibraryItem>)) {
+      if (!it.not || !ownerAndItem(it.not)) continue;
+      const donem = await fs
+        .readFile(path.join(dir, `${id}.json`), "utf8")
+        .then((t) => (JSON.parse(t) as { donem?: unknown }).donem)
+        .catch(() => undefined);
+      owned.push({ id, slot: it.slot, tarif: it.not, ...(typeof donem === "string" ? { donem } : {}) });
+    }
   for (const o of input.orders) {
-    const found = byTarif.get(key(o));
+    const exact = byTarif.get(key(o));
+    // A redesign the art director asked for is drawn anew even when the new words are close to the old part's.
+    const near = exact || input.likeness?.get(key(o))?.redraw ? undefined : similarOwnPart(o, input.donem, owned);
+    const found = exact ?? near?.id;
     if (found) {
       made.set(key(o), found);
       records.push({ tarif: o.tarif, slot: o.slot, id: found, kaynak: "kutuphane", denemeler: 0 });
-      log(`  gardırop: "${o.tarif}" kütüphanede (${found})`);
+      log(exact ? `  gardırop: "${o.tarif}" kütüphanede (${found})` : `  gardırop: "${o.tarif}" kütüphanede başka sözlerle var — "${library.items[found]?.not}" (%${Math.round(near!.share * 100)} aynı; ${found})`);
     } else {
       const talk: DebateEntry[] = [];
       const person = input.likeness?.get(key(o));
