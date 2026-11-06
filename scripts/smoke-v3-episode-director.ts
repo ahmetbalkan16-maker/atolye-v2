@@ -9,7 +9,7 @@ import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
-import { applyParts, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
+import { applyParts, foreignFacePart, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
 import { LEAD_MIN_HEIGHT, namesPerson, portraitFaceProblem, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
@@ -1270,6 +1270,16 @@ async function main() {
     assert.equal(k.sakal, "sakal-beyaz", "failed: back to the catalog beard");
     assert.equal(k.el_on, undefined, "failed with nothing before: removed");
     assert.equal(applyParts(ordered, made).oyuncu_kadrosu.find((c) => c.id === "mehmed")!.kostum!.sakal, undefined, "without the script's costumes: removed as before");
+    // Waterloo (6 Nov 2026): never another named person's face part — not kept, not given back after a failed order.
+    const vuk = "vuk-brankovic-s-short-dark-brown-full-be-b780e6";
+    const real = (k: Record<string, unknown>) => ep.oyuncu_kadrosu.map((c) => (c.id === "mehmed" ? { ...c, ad: "Blücher", portre: { wiki: "Gebhard Leberecht von Blücher" }, kostum: { ...mehmed.kostum!, ...k } } : c)) as Episode["oyuncu_kadrosu"];
+    const blucher = (e: Episode) => e.oyuncu_kadrosu.find((c) => c.id === "mehmed")!.kostum!;
+    assert.equal(blucher(applyParts({ ...ep, oyuncu_kadrosu: real({ sakal: "yeni:Blücher's white moustache" }) }, new Map(), { ...ep, oyuncu_kadrosu: real({ sakal: vuk }) })).sakal, undefined, "failed: Vuk's beard is not given back");
+    assert.equal(blucher(applyParts({ ...ep, oyuncu_kadrosu: real({ sakal: `gardirop/${vuk}` }) }, new Map())).sakal, undefined, "kept from the script: removed");
+    assert.equal(blucher(applyParts({ ...ep, oyuncu_kadrosu: real({ sakal: "gardirop/gebhard-leberecht-von-blucher-s-white-moustache-1a2b3c" }) }, new Map())).sakal, "gardirop/gebhard-leberecht-von-blucher-s-white-moustache-1a2b3c", "his own");
+    assert.equal(blucher(applyParts({ ...ep, oyuncu_kadrosu: real({ biyik: "ottoman-1453/biyik-beyaz" }) }, new Map())).biyik, "ottoman-1453/biyik-beyaz", "a catalog part is anyone's");
+    assert.equal(foreignFacePart("french-infantry-shako-hat-0418bb", ["Blücher"]), false, "no owner");
+    assert.equal(blucher(applyParts({ ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "mehmed" ? { ...c, kostum: { ...mehmed.kostum!, sakal: vuk } } : c)) }, new Map())).sakal, vuk, "a character without a portrait keeps the writer's choice");
   });
 
   await scenario("O27 Kosovo 1389 review: the tent scene is drawn inside the tent, the side the narrator names is framed on a still close map", () => {
