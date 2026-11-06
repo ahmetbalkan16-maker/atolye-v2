@@ -69,6 +69,7 @@ import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
+import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
@@ -1052,7 +1053,10 @@ async function main() {
   const silent = preview ? "video-onizleme.mp4" : "video-sessiz.mp4";
   if (need("render", silent)) {
     await step("render", async () => {
-      await writeJson(f("plan.json"), { plan });
+      // Period pictures move in 2.5D by their depth (owner, 6 Nov 2026; on the processor, a few seconds a picture).
+      const depth = await addDepthMaps(plan, depthDeps(paths, path.join(work, "public"), log));
+      if (depth.yeni || depth.hazir || depth.hata) log(`  derinlik: ${depth.yeni} yeni harita, ${depth.hazir} hazırdı${depth.hata ? `, ${depth.hata} çıkarılamadı (düz kayar)` : ""}`);
+      await writeJson(f("plan.json"), { plan: depth.plan });
       // The render's Chrome workers need RAM; the vision judge is not needed until the cover (PC health first).
       await unloadOllama(log, "render için RAM");
       // In pieces of ~3 minutes cut at shot starts: a rerun of this step renders only the pieces still missing.

@@ -8,6 +8,8 @@ import { existsSync, mkdtempSync, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CHUNK_TARGET_S, type ChunkedRenderDeps, planChunks, renderInChunks, renderKey } from "../src/lib/v3/render/ChunkedRender";
+import { addDepthMaps, depthFileFor, depthTargets } from "../src/lib/v3/render/DepthMaps";
+import type { V3Insert, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { freeLocalPort } from "../src/lib/v3/util/FreePort";
 import { createServer, type AddressInfo } from "node:net";
@@ -145,6 +147,62 @@ async function main() {
       await new Promise<void>((resolve) => probe.close(() => resolve()));
     }
     await new Promise<void>((resolve) => app.close(() => resolve()));
+  });
+
+  await scenario("H period pictures get depth maps (owner, 6 Nov 2026, instead of a video model): archival backgrounds and cut-in stills, made once, a failure leaves the flat drift, off by switch", async () => {
+    type Shot = V3RenderPlan["shots"][number];
+    const shot = (id: string, start: number, background: Partial<Shot["background"]>, inserts?: Partial<V3Insert>[], geoMap?: boolean) => ({ id, start, duration: 90, background: { src: "", kind: "set", ...background }, ...(inserts ? { inserts } : {}), ...(geoMap ? { geoMap: {} } : {}) }) as unknown as Shot;
+    const plan = {
+      width: 1920, height: 1080,
+      shots: [
+        shot("s1", 0, { src: "bg/rubicon-donem.jpg", kind: "archival" }),
+        shot("s2", 90, { src: "bg/set.png", kind: "set" }, [{ src: "ara/haritasi.png", start: 0, end: 60 }, { src: "ara/film.mp4", start: 60, end: 90, video: true }]),
+        shot("s3", 180, { src: "bg/rubicon-donem.jpg", kind: "archival" }),
+        shot("s4", 270, { src: "bg/harita-zemin.png", kind: "archival" }, undefined, true),
+        shot("s5", 360, { src: "", kind: "drawn" }, [{ src: "ara/bozuk.png", start: 0, end: 30 }]),
+      ],
+    } as unknown as Pick<V3RenderPlan, "shots" | "width" | "height" | "stage">;
+    assert.deepEqual(depthTargets(plan), [{ src: "bg/rubicon-donem.jpg", fit: "kapla" }, { src: "ara/haritasi.png", fit: "sigdir" }, { src: "ara/bozuk.png", fit: "sigdir" }], "once per picture; never a set, a drawn set, a map shot or film");
+    assert.deepEqual(depthTargets({ ...plan, width: 1080, height: 1920 }), [{ src: "bg/rubicon-donem.jpg", fit: "kapla" }], "a Short's cut-ins pan across the tall frame: flat");
+    assert.equal(depthFileFor("bg/rubicon-donem.jpg", "kapla"), "bg/rubicon-donem-derinlik-kapla.png");
+    const pub = path.join(tmp, "derinlik-public");
+    for (const f of ["bg/rubicon-donem.jpg", "ara/haritasi.png", "ara/bozuk.png"]) {
+      await fs.mkdir(path.dirname(path.join(pub, f)), { recursive: true });
+      await fs.writeFile(path.join(pub, f), "resim");
+    }
+    // A fake map maker: writes every map but the broken picture's, one JSON line each, as the Python script does.
+    const runs: { en: number; boy: number; mod: string }[][] = [];
+    const run = async (jobFile: string) => {
+      const jobs = JSON.parse(await fs.readFile(jobFile, "utf8")) as { kaynak: string; cikti: string; mod: string; en: number; boy: number }[];
+      runs.push(jobs.map((j) => ({ en: j.en, boy: j.boy, mod: j.mod })));
+      const lines: string[] = ["UserWarning: a library line"];
+      for (const j of jobs) {
+        if (j.kaynak.endsWith("bozuk.png")) lines.push(JSON.stringify({ cikti: j.cikti, ok: false, hata: "UnidentifiedImageError" }));
+        else {
+          await fs.writeFile(j.cikti, "harita");
+          lines.push(JSON.stringify({ cikti: j.cikti, ok: true }));
+        }
+      }
+      return { code: 0, stdout: lines.join("\n"), stderr: "" };
+    };
+    const logs: string[] = [];
+    const deps = { publicDir: pub, python: "yok", script: "yok", model: "yok", log: (s: string) => logs.push(s), run, env: {} };
+    const first = await addDepthMaps(plan, deps);
+    assert.deepEqual([first.yeni, first.hazir, first.hata], [2, 0, 1]);
+    assert.deepEqual(runs[0], [{ en: 960, boy: 540, mod: "kapla" }, { en: 960, boy: 960, mod: "sigdir" }, { en: 960, boy: 960, mod: "sigdir" }], "a background cut to the stage, a still whole");
+    assert.deepEqual(first.plan.shots.map((s) => s.background.depth ?? null), ["bg/rubicon-donem-derinlik-kapla.png", null, "bg/rubicon-donem-derinlik-kapla.png", null, null]);
+    assert.deepEqual(first.plan.shots[1]!.inserts!.map((i) => i.depth ?? null), ["ara/haritasi-derinlik-sigdir.png", null]);
+    assert.equal(first.plan.shots[4]!.inserts![0]!.depth, undefined, "the broken picture keeps its flat drift");
+    assert.ok(logs.some((l) => /bozuk-derinlik-sigdir\.png çıkarılamadı \(UnidentifiedImageError\)/.test(l)));
+    assert.ok(!existsSync(path.join(pub, ".derinlik-isleri.json")), "the jobs file is cleaned up");
+    // The next render reuses the maps and asks only for the one still missing.
+    const second = await addDepthMaps(plan, deps);
+    assert.deepEqual([second.yeni, second.hazir, runs.length, runs[1]!.length], [0, 2, 2, 1]);
+    // Switched off, or without the model: the plan as it was.
+    const off = await addDepthMaps(plan, { ...deps, env: { ATOLYE_V3_DERINLIK: "0" } });
+    assert.equal(off.plan, plan);
+    const noModel = await addDepthMaps(plan, { publicDir: path.join(tmp, "bos"), python: "yok", script: "yok", model: "yok", log: () => {} });
+    assert.deepEqual([noModel.yeni, noModel.plan.shots[0]!.background.depth], [0, undefined]);
   });
 
   await fs.rm(tmp, { recursive: true, force: true });

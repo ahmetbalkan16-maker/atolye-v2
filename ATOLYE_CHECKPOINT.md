@@ -68,6 +68,18 @@ Wan 2.2 VAE döşemesi kodlamada da çözmede de bozuk.
 log'u silindi (betikler git geçmişinde: 545740b1). Kalan: `v3-runtime/denemeler/2026-11-06-wan22/` içinde Zanzibar
 klibi, kareler, log'lar. Yerine hafif yol: derinlikli kamera (Depth Anything V2 Small, işlemcide) üretime bağlanıyor.
 
+**Derinlikli kamera üretimde (owner: "bizim sistemimizde yok mu böyle birşey ona entegre edelim").** Dönem resimleri
+(arşiv arka planları ve ara resimler) artık Ken Burns kaymasıyla birlikte 2.5D hareket eder: yakın şeyler uzaktakilerden
+çok kayar. `scripts/v3/derinlik_parallax.py --harita <is.json>`: her resim için yer değiştirme haritası (kırmızı =
+0,5 + (yakınlık − odak 0,35) × 0,8, kenarlarda %6'lık geçişle 0,5'e söner → kenarda boşluk açılmaz; yeşil 0,5), işlemcide
+(Rubicon'un 6 resmi 9,3 sn, model yükleme dahil). `src/lib/v3/render/DepthMaps.ts`: `depthTargets` (arşiv arka plan →
+`kapla`, sahne oranında; film olmayan ara resim → `sigdir`, resmin kendi oranında; Short'un dikey ara resmi kaydırmalı
+olduğu için düz kalır), harita resmin yanına `<ad>-derinlik-<kapla|sigdir>.png`, bir kez yapılır, sonra yeniden kullanılır;
+çıkarılamayan resim düz kayar, üretimi durdurmaz; `ATOLYE_V3_DERINLIK=0` kapatır. `atolye-v3.ts` render adımında plan
+yazılmadan önce çalışır. Remotion: `remotion-v3/src/scene/DepthFilter.tsx` (harita veri URL'si olarak önceden yüklenir,
+`delayRender`; SVG `feDisplacementMap`, ölçek sahne genişliğinin %3,75'i, kayma yönüne göre), `ShotView` arşiv arka planı
+ve `Overlays.InsertView` ara resmi. Kart kullanılmaz, render'a ek RAM yok.
+
 **Doğrulama:** tsc 0; lint 0/0; 18 smoke-v3 PASS (yeni `smoke-v3-cirak` 5 senaryo, brains-report 4, self-improvement 10);
 AYAS firewall-closure 13, development-center 64, homepage-v2 13; Remotion tsc 0.
 

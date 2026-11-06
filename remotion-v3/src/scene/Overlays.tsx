@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill, Img, interpolate, OffthreadVideo, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { V3Bubble, V3Insert, V3NameTag, V3Strip } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
+import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { BUBBLE_FONT } from "./fonts";
 import { yer } from "./LayoutProbe";
 
@@ -143,6 +144,9 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
 export function InsertView({ insert }: { insert: V3Insert }) {
   const frame = useCurrentFrame();
   const { width: W, height: H } = useVideoConfig();
+  // A still with a depth map moves in 2.5D (DepthFilter); a Short's tall frame pans the picture instead, as before.
+  const depthHref = useDepthMap(!insert.video && H <= W ? insert.depth : undefined);
+  const depthId = depthFilterId("ara", insert.src, insert.start);
   if (frame < insert.start || frame >= insert.end) return null;
   const k = Math.min(W, H) / 1080;
   const len = Math.max(1, insert.end - insert.start);
@@ -182,7 +186,8 @@ export function InsertView({ insert }: { insert: V3Insert }) {
     <AbsoluteFill style={{ opacity: fade, backgroundColor: "#100d16", overflow: "hidden" }}>
       {tall ? null : <Img src={src} style={{ position: "absolute", left: -40, top: -40, width: W + 80, height: H + 80, objectFit: "cover", filter: "blur(28px) brightness(0.42) saturate(0.8)" }} />}
       <div style={{ position: "absolute", inset: 0, transform: tall ? `scale(${1 + (zoom - 1) * 0.5})` : `scale(${zoom}) translateX(${dx}px)` }}>
-        <Img src={src} style={{ width: W, height: H, objectFit: tall ? "cover" : "contain", ...(tall ? { objectPosition: `${pan}% 50%` } : {}), filter: "sepia(0.08) contrast(1.05)" }} />
+        {depthHref && !tall ? <DepthFilter id={depthId} href={depthHref} width={W} height={H} fit="meet" shift={depthShift(p, kb, W)} /> : null}
+        <Img src={src} style={{ width: W, height: H, objectFit: tall ? "cover" : "contain", ...(tall ? { objectPosition: `${pan}% 50%` } : {}), filter: `${depthHref && !tall ? `url(#${depthId}) ` : ""}sepia(0.08) contrast(1.05)` }} />
       </div>
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 62%, rgba(10,6,16,0.45) 100%)" }} />
       {insert.caption ? (

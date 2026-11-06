@@ -8,6 +8,7 @@ import { Horse, RiderLeg, SADDLE_X, SADDLE_Y } from "../character/Horse";
 import { headCenter, type PerformerState, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
+import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { InfoCardView } from "./InfoCard";
 import { MapHud } from "./MapMarks";
@@ -74,6 +75,9 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   const progress = frame / Math.max(1, shot.duration);
   const kbZoom = kb ? kb.fromZoom + (kb.toZoom - kb.fromZoom) * progress : 1;
   const kbX = kb ? kb.fromX + (kb.toX - kb.fromX) * progress : 0;
+  // An archival picture with a depth map moves in 2.5D along its drift (DepthFilter); without one, as before.
+  const depthHref = useDepthMap(bg.kind === "archival" && !shot.geoMap ? bg.depth : undefined);
+  const depthId = depthFilterId("arka", shot.id);
   // The part of the map's own picture that ends up in the frame, back through the set's camera and the slow push about
   // the middle (shake left out): a map keeps its labels inside this, not inside its own picture (Kosovo 1389: a routed
   // side's label stood inside the map's view but was cut at the top edge of the frame).
@@ -197,6 +201,8 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
                 <DrawnSetBack spec={drawn} W={W} H={H} frame={frame} />
               </svg>
             ) : (
+            <>
+            {depthHref ? <DepthFilter id={depthId} href={depthHref} width={W} height={H} fit="slice" shift={depthShift(progress, kb, W)} /> : null}
             <Img
               src={staticFile(bg.src)}
               style={{
@@ -204,9 +210,10 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
                 height: H,
                 objectFit: "cover",
                 transform: `scale(${kbZoom}) translateX(${kbX * W}px)`,
-                filter: bg.kind === "set" ? "saturate(0.88) contrast(1.04) brightness(1.03) blur(1.6px)" : "sepia(0.12) contrast(1.06)",
+                filter: bg.kind === "set" ? "saturate(0.88) contrast(1.04) brightness(1.03) blur(1.6px)" : `${depthHref ? `url(#${depthId}) ` : ""}sepia(0.12) contrast(1.06)`,
               }}
             />
+            </>
             )}
             {shot.mapArrows.length ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>

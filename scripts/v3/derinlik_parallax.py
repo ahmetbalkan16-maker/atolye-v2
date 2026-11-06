@@ -8,7 +8,13 @@ can be watched side by side. A portrait still gets a vertical 1080x1920 clip (a 
 Owner rule (PC health): everything runs on the processor with a bounded thread count; the card is not used at all.
 Nothing is downloaded (HF offline, local snapshot only); files are written only into --out.
 
+Production (owner, 6 Nov 2026: Wan was too heavy — "bizim sistemimizde yok mu böyle birşey, ona entegre edelim"): with
+`--harita <jobs.json>` it only writes each period image's displacement map, which the renderer moves the picture by
+(src/lib/v3/render/DepthMaps.ts → remotion-v3 DepthFilter). One line of JSON per image on stdout.
+
   python derinlik_parallax.py --model <snapshot dir> --out <dir> [--ffmpeg ffmpeg] [--saniye 6] [--fps 30] <image> ...
+  python derinlik_parallax.py --model <snapshot dir> --harita <jobs.json>
+      jobs.json: [{"kaynak": <image>, "cikti": <png>, "mod": "kapla" | "sigdir", "en": <px>, "boy": <px>}, ...]
 """
 import argparse
 import json
@@ -74,6 +80,60 @@ def ease(t):
     return 0.5 - 0.5 * math.cos(math.pi * t)
 
 
+# The displacement map's strength against the focus plane, and the share of each edge that fades to no shift.
+GAIN = 0.8
+EDGE = 0.06
+
+
+def displacement_map(depth):
+    """The depth as the renderer's displacement map (SVG feDisplacementMap): red = 0.5 + (nearness - FOCUS) * GAIN, so
+    the focus plane stays put, near things travel with the move and far ones a little against it; it fades to 0.5 (no
+    shift) at the picture's edges so no gap ever opens there. Green 0.5 (no vertical shift), blue = red."""
+    d = depth[0, 0]
+    h, w = d.shape
+
+    def ramp(t):
+        t = (torch.minimum(t, 1 - t) / EDGE).clamp(0, 1)
+        return t * t * (3 - 2 * t)
+
+    window = ramp(torch.linspace(0, 1, h))[:, None] * ramp(torch.linspace(0, 1, w))[None, :]
+    r = (0.5 + (d - FOCUS) * GAIN * window).clamp(0, 1)
+    rgb = torch.stack([r, torch.full_like(r, 0.5), r], dim=-1)
+    return Image.fromarray((rgb * 255).round().to(torch.uint8).numpy())
+
+
+def odd(n):
+    return n if n % 2 else n + 1
+
+
+def make_maps(job_file, model, processor, grow, blur):
+    """Each job's displacement map: `kapla` = cut to the frame's shape (a background drawn with object-fit cover), `sigdir`
+    = the whole picture (a cut-in drawn with contain); `en` is the frame's width (kapla) or the longer side (sigdir). The
+    smoothing scales with the size (7/41 were tuned at 1920 px)."""
+    jobs = json.loads(Path(job_file).read_text(encoding="utf-8"))
+    for j in jobs:
+        t = time.monotonic()
+        try:
+            img = Image.open(j["kaynak"]).convert("RGB")
+            if j["mod"] == "kapla":
+                w, h = int(j["en"]), int(j["boy"])
+                still = cover_crop(img, w, h)
+            else:
+                s = int(j["en"]) / max(img.size)
+                w, h = max(2, round(img.width * s)), max(2, round(img.height * s))
+                still = img.resize((w, h), Image.LANCZOS)
+            k = max(w, h) / 1920
+            depth = depth_map(model, processor, still, w, h, odd(max(3, round(grow * k))), odd(max(5, round(blur * k))))
+            out = Path(j["cikti"])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            tmp = out.with_name(f"{out.stem}.tmp.png")
+            displacement_map(depth).save(tmp)
+            os.replace(tmp, out)
+            print(json.dumps({"cikti": j["cikti"], "ok": True, "sn": round(time.monotonic() - t, 2), "boyut": f"{w}x{h}"}), flush=True)
+        except Exception as e:  # one bad picture never stops the others
+            print(json.dumps({"cikti": j.get("cikti"), "ok": False, "hata": f"{type(e).__name__}: {str(e)[:200]}"}), flush=True)
+
+
 def render(frame, depth, out, ffmpeg, seconds, fps, flat):
     """One clip: every output pixel looks up where it came from (a few fixed-point steps through the depth)."""
     _, _, h, w = frame.shape
@@ -112,7 +172,8 @@ def render(frame, depth, out, ffmpeg, seconds, fps, flat):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out")
+    ap.add_argument("--harita", help="jobs.json: write displacement maps only (production)")
     ap.add_argument("--ffmpeg", default="ffmpeg")
     ap.add_argument("--saniye", type=float, default=6.0)
     ap.add_argument("--fps", type=int, default=30)
@@ -121,7 +182,7 @@ def main():
     ap.add_argument("--genislet", type=int, default=7)
     ap.add_argument("--bulanik", type=int, default=41)
     ap.add_argument("--ek", default="", help="suffix for the clip names (a second variant beside the first)")
-    ap.add_argument("images", nargs="+")
+    ap.add_argument("images", nargs="*")
     a = ap.parse_args()
 
     from transformers import AutoImageProcessor, AutoModelForDepthEstimation
@@ -130,6 +191,11 @@ def main():
     t0 = time.monotonic()
     processor = AutoImageProcessor.from_pretrained(model_dir, local_files_only=True)
     model = AutoModelForDepthEstimation.from_pretrained(model_dir, local_files_only=True).eval()
+    if a.harita:
+        make_maps(a.harita, model, processor, a.genislet, a.bulanik)
+        return
+    if not a.out or not a.images:
+        ap.error("--out and images are needed without --harita")
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     report = {"model": str(model_dir), "device": "cpu", "threads": THREADS, "load_seconds": round(time.monotonic() - t0, 1), "clips": []}

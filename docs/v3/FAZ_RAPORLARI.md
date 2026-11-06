@@ -593,5 +593,8 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
 - Skill'ler: `.claude/skills/v3-gelistirici/SKILL.md` (izlenen); `council/DevSkills.ts` işe uyan skill'leri çırağın
   istemine koyar; akşam Claude'unun çalışma kopyasına izlenmeyen Remotion skill'leri bağlanır, lint ve Remotion tsc
   izni var; geliştirici kontrollerine Remotion tsc eklendi.
-- Wan 2.2 TI2V-5B denemesi: `scripts/v3/wan22_dene.py` (üç arka plan, 480p, 3 sn); bellek için dönüştürücü bir kez
-  bf16 parçalara çevrilir, istem gömmeleri saklanır, RAM emniyeti.
+- Wan 2.2 TI2V-5B denendi (3 sn'lik klip ~20 dk, 10–14 GB RAM, kart dolu) ve owner kararıyla silindi ("bu kadar yüke
+  gerek yok, kullanmadıklarımızı da sil"). Yerine derinlikli kamera üretime bağlandı: dönem resimleri (arşiv arka
+  planı, ara resim) Ken Burns kaymasında 2.5D hareket eder — Depth Anything V2 Small işlemcide resim başına birkaç
+  saniyede yer değiştirme haritası çıkarır (`render/DepthMaps.ts`, `derinlik_parallax.py --harita`), Remotion SVG
+  `feDisplacementMap` ile oynatır (`scene/DepthFilter.tsx`). Kart yok, ek RAM yok; `ATOLYE_V3_DERINLIK=0` kapatır.

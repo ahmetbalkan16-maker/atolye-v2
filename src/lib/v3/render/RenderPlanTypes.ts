@@ -187,6 +187,11 @@ export interface V3Background {
   readonly kind: "set" | "archival" | "drawn";
   readonly kenBurns?: { readonly fromZoom: number; readonly toZoom: number; readonly fromX: number; readonly toX: number };
   readonly drawn?: V3DrawnSet;
+  /**
+   * An archival picture's displacement map (DepthMaps, cut to the stage like the picture): with it the Ken Burns drift
+   * becomes a 2.5D move — near things travel further than far ones (owner, 6 Nov 2026, instead of a video model).
+   */
+  readonly depth?: string;
 }
 
 export type V3TimeOfDay = "gun" | "aksam" | "gece" | "safak";
@@ -308,6 +313,8 @@ export interface V3Insert {
   readonly caption?: string;
   /** An archive film clip (mp4 in the public dir, played muted from the window's start) instead of a still. */
   readonly video?: boolean;
+  /** The still's displacement map (DepthMaps, the whole picture like `contain`): the drift becomes a 2.5D move. */
+  readonly depth?: string;
 }
 
 /** A headline strip at the bottom of the screen (the photo documentaries' red band) while its line is told. */
