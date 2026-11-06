@@ -16,6 +16,27 @@ import type { MapWorld, Polygon } from "./MapBuilder";
  */
 export { CLOSE_MAP_MAX_KM };
 export const OSM_CREDIT = "Map data (coast, walls, castles): © OpenStreetMap contributors (ODbL)";
+export const OHM_CREDIT = "Historical map data (walls and castles standing in the episode's year): © OpenHistoricalMap contributors (ODbL)";
+/**
+ * OpenHistoricalMap's Overpass (owner, 6 Nov 2026, from the tools list: "işe yarayanları kullanalım"): OSM's tagging
+ * with start and end dates, so a wall pulled down long ago is there in its year. It answered in 0.5 s the day all of
+ * OSM's Overpass servers timed out.
+ */
+export const OHM_OVERPASS = "https://overpass-api.openhistoricalmap.org/api/interpreter";
+let ohmDownUntil = 0;
+
+/** A query to OpenHistoricalMap's Overpass; down once, not asked again for OVERPASS_REST_MS. */
+export async function ohmOverpass(query: string, timeoutMs = 60_000): Promise<{ elements?: OsmElement[] }> {
+  if (Date.now() < ohmDownUntil) throw new Error("OHM yanıt vermedi; bir süre sorulmayacak");
+  try {
+    const res = await fetch(OHM_OVERPASS, { method: "POST", headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    return (await res.json()) as { elements?: OsmElement[] };
+  } catch (e) {
+    ohmDownUntil = Date.now() + OVERPASS_REST_MS;
+    throw new Error(`OHM ${(e as Error).message.slice(0, 80)}`);
+  }
+}
 /** The main Overpass server and public mirrors, tried in turn (the main one answers 502/504 when busy; on 23 Oct 2026 only VK's mirror answered at all). */
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 /** Bump when the assembly changes, so the library builds the coast again. */

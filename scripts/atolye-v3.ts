@@ -35,7 +35,7 @@ import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
-import { type CloseCoast, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
+import { type CloseCoast, OHM_CREDIT, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../src/lib/v3/maps/CloseSite";
 import { mapGroundFor } from "../src/lib/v3/maps/MapGround";
 import { CLOSE_RELIEF_CREDIT, RELIEF_CREDIT, reliefAvailable } from "../src/lib/v3/maps/Relief";
@@ -1193,7 +1193,9 @@ async function main() {
     const shownPictures = visuals.flatMap((v) => [...(v.arsiv ? [v.arsiv] : []), ...(v.gorseller ?? [])]);
     // The maps' ground: Natural Earth's relief on wide maps; OpenStreetMap's coast and the AWS elevation on close ones.
     const maps = episode.sahneler.flatMap((x) => (x.harita?.merkez && x.harita.genislik_km ? [x.harita.genislik_km] : []));
-    const mapCredits = [...(maps.some((km) => km > CLOSE_MAP_MAX_KM) && reliefAvailable(paths) ? [RELIEF_CREDIT] : []), ...(maps.some((km) => km <= CLOSE_MAP_MAX_KM) ? [OSM_CREDIT, CLOSE_RELIEF_CREDIT] : [])];
+    // OpenHistoricalMap is credited when the close maps' walls or castles came from it (yakin-harita.json's sources).
+    const siteSources = existsSync(f("yakin-harita.json")) ? ((await readJson<{ kaynaklar?: string[] }>(f("yakin-harita.json")).catch(() => ({}))) as { kaynaklar?: string[] }).kaynaklar ?? [] : [];
+    const mapCredits = [...(maps.some((km) => km > CLOSE_MAP_MAX_KM) && reliefAvailable(paths) ? [RELIEF_CREDIT] : []), ...(maps.some((km) => km <= CLOSE_MAP_MAX_KM) ? [OSM_CREDIT, CLOSE_RELIEF_CREDIT] : []), ...(siteSources.includes("ohm") ? [OHM_CREDIT] : [])];
     const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...mapCredits];
     const en = dil === "en";
     // The engines that voiced the lines; an older ses.json without them keeps the language's usual engine.

@@ -5,7 +5,7 @@ import { USER_AGENT } from "../backgrounds/CommonsProvider";
 import { CLOSE_MAP_MAX_KM, type Episode, type MapWall, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3Paths } from "../V3Paths";
 import { castleStyleFor, fitWall, joinPieces, kmBetween, lineKm, type Pt, roundness, stripCentreline } from "./CastleShapes";
-import { type Box, chainWays, type OsmElement, overpass, simplifyLine } from "./CloseCoast";
+import { type Box, chainWays, ohmOverpass, type OsmElement, overpass, simplifyLine } from "./CloseCoast";
 import { mapWorld } from "./MapBuilder";
 
 /**
@@ -31,7 +31,23 @@ export interface SiteData {
 }
 
 /** The site of a box, with the names of its walls and castles to look up; undefined when no source answered. */
-export type SiteLookup = (box: Box, names: readonly string[]) => Promise<{ site: SiteData; sources: string[] } | undefined>;
+export type SiteLookup = (box: Box, names: readonly string[], year?: number) => Promise<{ site: SiteData; sources: string[] } | undefined>;
+
+/** A date tag's year ("1453", "1453-05-29", "-0049", "~1450"); undefined when there is none. */
+export function tagYear(v: string | undefined): number | undefined {
+  const m = /^~?\s*(-?)(\d{1,4})/.exec(v?.trim() ?? "");
+  return m ? (m[1] ? -1 : 1) * Number(m[2]) : undefined;
+}
+
+/**
+ * Whether an OpenHistoricalMap feature stood in `year`: built by then (or no start date) and not yet gone (or no end
+ * date). A wall pulled down in 1868 stands in 1453; a castle built in 1500 does not.
+ */
+export function standingIn(tags: Readonly<Record<string, string>> | undefined, year: number): boolean {
+  const start = tagYear(tags?.start_date);
+  const end = tagYear(tags?.end_date);
+  return (start === undefined || start <= year) && (end === undefined || end >= year);
+}
 
 /** Bump when the parsing changes, so the library fetches and parses again. */
 const SITE_VERSION = 1;
@@ -237,7 +253,7 @@ export async function prepareCloseMaps(episode: Episode, lookup: SiteLookup, yea
     // The writer's names, then the names OSM often gives a town's walls ("Walls of Constantinople").
     const towns = (h.sehirler ?? []).map((c) => c.ad).slice(0, 2);
     const names = [...new Set([...h.surlar.flatMap((w) => [w.osm_ad, w.ad].filter((n): n is string => Boolean(n))), ...towns.flatMap((t) => [`Walls of ${t}`, `${t} city walls`])])].slice(0, 6);
-    const got = await lookup(closeBox(h), names).catch(() => undefined);
+    const got = await lookup(closeBox(h), names, year).catch(() => undefined);
     for (const src of got?.sources ?? []) sources.add(src);
     const surlar = h.surlar.flatMap((w) => {
       const r = placeWall(w, got?.site, year);
@@ -268,7 +284,7 @@ export function closeSiteLookup(paths: Pick<V3Paths, "workRoot">, log: (s: strin
   const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
   // Overpass down once in a run is not asked again for the next scene (each try waits on four servers).
   let overpassDown = false;
-  return async (box, names) => {
+  return async (box, names, year) => {
     const b = { west: r4(box.west), east: r4(box.east), south: r4(box.south), north: r4(box.north) };
     const bbox = `${b.south},${b.west},${b.north},${b.east}`;
     let site: SiteData = { walls: [], castles: [], gates: [] };
@@ -282,6 +298,23 @@ export function closeSiteLookup(paths: Pick<V3Paths, "workRoot">, log: (s: strin
     } catch (e) {
       overpassDown = true;
       log(`  yakın harita: Overpass yanıt vermedi (${(e as Error).message.slice(0, 100)}); Nominatim denenir`);
+    }
+    // OpenHistoricalMap when OSM gave no wall or castle (down, or the walls are long gone): the same tags, only what
+    // stood in the episode's year.
+    if (year !== undefined && !site.walls.length && !site.castles.length) {
+      try {
+        const query = `[out:json][timeout:40];(way["barrier"="city_wall"](${bbox});way["historic"="citywalls"](${bbox});way["historic"~"^(castle|fort|fortress|citadel)$"](${bbox});relation["historic"~"^(castle|fort|fortress|citadel)$"](${bbox});node["barrier"="city_gate"](${bbox});node["historic"="city_gate"](${bbox}););out tags geom;`;
+        const elements = await kept(keyOf({ ohm: b }), async () => (await ohmOverpass(query, 45_000)).elements ?? []);
+        const standing = elements.filter((el) => standingIn(el.tags, year));
+        const found = siteFromOverpass(standing);
+        if (found.walls.length || found.castles.length || found.gates.length) {
+          site = merge(site, found);
+          sources.push("ohm");
+          log(`  yakın harita: OpenHistoricalMap ${year} yılında ayakta ${found.walls.length} sur, ${found.castles.length} kale, ${found.gates.length} kapı verdi`);
+        }
+      } catch (e) {
+        log(`  yakın harita: OpenHistoricalMap yanıt vermedi (${(e as Error).message.slice(0, 80)})`);
+      }
     }
     for (const name of names) {
       try {

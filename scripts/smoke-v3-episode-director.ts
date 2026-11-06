@@ -25,7 +25,7 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
-import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
+import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { directBattleMaps, mapProblems, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
@@ -798,6 +798,14 @@ async function main() {
     assert.equal(fromOsm.walls.length, 1, "the two wall ways chain into one");
     assert.equal(fromOsm.castles[0]!.name, "Belgrade Fortress");
     assert.equal(fromOsm.gates[0]!.name, "Topkapı");
+    // OpenHistoricalMap (owner's tools list, 6 Nov 2026): only what stood in the episode's year is drawn.
+    assert.deepEqual([tagYear("1453"), tagYear("1453-05-29"), tagYear("-0049"), tagYear("~1450"), tagYear(undefined), tagYear("unknown")], [1453, 1453, -49, 1450, undefined, undefined]);
+    assert.equal(standingIn({ start_date: "0413", end_date: "1868" }, 1453), true, "Theodosian walls in 1453");
+    assert.equal(standingIn({ start_date: "1500" }, 1453), false, "not yet built");
+    assert.equal(standingIn({ end_date: "1400" }, 1453), false, "already gone");
+    assert.equal(standingIn({}, 1453), true, "undated: kept");
+    const ohm = siteFromOverpass([way({ historic: "citywalls", start_date: "0413", end_date: "1868" }, [[28.92, 41.04], [28.921, 41.0]]), way({ historic: "castle", start_date: "1452", name: "Rumeli Hisarı" }, ring), way({ historic: "castle", start_date: "1478", name: "Yedikule" }, ring)].filter((el) => standingIn(el.tags, 1453)));
+    assert.deepEqual([ohm.walls.length, ohm.castles.map((c) => c.name)], [1, ["Rumeli Hisarı"]], "Yedikule (1458+) is not in the 1453 map");
     const fromName = siteFromNominatim([
       { category: "boundary", type: "administrative", name: "Rumelihisarı Mahallesi", geojson: { type: "Polygon", coordinates: [ring] } },
       { category: "historic", type: "castle", name: "Belgrade Fortress", geojson: { type: "Polygon", coordinates: [ring] } },
