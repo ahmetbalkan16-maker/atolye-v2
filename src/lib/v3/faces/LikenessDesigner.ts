@@ -317,6 +317,15 @@ export function bestVersion(versions: readonly LikenessVersion[]): LikenessVersi
   return checked.reduce((best, v) => (v.benzerlik! >= best.benzerlik! ? v : best));
 }
 
+/**
+ * Whether a kept design is reused only after another portrait search comes back empty: it was drawn from the
+ * historian's note alone (no portrait, so never checked side by side). A search that failed once — Waterloo, 6 Nov
+ * 2026: Napoleon's portraits refused by the face rule and lost to 429s — would otherwise fix a guessed look for good.
+ */
+export function portraitRetry(stored: { readonly portre?: unknown }, best: Pick<LikenessVersion, "benzerlik">): boolean {
+  return !stored.portre && best.benzerlik === undefined;
+}
+
 /** Checked designs it takes before a likeness that stays under the bar counts as stuck. */
 export const PLATEAU_DESIGNS = 3;
 
@@ -386,12 +395,20 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     // A stuck likeness keeps its best design: one more redesign from the same notes only repeats the earlier tries.
     const stuck = likenessPlateau(history);
     const fixes = deps.redo?.get(c.id) ?? (!stuck && best?.benzerlik !== undefined && best.benzerlik < LIKENESS_OK ? best.farklar : undefined);
+    const search = () => findPortrait({ cacheDir: deps.commonsCache, judge: deps.judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki }, donem: episode.donem, log, faces: faceMeasurer(deps.paths) }).catch(() => undefined);
+    let found: PortraitResult | undefined;
+    let searched = false;
     if (best && !fixes) {
-      const stored = JSON.parse(await fs.readFile(best.file, "utf8")) as { kostum: CastCostume; tarif?: string; not?: PeriodNote };
+      const stored = JSON.parse(await fs.readFile(best.file, "utf8")) as { kostum: CastCostume; tarif?: string; not?: PeriodNote; portre?: unknown };
+      if (portraitRetry(stored, best)) {
+        found = await search();
+        searched = true;
+        if (found) log(`  benzerlik: ${c.ad} — kütüphanedeki tasarım portresiz çizilmişti; portre bulundu, yeniden tasarlanıyor`);
+      }
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
       const next = withCostume(current, c.id, { ...withNoteCloak(stored.kostum, stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
-      if (resolvable && validateEpisode(next).ok) {
+      if (!found && resolvable && validateEpisode(next).ok) {
         current = next;
         records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), ...(stuck && best.benzerlik !== undefined ? { benzerlik: best.benzerlik, farklar: best.farklar } : {}), siparisler: [], sorunlar: [] });
         if (stuck) {
@@ -408,7 +425,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const noteOut = await deps.budget.generate("benzerlik-tarihci", deps.critic, periodNotePrompt(c, episode, wiki, sentences), { maxTokens: 450 }).catch((e: Error) => (log(`  benzerlik: ${c.ad} tarihçi notu alınamadı (${e.message.slice(0, 100)})`), undefined));
     const note = noteOut ? readPeriodNote(noteOut.result.content) : undefined;
     talk.push({ rol: "Tarihçi", metin: note ? `${episode.donem}: ${note.yas !== undefined ? `${note.yas} yaşında; ` : ""}${note.gorunus} | giyim: ${note.giyim}${note.fark ? ` | portrelerden farkı: ${note.fark}` : ""}` : "not yazılamadı" });
-    const portrait = await findPortrait({ cacheDir: deps.commonsCache, judge: deps.judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki }, donem: episode.donem, log, faces: faceMeasurer(deps.paths) }).catch(() => undefined);
+    const portrait = found ?? (searched ? undefined : await search());
     if (portrait) portraits.set(c.id, portrait);
     talk.push({ rol: "Resim araştırmacısı", metin: portrait ? `portre: ${portrait.candidate.title.replace(/^File:/, "")} (kişi ${portrait.secim.puan}/10, dönem ${portrait.secim.donem ?? "?"}/10)` : "uygun portre yok; tarihçinin notundan çizilecek" });
     // The costume brain's memory: the owner's standing rules and lessons about this person or their dress.

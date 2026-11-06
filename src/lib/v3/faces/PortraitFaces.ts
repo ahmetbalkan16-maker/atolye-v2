@@ -120,6 +120,12 @@ export interface FaceMeasure {
 
 /** A portrait to draw from shows its face at least this tall (share of the picture's height). */
 export const PORTRAIT_MIN_FACE = 0.1;
+/**
+ * A lone figure's face may be smaller: a full-length or equestrian portrait (Waterloo, 6 Nov 2026: David's "Napoleon in
+ * His Study", Napoleon's own lead image, 9%, and his "Napoleon Crossing the Alps" 6% were refused as crowd scenes, and
+ * Napoleon was drawn from a description). One face, or one with a much smaller second, at this share goes to the judge.
+ */
+export const LONE_FIGURE_MIN_FACE = 0.05;
 
 /**
  * Why a candidate cannot be the portrait a cartoon is drawn from, by its measured faces (the Caesar Short remake, 2 Nov
@@ -130,7 +136,8 @@ export const PORTRAIT_MIN_FACE = 0.1;
 export function portraitFaceProblem(m: FaceMeasure): string | undefined {
   const largest = m.faces[0]?.[0];
   if (!largest || !m.h) return undefined;
-  if (largest / m.h < PORTRAIT_MIN_FACE) return `en büyük yüz resmin %${Math.round((largest / m.h) * 100)}'i (${m.faces.length} yüz): kalabalık sahne ya da uzak figür`;
+  const lone = m.faces.length <= 2 && (m.faces[1]?.[0] ?? 0) < largest * 0.6;
+  if (largest / m.h < (lone ? LONE_FIGURE_MIN_FACE : PORTRAIT_MIN_FACE)) return `en büyük yüz resmin %${Math.round((largest / m.h) * 100)}'i (${m.faces.length} yüz): kalabalık sahne ya da uzak figür`;
   const alike = m.faces.filter(([fh]) => fh >= largest * 0.6).length;
   if (alike >= 3) return `${alike} benzer büyüklükte yüz: grup resmi, kimin olduğu belli değil`;
   return undefined;

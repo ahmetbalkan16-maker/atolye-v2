@@ -65,11 +65,14 @@ let lastWikimedia = 0;
 
 export async function politeFetch(url: string, tries = 5): Promise<Response> {
   for (let i = 0; ; i++) {
-    // At most one request a second to Wikimedia (its thumbnail servers rate-limit bursts).
+    // At most one request a second to Wikimedia (its thumbnail servers rate-limit bursts). Each call books its own
+    // second before it waits: the portrait search fetches eight previews at once, and when every call read the same
+    // last time they all went together (Waterloo, 6 Nov 2026: four of Napoleon's eight portraits lost to 429s).
     if (/wikimedia\.org|wikipedia\.org/.test(url)) {
-      const wait = lastWikimedia + 1_000 - Date.now();
+      const slot = Math.max(Date.now(), lastWikimedia + 1_000);
+      lastWikimedia = slot;
+      const wait = slot - Date.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-      lastWikimedia = Date.now();
     }
     // The Art Institute of Chicago answers its image server only with its own header (403 without it, 21 Oct 2026).
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, ...(/(^|\.)artic\.edu$/.test(new URL(url).hostname) ? { "AIC-User-Agent": USER_AGENT } : {}) } });

@@ -14,7 +14,7 @@ import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
-import { cleanObjectName, type CommonsCandidate, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cleanObjectName, type CommonsCandidate, politeFetch, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -371,6 +371,20 @@ async function main() {
     seed(ask("https://commons.wikimedia.org/w/api.php", ["File:Zanzibar_palace.jpg"]), { query: { normalized: [{ from: "File:Zanzibar_palace.jpg", to: "File:Zanzibar palace.jpg" }], pages: { "7": info("Zanzibar palace.jpg", "CC BY-SA 4.0") } } });
     assert.deepEqual((await wikiFilesByTitles(cacheDir, ["File:Zanzibar_palace.jpg"])).map((c) => c.title), ["File:Zanzibar palace.jpg"]);
     rmSync(cacheDir, { recursive: true, force: true });
+  });
+
+  await scenario("V Wikimedia requests fired together still go one a second (Waterloo, 6 Nov 2026: eight previews at once, four lost to 429s)", async () => {
+    const real = globalThis.fetch;
+    const at: number[] = [];
+    globalThis.fetch = (async () => (at.push(Date.now()), new Response("ok", { status: 200 }))) as typeof fetch;
+    try {
+      await Promise.all([1, 2, 3].map((i) => politeFetch(`https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${i}.jpg/500px-${i}.jpg`)));
+    } finally {
+      globalThis.fetch = real;
+    }
+    const sorted = [...at].sort((a, b) => a - b);
+    assert.equal(sorted.length, 3);
+    assert.ok(sorted[1]! - sorted[0]! >= 950 && sorted[2]! - sorted[1]! >= 950, `spaced: ${sorted.map((t) => t - sorted[0]!).join(", ")} ms`);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

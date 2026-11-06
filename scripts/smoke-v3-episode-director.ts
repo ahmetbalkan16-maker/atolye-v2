@@ -42,6 +42,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
+import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -1818,6 +1819,18 @@ async function main() {
     assert.ok(portraitFaceProblem(siemiradzki));
     assert.match(portraitFaceProblem(trio)!, /3 benzer/);
     assert.deepEqual([portraitFaceProblem(naples), portraitFaceProblem({ w: 500, h: 500, faces: [] })], [undefined, undefined]);
+    // A lone figure in a full-length or equestrian portrait (Waterloo, 6 Nov 2026: David's "Napoleon in His Study" 9%
+    // with a small second face, "Crossing the Alps" 6%) reaches the judge; a crowd of small faces still does not.
+    const study = { w: 640, h: 1000, faces: [[90, 0.9], [30, 0.6]] as const };
+    const alps = { w: 800, h: 1000, faces: [[60, 0.9]] as const };
+    const elba = { w: 1000, h: 700, faces: Array.from({ length: 45 }, (_, i) => [21 - i * 0.2, 0.7] as const) };
+    assert.deepEqual([portraitFaceProblem(study), portraitFaceProblem(alps)], [undefined, undefined]);
+    assert.match(portraitFaceProblem(elba)!, /45 yüz/);
+    assert.ok(portraitFaceProblem({ w: 800, h: 1000, faces: [[40, 0.9]] }), "a lone face under 5% is still a distant figure");
+    // A design drawn without a portrait is reused only after another search; one drawn from a portrait or checked is kept.
+    assert.equal(portraitRetry({}, {}), true);
+    assert.equal(portraitRetry({ portre: { baslik: "File:David.jpg" } }, {}), false);
+    assert.equal(portraitRetry({}, { benzerlik: 7 }), false);
   });
 
   await scenario("O34 the told is shown (Caesar remake, story score 3/10): the writer's \"oyun\", else the narration's verbs on the characters it names", () => {
