@@ -156,7 +156,7 @@ async function main() {
     const zanzibar = "The Anglo-Zanzibar War (27 August 1896), the shortest war in history: Sultan Khalid bin Barghash seizes the palace, Admiral Rawson's ultimatum runs out at 9:00, five Royal Navy ships shell the palace, the royal yacht Glasgow sinks, the war is over in 38 minutes and Khalid's supporters are made to pay for the shells";
     const kept = await placeOrder(root, { konu: `  ${zanzibar.replace("palace,", "palace,\n ")}  `, donem: "1896", sure: "60sn" });
     assert.equal(kept.konu, zanzibar, "whole, its spaces folded");
-    assert.ok(kept.konu.endsWith("pay for the shells"));
+    assert.ok(kept.konu.endsWith("pay for the shells"), "assert.ok(kept.konu.endsWith(\"pay for the shells\"))");
     await assert.rejects(placeOrder(root, { konu: "x".repeat(MAX_ORDER_TOPIC + 1), donem: "1896" }), /V3_ORDER_TOPIC_TOO_LONG/);
     assert.equal((await listOrders(root)).length, 1, "the refused one wrote nothing");
   });
