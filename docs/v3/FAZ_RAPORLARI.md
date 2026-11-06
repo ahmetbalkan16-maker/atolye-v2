@@ -598,3 +598,8 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   planı, ara resim) Ken Burns kaymasında 2.5D hareket eder — Depth Anything V2 Small işlemcide resim başına birkaç
   saniyede yer değiştirme haritası çıkarır (`render/DepthMaps.ts`, `derinlik_parallax.py --harita`), Remotion SVG
   `feDisplacementMap` ile oynatır (`scene/DepthFilter.tsx`). Kart yok, ek RAM yok; `ATOLYE_V3_DERINLIK=0` kapatır.
+- Ses beyninin önerisi (Waterloo Short, onaylı): efekt çalarken her yatak — müzik, ortam sesi, savaş — hafifçe kısılır
+  (`mix/Mixer.ts` `mixGraph`, `EFFECT_DUCK_RATIO` 2:1, eşik −30 dBFS), iki satır arasındaki adım ya da top sesi tam
+  seviyedeki yatağın altında kaybolmaz. Konuşma eskisi gibi müziği 8:1, savaşı 3:1 kısar; ortam sesi konuşmanın altında
+  sabit kalır (yer anlatıcıyla nefes almaz). Smoke-v3-mix F2 bütün yatak birleşimlerinde FFmpeg grafiğinde açık ya da
+  iki kez kullanılmış bağlantı kalmadığını denetler.
