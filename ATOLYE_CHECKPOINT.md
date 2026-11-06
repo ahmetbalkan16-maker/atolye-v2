@@ -1,3 +1,32 @@
+## 6 Kasım 2026 (akşam, 2) — Waterloo'dan onaylanan 4 öneri + kostum-12 işlendi; geliştiriciye ölçülmüş hata verilir
+
+Owner (16:31–16:34'te 4 öneriyi onayladı): "atölye beyinlerine onayladıklarıma bak geliştirmeleri beyinlere işle ve
+hafızaya kaydet". Dördü de Waterloo Short'un genel başlıklı fikirleriydi; asıl hata her birinde üretimin `KURUL.md`'sinde
+yazılıydı. Elle işlenenler kuyrukta önce `yapiliyor` yapıldı (16:40'ta açılan akşam geliştiricisi almasın diye).
+- **kalite-42** (a622ad3c): savaş haritası etiketleri `hudLayout.labelSpot` ile kadraja kayar; damga/güç çubuğu, rozet,
+  konuşan rozetin balon payı ve önce yerleşen etiket üstüne yazılmaz; boş yer yoksa / birimi kadraj dışındaysa söner.
+  Birim adı önce, güç etiketi sonra yerleşir; savaş adı da aynı yoldan. Waterloo `plan.json`'ından 20/30/32.5/34.5 sn
+  kareleri yeniden çizildi: beş yerleşim hatası (French infantry/cavalry kesik, Prussian infantry rozette, 74,326 men
+  damga altında, BATTLE OF WATERLOO kesik) yok. smoke-v3-episode-director W4.
+- **kostum-43** (6fc33303): gardırop aynı kişinin aynı yuva+dönem parçası başka sözlerle istenince kütüphanedekini alır
+  (`similarOwnPart`, %75). Kütüphanede 11 çift böyle yeniden çizilmişti; Blücher'in kuşağı 10/10 dururken düşmüştü.
+  Rötuşun yeniden tasarladığı kişinin parçaları (`redraw`) eşleşmez. smoke-v3-likeness L1b.
+- **onarim-40**: zaten vardı (render çökünce işçi yarıya, tek işçide dur); Waterloo'daki tek çöküş elle açılan Chrome
+  önizlemesindendi, ilaç hafızada "işe yaradı". Kanıt notuyla kapatıldı.
+- **ses-44**: akşam geliştiricisi yaptı (e0f2558a; efektler yatakları 2:1 kısar, `mixGraph` saf fonksiyon). İncelendi:
+  whoosh altında müzik ~6.6 dB / 0.5 sn iner; 8 yatak birleşiminin 8'i gerçek FFmpeg'de çalıştı. Uygulandı. Ama asıl
+  ölçülen hata (davul efekti vuruşsuz, kontrast 4.7 dB) dokunulmadan kaldı — geliştiricinin paketinde yoktu.
+- **Geliştirici paketi** (8253508f): `measuredFaults` — kaynak üretimlerin KURUL.md "Eksikler/Uyarılar" satırlarından o
+  beyninki görev paketine girer (Claude ve çırak). smoke-v3-self-improvement.
+- **kostum-12** (sabah sahibe bırakılmıştı): geliştirici arayüzsüz yaptı — düşen parçanın bulgusunda kütüphaneden 3
+  alternatif. Elle birleştirildi (FAZ_RAPORLARI ve smoke importu çakıştı, iki aynı durak listesi teke indi).
+- **Beyin hafızası**: kostüm beynine Blücher'in turuncu kuşağı (Kara Kartal; şef son turda yanlışlıkla beyaz/kırmızı
+  istemişti) ve kütüphanedeki parçanın sözleri; geliştirici beynine "genel başlığın kökü KURUL.md'de" dersi. İkisi de
+  ilgili sorgularla geri çağrılıyor (doğrulandı).
+
+**Açık kalan:** davul efektinin vuruşsuz üretilmesi (MOSS, `periodSfxPrompt`) — yeni bir öneri gelirse geliştirici artık
+ölçümü görür. **Doğrulama:** tsc 0; Remotion tsc 0; lint 0/0; bütün smoke-v3 + firewall + audit-protection PASS.
+
 ## 6 Kasım 2026 (akşam) — Waterloo dersleri beyinlere aktarıldı; kişi kütüphanesi aksesuar yüzünden yüz atmaz
 
 Owner: "bu videodaki hataları, tecrübeyi beyinlere aktardın mı?" Cevap: kod düzeltmeleri canlıdaydı ama beyinlerin deneyim
