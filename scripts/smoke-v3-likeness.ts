@@ -9,7 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { hatShapeNotes, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { designParts, hatShapeNotes, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
@@ -418,6 +419,53 @@ async function main() {
     scenarios++;
   } catch (e) {
     console.error("FAIL K3 a failed retouch round delivers the best kept round");
+    throw e;
+  }
+
+  try {
+    // Owner, 6 Nov 2026: "kendimiz ücretsiz çizebilecek bir şey yok mu" — the Waterloo parts by family, no model at all.
+    const orders: [string, string, string][] = [
+      ["head", "Napoleon's black bicorne hat with tricolor cockade", "bicorne"],
+      ["head", "Wellington's black cocked hat with gold trim and white plume", "bicorne"],
+      ["head", "French infantry shako hat", "shako"],
+      ["head", "British grenadier bearskin with red plume", "bearskin"],
+      ["head", "George Washington's black tricorne with gold trim", "tricorne"],
+      ["head", "Lincoln's black top hat", "silindir"],
+      ["beard", "Blücher's short white sideburns and moustache", "favori"],
+      ["mustache", "Blücher's bushy white moustache", "biyik-gur"],
+      ["beard", "Murad I's full white beard", "sakal-uzun"],
+      ["chest", "Blücher's orange sash and Prussian medals", "kusak+nisan"],
+      ["chest", "gold epaulettes", "apolet"],
+      ["hand", "Napoleon's sword at his left side", "kilic-duz"],
+      ["hand", "hussar sabre", "kilic-egri"],
+      ["hand", "Blücher's marshal's baton", "asa"],
+    ];
+    for (const [slot, tarif, family] of orders) {
+      const f = familyPart({ slot, tarif }, "oval");
+      assert.equal(f?.family, family, tarif);
+      assert.deepEqual(partProblems(f!.svg, slot as never), [], `${tarif}: in the part frame`);
+    }
+    assert.equal(familyPart({ slot: "head", tarif: "British grenadier bearskin with red plume" })!.params.renk, "#2a2420", "the plume's red is not the fur's");
+    assert.equal(familyPart({ slot: "head", tarif: "British grenadier bearskin with red plume" })!.params.tuy, "#c62839");
+    assert.equal(familyPart({ slot: "mustache", tarif: "Blücher's bushy white moustache" })!.params.renk, "#f4f1ea", "a white moustache is hair-white");
+    assert.match(familyPart({ slot: "head", tarif: "Napoleon's black bicorne hat with tricolor cockade" })!.params.kokart!, /#2f6fb0,#fffdf6,#c62839/);
+    assert.equal(familyPart({ slot: "head", tarif: "Roman legionary helmet with a red crest" }), undefined, "no family: the designer draws it");
+    assert.equal(familyPart({ slot: "hand", tarif: "rolled parchment scroll" }), undefined);
+    // In the wardrobe: family orders never reach the model, are kept in the library and found there next time.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-aile-"));
+    const paths = { workRoot: root, repoRoot: process.cwd() } as V3Paths;
+    const noModel = { generate: async () => { throw new Error("the model was called"); } };
+    const run = () => designParts({ paths, orders: orders.slice(0, 3).map(([slot, tarif]) => ({ slot: slot as never, tarif })), donem: "1815", budget: noModel as never, model: { provider: "mock" } as never, judge: noModel as never, workDir: path.join(root, "is"), log: () => undefined });
+    const first = await run();
+    assert.deepEqual(first.records.map((r) => r.kaynak), ["aile", "aile", "aile"]);
+    const pack = JSON.parse(readFileSync(path.join(root, "_kutuphane", "kostum", "gardirop", "pack.json"), "utf8")) as { items: Record<string, { not: string }> };
+    assert.equal(Object.keys(pack.items).length, 3);
+    assert.ok(Object.keys(pack.items).every((id) => existsSync(path.join(root, "_kutuphane", "kostum", "gardirop", `${id}.svg`))));
+    assert.deepEqual((await run()).records.map((r) => r.kaynak), ["kutuphane", "kutuphane", "kutuphane"]);
+    rmSync(root, { recursive: true, force: true });
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L1 parametric families draw the Waterloo parts for free");
     throw e;
   }
 

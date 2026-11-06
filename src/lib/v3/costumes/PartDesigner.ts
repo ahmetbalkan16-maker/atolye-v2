@@ -13,6 +13,7 @@ import type { DebateEntry } from "../council/Council";
 import { recall, remember } from "../council/ExperienceMemory";
 import { type BrainDeps, chiefOnPart, findPartReference, historianOnPart, type PartReference } from "../wardrobe/WardrobeBrain";
 import { type CostumePackManifest, costumesRoot, svgBody } from "./CostumePackLoader";
+import { familyPart } from "./PartFamilies";
 
 /**
  * Layer 2 of the period wardrobe (docs/v3/05_DONEM_TASARIM_MOTORU.md): when the script asks for a costume part the
@@ -43,6 +44,9 @@ export interface PartOrder {
   readonly slot: PartSlot;
   readonly tarif: string;
 }
+
+/** A library id's readable start, from the order's description. */
+const partSlug = (tarif: string) => tarif.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 
 /** One key per ordered part (slot + description), shared by the orders, the library and the likeness references. */
 export const partKey = (o: PartOrder) => `${o.slot}:${o.tarif.toLowerCase().replace(/\s+/g, " ").trim()}`;
@@ -348,7 +352,8 @@ export interface PartRecord {
   readonly tarif: string;
   readonly slot: PartSlot;
   readonly id?: string;
-  readonly kaynak: "kutuphane" | "tasarim" | "basarisiz";
+  /** aile: drawn by a parametric family (PartFamilies), free, no model. */
+  readonly kaynak: "kutuphane" | "tasarim" | "aile" | "basarisiz";
   readonly denemeler: number;
   readonly secim?: CandidateVerdict;
   readonly sorunlar?: readonly string[];
@@ -400,6 +405,23 @@ export async function designParts(input: {
       talks.push({ order: o, talk });
     }
   }
+  // A family draws it for free, the same right shape every time (PartFamilies: bicorne, shako, moustaches, sashes…);
+  // only what no family knows goes on to the paid designer.
+  const items: Record<string, LibraryItem> = { ...(library.items as Record<string, LibraryItem>) };
+  for (const p of [...pending]) {
+    const fam = familyPart(p.order, p.look?.faceShape);
+    if (!fam || partProblems(fam.svg, p.order.slot).length) continue;
+    const id = `${partSlug(p.order.tarif)}-${createHash("sha256").update(fam.svg).digest("hex").slice(0, 6)}`;
+    const file = path.join(dir, `${id}.svg`);
+    if (!existsSync(file)) await fs.writeFile(file, `${fam.svg}\n`);
+    await fs.writeFile(path.join(dir, `${id}.json`), `${JSON.stringify({ tarif: p.order.tarif, slot: p.order.slot, donem: input.donem, aile: fam.family, parametreler: fam.params, model: "yok (parametrik aile)", olusturuldu: new Date().toISOString() }, null, 2)}\n`);
+    items[id] = { slot: p.order.slot, ...(fam.grip ? { grip: true } : {}), not: p.order.tarif };
+    made.set(key(p.order), id);
+    records.push({ tarif: p.order.tarif, slot: p.order.slot, id, kaynak: "aile", denemeler: 0 });
+    p.talk.push({ rol: "Tasarımcı", metin: `parametrik aileden çizildi (${fam.family}; ${Object.entries(fam.params).map(([k, v]) => `${k} ${v}`).join(", ")})` });
+    log(`  gardırop: "${p.order.tarif}" aileden çizildi (${fam.family}, ücretsiz) → ${WARDROBE_PACK}/${id}`);
+    pending = pending.filter((x) => x !== p);
+  }
   if (input.brain) {
     for (const p of pending.filter((x) => !x.ref)) {
       const ref = await findPartReference(p.order, input.donem, input.brain).catch(() => undefined);
@@ -415,7 +437,6 @@ export async function designParts(input: {
       p.talk.push({ rol: "Hafıza", metin: `benzer parçalardan dersler: ${lessons.join(" | ")}` });
     }
   }
-  const items: Record<string, LibraryItem> = { ...(library.items as Record<string, LibraryItem>) };
   for (let round = 1; round <= MAX_ROUNDS && pending.length; round++) {
     const drawn: { p: (typeof pending)[number]; svg: string; behind: boolean; grip: boolean }[] = [];
     for (const p of pending) {
@@ -452,7 +473,7 @@ export async function designParts(input: {
           d.p.problems.push(`tur ${round}: ${d.p.feedback}`);
           log(`  gardırop: "${d.p.order.tarif}" tur ${round} şef revize istedi — ${chiefSays.talimat}`);
         } else if (v && passes(v)) {
-          const id = `${d.p.order.tarif.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${createHash("sha256").update(d.svg).digest("hex").slice(0, 6)}`;
+          const id = `${partSlug(d.p.order.tarif)}-${createHash("sha256").update(d.svg).digest("hex").slice(0, 6)}`;
           // Append-only: an existing file is never overwritten.
           const file = path.join(dir, `${id}.svg`);
           if (!existsSync(file)) await fs.writeFile(file, `${d.svg}\n`);
