@@ -1,3 +1,76 @@
+## 6 Kasım 2026 (sabah, 2) — geliştirme kuyruğu işlendi; Waterloo Short'u (Napolyon'un son savaşı)
+
+Owner: "kuyrukta olan atölye beyinlerini işleme al sonra bir shorts videosu yapalım konu napolyonun kaybettiği
+savaşlardan bir tanesi olabilir sen seç". Owner 06:07'de bekleyen 28 fikrin hepsini onaylamıştı.
+
+**Kuyruk (28 iş).** Her önerinin `kaynaklar` siparişinin `KURUL.md`/`uret.log`'u okundu; genel başlıkların çoğunun
+altında ölçülmüş bir hata vardı. 3 kök neden düzeltildi (73eb05a6):
+- `MapBuilder.placeStateLabels`: sığmayan devlet adı merkeze (şehrin üstüne) değil, en az örttüğü yere — gerekirse
+  devletin yanına (Zanzibar: "ZANZIBAR (BRITISH OCCUPATION)" "Zanzibar Town" üstündeydi).
+- `MusicComposer.composeBeds`: kısa yatak en az `MIN_PIECE_REQUEST_S` 12 sn ister; `pieceProblems`'in 8 sn alt sınırı
+  Short'un 3–10 sn'lik yataklarını hep reddediyordu (Zanzibar 3,8/4,9, Caesar 7,2/10,9 sn). Mikser yatağa keser.
+- `DraftNormalizer`: `harita.yapilar[].tur` listede yoksa yakın kelimesiyle (palace→saray, lighthouse→kule…),
+  bilinmeyen yapı çıkar (ilk Zanzibar taslağı üç onarımda bunun yüzünden düştü).
+22 iş "zaten vardı/aşıldı" notuyla `kapat` (hangi dosya/commit), 3 iş 73eb05a6 ile kapandı. Açık kalan tek iş:
+`20261102T192204-kostum-12` (etkileşimli kostüm onay arayüzü — app/ işi, gözetimsiz üretime ters; owner kararı bekliyor).
+
+**Waterloo Short'u.** Konu (benim seçimim): Waterloo, 18 Haziran 1815 — gece yağmuru, öğleye ertelenen saldırı,
+Hougoumont, Ney'in süvarisi İngiliz karelerine, Plancenoit'te Prusyalılar, Muhafız püskürtülür. Sipariş
+`20261106T062531-the-battle-of-waterloo-18-june-1815-napo` (60sn, en, mizahi). Senaryo 97 sn, 100 kelime, 4 sahne
+(2'si harita), Napolyon/Wellington/Blücher; olgular doğru.
+Gardırop adımında durduruldu: "Napoleon Bonaparte: uygun portre bulunamadı" — 8 adayın 3'ü yüz kuralında (David'in
+"Napoleon in His Study" %9, "Crossing the Alps" %6: tek figürlü tam boy portreler "kalabalık" sayıldı), 4'ü Wikimedia
+429'unda (eşzamanlı istekler aynı saniyeye yığılıyordu). Tahmini tasarım kişi kütüphanesine yazılıp kalıcı olacaktı.
+Düzeltme 69ede1ca: `politeFetch` her çağrıya kendi saniyesini ayırır; `LONE_FIGURE_MIN_FACE` %5 (tek yüz ya da çok
+küçük ikinci yüz); `LikenessDesigner.portraitRetry`: portresiz ve hiç karşılaştırılmamış kütüphane tasarımı önce yeniden
+portre arar. Eski log `onceki-deneme-1/` (NEDEN.txt); sipariş `gardirop` adımından yeniden kuyrukta.
+İkinci deneme: portreler bulundu (Napolyon David, Wellington Lawrence, Blücher — hepsi 10/10), ama Wellington'ın 8
+önizlemesinin 6'sı, Blücher'in 4'ü yine 429 (tek istekler dakikalar sonra 200; `x-ratelimit` kotası bol, 600 000/60 sn;
+küçük resimler artık `thumb.wikimedia.org`'dan) → 0de8fdf9: 429/503'te bekleme bütün Wikimedia sırasına yazılır.
+Gardırop sonrası yan yana kontrol üç tarih hatası gösterdi, ses adımında yine durduruldu:
+Wellington ten `#b98c6a` (not "very brown complexion" = dönem dilinde güneş yanığı, + vernikli tablo; hakem "daha esmer"
+istedi), Blücher bıyıksız (not "clean-shaven"; portrede ünlü bıyığı var; hakem olmayan bıyığı "var" yazdı), üç bicorne
+yüksek kubbe (parça hakemi 10/10). 17a75a0a: `PORTRAIT_OVER_NOTE` (yüz/saç/sakal-bıyıkta portre haklı), `OLD_COMPLEXION`
+(eski anlatımda Avrupalının "brown/tanned/swarthy/sallow" teni açık sıcak ton), kontrol istemine vernik kuralı;
+`PartDesigner.hatShapeNotes` (bicorne alçak geniş hilal, tricorne). Hatalı kişi kayıtları `_kutuphane/kisiler/geri-cekilen/`,
+üç şapka `_kutuphane/kostum/gardirop/geri-cekilen/` (pack.json girdileri yanında, silinmedi); `onceki-deneme-2/`;
+sipariş üçüncü kez `gardirop`'tan.
+Üçüncü gardırop (1528 sn): Napolyon yayvan bicorne'la 8/10, Wellington açık tenli (Lawrence'taki kırmızı ceket +
+bicorne; hakem 4/10 "saç çok gür" — portrede gür saç var, notun "quite bald"ı yanlış), Blücher şapkası doğru. Ama
+Blücher'in yüzünde koyu kahve gür sakal: yazar katalogdan `vuk-brankovic-s-short-dark-brown-full-be…` seçmiş, tasarımcının
+"beyaz favori ve bıyık" parçası 3 turda kabul edilmemiş (2/10, 1/10), `applyParts`'ın Kosova kuralı önceki parçayı
+(başkasının sakalı) geri takmış. 3d2c5200: `PartDesigner.foreignFacePart` — portreli oyuncuda başka bir adlı kişi için
+çizilmiş sakal/bıyık/saç parçası ne korunur ne geri verilir (katalog ve sahipsiz parçalar serbest). Bu bölüm için elle:
+`episode.json`'da Blücher sakalı silindi, `biyik: ottoman-1453/biyik-beyaz`; `onceki-deneme-3/`; sipariş `ses`'ten.
+Açık: başarısız bıyık/sakal siparişi için katalogdan renge göre yedek (beyaz → `biyik-beyaz`) henüz yok.
+
+**Tur 0 (46 sn, 0,62 $, 5 eksik):** kanca, üniformalar, yakın savaş haritası, finalde sevinen Blücher iyi; Short müzik
+yatakları ilk kez bestelendi (73eb05a6 çalıştı). Kusurlar: Blücher'in repliği Wellington portresinin üstünde (18–20 sn);
+"Blücher's Prussians arrive … at Plancenoit" derken haritada Prusyalı yok — yazar onları haritanın güney kenarının 2 km
+dışına koymuş → a37c18c4: `fitBattleMap` dışarıda kalan birlik/rozeti içine alır (taktik sonrası geri kırpılmaz).
+Render bir kez çöktü (ben aynı anda başsız Chrome ile parça ön izlemesi açmıştım; 2 işçiyle geçti). Rötuş turu 1
+(Wellington, Blücher yeniden; açılış satırı) çalışıyor. Plan: turlar bitince günün commit'leri canlıya, seçilen turun
+s3 haritası yeni kuralla + Prusya laciverdi, `render`'dan yeniden.
+
+**Owner kararları ve yeni kütüphane (6 Kas öğleden sonra).** Owner (a)'yı seçti: ciddi tarih hatasında dur-düzelt-devam.
+Onaylanan "dönem kütüphanesi", ücretsiz çizim isteğiyle üç parça olarak kuruldu:
+- 9b35fd85 `costumes/PartFamilies.ts`: bicorne, tricorne, shako, ayı postu, silindir; bıyık/sakal/keçi/favori; kuşak,
+  nişan, apolet; kılıç, asa — kodla çizilir, sipariş kelimelerinden renk/kokart/tüy; `designParts` kütüphaneden sonra
+  aileyi dener (kaynak `aile`, model yok). Başsız Chrome ile gözle kontrol edildi.
+- 272ac1b2 `content/v3/donem-atlasi.json` + `PeriodAtlas.ts`: 6 dönem (Napolyon, Amerikan Devrimi, I./II. Dünya Savaşı,
+  Roma, Osmanlı yükselişi), taraf × rütbe kostümü; yazar istemine "PERIOD DRESS".
+- dccbb44a `PeriodArchivist.ts`: atlasta olmayan dönem senaryodan önce bir kez yazılır (gpt-4.1-mini), doğrulanır,
+  `_kutuphane/donem-atlasi/`'ne kaydedilir.
+Araç taraması (owner listesi): OpenHistoricalMap yararlı (Overpass'ı buradan 0,5 sn'de yanıt verdi) — onaylandı, henüz
+yapılmadı; Library of Congress Cloudflare bot kontrolü (403) arkasında — aşılmaz; Smithsonian api.data.gov anahtarı ister
+(owner kaydı); Whisper ve yt-dlp zaten var; Tube Archivist, ArchiveBox, TimelineJS, FromThePage/Scribe, MarkItDown gereksiz.
+GitHub'da dönemlere göre hazır kostüm kütüphanesi yok; game-icons/icons (CC BY 3.0) ileride siluet kaynağı olabilir.
+Canlıya alma bekliyor: 9b35fd85, 272ac1b2, dccbb44a, a37c18c4 (Waterloo siparişi bitince).
+
+**Doğrulama:** tsc 0; lint 0/0; 18 smoke-v3 PASS (episode-director 58, mix 16, backgrounds 22 — yeni senaryolar:
+ada adı şehirden kaçar, kısa yatak 12 sn, yapı türü, eşzamanlı Wikimedia aralığı, tek figür eşiği, portraitRetry).
+73eb05a6 otomatik canlı yayında (PUBLISHED 06:21).
+
 ## 6 Kasım 2026 — öneriler onaya düşer; geliştirici beyin kendi kodunu yazar (yazma sınavı); skill'ler; Wan 2.2 denemesi
 
 Owner: "ne gibi öneriler var onaya birşey düşmüyor ki nasıl onay vericem ve ne eksikse bu beyinde hepsini tamamla
