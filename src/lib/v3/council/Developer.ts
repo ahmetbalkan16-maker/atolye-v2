@@ -1,7 +1,8 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { runProcess } from "../util/Proc";
-import { DEVELOPER_RULES, type DevJob, forbiddenChanges, taskPacket, usageLimitUntil } from "./DevQueue";
+import { BRAIN_NAMES } from "./Council";
+import { DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
 
 /**
@@ -146,7 +147,10 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const add = await git(d.repoRoot, ["worktree", "add", "-b", branch, dir, "HEAD"]);
     if (add.code !== 0) return await fail([`çalışma kopyası açılamadı: ${(add.stderr || add.stdout).slice(-300)}`]);
     await linkShared(d.repoRoot, dir);
-    const packet = taskPacket(p, p.is, d.research);
+    // The exact faults behind the idea: what its productions measured for this brain (their KURUL.md).
+    const kurul = await Promise.all(p.kaynaklar.map((id) => fs.readFile(path.join(d.workRoot, "bolumler", id, "KURUL.md"), "utf8").catch(() => "")));
+    const measured = [...new Set(kurul.flatMap((t) => measuredFaults(t, BRAIN_NAMES[p.beyin] ?? p.beyin)))].slice(0, 8);
+    const packet = taskPacket(p, p.is, d.research, measured);
     await fs.writeFile(path.join(record, `gorev-${job.deneme}.md`), packet);
     d.log(`  geliştirici: "${p.baslik}" — ${dir} içinde ${yazan === "cirak" ? "çırak" : "Claude"} çalışıyor (deneme ${job.deneme})`);
     const agent = d.agent ?? claudeAgent();

@@ -124,15 +124,37 @@ export const DEVELOPER_RULES = `You are the Atölye V3 studio's unattended devel
 - End with a short summary in Turkish: what you changed, in which files, and how you tested it.`;
 
 /**
- * The task for one proposal: what the brains asked for, why, and from which productions; with the developer brain's
- * research note (DevBrain) when it made one — a head start for Claude, marked as an apprentice's guess.
+ * What the productions behind a proposal measured for its brain: that brain's lines under "Eksikler" and "Uyarılar" in
+ * their KURUL.md. An idea is worded generally while the fault it came from is exact — on 6 Nov 2026 "Ortam sesi miksaj
+ * otomasyonu geliştir" came from "efekt davul: kütüphane kaydı kaldı — vuruş yok, sürekli ses", and the developer, never
+ * shown the drum, built a general effects ducking instead. At most `max` lines, each cut to 400 characters.
  */
-export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, research?: string): string {
+export function measuredFaults(kurul: string, brainName: string, max = 8): string[] {
+  const out: string[] = [];
+  let listed = false;
+  for (const line of kurul.split(/\r?\n/)) {
+    if (/^##\s/.test(line)) {
+      listed = /^##\s+(Eksikler|Uyarılar)\s*$/.test(line.trim());
+      continue;
+    }
+    if (listed && line.startsWith(`- **${brainName}**`)) out.push(line.slice(2).replace(/\*\*/g, "").trim().slice(0, 400));
+  }
+  return [...new Set(out)].slice(0, max);
+}
+
+/**
+ * The task for one proposal: what the brains asked for, why, from which productions and what those measured
+ * (measuredFaults); with the developer brain's research note (DevBrain) when it made one — a head start for Claude,
+ * marked as an apprentice's guess.
+ */
+export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, research?: string, measured?: readonly string[]): string {
   return `ATÖLYE V3 GELİŞTİRME İŞİ ${p.id}
 The owner approved this development proposal of the ${BRAIN_NAMES[p.beyin] ?? p.beyin} (${p.kaynakTuru === "olcum" ? "a fault the brains measured" : "an idea the brains raised"}):
 TITLE: ${p.baslik}
 WHY: ${p.neden}
-RAISED BY THE PRODUCTIONS: ${p.kaynaklar.join(", ") || "—"}${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
+RAISED BY THE PRODUCTIONS: ${p.kaynaklar.join(", ") || "—"}${
+    measured?.length ? `\nWHAT THOSE PRODUCTIONS MEASURED FOR THIS BRAIN (the exact fault behind the title — start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""
+  }${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
     previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
   }
 

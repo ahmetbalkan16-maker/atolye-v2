@@ -47,7 +47,7 @@ import {
   writeTuning,
 } from "../src/lib/v3/council/SelfImprovement";
 import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
-import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
+import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, measuredFaults, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
 import {
   changedSymbols,
   codeExperience,
@@ -386,6 +386,25 @@ async function main() {
     const p = { id: "x", beyin: "kurgu" as const, baslik: "Crowds", neden: "n", kaynaklar: [], karar: { tarih: at(0) } };
     assert.ok(taskPacket(p, undefined, "# Geliştirici beyninin araştırması\nsrc/lib/v3/a.ts").includes("THE STUDIO'S OWN DEVELOPER BRAIN RESEARCHED THIS TODAY"));
     assert.ok(!taskPacket(p).includes("DEVELOPER BRAIN"));
+    // Waterloo, 6 Nov 2026: the sound brain's general idea came from one exact fault in the production's KURUL.md; the
+    // developer is given that brain's measured lines, not the discussion and not the other brains'.
+    const kurul = [
+      "# Yapım kurulu raporu — Waterloo",
+      "## Eksikler",
+      "- **Kostüm beyni** — parça tasarlanamadı (Blücher's medals): … _[veri]_",
+      "## Uyarılar",
+      "- **Ses beyni** — dönem efekti/ortam sesi yapılamadı (miks): efekt davul: kütüphane kaydı kaldı — vuruş yok, sürekli ses (kontrast 4.7 dB) _[veri]_",
+      "- **Ses beyni** — dönem efekti/ortam sesi yapılamadı (miks): efekt davul: kütüphane kaydı kaldı — vuruş yok, sürekli ses (kontrast 4.7 dB) _[veri]_",
+      "## Tartışmalar",
+      "- **Ses beyni:** destekliyor: n1",
+    ].join("\n");
+    const sound = measuredFaults(kurul, "Ses beyni");
+    assert.deepEqual(sound, ["Ses beyni — dönem efekti/ortam sesi yapılamadı (miks): efekt davul: kütüphane kaydı kaldı — vuruş yok, sürekli ses (kontrast 4.7 dB) _[veri]_"]);
+    assert.deepEqual(measuredFaults(kurul, "Kostüm beyni").length, 1);
+    assert.deepEqual(measuredFaults(kurul, "Kurgu beyni"), []);
+    const told = taskPacket({ ...p, beyin: "ses" }, undefined, undefined, sound);
+    assert.match(told, /WHAT THOSE PRODUCTIONS MEASURED FOR THIS BRAIN[^\n]*\n- Ses beyni — .*efekt davul/);
+    assert.ok(!taskPacket(p, undefined, undefined, []).includes("MEASURED"), "nothing measured: the packet is as before");
   });
 
   await scenario("I the developer brain in a real git repo: an exam on the newest commit at its parent, research before the build, graded against Claude's change, a lesson when it missed", async () => {
