@@ -12,7 +12,7 @@ import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whine
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
-import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
+import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -193,6 +193,32 @@ async function main() {
     assert.deepEqual([dst[at - 1], dst[at], dst[at + 2], dst[at + 3]], [0, 0.5, 0.5, 0]);
     placeSamples(dst, new Float32Array(10).fill(1), (SAMPLE_RATE - 2) / SAMPLE_RATE);
     assert.equal(dst[SAMPLE_RATE - 1], 1);
+  });
+
+  await scenario("F2 every bed gives way under the effects; the ambience stays steady under speech; no link left open", () => {
+    // Ses beyni, Waterloo Short (approved 6 Nov 2026): an effect between two lines must not be lost under a full bed.
+    const full = mixGraph({ beds: ["[2:a]anull[m0]", "[3:a]anull[m1]"], ambience: [ambienceChain(4, "o0", 3, 15)], battle: "[5:a]anull[bt0]", duration: 20 });
+    const ducks = full.filter((c) => c.includes("sidechaincompress")).map((c) => /^\[(\w+)\]\[(\w+)\]sidechaincompress=threshold=([\d.]+):ratio=([\d.]+):/.exec(c)!.slice(1));
+    const fx = [String(EFFECT_DUCK_THRESHOLD), String(EFFECT_DUCK_RATIO)];
+    assert.deepEqual(ducks, [["amb0", "fa", ...fx], ["bt0", "kb", "0.05", String(BATTLE_DUCK_RATIO)], ["bt1", "fb", ...fx], ["bed", "km", "0.05", "8"], ["bed1", "fm", ...fx]]);
+    assert.equal(full[0], "[0:a]aformat=channel_layouts=stereo,asplit=3[dlg][km][kb]", "speech keys the music and the battle, not the ambience");
+    assert.equal(full[1], "[1:a]aformat=channel_layouts=stereo,asplit=4[fx][fm][fa][fb]", "the effects key every bed");
+    assert.equal(full[full.length - 1], "[dlg][ducked][fx][amb][bt]amix=inputs=5:normalize=0:duration=first[mix]");
+    assert.ok(EFFECT_DUCK_RATIO < BATTLE_DUCK_RATIO && EFFECT_DUCK_THRESHOLD < 0.05, "an effect dips the beds less than speech dips even the battle");
+    // FFmpeg refuses a graph with an open output or a label used twice, and no smoke runs FFmpeg: every link made is used once.
+    const labels = (s: string | undefined) => [...(s ?? "").matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]!);
+    for (const beds of [[], ["[2:a]anull[m0]"]])
+      for (const ambience of [[], [ambienceChain(3, "o0", 0, 5), ambienceChain(4, "o1", 5, 9)]])
+        for (const battle of [undefined, "[5:a]anull[bt0]"]) {
+          const g = mixGraph({ beds, ambience, ...(battle ? { battle } : {}), duration: 9 });
+          const used = g.flatMap((c) => labels(/^(\[[^\]]+\])+/.exec(c)?.[0])).filter((l) => !/^\d+:a$/.test(l));
+          const made = g.flatMap((c) => labels(/(\[[^\]]+\])+$/.exec(c)?.[0]));
+          const what = JSON.stringify({ beds: beds.length, ambience: ambience.length, battle: !!battle });
+          assert.equal(new Set(made).size, made.length, `${what}: a label made twice`);
+          assert.deepEqual([...used].sort(), made.filter((l) => l !== "mix").sort(), `${what}: ${g.join(";")}`);
+          assert.ok(made.includes("mix"), what);
+        }
+    assert.deepEqual(mixGraph({ beds: [], ambience: [], duration: 5 }), ["[0:a]aformat=channel_layouts=stereo[dlg]", "[1:a]aformat=channel_layouts=stereo[fx]", "[dlg][fx]amix=inputs=2:normalize=0:duration=first[mix]"], "speech and effects alone: nothing to duck");
   });
 
   await scenario("G every effect id has a library file: a Kenney recording when there is one, else the synthesis, with a CC0 sidecar", () => {

@@ -12,7 +12,8 @@ import { cleanAudioFile } from "./AudioQuality";
 
 /**
  * V3 audio mix: dialogue and effects are placed sample-exactly in Node, music beds are cut, looped and
- * cross-faded with FFmpeg and ducked under the dialogue (sidechain compression), and the whole mix is brought to
+ * cross-faded with FFmpeg and ducked under the dialogue (sidechain compression), every bed gives way a little under
+ * the effects (mixGraph), and the whole mix is brought to
  * −14 LUFS / −1 dBTP in two loudnorm passes (measure, then apply), 48 kHz stereo. Music, effects and ambience go in
  * without the generators' whine lines (AudioQuality.cleanAudioFile).
  */
@@ -257,6 +258,16 @@ export const BATTLE_DUCK_RATIO = 3;
 export const DUCK_ATTACK_MS = 20;
 export const DUCK_RELEASE_MS = 400;
 
+/**
+ * The beds give way under the effects too (Ses beyni's proposal from the Waterloo Short, approved 6 Nov 2026:
+ * "efektlerin doğru ve net çıkması için otomatik ses miksaj ve efekt kontrol sistemi"): music, ambience and battle dip a
+ * few dB while an effect sounds and come back after it, so a footstep or a cannon between two lines is not lost under a
+ * bed at full level. Gentler than under speech: the bed goes on under the hit.
+ */
+export const EFFECT_DUCK_RATIO = 2;
+/** The effects' key threshold (−30 dBFS, under the speech key's −26): a quiet footstep moves the beds a little too. */
+export const EFFECT_DUCK_THRESHOLD = 0.03;
+
 /** Level of the ambience beds (well under the music's −26 before the final loudness pass). */
 export const AMBIENCE_LUFS = -38;
 
@@ -265,6 +276,41 @@ export function ambienceChain(input: number, label: string, start: number, end: 
   const len = Math.max(0.5, end - start);
   const ms = Math.round(start * 1000);
   return `[${input}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=${AMBIENCE_LUFS}:TP=-9:LRA=11,afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, len - 0.6).toFixed(3)}:d=0.6,adelay=${ms}|${ms}[${label}]`;
+}
+
+/** `[main]` ducked under `[key]` into `[out]` (sidechain compression with the music's attack and release). */
+function duckChain(main: string, key: string, ratio: number, out: string, threshold = 0.05): string {
+  return `[${main}][${key}]sidechaincompress=threshold=${threshold}:ratio=${ratio}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[${out}]`;
+}
+
+/**
+ * The mix graph around its inputs (0 = dialogue, 1 = effects; the music beds' chains end in `[m<i>]`, the ambience
+ * beds' in `[o<i>]`, the battle bed's in `[bt0]`): speech ducks the music (8:1) and the battle (BATTLE_DUCK_RATIO), the
+ * effects duck every bed (EFFECT_DUCK_RATIO), and the ambience stays steady under speech (a place does not breathe
+ * with the narrator). Each key is split once per bed it moves, so no FFmpeg link is left open.
+ */
+export function mixGraph(g: { readonly beds: readonly string[]; readonly ambience: readonly string[]; readonly battle?: string; readonly duration: number }): string[] {
+  const dur = g.duration.toFixed(3);
+  const speechKeys = [...(g.beds.length ? ["km"] : []), ...(g.battle ? ["kb"] : [])];
+  const effectKeys = [...(g.beds.length ? ["fm"] : []), ...(g.ambience.length ? ["fa"] : []), ...(g.battle ? ["fb"] : [])];
+  const split = (first: string, keys: readonly string[]) => (keys.length ? `,asplit=${keys.length + 1}[${first}]${keys.map((k) => `[${k}]`).join("")}` : `[${first}]`);
+  const chains = [`[0:a]aformat=channel_layouts=stereo${split("dlg", speechKeys)}`, `[1:a]aformat=channel_layouts=stereo${split("fx", effectKeys)}`, ...g.beds, ...g.ambience];
+  const under: string[] = [];
+  if (g.ambience.length) {
+    chains.push(`${g.ambience.map((_, i) => `[o${i}]`).join("")}amix=inputs=${g.ambience.length}:normalize=0:duration=longest,apad=whole_dur=${dur}[amb0]`, duckChain("amb0", "fa", EFFECT_DUCK_RATIO, "amb", EFFECT_DUCK_THRESHOLD));
+    under.push("[amb]");
+  }
+  if (g.battle) {
+    // The battle: under the narrator, but still heard (3:1 where the music gives way 8:1).
+    chains.push(g.battle, duckChain("bt0", "kb", BATTLE_DUCK_RATIO, "bt1"), duckChain("bt1", "fb", EFFECT_DUCK_RATIO, "bt", EFFECT_DUCK_THRESHOLD));
+    under.push("[bt]");
+  }
+  if (!g.beds.length) return [...chains, `[dlg][fx]${under.join("")}amix=inputs=${2 + under.length}:normalize=0:duration=first[mix]`];
+  chains.push(`${g.beds.map((_, i) => `[m${i}]`).join("")}amix=inputs=${g.beds.length}:normalize=0:duration=longest,apad=whole_dur=${dur}[bed]`);
+  // Duck the bed under speech. A 5 ms attack moved the gain within one cycle of a low horn and added 7 dB more
+  // distortion above 1.5 kHz than 20 ms (measured 26 Oct 2026); 20 ms still lands before the first syllable is heard.
+  chains.push(duckChain("bed", "km", 8, "bed1"), duckChain("bed1", "fm", EFFECT_DUCK_RATIO, "ducked", EFFECT_DUCK_THRESHOLD));
+  return [...chains, `[dlg][ducked][fx]${under.join("")}amix=inputs=${3 + under.length}:normalize=0:duration=first[mix]`];
 }
 
 export interface MixResult {
@@ -320,7 +366,6 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   await fs.writeFile(sfxFile, wavFloat32(effects));
 
   const args: string[] = ["-v", "error", "-y", "-i", dlgFile, "-i", sfxFile];
-  const chains: string[] = [`[0:a]aformat=channel_layouts=stereo,asplit=${input.battle ? 3 : 2}[dlg][key]${input.battle ? "[key2]" : ""}`, "[1:a]aformat=channel_layouts=stereo[fx]"];
   const beds: string[] = [];
   for (const [i, m] of input.music.entries()) {
     // Each bed overhangs its scenes by half a crossfade on both sides, so neighbours overlap by a full one.
@@ -330,35 +375,22 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
     const fadeIn = i === 0 ? 0.8 : CROSSFADE_S;
     args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", await clean(m.track.absolutePath, "muzik"));
     const ms = Math.round(from * 1000);
-    chains.push(
+    beds.push(
       `[${i + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=-26:TP=-8:LRA=11,afade=t=in:d=${fadeIn},afade=t=out:st=${Math.max(0, len - CROSSFADE_S).toFixed(3)}:d=${CROSSFADE_S},adelay=${ms}|${ms}[m${i}]`,
     );
-    beds.push(`[m${i}]`);
   }
   const ambience = input.ambience ?? [];
+  const places: string[] = [];
   for (const [i, a] of ambience.entries()) {
     args.push("-stream_loop", "-1", "-t", Math.max(0.5, a.end - a.start).toFixed(3), "-i", await clean(a.file, "ortam"));
-    chains.push(ambienceChain(input.music.length + 2 + i, `o${i}`, a.start, a.end));
+    places.push(ambienceChain(input.music.length + 2 + i, `o${i}`, a.start, a.end));
   }
-  const amb = ambience.length ? ["[amb]"] : [];
-  if (ambience.length) chains.push(`${ambience.map((_, i) => `[o${i}]`).join("")}amix=inputs=${ambience.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[amb]`);
-  // The battle: under the narrator, but still heard (3:1 where the music gives way 8:1).
-  const fight = input.battle ? ["[bt]"] : [];
+  let battle: string | undefined;
   if (input.battle) {
     args.push("-i", input.battle);
-    chains.push(`[${input.music.length + ambience.length + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,apad=whole_dur=${input.duration.toFixed(3)}[bt0]`);
-    chains.push(`[bt0][key2]sidechaincompress=threshold=0.05:ratio=${BATTLE_DUCK_RATIO}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[bt]`);
+    battle = `[${input.music.length + ambience.length + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,apad=whole_dur=${input.duration.toFixed(3)}[bt0]`;
   }
-  const under = [...amb, ...fight];
-  if (beds.length) {
-    chains.push(`${beds.join("")}amix=inputs=${beds.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[bed]`);
-    // Duck the bed under speech. A 5 ms attack moved the gain within one cycle of a low horn and added 7 dB more
-    // distortion above 1.5 kHz than 20 ms (measured 26 Oct 2026); 20 ms still lands before the first syllable is heard.
-    chains.push(`[bed][key]sidechaincompress=threshold=0.05:ratio=8:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[ducked]`);
-    chains.push(`[dlg][ducked][fx]${under.join("")}amix=inputs=${3 + under.length}:normalize=0:duration=first[mix]`);
-  } else {
-    chains.push("[key]anullsink", `[dlg][fx]${under.join("")}amix=inputs=${2 + under.length}:normalize=0:duration=first[mix]`);
-  }
+  const chains = mixGraph({ beds, ambience: places, ...(battle ? { battle } : {}), duration: input.duration });
   const raw = path.join(tmp, "mix-raw.wav");
   await runChecked(paths.ffmpeg, [...args, "-filter_complex", chains.join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", raw], { timeoutMs: 30 * 60_000 });
 
