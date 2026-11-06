@@ -65,7 +65,17 @@ Araç taraması (owner listesi): OpenHistoricalMap yararlı (Overpass'ı buradan
 yapılmadı; Library of Congress Cloudflare bot kontrolü (403) arkasında — aşılmaz; Smithsonian api.data.gov anahtarı ister
 (owner kaydı); Whisper ve yt-dlp zaten var; Tube Archivist, ArchiveBox, TimelineJS, FromThePage/Scribe, MarkItDown gereksiz.
 GitHub'da dönemlere göre hazır kostüm kütüphanesi yok; game-icons/icons (CC BY 3.0) ileride siluet kaynağı olabilir.
-Canlıya alma bekliyor: 9b35fd85, 272ac1b2, dccbb44a, a37c18c4 (Waterloo siparişi bitince).
+094cf4b7 OpenHistoricalMap katmanı (CloseSite: OSM sur/kale vermezse OHM'den o yıl ayakta olanlar; İstanbul 1453
+denemesi 8 öğe, 1478 yapımı Topkapı süzüldü; OHM_CREDIT). bbd04728: harita sahnesinde ara görsel rozetten söylenen
+repliğin üstüne değil en yakın anlatıcı satırına. Hepsi canlıda (bbd04728; Graphify güncel).
+
+**Waterloo son hali (15:20).** Rötuş turu 1: Wellington 7/10, Blücher 7/10 (bıyıklı) ama espriler zayıfladı; tur 2
+başlarken durduruldu. Son üretim elle (canlı koddan `--from-step ses --rotus-yok`): tur 0 sahneleri + tur 1 kadrosu,
+s3 haritası yeni `fitBattleMap` ile 10 → 13,3 km (Prusyalılar Plancenoit'da görünür, koyu gri #3a3a44), s2 ara görseli
+anlatıcı satırında (bu kez Kelly'nin 1816 Waterloo planı). 46 sn, 0,79 $, kurul 7/10, −14,4 LUFS; sipariş
+`uyariyla_teslim`, `final.mp4`. Kalan küçük kusurlar: birlik etiketi/tarih damgası çakışmaları, "BATTLE OF WATERLOO"
+bir an sol kenarda kesik, Blücher'in bıyığı ince ve koyu (beyaz olmalı), harita payı %41. Önceki turlar
+`onceki-deneme-4/`. Yüklenmedi — owner kararı.
 
 **Doğrulama:** tsc 0; lint 0/0; 18 smoke-v3 PASS (episode-director 58, mix 16, backgrounds 22 — yeni senaryolar:
 ada adı şehirden kaçar, kısa yatak 12 sn, yapı türü, eşzamanlı Wikimedia aralığı, tek figür eşiği, portraitRetry).
