@@ -13,6 +13,7 @@ import { designParts, hatShapeNotes, partOrders, partProblems, partPrompt } from
 import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
 import { erasFor, periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
+import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
@@ -500,6 +501,36 @@ async function main() {
     assert.ok(prompt.indexOf("PERIOD DRESS") > prompt.indexOf("COSTUME CATALOG") && prompt.indexOf("PERIOD DRESS") < prompt.indexOf("ALLOWED VALUES"));
     assert.ok(!writingPrompt({ konu: "Waterloo", donem: "1815", hedefSureSn: 60, ton: "mizahi", dil: "en" }, []).includes("PERIOD DRESS"));
   });
+
+  try {
+    // The archivist: a known era costs nothing; a missing one is written once, checked, kept and found next time.
+    const atlas = readAtlas(process.cwd());
+    assert.deepEqual(costumeProblems(atlas.donemler[0]!.taraflar[0]!.roller[0]!.kostum), []);
+    assert.ok(costumeProblems({ giysi: "spacesuit", renkler: { ana: "red" }, ayakkabi: "flip-flops" }).length >= 2);
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-arsivci-"));
+    const noCall = { generate: async () => { throw new Error("the model was called"); } };
+    assert.equal((await ensureEra({ atlas, donem: "1815", konu: "Waterloo", workRoot: root, budget: noCall as never, model: { provider: "mock" }, log: () => undefined }))?.id, "napolyon");
+    const answer = { id: "ispanyol-veraset", ad: "War of the Spanish Succession", yillar: [1701, 1714], not: "Long wigs, clean-shaven.", taraflar: [
+      { ad: "France", roller: [{ rol: "musketeer", kostum: { giysi: "ceket", renkler: { ana: "#d8d8cc", ikincil: "#2b3f7a", ic: "#fffdf6", sus: "#2b3f7a" }, bas: "yeni:black tricorne with gold trim", ayakkabi: "siyah-cizme" } }, { rol: "spaceman", kostum: { giysi: "spacesuit" } }] },
+      { ad: "Britain", roller: [{ rol: "redcoat", kostum: { giysi: "ceket", renkler: { ana: "#c62839", ikincil: "#fffdf6", ic: "#fffdf6", sus: "#fffdf6" }, bas: "yeni:black tricorne", ayakkabi: "siyah-cizme" } }] },
+    ] };
+    let calls = 0;
+    const fake = { generate: async () => (calls++, { result: { content: `Here:\n${JSON.stringify(answer)}`, finishReason: "stop", refused: false, complete: true, truncated: false }, used: { provider: "mock" } }) };
+    const lines: string[] = [];
+    const era = await ensureEra({ atlas, donem: "1704", konu: "Battle of Blenheim", workRoot: root, budget: fake as never, model: { provider: "mock" }, log: (s) => lines.push(s) });
+    assert.equal(era?.id, "ispanyol-veraset");
+    assert.deepEqual(era!.taraflar.map((s) => `${s.ad}:${s.roller.length}`), ["France:1", "Britain:1"], "the invalid role is dropped");
+    assert.ok(lines.some((l) => l.includes("1 geçersiz rol atıldı")));
+    assert.equal((await ensureEra({ atlas: withArchive(atlas, root), donem: "1709", konu: "Malplaquet", workRoot: root, budget: noCall as never, model: { provider: "mock" }, log: () => undefined }))?.id, "ispanyol-veraset", "kept: no second call");
+    assert.equal(calls, 1);
+    assert.equal(readEraAnswer(JSON.stringify({ ...answer, yillar: [1600, 1650] }), "1704").era, undefined, "years that miss the period are refused");
+    assert.match(eraPrompt("1704", "Blenheim", atlas.donemler[0]), /"ad":"France"/);
+    rmSync(root, { recursive: true, force: true });
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L3 the period archivist writes a missing era once");
+    throw e;
+  }
 
   console.log(`V3 likeness smoke: PASS (${scenarios} scenarios)`);
 }

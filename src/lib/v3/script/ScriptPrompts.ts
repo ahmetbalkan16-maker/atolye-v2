@@ -69,7 +69,7 @@ export interface ScriptBrief {
 export const WORDS_PER_SECOND: Readonly<Record<ScriptLanguage, number>> = { tr: 1.8, en: 2.35 };
 
 /** What each body garment looks like, so the writer can dress any period with them. */
-const GARMENT_NOTES: Readonly<Record<(typeof GARMENTS)[number], string>> = {
+export const GARMENT_NOTES: Readonly<Record<(typeof GARMENTS)[number], string>> = {
   kaftan: "Ottoman/Persian long robe with belt",
   cubbe: "long scholar's or official's gown",
   bizans: "Byzantine imperial robe with jewelled band and cape — emperors only",
