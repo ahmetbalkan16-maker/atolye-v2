@@ -1147,7 +1147,10 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const firstLine = lines[0];
     // On a map the picture comes once, over its marked line (owner, 23 Oct 2026: pictures of the moment between the map
     // narration); the map stays the scene.
-    const marked = geo && scene.ara_goruntu_satir !== undefined ? lines.find((l) => l.lineIndex === scene.ara_goruntu_satir) : undefined;
+    // A marked line a character says from their badge stays theirs (the Waterloo Short, 6 Nov 2026: Blücher's
+    // "fashionably late" quip played over Wellington's portrait): the picture goes over the nearest narrator line.
+    const markedLine = geo && scene.ara_goruntu_satir !== undefined ? lines.find((l) => l.lineIndex === scene.ara_goruntu_satir) : undefined;
+    const marked = markedLine && visibleIds.has(markedLine.speaker) ? ([...lines].filter((l) => !visibleIds.has(l.speaker)).sort((a, b) => Math.abs(a.lineIndex - markedLine.lineIndex) - Math.abs(b.lineIndex - markedLine.lineIndex) || a.lineIndex - b.lineIndex)[0] ?? markedLine) : markedLine;
     const mapWindow = marked ? [{ start: local(marked.start) + f(0.2), end: Math.min(duration - f(0.3), local(marked.end) + f(0.25), local(marked.start) + f(MAP_INSERT_S)) }].filter((w) => w.end - w.start >= f(1.5)) : [];
     const own: V3Insert[] = period && geo
       ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}), ...(period.video ? { video: true } : {}) }))

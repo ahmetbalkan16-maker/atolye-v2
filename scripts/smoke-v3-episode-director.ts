@@ -992,6 +992,17 @@ async function main() {
     // Without a marked line the map has no cutaway (the picture was not searched for).
     const unmarked = buildRenderPlan({ episode: { ...episode, sahneler: [{ ...map, ara_goruntu_satir: undefined }, stage] }, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [{ src: "bg/m1-donem.jpg" }, undefined], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
     assert.equal(unmarked.shots.find((s) => s.id === "m1")!.inserts!.length, 0);
+    // Waterloo (6 Nov 2026): a marked line a character says from their badge keeps the map; the picture takes the
+    // nearest narrator line.
+    const speaker = ep.oyuncu_kadrosu.find((c) => c.gorunur)!.id;
+    const quip = { ...map, satirlar: [narrate("The army marches north."), { karakter: speaker, metin: "Did someone say fashionably late?", duygu: "mutlu" as const }, narrate("The siege begins.")] };
+    const tl2 = buildTimeline({ ...episode, sahneler: [quip, stage] }, [[fakeAudio(3), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const onQuip = buildRenderPlan({ episode: { ...episode, sahneler: [quip, stage] }, timeline: tl2, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [{ src: "bg/m1-donem.jpg" }, undefined], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false }).shots.find((s) => s.id === "m1")!;
+    const said = tl2.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 1)!;
+    const first = tl2.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 0)!;
+    const at = (sec: number) => Math.round(sec * 30) - onQuip.start;
+    assert.equal(onQuip.inserts!.length, 1);
+    assert.ok(onQuip.inserts![0]!.end <= at(said.start) + 2 && onQuip.inserts![0]!.start >= at(first.start), `over the narrator's line before the quip: ${JSON.stringify(onQuip.inserts)}`);
     // A chapter mostly on the stage, a map chapter with no picture moment: asked for; the owner's mix passes.
     const sized = (s: Episode["sahneler"][number], sure: number) => ({ ...s, sure_hedef: sure });
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 40), sized(stage, 80)] }).some((p) => p.includes("character scenes take 67%")));
