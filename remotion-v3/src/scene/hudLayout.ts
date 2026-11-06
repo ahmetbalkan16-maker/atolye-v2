@@ -62,8 +62,8 @@ export function badgeEdgeFit(
   return { dx, dy, alpha };
 }
 
-type Box = { x0: number; y0: number; x1: number; y1: number };
-const boxOf = (at: { x: number; y: number }, size: { half: number; up: number }, d = { dx: 0, dy: 0 }): Box => ({ x0: at.x + d.dx - size.half, x1: at.x + d.dx + size.half, y0: at.y + d.dy - size.up, y1: at.y + d.dy });
+export type Box = { x0: number; y0: number; x1: number; y1: number };
+const boxOf =(at: { x: number; y: number }, size: { half: number; up: number }, d = { dx: 0, dy: 0 }): Box => ({ x0: at.x + d.dx - size.half, x1: at.x + d.dx + size.half, y0: at.y + d.dy - size.up, y1: at.y + d.dy });
 const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 
 /**
@@ -98,4 +98,48 @@ export function badgeEdgeFits(
     if (b.shown > 0 && r.alpha > 0) settled.push(boxOf(b.at, b.size, r));
   }
   return out;
+}
+
+/**
+ * Where a label on a battle map stands so it is read whole (Waterloo Short, 6 Nov 2026: "French infantry" stood 173 px
+ * and "French cavalry" 309 px past the left edge, "Prussian infantry" lay wholly inside Blücher's badge, "74,326 men"
+ * under the date stamp, "BATTLE OF WATERLOO" cut by the left edge as the camera moved on): slid inside the view, then,
+ * when it lands on a badge, a screen mark or a label settled before it (`avoid`), moved the shortest way — above, below
+ * or beside a box it meets — to a place in the view free of all of them. With no such place within `reach` it fades out
+ * rather than print over them; it fades too as what it names (`anchor`) leaves the view, gone `fade` past the edge.
+ * World px: `at` the label's centre, `half` its half size, `margin` room kept from the edge.
+ */
+export function labelSpot(
+  at: { x: number; y: number },
+  half: { x: number; y: number },
+  anchor: { x: number; y: number },
+  view: Box,
+  avoid: readonly Box[],
+  o: { readonly margin: number; readonly fade: number; readonly reach: number },
+): { x: number; y: number; alpha: number } {
+  const outside = Math.max(view.x0 - anchor.x, anchor.x - view.x1, view.y0 - anchor.y, anchor.y - view.y1, 0);
+  const alpha = Math.max(0, Math.min(1, 1 - outside / Math.max(1e-6, o.fade)));
+  const lo = { x: view.x0 + o.margin, y: view.y0 + o.margin };
+  const hi = { x: view.x1 - o.margin, y: view.y1 - o.margin };
+  // Inside on one axis: centred when the view is narrower than the label.
+  const into = (c: number, h: number, a: number, b: number) => (b - a < 2 * h ? (a + b) / 2 : Math.min(b - h, Math.max(a + h, c)));
+  const start = { x: into(at.x, half.x, lo.x, hi.x), y: into(at.y, half.y, lo.y, hi.y) };
+  const own = (p: { x: number; y: number }): Box => ({ x0: p.x - half.x, x1: p.x + half.x, y0: p.y - half.y, y1: p.y + half.y });
+  const free = (p: { x: number; y: number }) => !avoid.some((b) => meets(own(p), b));
+  if (free(start)) return { ...start, alpha };
+  const fits = (p: { x: number; y: number }) => p.x - half.x >= lo.x - 0.5 && p.x + half.x <= hi.x + 0.5 && p.y - half.y >= lo.y - 0.5 && p.y + half.y <= hi.y + 0.5;
+  const gap = half.y * 0.25;
+  const tries = avoid.flatMap((b) => [
+    { x: start.x, y: b.y0 - half.y - gap },
+    { x: start.x, y: b.y1 + half.y + gap },
+    { x: b.x0 - half.x - gap, y: start.y },
+    { x: b.x1 + half.x + gap, y: start.y },
+  ]);
+  let best: { x: number; y: number } | undefined;
+  let bestD = Infinity;
+  for (const p of tries) {
+    const d = Math.hypot(p.x - start.x, p.y - start.y);
+    if (d < bestD && d <= o.reach && fits(p) && free(p)) [best, bestD] = [p, d];
+  }
+  return best ? { ...best, alpha } : { ...start, alpha: 0 };
 }

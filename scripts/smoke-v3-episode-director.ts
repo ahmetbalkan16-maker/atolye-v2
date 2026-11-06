@@ -36,7 +36,7 @@ import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
-import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
+import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes, labelSpot } from "../remotion-v3/src/scene/hudLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -2140,6 +2140,38 @@ async function main() {
     const box = badgeBox("Sultan Khalid bin Barghash", true);
     assert.ok(box.x1 - box.x0 > 380 && box.y0 < -140, JSON.stringify(box));
     assert.ok(badgeBox("Ali", true).x1 >= 49 && badgeBox("Ali", false).x1 >= 54, "a short name: the ring's width");
+  });
+
+  await scenario("W4 the Waterloo Short's battle labels (owner-approved job, 6 Nov 2026): kept whole in the frame, off the date stamp, the badges and each other", () => {
+    // The quality brain's layout faults of the final cut, in the frame's own px (1080×1920, world = screen here).
+    const view = { x0: 0, y0: 0, x1: 1080, y1: 1920 };
+    const o = { margin: 12, fade: 40, reach: 8 * 27 };
+    const cut = (p: { x: number; y: number }, half: { x: number; y: number }) => p.x - half.x < view.x0 || p.x + half.x > view.x1 || p.y - half.y < view.y0 || p.y + half.y > view.y1;
+    const meets = (p: { x: number; y: number }, half: { x: number; y: number }, b: { x0: number; y0: number; x1: number; y1: number }) => p.x - half.x < b.x1 && b.x0 < p.x + half.x && p.y - half.y < b.y1 && b.y0 < p.y + half.y;
+    // "French infantry" 173 px past the left edge while its unit stands at the edge: slid in whole.
+    const infantry =labelSpot({ x: -173 + 167, y: 585 }, { x: 167, y: 27 }, { x: 40, y: 640 }, view, [], o);
+    assert.equal(infantry.alpha, 1);
+    assert.ok(!cut(infantry, { x: 167, y: 27 }), JSON.stringify(infantry));
+    assert.equal(infantry.x, 12 + 167, "just inside the margin");
+    // Its unit gone past the edge: the label goes with it instead of standing cut or pointing at nothing.
+    assert.equal(labelSpot({ x: 1387 + 185, y: 1492 }, { x: 185, y: 27 }, { x: 1150, y: 1492 }, view, [], o).alpha, 0);
+    // "74,326 men" under the date stamp "Afternoon, 18 June 1815": moved just below it, not over it.
+    const stamp = { x0: 403, y0: 30, x1: 1034, y1: 94 };
+    const men = labelSpot({ x: 566, y: 60 }, { x: 138, y: 32 }, { x: 566, y: 260 }, view, [stamp], o);
+    assert.ok(!meets(men, { x: 138, y: 32 }, stamp) && men.alpha === 1, JSON.stringify(men));
+    assert.ok(men.y - 32 >= stamp.y1 && men.y - 32 - stamp.y1 < 20, "the nearest free place: right under the stamp");
+    // "Prussian infantry" inside Blücher's badge: out under it; and a second label settled after it does not take that place.
+    const blucher = { x0: 306, y0: 1326, x1: 1053, y1: 1576 };
+    const pruss = labelSpot({ x: 721, y: 1488 }, { x: 185, y: 27 }, { x: 721, y: 1420 }, view, [blucher], o);
+    assert.ok(!meets(pruss, { x: 185, y: 27 }, blucher) && pruss.alpha === 1, JSON.stringify(pruss));
+    const taken = { x0: pruss.x - 185, x1: pruss.x + 185, y0: pruss.y - 27, y1: pruss.y + 27 };
+    const other = labelSpot({ x: 721, y: 1488 }, { x: 150, y: 27 }, { x: 721, y: 1420 }, view, [blucher, taken], o);
+    assert.ok(other.alpha === 0 || (!meets(other, { x: 150, y: 27 }, taken) && !meets(other, { x: 150, y: 27 }, blucher)), JSON.stringify(other));
+    // No free place within reach: it fades rather than print over the badge.
+    const wall = { x0: 0, y0: 1000, x1: 1080, y1: 1920 };
+    assert.equal(labelSpot({ x: 540, y: 1488 }, { x: 185, y: 27 }, { x: 540, y: 1488 }, view, [wall], { ...o, reach: 100 }).alpha, 0);
+    // Nothing in the way: the label stays where its formation put it.
+    assert.deepEqual(labelSpot({ x: 540, y: 900 }, { x: 140, y: 30 }, { x: 540, y: 960 }, view, [stamp], o), { x: 540, y: 900, alpha: 1 });
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

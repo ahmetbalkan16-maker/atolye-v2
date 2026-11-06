@@ -9,7 +9,7 @@ import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
-import { badgeEdgeFits, badgeExtent, hudBoxes } from "./hudLayout";
+import { badgeEdgeFits, badgeExtent, hudBoxes, labelSpot } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { yer } from "./LayoutProbe";
 
@@ -313,10 +313,18 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     const left = c.x + gap + c.label.length * 0.55 * size * k > shownWorld.x1 - m;
     return { x: left ? c.x - gap : c.x + gap, anchor: left ? ("end" as const) : ("start" as const) };
   };
-  const battleMarks = (map.battles ?? []).map((b, i) => {
+  // A function: its labels give way to the badges, placed further down (badgePlaces, labelAvoid).
+  const battleMarks = () => (map.battles ?? []).map((b, i) => {
     if (frame < b.start) return null;
     const pop = spring({ frame: frame - b.start, fps, config: { damping: 9, stiffness: 220 } });
     const flash = interpolate(frame - b.start, [0, Math.round(fps * 0.5)], [1, 0], { extrapolateRight: "clamp" });
+    // Above the swords, or where placeCloseLabels found room on the close map; slid into the frame and off the badges while
+    // the battle's place is in view (Waterloo Short, 6 Nov 2026: "BATTLE OF WATERLOO" was cut by the left edge once the
+    // camera moved on to the fighting).
+    const want = b.labelSpot ? { x: b.labelSpot.x + b.labelSpot.dx * k, y: b.labelSpot.y + b.labelSpot.dy * k } : { x: b.x, y: b.y - 70 * k };
+    const lines = labelLines(b.label.toLocaleUpperCase("en-US"));
+    const half = { x: (Math.max(...lines.map((l) => l.length)) * (relief ? 0.58 : 0.78) * 30 * k) / 2, y: (lines.length * 30 * (relief ? 0.98 : 1.1) * k) / 2 };
+    const spot = labelSpot(want, half, b, shownWorld, labelAvoid, { margin: m, fade: 60 * k, reach: half.y * 6 });
     const blade = (rot: number) => (
       <g transform={`rotate(${rot})`}>
         <path d={`M0 ${-46 * k} L${7 * k} ${-36 * k} L${5 * k} ${22 * k} L${-5 * k} ${22 * k} L${-7 * k} ${-36 * k} Z`} fill="#e9edf2" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
@@ -333,8 +341,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           {blade(-38)}
           {blade(38)}
         </g>
-        {/* Above the swords, or where placeCloseLabels found room on the close map. */}
-        <g transform={b.labelSpot ? `translate(${b.labelSpot.x - b.x + b.labelSpot.dx * k} ${b.labelSpot.y - b.y + b.labelSpot.dy * k})` : `translate(0 ${-70 * k})`}>{markLabel(b.label, 30, Math.min(1, pop))}</g>
+        {spot.alpha > 0 ? <g transform={`translate(${spot.x - b.x} ${spot.y - b.y})`}>{markLabel(b.label, 30, Math.min(1, pop) * spot.alpha)}</g> : null}
       </g>
     );
   });
@@ -370,6 +377,15 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     const placed = { x: p.at.x + fit.dx, y: p.at.y + fit.dy };
     return { ...p, fit, placed, alpha: p.shown * fit.alpha, box: { x0: placed.x - p.size.half, x1: placed.x + p.size.half, y0: placed.y - p.size.up, y1: placed.y + 6 * k } };
   });
+  // The screen marks (in world px, from the picture's) and the badges on the map now: no unit's or battle's label is
+  // printed over them (labelSpot). A speaking badge's words float just over its ring (ShotView's SpeechBubble at
+  // MAP_BUBBLE size): room for two lines there too (Waterloo: "74,326 men" pushed off the date stamp met "Stay off the grass.").
+  const labelAvoid = [
+    ...overlays.map((o) => ({ x0: cam.x + (o.x0 - W / 2) / cam.zoom, x1: cam.x + (o.x1 - W / 2) / cam.zoom, y0: cam.y + (o.y0 - H / 2) / cam.zoom, y1: cam.y + (o.y1 - H / 2) / cam.zoom })),
+    ...badgePlaces
+      .filter((p) => p.alpha > 0.05)
+      .flatMap((p) => [p.box, ...(p.priority ? [{ x0: p.placed.x - Math.max(p.size.half, 280 * k), x1: p.placed.x + Math.max(p.size.half, 280 * k), y0: p.box.y0 - 120 * k, y1: p.box.y0 }] : [])]),
+  ];
   // A place's name under a badge gives way while the badge is there (Zanzibar Short, 3 Nov 2026: "HOUSE OF WONDERS"
   // lay under the scroll of "Sultan Khalid bin Barghash", where no other place was free): the speaker is the moment's
   // focus. `cx`,`cy`: the name's centre (world px); its size by its letters, as the names are written. 1 = fully shown.
@@ -746,7 +762,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           );
         })}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
-        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} />
+        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} avoid={labelAvoid} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />
         {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
         <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} />
@@ -767,7 +783,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               </g>
               );
             })
-          : battleMarks}
+          : battleMarks()}
         {(map.badges ?? []).map((b, i) => {
           const a = visible(b.start, b.end);
           const m = cast?.get(b.castId);
@@ -866,7 +882,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           );
         })}
         {/* On the relief map a battle is drawn over the badges: a ruler arriving there must not hide its name. */}
-        {relief ? battleMarks : null}
+        {relief ? battleMarks() : null}
       </g>
       {/* A soft dark edge holds the eye in the middle of the relief map (cinematic, like the reference). */}
       {relief ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}

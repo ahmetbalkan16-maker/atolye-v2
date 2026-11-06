@@ -5,6 +5,7 @@ import { INK } from "../character/rig";
 import { along } from "./mapGeometry";
 import { separateTokens } from "./unitLayout";
 import { yer } from "./LayoutProbe";
+import { type Box, labelSpot } from "./hudLayout";
 
 /**
  * Unit tokens and battle effects on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map
@@ -494,8 +495,11 @@ function labelOffset(map: V3GeoMap, ui: number, f: number, fps: number, k: numbe
 }
 
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
-/** `view`: the world rectangle the camera shows at this frame (MapView); a label at its edge fades. */
-export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: { x0: number; y0: number; x1: number; y1: number } }) {
+/**
+ * `view`: the world rectangle the camera shows at this frame (MapView); a label stays inside it. `avoid`: the badges and
+ * screen marks in world px (MapView), which no label is printed over (labelSpot).
+ */
+export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: Box; avoid?: readonly Box[] }) {
   const units = map.units ?? [];
   if (!units.length) return null;
   const r = TOKEN_R * k;
@@ -517,6 +521,58 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
   const standing = placed.map((side) => side.filter((t): t is NonNullable<typeof t> => t !== undefined && t.lostAt === undefined));
   const centres = standing.map(middle);
   const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s)));
+  const s = r / TOKEN_R;
+  // The labels of this frame settle in turn — the unit the narrator names first, then each side's strength — each kept
+  // inside the frame and off the badges, the screen marks and the labels settled before it (labelSpot).
+  const taken: Box[] = [...(avoid ?? [])];
+  const settle = (at: { x: number; y: number }, half: { x: number; y: number }, anchor: { x: number; y: number }) => {
+    if (!view) return { ...at, alpha: 1 };
+    const spot = labelSpot(at, half, anchor, view, taken, { margin: 12 * s, fade: 40 * s, reach: half.y * 8 });
+    if (spot.alpha > 0) taken.push({ x0: spot.x - half.x, x1: spot.x + half.x, y0: spot.y - half.y, y1: spot.y + half.y });
+    return spot;
+  };
+  // A unit's own name at it while the narrator speaks of it or it moves ("Bayezid's right wing" as it sweeps).
+  const callouts = units.map((u, ui) => {
+    const c = (u.callouts ?? []).find((x) => frame >= x.start - fps * 0.2 && frame < x.end + fps * 0.4);
+    const pts = standing[ui]!;
+    const own = centres[ui];
+    if (!u.name || !c || !pts.length || !own) return undefined;
+    const a = Math.min(clamp01((frame - (c.start - fps * 0.2)) / (fps * 0.4)), clamp01((c.end + fps * 0.4 - frame) / (fps * 0.4)));
+    const w = (u.name.length * 10 + 24) * s;
+    // Just in front of the unit, towards the enemy, so it never sits on the side's own strength label behind.
+    const foe = enemyOf(ui);
+    const dir = foe ? { x: foe.x - own.x, y: foe.y - own.y } : { x: 0, y: -1 };
+    const d = Math.hypot(dir.x, dir.y) || 1;
+    const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * dir.x + (p.y - own.y) * dir.y) / d)) + r * 1.9;
+    if (a <= 0) return undefined;
+    const spot = settle({ x: own.x + (dir.x / d) * reach, y: own.y + (dir.y / d) * reach }, { x: w / 2, y: 14 * s }, own);
+    return spot.alpha > 0 ? { name: u.name, color: u.color, w, x: spot.x, y: spot.y, a: a * spot.alpha } : undefined;
+  });
+  // Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men").
+  const strengths = units.map((u, ui) => {
+    let label = u.label;
+    for (const st of u.steps) if (st.start <= frame && st.label) label = st.label;
+    const own = centres[ui];
+    if (!label || !standing[ui]!.length || !own) return undefined;
+    const w = (label.length * 11.5 + 30) * s;
+    // Where it stands against its formation is chosen once a step, from where the step's formation settles, and
+    // glides to the next step's place (owner, 26 Oct 2026: "takılarak hareket var" — chosen afresh every frame it
+    // leapt from behind the side to beside it and back as the tokens moved).
+    let si = 0;
+    u.steps.forEach((st, i) => (st.start <= frame ? (si = i) : undefined));
+    const settled = (i: number) => Math.min(u.steps[i + 1] ? u.steps[i + 1]!.start - 1 : Infinity, u.steps[i]!.start + Math.round((SLIDE_S + 0.6) * fps));
+    const offset = (i: number) => labelOffset(map, ui, settled(i), fps, k, w, s);
+    const now = offset(si);
+    const blend = si > 0 ? Easing.inOut(Easing.cubic)(clamp01((frame - u.steps[si]!.start) / (fps * LABEL_GLIDE_S))) : 1;
+    const before = blend < 1 ? offset(si - 1) : now;
+    const first = u.steps[0]!.start;
+    const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    if (a <= 0) return undefined;
+    // Near the picture's edge it slides in, and fades as its formation leaves (the routed Serbians of Kosovo ran to the
+    // top edge; Waterloo's "74,326 men" stood under the date stamp).
+    const spot = settle({ x: own.x + before.x + (now.x - before.x) * blend, y: own.y + before.y + (now.y - before.y) * blend }, { x: w / 2, y: 17 * s }, own);
+    return spot.alpha > 0 ? { label, color: u.color, w, x: spot.x, y: spot.y, a: a * spot.alpha } : undefined;
+  });
   return (
     <g>
       {/* The side the narrator speaks of is framed in light while the line is told (DFT Tarih's highlight). */}
@@ -599,67 +655,27 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
         return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era="orta" seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;
       })}
       {/* Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men"). */}
-      {units.map((u, ui) => {
-        let label = u.label;
-        for (const st of u.steps) if (st.start <= frame && st.label) label = st.label;
-        const own = centres[ui];
-        if (!label || !standing[ui]!.length || !own) return null;
-        const s = r / TOKEN_R;
-        const w = (label.length * 11.5 + 30) * s;
-        // Where it stands against its formation is chosen once a step, from where the step's formation settles, and
-        // glides to the next step's place (owner, 26 Oct 2026: "takılarak hareket var" — chosen afresh every frame it
-        // leapt from behind the side to beside it and back as the tokens moved).
-        const at = (() => {
-          let si = 0;
-          u.steps.forEach((st, i) => (st.start <= frame ? (si = i) : undefined));
-          const settled = (i: number) => Math.min(u.steps[i + 1] ? u.steps[i + 1]!.start - 1 : Infinity, u.steps[i]!.start + Math.round((SLIDE_S + 0.6) * fps));
-          const offset = (i: number) => labelOffset(map, ui, settled(i), fps, k, w, s);
-          const now = offset(si);
-          const blend = si > 0 ? Easing.inOut(Easing.cubic)(clamp01((frame - u.steps[si]!.start) / (fps * LABEL_GLIDE_S))) : 1;
-          const before = blend < 1 ? offset(si - 1) : now;
-          return { x: own.x + before.x + (now.x - before.x) * blend, y: own.y + before.y + (now.y - before.y) * blend };
-        })();
-        // Near the picture's edge it fades rather than standing cut (the routed Serbians of Kosovo ran to the top edge).
-        const m = 12 * s;
-        const inside = view ? Math.min(at.x - w / 2 - view.x0 - m, view.x1 - m - at.x - w / 2, at.y - 17 * s - view.y0 - m, view.y1 - m - at.y - 17 * s) : Infinity;
-        const edge = clamp01(inside / (24 * s) + 1);
-        const first = u.steps[0]!.start;
-        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) * edge;
-        if (a <= 0) return null;
-        return (
-          <g key={`lb${ui}`} {...yer("etiket", label)} transform={`translate(${at.x} ${at.y})`} opacity={a}>
-            <rect x={-w / 2} y={-17 * s} width={w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={u.color} strokeWidth={3.5 * s} />
+      {strengths.map((l, ui) =>
+        l ? (
+          <g key={`lb${ui}`} {...yer("etiket", l.label)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+            <rect x={-l.w / 2} y={-17 * s} width={l.w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={l.color} strokeWidth={3.5 * s} />
             <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
-              {label}
+              {l.label}
             </text>
           </g>
-        );
-      })}
-      {/* A unit's own name at it while the narrator speaks of it or it moves ("Bayezid's right wing" as it sweeps). */}
-      {units.map((u, ui) => {
-        const c = (u.callouts ?? []).find((x) => frame >= x.start - fps * 0.2 && frame < x.end + fps * 0.4);
-        const pts = standing[ui]!;
-        const own = centres[ui];
-        if (!u.name || !c || !pts.length || !own) return null;
-        const a = Math.min(clamp01((frame - (c.start - fps * 0.2)) / (fps * 0.4)), clamp01((c.end + fps * 0.4 - frame) / (fps * 0.4)));
-        const s = r / TOKEN_R;
-        const w = (u.name.length * 10 + 24) * s;
-        // Just in front of the unit, towards the enemy, so it never sits on the side's own strength label behind.
-        const foe = enemyOf(ui);
-        const dir = foe ? { x: foe.x - own.x, y: foe.y - own.y } : { x: 0, y: -1 };
-        const d = Math.hypot(dir.x, dir.y) || 1;
-        const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * dir.x + (p.y - own.y) * dir.y) / d)) + r * 1.9;
-        const x = own.x + (dir.x / d) * reach;
-        const y = own.y + (dir.y / d) * reach;
-        return (
-          <g key={`ad${ui}`} {...yer("etiket", u.name)} transform={`translate(${x} ${y})`} opacity={a}>
-            <rect x={-w / 2} y={-14 * s} width={w} height={28 * s} rx={14 * s} fill={u.color} stroke="#ffffff" strokeWidth={2.5 * s} />
+        ) : null,
+      )}
+      {/* A unit's own name at it while the narrator speaks of it or it moves. */}
+      {callouts.map((l, ui) =>
+        l ? (
+          <g key={`ad${ui}`} {...yer("etiket", l.name)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+            <rect x={-l.w / 2} y={-14 * s} width={l.w} height={28 * s} rx={14 * s} fill={l.color} stroke="#ffffff" strokeWidth={2.5 * s} />
             <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
-              {u.name}
+              {l.name}
             </text>
           </g>
-        );
-      })}
+        ) : null,
+      )}
     </g>
   );
 }
