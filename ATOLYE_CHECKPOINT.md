@@ -13,7 +13,9 @@ eşleşen bekleyen öneri öncekine sayılır (`absorbProposal`, durum `birlesti
 da reddedilmişse istek cevaplanmış sayılır. `gelisim.ts birlestir` + döngünün `oneriler` görevi. Gerçek çalıştırma:
 8 birleşme → **2 öneri onaya düştü** ("Karakter yüz ve saç benzerlik analiz modülü" 3 üretim; "Dönem görseli
 aramasına tarihsel bağlam ve eski adlar" 3 üretim); anlatıyla senkron animasyon fikirleri yapılmış `kurgu-6`'ya sayıldı.
-Kalan 26 fikir Gelişim Merkezi'nde **"Diğer fikirler"** altında ONAYLA/REDDET ile (`BrainsReport.fikirler`, panel).
+Kalan 24 fikir Gelişim Merkezi'nde **"Diğer fikirler"** altında ONAYLA/REDDET ile (`BrainsReport.fikirler`, panel).
+Canlı: `ayas-live-befd3d14` PUBLISHED (dış erişim healthy; geri dönüş `ayas-live-6a8d1dc6`); canonical Graphify
+befd3d14'te CURRENT (tamamlayıcı 15/15 PASS).
 
 **Geliştirici beyin — öğrenme hızı.** Geriye dönük ölçüm (157 değişiklik): anlamca en yakın 5 geçmiş değişiklik yeni
 değişikliğin dosyalarının %63'ünü içeriyor, kelimeyle en yakın 5'i %17 → `DevResearch.meaningNeighbours` tahmine
@@ -58,7 +60,13 @@ istemle atlandı), pin_memory "resource already mapped" (akışsız grup boşalt
 (döşeme kapalı). **Bellek:** tek dosya yüklemesi 10 GB dosya + 10 GB bf16 kopyayı birlikte tutup PC'yi %99'a çıkardı →
 dönüştürücü bir kez tensör tensör bf16 Diffusers parçalarına (`wan22-ti2v-5b/transformer/`, 5 parça, 199 sn) çevrilir,
 istem gömmeleri saklanır (umt5 kartta 106 sn, işlemcide 605 sn), yükleme öncesi boş RAM denetimi. Çalışırken süreç
-~10–14 GB, adım ~17 sn (82 °C'de dinlenir, en çok 84 °C).
+~10–14 GB, adım ~17 sn (82 °C'de dinlenir, en çok 84 °C). İlk klip (Zanzibar gravürü, 3 sn) 1210 sn sürdü; üslup
+korundu, duman/gemi/top ateşi hareketli. Döşemesiz VAE çözümü 13,4 GB VRAM istedi (sisteme taştı); diffusers 0.35'te
+Wan 2.2 VAE döşemesi kodlamada da çözmede de bozuk.
+**Owner kararı (08:15): "bu kadar yüke gerek yok, kullanmadıklarımızı da sil".** Wan bırakıldı: model klasörü
+(`v3-tools/models/wan22-ti2v-5b`, 32 GB), istem önbelleği, `scripts/v3/wan22_dene.py` + `wan22_indir.py` ve indirme
+log'u silindi (betikler git geçmişinde: 545740b1). Kalan: `v3-runtime/denemeler/2026-11-06-wan22/` içinde Zanzibar
+klibi, kareler, log'lar. Yerine hafif yol: derinlikli kamera (Depth Anything V2 Small, işlemcide) üretime bağlanıyor.
 
 **Doğrulama:** tsc 0; lint 0/0; 18 smoke-v3 PASS (yeni `smoke-v3-cirak` 5 senaryo, brains-report 4, self-improvement 10);
 AYAS firewall-closure 13, development-center 64, homepage-v2 13; Remotion tsc 0.
