@@ -69,7 +69,7 @@ def write_state(**kw):
 
 def pid_alive(pid):
     try:
-        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=20).stdout
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, errors="replace", timeout=20).stdout
         return str(pid) in out
     except Exception:
         return False
@@ -137,8 +137,9 @@ def remove_task():
     if link.exists():
         link.unlink()
         log(f"başlangıç kısayolu kaldırıldı: {link}")
-    # A scheduled task of the same name, should one have been made by hand.
-    subprocess.run(["schtasks", "/Delete", "/TN", TASK, "/F"], capture_output=True, text=True)
+    # A scheduled task of the same name, should one have been made by hand. Its answer comes in the console's OEM code
+    # page (Turkish letters), which the default decoder failed on after the download had finished (6 Nov 2026).
+    subprocess.run(["schtasks", "/Delete", "/TN", TASK, "/F"], capture_output=True, text=True, errors="replace")
 
 
 def register_task():
@@ -150,7 +151,7 @@ def register_task():
         "$s.TargetPath=$env:PYW;$s.Arguments=('-I \"'+$env:SCRIPT+'\"');$s.WorkingDirectory=$env:WORKDIR;$s.WindowStyle=7;$s.Save()"
     )
     env = {**os.environ, "LINK": str(startup_link()), "PYW": str(pyw), "SCRIPT": str(script), "WORKDIR": str(script.parent)}
-    r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, env=env)
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, errors="replace", env=env)
     print(f"başlangıç kısayolu: {startup_link()}" if r.returncode == 0 and startup_link().exists() else f"kısayol yazılamadı: {(r.stderr or r.stdout).strip()[:300]}")
     return 0 if startup_link().exists() else 1
 
