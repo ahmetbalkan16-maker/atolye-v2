@@ -9,10 +9,10 @@ import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import { hatShapeNotes, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -180,6 +180,20 @@ async function main() {
     const low = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-170 -300 340 380"><path d="M-80 0 L-60 -40 L0 -50 Z" style="fill:#5b4a3a;stroke:#1d1b26;stroke-width:5"/></svg>';
     assert.ok(partProblems(low, "hair").some((s) => s.includes("crown")));
     assert.equal(partProblems(low, "chest").length, 0);
+  });
+
+  scenario("I2: Waterloo (6 Nov 2026) — a bicorne is drawn as a low crescent, not a dome; the period portrait beats the note; old 'brown' complexions stay light", () => {
+    assert.match(partPrompt({ slot: "head", tarif: "Napoleon's black bicorne hat with tricolor cockade" }, "1815", "<svg/>"), /SHAPE: A BICORNE is a wide, LOW crescent/);
+    assert.match(hatShapeNotes({ slot: "head", tarif: "Wellington's black cocked hat" }), /BICORNE/);
+    assert.match(hatShapeNotes({ slot: "head", tarif: "Washington's three-cornered hat" }), /TRICORNE/);
+    assert.equal(hatShapeNotes({ slot: "head", tarif: "Roman legionary helmet red crest" }), "");
+    assert.equal(hatShapeNotes({ slot: "chest", tarif: "bicorne-shaped brooch" }), "", "only headwear");
+    assert.doesNotMatch(partPrompt({ slot: "head", tarif: "laurel wreath" }, "49 BC", "<svg/>"), /SHAPE:/);
+    const ep = episode();
+    const withPortrait = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Julius Caesar", undefined, "File:Bust.jpg");
+    assert.ok(withPortrait.includes(PORTRAIT_OVER_NOTE), "the portrait wins on face, hair and facial hair");
+    assert.ok(withPortrait.includes(OLD_COMPLEXION));
+    assert.ok(!sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Julius Caesar", undefined, undefined).includes(PORTRAIT_OVER_NOTE), "no portrait, nothing to prefer");
   });
 
   scenario("J: the JSON schema lists the same choices as the code", () => {

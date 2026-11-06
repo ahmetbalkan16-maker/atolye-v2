@@ -159,6 +159,17 @@ export function castLooks(episode: Episode, exceptId: string): string[] {
     });
 }
 
+/**
+ * The portrait is evidence, the historian's note a model's recollection (Waterloo, 6 Nov 2026: the note called Blücher
+ * "clean-shaven" beside a portrait with his famous moustache; the cartoon lost it and the check asked to keep it off).
+ */
+export const PORTRAIT_OVER_NOTE = "Where the portrait and the note disagree about the face, hair, beard or moustache, the portrait is right (the note may say what they wore that year).";
+/**
+ * Old words for a weathered face (Waterloo, 6 Nov 2026: the note's "very brown complexion" from a contemporary of
+ * Wellington, and Lawrence's varnished portrait, gave him a brown skin #b98c6a; the check then asked for "much browner").
+ */
+export const OLD_COMPLEXION = "in an old description of a European, a \"brown\", \"tanned\", \"swarthy\", \"sallow\" or \"yellowish\" complexion means light skin weathered by sun, war or illness — a slightly warmer light tone such as #efd0b0, never a dark skin";
+
 export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[], lessons: readonly string[] = [], history: readonly string[] = []): string {
   const retouch = fixes?.length ? `\nA PREVIOUS CARTOON OF ${wiki} WAS SET NEXT TO THE PORTRAIT AND FELL SHORT. The art director's differences: ${fixes.join("; ")}. Fix exactly these (order new parts where needed); keep what was right.\n` : "";
   const historyBlock = history.length
@@ -173,11 +184,11 @@ export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: 
 PERSON: ${wiki} — ${c.rol}
 THE EPISODE: "${episode.konu}", set in ${episode.donem}. Draw them as they looked THEN.
 HISTORIAN'S NOTE for ${episode.donem}: ${note ? `age ${note.yas ?? "unknown"}; looks: ${note.gorunus}; dress: ${note.giyim}${note.simge ? `; carries: ${note.simge}` : ""}${note.fark ? `; differs from the famous portraits: ${note.fark}` : ""}` : "none"}
-${portraitTitle ? `PORTRAIT (attached): ${portraitTitle.replace(/^File:/, "")} — take their features and dress from it, corrected by the historian's note for ${episode.donem}.` : "No portrait was found: work from the historian's note."}
+${portraitTitle ? `PORTRAIT (attached): ${portraitTitle.replace(/^File:/, "")} — take their features and dress from it, corrected by the historian's note for ${episode.donem}. ${PORTRAIT_OVER_NOTE}` : "No portrait was found: work from the historian's note."}
 THE SCRIPT'S COSTUME (keep what already fits): ${JSON.stringify(c.kostum ?? {})}
 ${othersBlock}${lessonBlock}${historyBlock}${retouch}
 Choose:
-- "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person — judged from who they were and the historian's notes, never from the paint of an old fresco, icon, miniature or varnished painting, which age darkens and browns); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
+- "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person — judged from who they were and the historian's notes, never from the paint of an old fresco, icon, miniature or varnished painting, which age darkens and browns; ${OLD_COMPLEXION}); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
 - "sac_parca": "yeni:${wiki}'s <haircut>" only when their haircut is distinctive and no parametric style fits; else null.
 - "bas": the headwear they wore in ${episode.donem} ("yeni:${wiki}'s <description>"), the script's item to keep, or null for a bare head.
@@ -539,7 +550,7 @@ export async function checkLikenesses(input: {
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", left, "-i", crops[i]!, "-filter_complex", "[0]scale=-2:640[a];[1]scale=-2:640[b];[a][b]hstack=inputs=2", "-q:v", "3", pair]);
     const prompt = `LEFT: a portrait of ${outcome.records[r]!.kisi}. RIGHT: our flat cartoon of them as they looked in ${input.episode.donem}, in the style of OverSimplified (simple puppet body, flat colours, bold outlines; a different age than the portrait may be intended).
 ${outcome.records[r]!.not ? `HISTORIAN'S NOTE for ${input.episode.donem}: ${outcome.records[r]!.not!.gorunus} Dress: ${outcome.records[r]!.not!.giyim}\n` : ""}Would a viewer who knows this person's portraits recognise the cartoon (headwear, hair, beard, face shape, clothes, colours)? "benzerlik" 0–10.
-Judge only what a caricature should carry. Never count against it: the flat cartoon style itself (simple shapes, flat colours, no wrinkles, texture or realistic shading), the puppet body, or headwear and clothes the person wore in ${input.episode.donem} (see the note) that a bust or a head-only portrait cannot show.
+Judge only what a caricature should carry. Never count against it: the flat cartoon style itself (simple shapes, flat colours, no wrinkles, texture or realistic shading), the puppet body, headwear and clothes the person wore in ${input.episode.donem} (see the note) that a bust or a head-only portrait cannot show, or a light skin where the portrait's old varnish or paint looks brown or yellow (${OLD_COMPLEXION}). ${PORTRAIT_OVER_NOTE} Name only what you see in the cartoon on the right.
 List at most 3 concrete, fixable differences that matter most (e.g. "hair too dark", "the face should be longer", "no beard in the portrait").
 Return ONLY JSON: {"benzerlik": <0-10>, "farklar": ["…"]}`;
     const res = await input.budget.generate("benzerlik-kontrol", input.designer, prompt, { maxTokens: 250, images: [(await fs.readFile(pair)).toString("base64")] }).catch(() => undefined);

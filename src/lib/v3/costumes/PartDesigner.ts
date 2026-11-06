@@ -125,8 +125,23 @@ objects (scroll, book, cup, letter, pistol) sit around the fist within ±70.`,
 hangs down to about y = 330, shoulders at x ±88. Keep within x -150…150, y -60…340.`,
 };
 
+/**
+ * Headwear whose shape the model gets wrong by name alone (Waterloo, 6 Nov 2026: Napoleon's, Wellington's and
+ * Blücher's "bicorne" were all drawn as tall domes — and judged 10/10 — so the most famous hat in history was missing).
+ */
+const HAT_SHAPES: readonly [RegExp, string][] = [
+  [/bicorn|cocked hat|two-cornered|iki k[öo][şs]eli/i, "A BICORNE is a wide, LOW crescent of black felt across the head, never a dome or a tall rounded crown: its two pointed corners at the far left and right (about x = ±150, y = -70), the brim turned up into a raised middle (top at about y = -180), the lower edge a shallow arc resting on the head at y ≈ -45; a cockade near one corner or the middle. Gold lace, if any, is only a thin line along the edge."],
+  [/tricorn|three-cornered|[üu][çc] k[öo][şs]eli/i, "A TRICORNE is a low crown with the brim turned up on three sides into a triangle: one corner pointing forward low in the middle (about y = -55) and two corners at the sides (x ≈ ±140, y ≈ -90), the crown showing above them (top ≈ y -160)."],
+];
+
+/** The shape notes of a headwear order (empty for other parts and other hats). */
+export function hatShapeNotes(o: Pick<PartOrder, "slot" | "tarif">): string {
+  return o.slot === "head" ? HAT_SHAPES.filter(([re]) => re.test(o.tarif)).map(([, note]) => note).join(" ") : "";
+}
+
 export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string, faceShape?: V3FaceShape, lessons?: readonly string[]): string {
   const learned = lessons?.length ? `\nSIMILAR PARTS FAILED BEFORE (the costume team's experience — avoid these faults): ${lessons.join(" | ")}\n` : "";
+  const shape = hatShapeNotes(o);
   const face = faceShape && faceShape !== "yuvarlak" && ["head", "beard", "mustache", "hair"].includes(o.slot) ? `\nTHIS CHARACTER'S FACE is ${faceShape === "genis" ? "wide with heavy jowls" : faceShape === "uzun" ? "long" : faceShape === "kare" ? "square-jawed" : "oval"}: the chin is at y = ${CHIN_Y[faceShape]} (not 98); fit the part to it.\n` : "";
   return `You draw costume parts for a flat cartoon puppet in an animated history show. Draw ONE part as SVG.
 
@@ -134,7 +149,7 @@ PART: ${o.tarif}
 PERIOD: ${donem}
 
 ${SLOT_RULES[o.slot]}
-${face}
+${shape ? `SHAPE: ${shape}\n` : ""}${face}
 STYLE (the house style, see the reference part below): flat fills, every shape outlined with stroke #1d1b26,
 stroke-width 4–6.5, stroke-linejoin round; simple, bold, readable at small size; 2–4 colours true to the period; one
 optional highlight stroke (#ffffff, opacity 0.5). Historically accurate shape for ${donem}.
