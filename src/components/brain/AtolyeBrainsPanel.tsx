@@ -117,7 +117,25 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
             ))}
           </div>
         ) : <p className="bc-empty">Onayını bekleyen kod önerisi yok.</p>}
-        {view.fikirSayisi ? <p className="bc-empty">{view.fikirSayisi} fikir daha bekliyor; başka bir üretimde tekrar ederse buraya gelir.</p> : null}
+        {view.fikirSayisi ? <p className="bc-empty">{view.fikirSayisi} fikir daha bekliyor; başka bir üretimde tekrar ederse yukarıya gelir. Aynı isteği farklı sözlerle tekrar edenler anlamca birleştirilip sayılır.</p> : null}
+        {view.fikirler?.length ? (
+          <details data-testid="atolye-ideas">
+            <summary>Diğer fikirler ({view.fikirler.length}) — tek bir üretimden geldi; istersen şimdi onaylayabilirsin</summary>
+            <div className="bc-dev__timeline">
+              {view.fikirler.map((o) => (
+                <article key={o.id} className="bc-dev__proposal" data-testid={`atolye-idea-${o.id}`}>
+                  <header className="bc-dev__proposal-head"><div><span className="bc-dev__status">FİKİR</span><h3>{o.baslik}</h3></div><span>{o.beyin} · {when(o.tarih)}</span></header>
+                  <p>{o.neden}</p>
+                  {error?.id === o.id ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{error.text}</p> : null}
+                  <div className="bc-dev__actions">
+                    <button type="button" disabled={!decide || pending !== null} onClick={() => void onDecide(o.id, "onaylandi")}>{pending === o.id ? "KAYDEDİLİYOR…" : "ONAYLA"}</button>
+                    <button type="button" disabled={!decide || pending !== null} onClick={() => void onDecide(o.id, "reddedildi")}>REDDET</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </details>
+        ) : null}
         {view.kuyruk.length ? (
           <>
             <p><b>Geliştirme kuyruğu:</b></p>
@@ -139,8 +157,10 @@ function DevBrainSection({ g }: { readonly g: NonNullable<AtolyeBrainsView["geli
   return (
     <section className="bc-dev__section" aria-labelledby="atolye-gelistirici" data-testid="atolye-dev-brain">
       <h3 id="atolye-gelistirici">Geliştirici Beyni <span>{LEVEL[g.hazirlik.seviye]}</span></h3>
-      <p className="bc-dev__notice bc-dev__notice--safe">Gün içinde onaylanan işleri araştırır ve tahminini yazar; her akşam 16:30&apos;dan sonra işi Claude yapar, beyin kendi tahminini Claude&apos;un yaptığıyla karşılaştırıp öğrenir. Her yeni commit&apos;te de aynı sınava girer. Kod yazmaz; karnesi yeterli olunca daha fazlasına sen karar verirsin.</p>
+      <p className="bc-dev__notice bc-dev__notice--safe">Gün içinde onaylanan işleri araştırır ve tahminini yazar; her akşam 16:30&apos;dan sonra işi Claude yapar, beyin kendi tahminini Claude&apos;un yaptığıyla karşılaştırıp öğrenir. Her yeni commit&apos;te de aynı sınava girer. Boşta geçmiş bir değişikliği kendisi yeniden yazar (yazma sınavı); yeterince geçince Claude yokken onaylı işi kendisi yazabilir — yine de her kontrolden geçmeyen iş tutulmaz, hiçbir şey kendiliğinden canlıya geçmez.</p>
       <p><b>Karne:</b> {g.hazirlik.ozet}</p>
+      {g.yazma ? <p data-testid="atolye-dev-writing"><b>Kendi kodu:</b> {g.yazma.ozet}</p> : <p data-testid="atolye-dev-writing"><b>Kendi kodu:</b> henüz yazma sınavına girmedi</p>}
+      {g.yazma?.son.length ? <ul className="bc-dev__micro-items">{g.yazma.son.map((w) => <li key={`${w.tarih}${w.gorev}`} className="bc-dev__micro-item"><b>{when(w.tarih)}</b> — yazma sınavı: {w.gorev.slice(0, 90)} — {w.sonuc === "gecti" ? "geçti" : w.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} ({w.turlar} tur)</li>)}</ul> : null}
       <p>Hafıza: {g.gecmis} değişiklik · {g.icgudu.toplam} içgüdü ({g.icgudu.dogrulanan} doğrulandı, {g.icgudu.reddedilen} bırakıldı)</p>
       {g.kod?.toplam ? <p>Kod deneyimi: {g.kod.toplam} değişikliğin kodu (hangi dosyada hangi fonksiyon, eklenen kod, testi) · {g.kod.tarifli} tanesinin nasıl yapıldığını kendi sözleriyle yazdı</p> : null}
       {g.kod?.sonTarif ? <details><summary>Son tarifi — {g.kod.sonTarif.gorev.slice(0, 80)}</summary><p>{g.kod.sonTarif.nasil}</p></details> : null}

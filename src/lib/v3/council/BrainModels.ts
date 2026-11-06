@@ -27,6 +27,20 @@ export function brainBudget(paths: V3Paths, capUsd: number, provider = process.e
 }
 
 /**
+ * The model the studio's own developer writes code with (DevWriter; owner, 6 Nov 2026: "Claude olmadan yazabilecek
+ * duruma gelsin"): gpt-4.1 (`ATOLYE_V3_CIRAK_MODEL` overrides) under its own cap and WITHOUT the free fallback — code
+ * written by the 12B local model failed the checks anyway and only heated the card, so at the cap it stops instead.
+ * Undefined when OpenAI is not chosen or has no key.
+ */
+export function writerBudget(paths: V3Paths, capUsd: number, provider = process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "openai"): { readonly budget: V3Budget; readonly model: V3ModelChoice } | undefined {
+  const key = provider === "openai" ? v3Secret("OPENAI_API_KEY", paths.repoRoot) : undefined;
+  if (!key) return undefined;
+  process.env.OPENAI_API_KEY = key;
+  process.env.AI_PROVIDER = "openai";
+  return { budget: new V3Budget({ providers: { openai: new OpenAIProvider() }, capUsd }), model: { provider: "openai", model: process.env.ATOLYE_V3_CIRAK_MODEL ?? "gpt-4.1" } };
+}
+
+/**
  * The quality judge without chance (owner approval, 2 Nov 2026): temperature 0 and a fixed seed, so the same frame
  * gets the same verdict. At the default 0.4 the same 8-question exam gave 90 % and 73 % minutes apart. Used only when
  * the quality brain's exam chose it (setting "kalite.sabit", decided by SelfImprovement) or ATOLYE_V3_QUALITY_STEADY=1.

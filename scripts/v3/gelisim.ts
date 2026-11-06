@@ -4,6 +4,7 @@
  * stops at the next task when an order comes in.
  *
  *   npx tsx scripts/v3/gelisim.ts dongu [--zorla] [--yalniz istekler,karsilastir,oneriler,benzer,pekistir,sinav,ayar,ogren,arastir,gelistir]
+ *   npx tsx scripts/v3/gelisim.ts birlestir                # the same want in other words → counted on the earlier one
  *   npx tsx scripts/v3/gelisim.ts durum                    # last cycles, exams, the brains' own changes
  *   npx tsx scripts/v3/gelisim.ts oneriler                 # code proposals for the owner (Gelişim Merkezi)
  *   npx tsx scripts/v3/gelisim.ts onayla <id> [--not "…"]  # the owner's decision; nothing is built by it
@@ -20,13 +21,16 @@ import path from "node:path";
 import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, listSearchRequests, saveLinkRequest } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
 import { researchTopic, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
-import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
+import { brainBudget, brainVision, steadyJudge, writerBudget } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
-import { listGrades, readiness } from "../../src/lib/v3/council/DevBrain";
+import { apprenticePolicy, examCandidates, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
+import { listGrades, listWriteExams, readiness, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { learnFromCommits, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
+import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
+import { mergeParaphrasedProposals } from "../../src/lib/v3/council/ProposalMerge";
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, studyAttempts, type StudyRequest, studyRequestsDue, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
@@ -42,6 +46,16 @@ function arg(name: string): string | undefined {
 }
 
 const CYCLE_CAP_USD = 0.1;
+/**
+ * The developer brain's own spend per cycle (its guesses on gpt-4.1 since 6 Nov 2026, lessons, recipes), apart from
+ * the other brains' 10 cents so neither crowds the other out.
+ */
+const DEV_CAP_USD = 0.15;
+/** One writing exam at most, and the exams of one day together (`ATOLYE_V3_CIRAK_SINAV_USD`, `ATOLYE_V3_CIRAK_GUNLUK_USD`). */
+const EXAM_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_SINAV_USD) || 0.4;
+const EXAM_DAY_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_GUNLUK_USD) || 1;
+/** What the writing exams of this cycle spent (their budget is their own). */
+let writerSpent = 0;
 /** Code wants are collected from productions of the last this many days. */
 const HARVEST_DAYS = 14;
 const log = (s: string) => console.log(s);
@@ -94,14 +108,38 @@ const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
   ...((steady ?? steadyJudge(await tunedSetting(paths.workRoot, "kalite", "sabit"))) ? ["--sabit"] : []),
 ];
 
-async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[]): Promise<Omit<TaskResult, "bitis">> {
+/**
+ * One writing exam per cycle (owner, 6 Nov 2026: "Claude olmadan yazabilecek duruma gelsin"), inside its day's cap,
+ * only with OpenAI (the local model's code failed the checks and heated the card). `ATOLYE_V3_CIRAK_SINAV=0` stops it.
+ */
+async function writingExam(paths: V3Paths, research: Parameters<typeof writeExam>[1]["research"]): Promise<{ yapildi: boolean; satir: string }> {
+  if (/^(0|kapali|off)$/i.test(process.env.ATOLYE_V3_CIRAK_SINAV ?? "")) return { yapildi: false, satir: "kapalı (ATOLYE_V3_CIRAK_SINAV=0)" };
+  const spent = await examSpendToday(paths.workRoot);
+  if (spent + EXAM_CAP_USD > EXAM_DAY_CAP_USD) return { yapildi: false, satir: `bugünkü tavan doldu ($${spent.toFixed(2)} / $${EXAM_DAY_CAP_USD})` };
+  const writer = writerBudget(paths, EXAM_CAP_USD);
+  if (!writer) return { yapildi: false, satir: "OpenAI seçili değil ya da anahtarı yok; çırak yerel modelle yazmaz" };
+  const next = (await examCandidates(paths.repoRoot, paths.workRoot))[0];
+  if (!next) return { yapildi: false, satir: "sınava uygun yeni commit yok" };
+  await fitPc(paths);
+  // An order that comes in stops the exam at its next round (the watcher waits for this cycle before producing).
+  const stop = async () => ((await listOrders(paths.workRoot)).some((o) => o.order.durum === "bekliyor") ? "sipariş geldi" : undefined);
+  const x = await writeExam(next, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, research, writer, log, stop });
+  writerSpent += x.maliyetUsd;
+  return { yapildi: true, satir: `"${x.gorev.slice(0, 60)}" ${x.sonuc === "gecti" ? "geçti" : x.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} (${x.turlar} tur, $${x.maliyetUsd.toFixed(3)}); ${writeReadiness(await listWriteExams(paths.workRoot)).ozet}` };
+}
+
+async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[], dev: ReturnType<typeof brainBudget> = budget): Promise<Omit<TaskResult, "bitis">> {
   const skip = (ayrinti: string) => ({ gorev: task, sonuc: "atlandi" as const, ayrinti });
   const ok = (ayrinti: string) => ({ gorev: task, sonuc: "tamam" as const, ayrinti });
-  const research = { repoRoot: paths.repoRoot, workRoot: paths.workRoot, budget: budget.budget, model: budget.critic, log };
+  const meaning = localEmbedder();
+  const research = { repoRoot: paths.repoRoot, workRoot: paths.workRoot, budget: dev.budget, model: dev.critic, guessModel: dev.director, ...(meaning ? { meaning } : {}), log };
   if (task === "ogren") {
-    // The developer brain sits its exam on the new V3 commits and adds them to what it knows.
+    // The developer brain sits its exam on the new V3 commits and adds them to what it knows; then it writes one past
+    // commit's change itself (the writing exam: graded by that commit's own new scenarios).
     const r = await learnFromCommits(research);
-    return r.okunan ? ok(`${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}`) : skip(r.ozet);
+    const exam = await writingExam(paths, research);
+    if (!r.okunan && !exam.yapildi) return skip(`${r.ozet}; yazma sınavı: ${exam.satir}`);
+    return ok(`${r.okunan ? `${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}` : r.ozet}; yazma sınavı: ${exam.satir}`);
   }
   if (task === "arastir") {
     // By day the developer brain researches what waits for the evening (its guess is written before Claude builds).
@@ -117,7 +155,8 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     const release = await developerLock(paths.workRoot);
     if (!release) return skip("geliştirici başka bir işte");
     try {
-      const done = await runDevJob(job, research);
+      const cirak = await apprenticePolicy(paths.repoRoot, paths.workRoot);
+      const done = await runDevJob(job, research, cirak ? { cirak } : {});
       return ok(
         `"${done.baslik}": ${done.durum === "hazir" ? `hazır — dal ${done.is?.dal}` : done.durum === "yapildi" ? "değişiklik gerekmedi" : done.durum === "onaylandi" ? `Claude kullanım sınırı; ${done.is?.bekle?.slice(0, 16) ?? "?"} sonrasına bırakıldı, deneme sayılmadı` : `yapılamadı — ${(done.is?.sorunlar ?? []).join(" | ").slice(0, 200)}`}`,
       );
@@ -216,7 +255,10 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
       yeni += r?.yeni ?? 0;
       tekrar += r?.tekrar ?? 0;
     }
-    return yeni || tekrar ? ok(`${yeni} yeni öneri, ${tekrar} tekrar eden istek`) : skip("yeni rapor yok");
+    // The same want in other words is counted on the earlier one (owner, 6 Nov 2026: "onaya bir şey düşmüyor").
+    const merged = meaning ? await mergeParaphrasedProposals(paths.workRoot, meaning).catch((e: Error) => (log(`  öneriler anlamca birleştirilemedi: ${e.message.slice(0, 120)}`), undefined)) : undefined;
+    const mergedLine = merged?.birlesen ? `; ${merged.birlesen} öneri anlamca öncekiyle birleşti` : "";
+    return yeni || tekrar || merged?.birlesen ? ok(`${yeni} yeni öneri, ${tekrar} tekrar eden istek${mergedLine}`) : skip("yeni rapor yok");
   }
   if (task === "benzer") {
     // The studio's own learning (owner, 2 Nov 2026: "don't wait for my links"): a recent episode's topic first, else
@@ -409,6 +451,8 @@ async function cycle(paths: V3Paths): Promise<CycleRecord> {
   const gorevler: TaskResult[] = [];
   let durdu: string | undefined;
   const budget = brainBudget(paths, CYCLE_CAP_USD);
+  const dev = brainBudget(paths, DEV_CAP_USD);
+  writerSpent = 0;
   try {
     const only = arg("--yalniz")?.split(",").map((s) => s.trim()) as CycleTask[] | undefined;
     const cycles = await listCycles(paths.workRoot);
@@ -431,12 +475,12 @@ async function cycle(paths: V3Paths): Promise<CycleRecord> {
       }
       log(`• ${TASK_NAMES[task]}`);
       log(`  sağlık: ${healthLine(health)}`);
-      const r = await runTask(task, paths, budget, orders).catch((e: Error): Omit<TaskResult, "bitis"> => ({ gorev: task, sonuc: "hata", ayrinti: e.message.slice(0, 300) }));
+      const r = await runTask(task, paths, budget, orders, dev).catch((e: Error): Omit<TaskResult, "bitis"> => ({ gorev: task, sonuc: "hata", ayrinti: e.message.slice(0, 300) }));
       log(`  ${r.sonuc}: ${r.ayrinti}`);
       gorevler.push({ ...r, bitis: new Date().toISOString() });
     }
   } finally {
-    const record: CycleRecord = { basla, bitis: new Date().toISOString(), gorevler, ...(durdu ? { durdu } : {}), maliyetUsd: budget.budget.spentUsd };
+    const record: CycleRecord = { basla, bitis: new Date().toISOString(), gorevler, ...(durdu ? { durdu } : {}), maliyetUsd: Math.round((budget.budget.spentUsd + dev.budget.spentUsd + writerSpent) * 1e6) / 1e6 };
     await recordCycle(paths.workRoot, record);
     // AYAS reads its inbox: the cycle's summary goes there like a production's report.
     if (gorevler.some((t) => t.sonuc !== "atlandi")) await fs.appendFile(path.join(paths.workRoot, "_kutuphane", "ayas-gelen-kutusu.jsonl"), `${JSON.stringify({ tarih: record.bitis, kaynak: "atolye-v3-gelisim", ozet: cycleLine(record), maliyetUsd: record.maliyetUsd })}\n`);
@@ -464,7 +508,15 @@ async function main() {
     return;
   }
   if (cmd === "oneriler") {
-    for (const { proposal: p } of await listProposals(paths.workRoot)) log(`${p.durum.padEnd(11)} ${p.id}  [${p.beyin}] ${p.baslik}${p.sayi > 1 ? ` (${p.sayi} kez)` : ""}\n${" ".repeat(12)}${p.neden.slice(0, 200)}`);
+    for (const { proposal: p } of await listProposals(paths.workRoot)) log(`${p.durum.padEnd(11)} ${p.id}  [${p.beyin}] ${p.baslik}${p.sayi > 1 ? ` (${p.sayi} kez)` : ""}${p.birlesti ? ` → ${p.birlesti.hedef} (${p.birlesti.benzerlik})` : ""}\n${" ".repeat(12)}${p.neden.slice(0, 200)}`);
+    return;
+  }
+  if (cmd === "birlestir") {
+    // The same want in other words, counted on the earlier proposal (ProposalMerge; the idle loop does it every cycle).
+    const e = localEmbedder();
+    if (!e) throw new Error("anlam araması kapalı (ATOLYE_V3_EMBED_MODEL=0)");
+    const r = await mergeParaphrasedProposals(paths.workRoot, e);
+    log(r.birlesen ? r.satirlar.join("\n") : "birleşecek öneri yok");
     return;
   }
   if (cmd === "onayla" || cmd === "reddet") {
@@ -474,7 +526,7 @@ async function main() {
     log(`${p.durum}: ${p.baslik}${p.durum === "onaylandi" ? ` — geliştirme kuyruğunda; ${developerWindow(process.env).neden} (scripts/v3/gelistirici.ts liste)` : ""}`);
     return;
   }
-  throw new Error("Kullanım: gelisim.ts dongu [--zorla] [--yalniz …] | durum | oneriler | onayla <id> | reddet <id>");
+  throw new Error("Kullanım: gelisim.ts dongu [--zorla] [--yalniz …] | durum | oneriler | birlestir | onayla <id> | reddet <id>");
 }
 
 main().catch((e) => {

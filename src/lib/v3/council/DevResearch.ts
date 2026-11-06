@@ -9,6 +9,8 @@ import {
   codeExperience,
   codeExperienceLines,
   declarationSpans,
+  devBrainDir,
+  type DevGrade,
   type DevGuess,
   firedInstincts,
   gradedFiles,
@@ -22,6 +24,7 @@ import {
   listLessons,
   MAX_GUESS_FILES,
   MAX_GUESS_SYMBOLS,
+  type PastChange,
   readInstincts,
   recordChange,
   recordCodeExperience,
@@ -36,6 +39,8 @@ import {
   writeInstincts,
 } from "./DevBrain";
 import { develop, type DeveloperDeps } from "./Developer";
+import type { Embedder } from "./ExperienceMemory";
+import { cachedVectors, nearestByMeaning, vectorFile } from "./MeaningCache";
 import type { DevProposal } from "./SelfImprovement";
 
 /**
@@ -51,6 +56,33 @@ export interface ResearchDeps {
   readonly budget: V3Budget;
   readonly model: V3ModelChoice;
   readonly log: (s: string) => void;
+  /**
+   * The guess's model (choosing files and declarations is where it missed most: on 6 Nov 2026 the right file was among
+   * its candidates in 8 of 15 exams but not chosen); the cheap `model` keeps the search words, recipes and lessons.
+   */
+  readonly guessModel?: V3ModelChoice;
+  /**
+   * Meaning search over past changes (MeaningCache, qwen3-embedding on the CPU). Replayed on 157 V3 changes (6 Nov
+   * 2026): the 5 past changes nearest in meaning held 63 % of a change's files, the 5 sharing most words 17 %.
+   */
+  readonly meaning?: Embedder;
+}
+
+/** Past changes nearest in meaning to a task (before a date, never the task's own), or none without meaning search. */
+export const MEANING_NEIGHBOURS = 5;
+
+export async function meaningNeighbours(d: Pick<ResearchDeps, "workRoot" | "meaning" | "log">, task: string, opts: { readonly before?: string; readonly exclude?: string; readonly k?: number } = {}): Promise<(PastChange & { benzerlik: number })[]> {
+  if (!d.meaning) return [];
+  try {
+    const until = opts.before ? Date.parse(opts.before) : Infinity;
+    const past = (await listChanges(d.workRoot)).filter((c) => c.dosyalar.length && c.id !== opts.exclude && Date.parse(c.tarih) <= until);
+    if (!past.length) return [];
+    const vectors = await cachedVectors(vectorFile(devBrainDir(d.workRoot), d.meaning), [task, ...past.map((c) => c.mesaj)], d.meaning);
+    return nearestByMeaning(vectors.get(task)!, past.map((c) => ({ item: c, v: vectors.get(c.mesaj) })), opts.k ?? MEANING_NEIGHBOURS).map((x) => ({ ...x.item, benzerlik: Math.round(x.benzerlik * 100) / 100 }));
+  } catch (e) {
+    d.log(`  geliştirici beyni: anlam araması yapılamadı (${(e as Error).message.slice(0, 120)}), kelime araması kullanıldı`);
+    return [];
+  }
 }
 
 /** Where it searches: the V3 studio's code and data. */
@@ -139,7 +171,7 @@ Write in Turkish, 2-4 sentences, how it was done: which file got which function 
 }
 
 /** The code experiences of some changes, by id, in the order asked. */
-async function codeOf(workRoot: string, ids: readonly string[]): Promise<CodeExperience[]> {
+export async function codeOf(workRoot: string, ids: readonly string[]): Promise<CodeExperience[]> {
   const all = new Map((await listCodeExperience(workRoot)).map((x) => [x.id, x]));
   return ids.flatMap((id) => (all.has(id) ? [all.get(id)!] : []));
 }
@@ -203,7 +235,9 @@ export async function guessTask(
     scores.set(f, { ...s, puan: s.puan + puan });
     why.set(f, [...(why.get(f) ?? []), neden]);
   };
-  const benzer = similarChanges(await listChanges(d.workRoot), input.gorev, { ...(input.before ? { before: input.before } : {}), exclude: input.id });
+  const byWords = similarChanges(await listChanges(d.workRoot), input.gorev, { ...(input.before ? { before: input.before } : {}), exclude: input.id });
+  const byMeaning = await meaningNeighbours(d, input.gorev, { ...(input.before ? { before: input.before } : {}), exclude: input.id });
+  const benzer = [...byMeaning, ...byWords.filter((c) => !byMeaning.some((m) => m.id === c.id))].slice(0, 6);
   for (const c of benzer) for (const f of c.dosyalar) add(f, 6 * c.benzerlik, `benzer değişiklik "${c.mesaj.slice(0, 60)}"`);
   const icguduler = firedInstincts(await readInstincts(d.workRoot), input.gorev).slice(0, 12);
   for (const i of icguduler) add(i.dosya, 8 * i.guven, `içgüdü ${i.guven}`);
@@ -233,7 +267,7 @@ Decide which files (at most ${MAX_GUESS_FILES}; usually 1-4) a developer would c
 Return ONLY JSON: {"dosyalar": ["path", ...], "semboller": ["name", ...], "karar": "var" | "yapilmali", "plan": "<Turkish, 2-4 sentences: what changes where>", "test": "scripts/smoke-v3-<name>.ts"}`;
   let guess: DevGuess = { id: input.id, kaynak: input.kaynak, tarih: new Date().toISOString(), gorev: input.gorev, dosyalar: ranked.slice(0, 3), karar: "yapilmali", plan: "", adaylar: ranked, model: modelName(d.model) };
   try {
-    const out = await d.budget.generate("gelistirici-tahmin", d.model, prompt, { maxTokens: 700 });
+    const out = await d.budget.generate("gelistirici-tahmin", d.guessModel ?? d.model, prompt, { maxTokens: 700 });
     const raw = readJsonAnswer<{ dosyalar?: unknown; semboller?: unknown; karar?: unknown; plan?: unknown; test?: unknown }>(out.result.content);
     if (raw) {
       const named = Array.isArray(raw.dosyalar) ? gradedFiles(raw.dosyalar.filter((f): f is string => typeof f === "string").map((f) => f.trim())).filter((f) => all.includes(f)).slice(0, MAX_GUESS_FILES) : [];
@@ -289,7 +323,7 @@ export async function researchQueue(proposals: readonly DevProposal[], d: Resear
 }
 
 /** The V3 commits on HEAD, oldest first. */
-async function v3Commits(repoRoot: string, limit = 400): Promise<{ sha: string; tarih: string; konu: string }[]> {
+export async function v3Commits(repoRoot: string, limit = 400): Promise<{ sha: string; tarih: string; konu: string }[]> {
   const r = await git(repoRoot, ["log", "--no-merges", "-n", String(limit), "--format=%H%x09%cI%x09%s", "HEAD", "--", ...SEARCH_PATHS]);
   return r.stdout
     .split(/\r?\n/)
@@ -300,7 +334,7 @@ async function v3Commits(repoRoot: string, limit = 400): Promise<{ sha: string; 
     .reverse();
 }
 
-async function commitFiles(repoRoot: string, sha: string): Promise<string[]> {
+export async function commitFiles(repoRoot: string, sha: string): Promise<string[]> {
   // `--root`: a first commit lists its files too (without it, nothing).
   const r = await git(repoRoot, ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", sha]);
   return r.stdout.split(/\r?\n/).filter(Boolean);
@@ -348,6 +382,8 @@ export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS, 
       results.push(`"${task.slice(0, 50)}": %${Math.round(grade.isabet * 100)}${grade.sembolIsabet !== undefined ? ` (fonksiyon %${Math.round(grade.sembolIsabet * 100)})` : ""}`);
       const symbolsFound = grade.sembolIsabet !== undefined ? `; değişen ${Math.min(grade.gercekSemboller!.length, MAX_GUESS_SYMBOLS)} bildirimin ${Math.round(grade.sembolIsabet * Math.min(grade.gercekSemboller!.length, MAX_GUESS_SYMBOLS))} tanesini bildim` : "";
       await say(d.workRoot, `Commit sınavı — "${task.slice(0, 70)}": değişen ${grade.gercek.length} dosyanın ${Math.round(grade.isabet * grade.gercek.length)} tanesini buldum${grade.isabet < 1 && grade.adayIsabet > grade.isabet ? " (kalanlar aramamda vardı, seçemedim)" : ""}${symbolsFound}.`);
+      // A missed commit exam teaches too (until 6 Nov 2026 only a job Claude built did, and no job was ever built).
+      if (missed(grade)) await writeLesson(d, { id: c.sha, gorev: task, tahmin: guessLine(guess), gercek: grade.gercek, semboller: changedSymbols(code), ozet: code.nasil ?? codeExperienceLines(code, { ornek: 600 }).join("\n") });
     } else if (graded.length) await readCode(c, task);
     // Every commit is recorded, so it is read once (one that changed only notes has no files to learn).
     await recordChange(d.workRoot, { id: c.sha, tarih: c.tarih, mesaj: task, dosyalar: graded });
@@ -404,39 +440,70 @@ export async function learnFromBuild(p: DevProposal, d: ResearchDeps): Promise<s
     }
   }
   if (!guess) return "tahmini yoktu";
+  // Its own build is no exam of its guess (it wrote both).
+  if (p.is?.yazan === "cirak") return "işi çırak kendisi yazdı; tahmini notlanmadı";
   const grade = gradeGuess(guess, changed, new Date(), symbols);
   await recordGrade(d.workRoot, grade);
   const line = `Claude "${p.baslik.slice(0, 60)}" işini bitirdi (${grade.gercek.length} dosya); tahminim %${Math.round(grade.isabet * 100)} tuttu${grade.kararDogru === false ? ", \"zaten var mı\" kararım yanlıştı" : ""}.`;
   await say(d.workRoot, line);
-  if (grade.isabet >= 1 && grade.kararDogru !== false && (grade.sembolIsabet ?? 1) >= 0.5) return line;
+  if (!missed(grade)) return line;
+  await writeLesson(d, { id: p.id, gorev: jobTask(p), tahmin: guessLine(guess), gercek: grade.gercek, semboller: symbols, ozet: p.is?.ozet ?? "" });
+  return line;
+}
+
+/** A guess that missed a file, a "does it exist" decision, or half the declarations: worth a lesson. */
+const missed = (g: Pick<DevGrade, "isabet" | "kararDogru" | "sembolIsabet">) => g.isabet < 1 || g.kararDogru === false || (g.sembolIsabet ?? 1) < 0.5;
+
+const guessLine = (g: DevGuess) => `${g.karar === "var" ? "the studio already does it" : `change ${g.dosyalar.join(", ") || "nothing named"}`}${g.semboller?.length ? ` (declarations: ${g.semboller.join(", ")})` : ""}. Your plan: ${g.plan || "—"}`;
+
+/** One lesson for next time from a miss: what it guessed against what the senior really did (the cheap model). */
+async function writeLesson(d: ResearchDeps, x: { readonly id: string; readonly gorev: string; readonly tahmin: string; readonly gercek: readonly string[]; readonly semboller: readonly string[]; readonly ozet: string }): Promise<void> {
   const prompt = `You are the apprentice developer of Atölye V3. Before the senior developer built a task you guessed where the change would go; compare and learn.
-TASK: ${jobTask(p)}
-YOUR GUESS: ${guess.karar === "var" ? "the studio already does it" : `change ${guess.dosyalar.join(", ") || "nothing named"}`}${guess.semboller?.length ? ` (declarations: ${guess.semboller.join(", ")})` : ""}. Your plan: ${guess.plan || "—"}
-WHAT THE SENIOR DID: changed ${grade.gercek.join(", ") || "nothing (the studio already did it)"}${symbols.length ? ` (declarations: ${symbols.slice(0, 15).join(", ")})` : ""}. Their summary: ${(p.is?.ozet ?? "").slice(0, 1200)}
+TASK: ${x.gorev}
+YOUR GUESS: ${x.tahmin}
+WHAT THE SENIOR DID: changed ${x.gercek.join(", ") || "nothing (the studio already did it)"}${x.semboller.length ? ` (declarations: ${x.semboller.slice(0, 15).join(", ")})` : ""}. Their summary: ${x.ozet.slice(0, 1200)}
 Write ONE lesson for similar tasks next time, general enough to reuse (where such changes go, what to check first), in Turkish, at most 2 sentences. Return ONLY JSON: {"ders": "..."}`;
   try {
     const out = await d.budget.generate("gelistirici-ders", d.model, prompt, { maxTokens: 250 });
     const ders = readJsonAnswer<{ ders?: unknown }>(out.result.content)?.ders;
     if (typeof ders === "string" && ders.trim()) {
-      await recordLesson(d.workRoot, { tarih: new Date().toISOString(), id: p.id, metin: ders });
+      await recordLesson(d.workRoot, { tarih: new Date().toISOString(), id: x.id, metin: ders });
       await say(d.workRoot, `Ders aldım: ${ders.trim().slice(0, 200)}`);
     }
   } catch (e) {
     d.log(`  geliştirici beyni: ders yazılamadı (${(e as Error).message.slice(0, 120)})`);
   }
-  return line;
 }
 
 /**
  * One job of the evening: researched first when the day's research missed it (Claude always gets the note), built by
  * the developer (Developer.develop: Claude in its own worktree, the studio's checks), then learned from.
  */
-export async function runDevJob(p: DevProposal, d: ResearchDeps, builder: Partial<Pick<DeveloperDeps, "agent" | "checks" | "worktreeRoot">> = {}): Promise<DevProposal> {
+export async function runDevJob(
+  p: DevProposal,
+  d: ResearchDeps,
+  builder: Partial<Pick<DeveloperDeps, "agent" | "checks" | "worktreeRoot">> & {
+    /** The apprentice's own agent (DevWriter through scripts/v3/cirak-yaz.ts) and when it builds instead of Claude. */
+    readonly cirak?: { readonly agent: readonly string[]; readonly when: "zorla" | "yedek" | "once" };
+  } = {},
+): Promise<DevProposal> {
   if (await needsResearch(d.workRoot, p)) await researchJob(p, d).catch((e: Error) => d.log(`  geliştirici beyni: araştıramadı (${e.message.slice(0, 160)})`));
   const note = researchNote(d.workRoot, p.id);
   const research = existsSync(note) && (await lastGuess(d.workRoot, p.id)) ? await fs.readFile(note, "utf8") : undefined;
-  await say(d.workRoot, `"${p.baslik.slice(0, 80)}" işini araştırma notumla birlikte Claude'a veriyorum.`, "Claude");
-  const done = await develop(p, { ...builder, repoRoot: d.repoRoot, workRoot: d.workRoot, log: d.log, ...(research ? { research } : {}) });
+  const { cirak, ...rest } = builder;
+  const base = { ...rest, repoRoot: d.repoRoot, workRoot: d.workRoot, log: d.log, ...(research ? { research } : {}) };
+  const byApprentice = async (job: DevProposal, why: string) => {
+    await say(d.workRoot, `"${job.baslik.slice(0, 80)}" işini ${why} kendim yazıyorum; testlerden geçmezse tutulmaz.`, "AYAS");
+    return develop(job, { ...base, agent: cirak!.agent, yazan: "cirak" });
+  };
+  let done: DevProposal;
+  if (cirak && (cirak.when === "zorla" || cirak.when === "once")) done = await byApprentice(p, cirak.when === "zorla" ? "istendiği için" : "önce");
+  else {
+    await say(d.workRoot, `"${p.baslik.slice(0, 80)}" işini araştırma notumla birlikte Claude'a veriyorum.`, "Claude");
+    done = await develop(p, base);
+    // Claude's usage limit (the evenings of 3 Nov 2026): the apprentice, once its writing exams allow it, builds instead.
+    if (cirak?.when === "yedek" && done.durum === "onaylandi" && done.is?.bekle) done = await byApprentice(done, "Claude'un kullanım sınırı dolduğu için");
+  }
   await learnFromBuild(done, d).catch((e: Error) => d.log(`  geliştirici beyni: öğrenemedi (${e.message.slice(0, 160)})`));
   return done;
 }

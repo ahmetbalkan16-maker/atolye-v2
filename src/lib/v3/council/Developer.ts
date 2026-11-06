@@ -26,12 +26,17 @@ export interface DeveloperDeps {
   /** The developer brain's research note for the job (DevResearch), added to the task. */
   readonly research?: string;
   readonly log: (s: string) => void;
+  /** Who writes: Claude (default) or the studio's own apprentice (DevWriter, scripts/v3/cirak-yaz.ts). */
+  readonly yazan?: "claude" | "cirak";
 }
 
 const AGENT_TIMEOUT_MS = 45 * 60_000;
 const CHECK_TIMEOUT_MS = 20 * 60_000;
-/** The agent may read and edit files and run only the type check and the test scripts. */
-const AGENT_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "Bash(npx tsc:*)", "Bash(npx tsx scripts/smoke-v3-:*)"];
+/**
+ * The agent may read and edit files and run only the type checks, the test scripts and the local lint (since 6 Nov
+ * 2026: a lint failure used to surface only in the studio's checks after the run and threw the whole build away).
+ */
+const AGENT_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "Bash(npx tsc:*)", "Bash(npx tsx scripts/smoke-v3-:*)", "Bash(node scripts/lint-yerel.mjs:*)", "Bash(node remotion-v3/node_modules/typescript/bin/tsc:*)"];
 
 /** The Claude Code command line (its Node entry, so no shell parses the arguments). */
 export function claudeAgent(env: Readonly<Record<string, string | undefined>> = process.env): string[] {
@@ -39,11 +44,16 @@ export function claudeAgent(env: Readonly<Record<string, string | undefined>> = 
   return [process.execPath, cli, "-p", "--permission-mode", "acceptEdits", `--allowedTools=${AGENT_TOOLS.join(",")}`, "--append-system-prompt", DEVELOPER_RULES, "--output-format", "text"];
 }
 
-/** The checks a build must pass, run with the worktree's own scripts and the checkout's tools. */
+/**
+ * The checks a build must pass, run with the worktree's own scripts and the checkout's tools. The Remotion package has
+ * its own type check (the root tsconfig excludes remotion-v3), run when its dependencies are linked in.
+ */
 export async function defaultChecks(dir: string): Promise<string[][]> {
   const smokes = (await fs.readdir(path.join(dir, "scripts"))).filter((f) => /^smoke-v3-[\w-]+\.ts$/.test(f)).sort();
+  const remotionTsc = path.join("remotion-v3", "node_modules", "typescript", "bin", "tsc");
   return [
     [process.execPath, path.join("node_modules", "typescript", "bin", "tsc"), "--noEmit"],
+    ...(existsSync(path.join(dir, remotionTsc)) ? [[process.execPath, remotionTsc, "--noEmit", "-p", "remotion-v3"]] : []),
     ...smokes.map((s) => [process.execPath, path.join("node_modules", "tsx", "dist", "cli.mjs"), path.join("scripts", s)]),
     [process.execPath, path.join("scripts", "lint-yerel.mjs")],
   ];
@@ -71,8 +81,42 @@ async function removeLink(link: string): Promise<void> {
 
 const LINKS = ["node_modules", path.join("remotion-v3", "node_modules")];
 
-async function dropWorktree(repoRoot: string, dir: string): Promise<void> {
+/** The skill folders under `.claude/skills` (one level, and the `ayas` group's members). */
+async function skillFolders(root: string): Promise<string[]> {
+  const base = path.join(root, ".claude", "skills");
+  if (!existsSync(base)) return [];
+  const out: string[] = [];
+  for (const e of await fs.readdir(base, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue;
+    if (existsSync(path.join(base, e.name, "SKILL.md"))) out.push(e.name);
+    else for (const f of await fs.readdir(path.join(base, e.name), { withFileTypes: true }).catch(() => [])) if (f.isDirectory() && existsSync(path.join(base, e.name, f.name, "SKILL.md"))) out.push(path.join(e.name, f.name));
+  }
+  return out;
+}
+
+/**
+ * The checkout's dependencies and its untracked skills, linked into a sandbox worktree (junctions; nothing copied). The
+ * Remotion skills are not tracked, so a worktree has only the tracked ones (v3-gelistirici, ayas/*): Claude's evening
+ * run and the apprentice see them all (owner, 6 Nov 2026: "skilleri entegre et kullansın").
+ */
+export async function linkShared(repoRoot: string, dir: string): Promise<void> {
+  for (const l of LINKS) if (existsSync(path.join(repoRoot, l)) && !existsSync(path.join(dir, l))) await fs.symlink(path.join(path.resolve(repoRoot), l), path.join(dir, l), "junction");
+  for (const s of await skillFolders(repoRoot)) {
+    const target = path.join(dir, ".claude", "skills", s);
+    if (existsSync(target)) continue;
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.symlink(path.join(path.resolve(repoRoot), ".claude", "skills", s), target, "junction");
+  }
+}
+
+/** The links go first (never entered), then the worktree and its record. */
+export async function dropWorktree(repoRoot: string, dir: string): Promise<void> {
   for (const l of LINKS) await removeLink(path.join(dir, l));
+  const skills = path.join(dir, ".claude", "skills");
+  for (const e of await fs.readdir(skills, { withFileTypes: true }).catch(() => [])) {
+    await removeLink(path.join(skills, e.name));
+    if (e.isDirectory()) for (const f of await fs.readdir(path.join(skills, e.name)).catch(() => [])) await removeLink(path.join(skills, e.name, f));
+  }
   if (existsSync(dir)) await git(repoRoot, ["worktree", "remove", "--force", dir]);
   await git(repoRoot, ["worktree", "prune"]);
 }
@@ -84,7 +128,8 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
   const branch = `gelistirme/${p.id}`;
   const record = path.join(improvementDir(d.workRoot), "isler", p.id);
   await fs.mkdir(record, { recursive: true });
-  const job: DevJob = { deneme: (p.is?.deneme ?? 0) + 1, baslangic: new Date().toISOString(), kayit: record };
+  const yazan = d.yazan ?? "claude";
+  const job: DevJob = { deneme: (p.is?.deneme ?? 0) + 1, baslangic: new Date().toISOString(), kayit: record, yazan };
   await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "yapiliyor", is: job }));
   const finish = (durum: DevProposal["durum"], extra: Partial<DevJob>) => updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum, is: { ...job, ...extra, bitis: new Date().toISOString() } }));
   const fail = async (sorunlar: string[]) => {
@@ -100,15 +145,15 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     await fs.mkdir(root, { recursive: true });
     const add = await git(d.repoRoot, ["worktree", "add", "-b", branch, dir, "HEAD"]);
     if (add.code !== 0) return await fail([`çalışma kopyası açılamadı: ${(add.stderr || add.stdout).slice(-300)}`]);
-    for (const l of LINKS) if (existsSync(path.join(d.repoRoot, l))) await fs.symlink(path.join(path.resolve(d.repoRoot), l), path.join(dir, l), "junction");
+    await linkShared(d.repoRoot, dir);
     const packet = taskPacket(p, p.is, d.research);
     await fs.writeFile(path.join(record, `gorev-${job.deneme}.md`), packet);
-    d.log(`  geliştirici: "${p.baslik}" — ${dir} içinde çalışıyor (deneme ${job.deneme})`);
+    d.log(`  geliştirici: "${p.baslik}" — ${dir} içinde ${yazan === "cirak" ? "çırak" : "Claude"} çalışıyor (deneme ${job.deneme})`);
     const agent = d.agent ?? claudeAgent();
     const run = await runProcess(agent[0]!, agent.slice(1), { cwd: dir, input: packet, timeoutMs: d.agentTimeoutMs ?? AGENT_TIMEOUT_MS });
     await fs.writeFile(path.join(record, `ajan-${job.deneme}.log`), `${run.stdout}\n--- stderr ---\n${run.stderr}`);
     const ozet = run.stdout.trim().slice(-1500);
-    const until = run.code !== 0 ? usageLimitUntil(`${run.stdout}\n${run.stderr}`) : undefined;
+    const until = run.code !== 0 && yazan === "claude" ? usageLimitUntil(`${run.stdout}\n${run.stderr}`) : undefined;
     if (until) {
       // Claude's usage limit, not the job: back in the queue until it resets, this try not counted.
       const sorun = `Claude kullanım sınırı: ${(run.stderr || run.stdout).trim().slice(-200)}`;
@@ -141,7 +186,7 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     }
     await fs.writeFile(path.join(record, `kontrol-${job.deneme}.log`), outputs.join("\n\n"));
     await git(dir, ["add", "-A"]);
-    const commit = await git(dir, ["commit", "-q", "-m", `feat(v3): ${p.baslik.slice(0, 90)}\n\nAtölye geliştiricisi, öneri ${p.id} (owner onayı ${p.karar?.tarih?.slice(0, 10) ?? "?"}).\nKontroller: ${checks.length} komut geçti.\n\n${ozet.slice(0, 1200)}`]);
+    const commit = await git(dir, ["commit", "-q", "-m", `feat(v3): ${p.baslik.slice(0, 90)}\n\n${yazan === "cirak" ? "Atölye çırağı (kendi yazdı, Claude olmadan)" : "Atölye geliştiricisi (Claude)"}, öneri ${p.id} (owner onayı ${p.karar?.tarih?.slice(0, 10) ?? "?"}).\nKontroller: ${checks.length} komut geçti.\n\n${ozet.slice(0, 1200)}`]);
     if (commit.code !== 0) return await fail([`commit yapılamadı: ${(commit.stderr || commit.stdout).slice(-300)}`]);
     await dropWorktree(d.repoRoot, dir);
     d.log(`  geliştirici: "${p.baslik}" hazır — dal ${branch} (${dosyalar.length} dosya, ${checks.length} kontrol geçti)`);

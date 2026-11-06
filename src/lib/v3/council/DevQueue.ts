@@ -26,6 +26,8 @@ export interface DevJob {
   readonly kayit?: string;
   /** Claude's usage limit stopped the last run: the job waits in the queue until then (the try is not counted). */
   readonly bekle?: string;
+  /** Who wrote the last try: Claude, or the studio's own apprentice (DevWriter). Older records: Claude. */
+  readonly yazan?: "claude" | "cirak";
 }
 
 export const MAX_DEV_TRIES = 2;
@@ -115,6 +117,8 @@ export const DEVELOPER_RULES = `You are the Atölye V3 studio's unattended devel
 - Never change src/lib/v3/council/BrainCouncilFeed.ts: AYAS's homepage reads it, and only the owner changes the homepage.
 - Follow CLAUDE.md's code conventions (match the surrounding code, its comment density and naming; Turkish log text,
   English code comments). Keep the change small and backward compatible; never break a working feature.
+- Load the project skill v3-gelistirici first (.claude/skills/v3-gelistirici/SKILL.md: where V3 code goes, how to prove
+  it, this machine's traps), and the remotion-* skills before changing remotion-v3/src.
 - Prove it: add or extend a scenario in the matching scripts/smoke-v3-*.ts, run \`npx tsc --noEmit\` and the smoke suites you
   touched until they pass.
 - End with a short summary in Turkish: what you changed, in which files, and how you tested it.`;

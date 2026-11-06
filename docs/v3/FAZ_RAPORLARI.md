@@ -571,3 +571,27 @@ talimatı "yardımcı beyinler ana ekranda gözüksün, konuşsun, tartışsın,
 - Ana ekran: `src/components/homepage/AyasBrainCouncil.tsx` + `council/BrainCouncilFeed.ts` (yalnız gerçek kayıt);
   politika `docs/AYAS_HOMEPAGE_POLICY.md` "Atölye brain council".
 - İlk gerçek çalışma: 158 commit okundu, 821 içgüdü; ilk 4 commit sınavında değişen dosyaları bulma %33.
+
+## Çırak kendi kodunu yazar; öneriler onaya düşer (6 Kasım 2026)
+
+Owner: "onaya bir şey düşmüyor ki nasıl onay vericem ve ne eksikse bu beyinde hepsini tamamla skilleri entegre et
+kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duruma gelsin". Ayrıntı: ATOLYE_CHECKPOINT.md
+"6 Kasım 2026".
+
+- Öneriler: 34 fikrin hepsi tek üretimdendi ve her seferinde başka sözlerle yazılmıştı; kelime örtüşmesi eşleştiremediği
+  için hiçbiri "2 üretimde" olup onaya düşmüyordu. `council/ProposalMerge.ts` anlamca (qwen3-embedding, eşik 0,74)
+  öncekiyle birleştirir (durum `birlesti`); Gelişim Merkezi kalan fikirleri "Diğer fikirler" altında ONAYLA/REDDET ile
+  listeler. `gelisim.ts birlestir`; döngünün `oneriler` görevi her seferinde yapar.
+- Öğrenme hızı: tahminlerde anlamca en yakın geçmiş değişiklikler (geriye dönük ölçüm: ilk 5 komşu değişen dosyaların
+  %63'ünü içeriyor, kelimeyle %17), tahmin gpt-4.1 ile, kaçırılan her commit sınavından ders.
+- Kendi kodu: `council/DevWriter.ts` (OKU ile dosya okur, düz metin ARA/YERİNE düzenleme blokları, her turda tsc +
+  testler, hata geri beslenir, ≤ 6 tur), `council/DevApprentice.ts` (yazma sınavı: geçmiş bir commit'in ebeveyninde,
+  o commit'in yeni smoke senaryoları şartname; geçti/kaldı/sayılmadı; kalırsa gerçek koddan ders). `ogren` görevi
+  döngü başına bir sınav yapar ($0,40/sınav, $1/gün). Son 10 sayılan sınavda ≥ 6 ve ≥ %50 geçince Claude'un kullanım
+  sınırı dolduğunda onaylı işi kendisi yazar (`scripts/v3/cirak-yaz.ts`, `ATOLYE_V3_CIRAK_YAZAR`); yine her kontrolden
+  geçmeyen iş tutulmaz, push/canlı yok.
+- Skill'ler: `.claude/skills/v3-gelistirici/SKILL.md` (izlenen); `council/DevSkills.ts` işe uyan skill'leri çırağın
+  istemine koyar; akşam Claude'unun çalışma kopyasına izlenmeyen Remotion skill'leri bağlanır, lint ve Remotion tsc
+  izni var; geliştirici kontrollerine Remotion tsc eklendi.
+- Wan 2.2 TI2V-5B denemesi: `scripts/v3/wan22_dene.py` (üç arka plan, 480p, 3 sn); bellek için dönüştürücü bir kez
+  bf16 parçalara çevrilir, istem gömmeleri saklanır, RAM emniyeti.

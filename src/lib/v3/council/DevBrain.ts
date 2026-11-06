@@ -528,6 +528,60 @@ export function researchMarkdown(
   return `${lines.join("\n")}\n`;
 }
 
+/**
+ * One writing exam (owner, 6 Nov 2026: "Claude olmadan yazabilecek duruma gelsin"): the apprentice writes a past V3
+ * commit's change itself, at the commit's parent, with that commit's new smoke scenarios as the spec; it passes when
+ * the type check and those scenarios pass. `gecersiz`: the scenarios did not pass even with the real change here (the
+ * environment), or already passed before it — not counted either way.
+ */
+export interface WriteExam {
+  /** The commit's sha (or a job id when it built a job). */
+  readonly id: string;
+  readonly tarih: string;
+  readonly gorev: string;
+  readonly sonuc: "gecti" | "kaldi" | "gecersiz";
+  /** Model rounds it used (reading files counts too). */
+  readonly turlar: number;
+  readonly maliyetUsd: number;
+  /** The files it changed / the commit really changed (code and data, tests apart). */
+  readonly dosyalar: readonly string[];
+  readonly gercek: readonly string[];
+  readonly testler: readonly string[];
+  /** Why it failed (the last check's words), or why the exam did not count. */
+  readonly neden?: string;
+  readonly model: string;
+}
+
+/** Writing exams that count towards readiness. */
+export const WRITE_WINDOW = 10;
+/** Counted exams before the apprentice may build a job on its own, and the share it must pass. */
+export const WRITE_MIN_EXAMS = 6;
+export const WRITE_PASS_SHARE = 0.5;
+
+export interface WriteReadiness {
+  readonly sayilan: number;
+  readonly gecen: number;
+  /** 0..100 over the last WRITE_WINDOW counted exams. */
+  readonly oran: number;
+  /** Whether it may build an approved job itself when Claude cannot (its builds still pass every check). */
+  readonly yazabilir: boolean;
+  readonly ozet: string;
+}
+
+export function writeReadiness(exams: readonly WriteExam[]): WriteReadiness {
+  const counted = exams.filter((e) => e.sonuc !== "gecersiz").slice(-WRITE_WINDOW);
+  const gecen = counted.filter((e) => e.sonuc === "gecti").length;
+  const oran = counted.length ? Math.round((gecen / counted.length) * 100) : 0;
+  const yazabilir = counted.length >= WRITE_MIN_EXAMS && gecen / counted.length >= WRITE_PASS_SHARE;
+  const ozet = counted.length
+    ? `kendi yazdığı kod: son ${counted.length} yazma sınavının ${gecen} tanesini geçti (%${oran})${yazabilir ? " — Claude yokken onaylı işi kendisi yazabilir" : ` — kendi başına yazması için en az ${WRITE_MIN_EXAMS} sınavda %${Math.round(WRITE_PASS_SHARE * 100)} gerekir`}`
+    : "henüz yazma sınavına girmedi";
+  return { sayilan: counted.length, gecen, oran, yazabilir, ozet };
+}
+
+export const recordWriteExam = (workRoot: string, x: WriteExam) => append(workRoot, "yazma.jsonl", { ...x, neden: x.neden?.replace(/\s+/g, " ").slice(0, 600) });
+export const listWriteExams = (workRoot: string) => readLines<WriteExam>(file(workRoot, "yazma.jsonl"));
+
 /** The brain as the Gelişim Merkezi and the homepage show it. */
 export interface DevBrainView {
   readonly hazirlik: Readiness;
@@ -538,10 +592,12 @@ export interface DevBrainView {
   readonly dersler: readonly string[];
   readonly notlar: readonly { readonly tarih: string; readonly gorev: string; readonly satir: string }[];
   readonly akis: readonly DevTalk[];
+  /** Its own code: the writing exams' report card and the latest ones. */
+  readonly yazma?: WriteReadiness & { readonly son: readonly { readonly tarih: string; readonly gorev: string; readonly sonuc: WriteExam["sonuc"]; readonly turlar: number }[] };
 }
 
 export async function loadDevBrainView(workRoot: string): Promise<DevBrainView> {
-  const [grades, instincts, past, lessons, talk, code] = await Promise.all([listGrades(workRoot), readInstincts(workRoot), listChanges(workRoot), listLessons(workRoot), recentTalk(workRoot, 12), listCodeExperience(workRoot)]);
+  const [grades, instincts, past, lessons, talk, code, writes] = await Promise.all([listGrades(workRoot), readInstincts(workRoot), listChanges(workRoot), listLessons(workRoot), recentTalk(workRoot, 12), listCodeExperience(workRoot), listWriteExams(workRoot)]);
   const recipes = code.filter((x) => x.nasil).sort((a, b) => Date.parse(a.tarih) - Date.parse(b.tarih));
   const last = recipes.at(-1);
   return {
@@ -552,5 +608,6 @@ export async function loadDevBrainView(workRoot: string): Promise<DevBrainView> 
     dersler: lessons.slice(-5).reverse().map((l) => l.metin),
     notlar: grades.slice(-6).reverse().map((g) => ({ tarih: g.tarih, gorev: g.gorev, satir: `${g.kaynak === "is" ? "iş" : "commit"}: ${g.gercek.length} dosyadan ${Math.round(g.isabet * g.gercek.length)} bulundu, ${g.tahmin.length} tahminin ${Math.round(g.kesinlik * g.tahmin.length)} doğru${g.kararDogru === undefined ? "" : g.kararDogru ? ", karar doğru" : ", karar yanlış"}` })),
     akis: talk.reverse(),
+    ...(writes.length ? { yazma: { ...writeReadiness(writes), son: writes.slice(-5).reverse().map((w) => ({ tarih: w.tarih, gorev: w.gorev, sonuc: w.sonuc, turlar: w.turlar })) } } : {}),
   };
 }

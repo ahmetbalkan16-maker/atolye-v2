@@ -34,6 +34,11 @@ export interface AtolyeBrainsView {
   readonly degisiklikler: readonly string[];
   readonly oneriler: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly sayi: number; readonly olcum: boolean }[];
   readonly fikirSayisi: number;
+  /**
+   * The ideas raised by one production so far (owner, 6 Nov 2026: "onaya bir şey düşmüyor ki nasıl onay vericem"): they
+   * wait for a second production, but the owner sees them all and may decide any of them now.
+   */
+  readonly fikirler?: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly tarih: string }[];
   readonly kararlar: readonly { readonly baslik: string; readonly durum: string }[];
   /** The development queue (DevQueue): approved proposals and what the developer did with them, open ones first. */
   readonly kuyruk: readonly { readonly id: string; readonly baslik: string; readonly durum: string; readonly ayrinti: string }[];
@@ -43,7 +48,7 @@ export interface AtolyeBrainsView {
   readonly meclis: BrainCouncilView;
 }
 
-const EMPTY: Omit<AtolyeBrainsView, "connected"> = { referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, kararlar: [], kuyruk: [], meclis: { beyinler: [], akis: [] } };
+const EMPTY: Omit<AtolyeBrainsView, "connected"> = { referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, fikirler: [], kararlar: [], kuyruk: [], meclis: { beyinler: [], akis: [] } };
 
 const QUEUE_LABEL: Readonly<Record<string, string>> = { yapiliyor: "Geliştiriliyor", hazir: "Hazır — uygulanmayı bekliyor", onaylandi: "Kuyrukta", yapilamadi: "Yapılamadı", yapildi: "Yapıldı" };
 const QUEUE_ORDER = ["yapiliyor", "hazir", "onaylandi", "yapilamadi", "yapildi"];
@@ -115,6 +120,7 @@ export async function loadAtolyeBrainsView(workRoot: string): Promise<AtolyeBrai
       degisiklikler,
       oneriler: proposals.filter(needsOwner).sort((a, b) => b.sayi - a.sayi || b.tarih.localeCompare(a.tarih)).slice(0, 12).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, sayi: p.sayi, olcum: p.kaynakTuru === "olcum" })),
       fikirSayisi: proposals.filter((p) => p.durum === "bekliyor" && !needsOwner(p)).length,
+      fikirler: proposals.filter((p) => p.durum === "bekliyor" && !needsOwner(p)).sort((a, b) => b.tarih.localeCompare(a.tarih)).slice(0, 40).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, tarih: p.tarih })),
       kararlar: proposals.filter((p) => p.karar).sort((a, b) => (b.karar?.tarih ?? "").localeCompare(a.karar?.tarih ?? "")).slice(0, 5).map((p) => ({ baslik: p.baslik, durum: p.durum })),
       kuyruk: queueRows(proposals),
       ...(gelistirici ? { gelistirici } : {}),
@@ -141,8 +147,10 @@ export function brainsReportText(v: AtolyeBrainsView): string {
   if (v.donguler.length) parts.push(`Son gelişim döngüsü: ${v.donguler[0]!.ozet}.`);
   if (v.degisiklikler.length) parts.push(`Beyinlerin kendi değişiklikleri: ${v.degisiklikler.slice(0, 3).join(" · ")}.`);
   parts.push(v.oneriler.length ? `Onayını bekleyen ${v.oneriler.length} kod önerisi var (Gelişim Merkezi): ${v.oneriler.slice(0, 3).map((o) => `"${o.baslik}"${o.sayi > 1 ? ` (${o.sayi} üretimde)` : ""}`).join("; ")}. Kod yalnız senin onayınla değişir.` : `Onayını bekleyen kod önerisi yok${v.fikirSayisi ? ` (${v.fikirSayisi} fikir, başka bir üretimde tekrar ederse sana gelir)` : ""}.`);
+  if (v.oneriler.length && v.fikirSayisi) parts.push(`Ayrıca tek bir üretimden gelen ${v.fikirSayisi} fikir var; Gelişim Merkezi'nde "Diğer fikirler" altında istediğini şimdi onaylayabilirsin.`);
+  else if (v.fikirSayisi) parts.push(`Bu ${v.fikirSayisi} fikri Gelişim Merkezi'nde "Diğer fikirler" altında görüp istediğini şimdi onaylayabilirsin.`);
   const open = v.kuyruk.filter((k) => k.durum !== "Yapıldı");
   if (v.kuyruk.length) parts.push(`Geliştirme kuyruğu: ${open.length ? open.map((k) => `"${k.baslik}" — ${k.durum}`).join("; ") : "açık iş yok"}${v.kuyruk.length > open.length ? ` (${v.kuyruk.length - open.length} iş yapıldı)` : ""}.`);
-  if (v.gelistirici) parts.push(`Geliştirici beyni (gündüz araştırır, akşam 16:30'dan sonra Claude yapar, o da Claude'dan öğrenir): ${v.gelistirici.hazirlik.ozet}; hafızasında ${v.gelistirici.gecmis} değişiklik, ${v.gelistirici.icgudu.dogrulanan} doğrulanmış içgüdü${v.gelistirici.kod?.toplam ? `, ${v.gelistirici.kod.toplam} değişikliğin kodu (${v.gelistirici.kod.tarifli} tanesinin nasıl yapıldığını yazdı)` : ""}.${v.gelistirici.dersler[0] ? ` Son dersi: ${v.gelistirici.dersler[0]}` : ""}`);
+  if (v.gelistirici) parts.push(`Geliştirici beyni (gündüz araştırır, akşam 16:30'dan sonra Claude yapar, o da Claude'dan öğrenir): ${v.gelistirici.hazirlik.ozet}; hafızasında ${v.gelistirici.gecmis} değişiklik, ${v.gelistirici.icgudu.dogrulanan} doğrulanmış içgüdü${v.gelistirici.kod?.toplam ? `, ${v.gelistirici.kod.toplam} değişikliğin kodu (${v.gelistirici.kod.tarifli} tanesinin nasıl yapıldığını yazdı)` : ""}.${v.gelistirici.yazma ? ` Kendi kodu: ${v.gelistirici.yazma.ozet}.` : ""}${v.gelistirici.dersler[0] ? ` Son dersi: ${v.gelistirici.dersler[0]}` : ""}`);
   return parts.join("\n");
 }

@@ -127,10 +127,14 @@ async function main() {
     assert.match(html, /Tartışma \(1 not, 1 itiraz\)/);
     assert.match(html, /href="https:\/\/www.youtube.com\/watch\?v=8apicgLXhGg"/);
     assert.match(html, /Notch the 6 kHz whine/);
-    assert.equal((html.match(/>ONAYLA</g) ?? []).length, 1);
+    // The single idea is listed apart (owner, 6 Nov 2026: "onaya bir şey düşmüyor ki nasıl onay vericem"), with its own buttons.
+    assert.equal((html.match(/>ONAYLA</g) ?? []).length, 2);
     assert.match(html, /1 fikir daha bekliyor/);
     assert.match(html, /Beyinler kodu kendileri değiştiremez. Onayladığın öneri geliştirme kuyruğuna girer/);
-    assert.doesNotMatch(html, /An AI composer/);
+    assert.match(html, /<details data-testid="atolye-ideas"><summary>Diğer fikirler \(1\) — tek bir üretimden geldi; istersen şimdi onaylayabilirsin<\/summary>/);
+    assert.match(html, /data-testid="atolye-idea-[^"]+".*An AI composer/);
+    assert.deepEqual(v.fikirler?.map((f) => f.baslik), ["An AI composer"]);
+    assert.match(text, /Ayrıca tek bir üretimden gelen 1 fikir var; Gelişim Merkezi'nde "Diğer fikirler" altında/);
     assert.doesNotMatch(html, /Geliştirme kuyruğu/, "nothing approved yet");
     // An approved proposal is in the development queue; the developer's kept build waits "hazır" on its branch.
     const idea = (await listProposals(root)).find((x) => x.proposal.baslik === "An AI composer")!.proposal;

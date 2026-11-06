@@ -127,12 +127,15 @@ export interface DevProposal {
   readonly kaynakTuru?: "olcum" | "fikir";
   /**
    * onaylandi: in the development queue (DevQueue); yapiliyor: the developer is building it; hazir: built and checked on
-   * its own branch, waiting to be applied; yapilamadi: the build was thrown away (why in `is`); yapildi: in the studio.
+   * its own branch, waiting to be applied; yapilamadi: the build was thrown away (why in `is`); yapildi: in the studio;
+   * birlesti: the same want in other words as an earlier proposal, counted there (`birlesti` says which).
    */
-  durum: "bekliyor" | "onaylandi" | "reddedildi" | "yapiliyor" | "hazir" | "yapilamadi" | "yapildi";
+  durum: "bekliyor" | "onaylandi" | "reddedildi" | "yapiliyor" | "hazir" | "yapilamadi" | "yapildi" | "birlesti";
   karar?: { readonly tarih: string; readonly not?: string };
   /** The developer's work on it. */
   is?: DevJob;
+  /** Where a paraphrase went (ProposalMerge): the proposal it was counted on and how alike their meanings were. */
+  birlesti?: { readonly hedef: string; readonly benzerlik: number; readonly tarih: string };
 }
 
 /** Rewrites one proposal (the developer's progress, a closing note); the change is atomic like every proposal write. */
@@ -197,6 +200,29 @@ export async function proposeDevelopment(workRoot: string, p: { readonly beyin: 
   const id = `${stamp}-${p.beyin}-${all.length + 1}`;
   await writeProposal(path.join(proposalDir(workRoot), `${id}.json`), { id, tarih: now.toISOString(), beyin: p.beyin, baslik: p.baslik.slice(0, 200), neden: p.neden.slice(0, 600), kaynaklar: [p.kaynak], sayi: 1, kaynakTuru: p.kaynakTuru ?? "fikir", durum: "bekliyor" });
   return "yeni";
+}
+
+/**
+ * A waiting proposal counted on an earlier one that asks the same in other words (ProposalMerge finds them by meaning):
+ * the earlier one — or the one it was itself counted on — gains the productions it had not been raised by, and a
+ * measured fault keeps it measured; the paraphrase leaves the owner's list as "birlesti", pointing there. Counted on a
+ * decided proposal (built, rejected), the want is simply answered: nothing reopens.
+ */
+export async function absorbProposal(workRoot: string, id: string, hedef: string, benzerlik: number, now = new Date()): Promise<DevProposal> {
+  const all = await listProposals(workRoot);
+  const byId = new Map(all.map((x) => [x.proposal.id, x]));
+  const from = byId.get(id);
+  if (!from) throw new Error(`V3_PROPOSAL_NOT_FOUND: ${id}`);
+  if (from.proposal.durum !== "bekliyor") throw new Error(`V3_PROPOSAL_DECIDED: ${id} zaten "${from.proposal.durum}"`);
+  let root = byId.get(hedef);
+  for (let hops = 0; root?.proposal.durum === "birlesti" && root.proposal.birlesti && hops < 20; hops++) root = byId.get(root.proposal.birlesti.hedef);
+  if (!root || root.proposal.id === id) throw new Error(`V3_PROPOSAL_NOT_FOUND: ${hedef}`);
+  const q = root.proposal;
+  const fresh = from.proposal.kaynaklar.filter((k) => !q.kaynaklar.includes(k));
+  await writeProposal(root.file, { ...q, sayi: q.sayi + fresh.length, kaynaklar: [...new Set([...q.kaynaklar, ...fresh])].slice(-10), ...(from.proposal.kaynakTuru === "olcum" ? { kaynakTuru: "olcum" as const } : {}) });
+  const merged: DevProposal = { ...from.proposal, durum: "birlesti", birlesti: { hedef: q.id, benzerlik: Math.round(benzerlik * 1000) / 1000, tarih: now.toISOString() } };
+  await writeProposal(from.file, merged);
+  return merged;
 }
 
 /** The owner's decision on a proposal (the Gelişim Merkezi's buttons or `gelisim.ts onayla|reddet`). Nothing is built here. */

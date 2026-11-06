@@ -11,13 +11,17 @@
  *                                                                     their code; n "how it was done" recipes)
  *   npx tsx scripts/v3/gelistirici.ts kod [--id <sha|öneri id>]       (what it learned of a change as code)
  *   npx tsx scripts/v3/gelistirici.ts aksam                          (the evening: every waiting job, inside the hours)
- *   npx tsx scripts/v3/gelistirici.ts calistir [--id <öneri id>]     (builds one now, whatever the hours)
+ *   npx tsx scripts/v3/gelistirici.ts calistir [--id <öneri id>] [--cirak]  (builds one now, whatever the hours;
+ *                                                                     --cirak: the apprentice writes it, not Claude)
+ *   npx tsx scripts/v3/gelistirici.ts yazma-sinavi [--id <sha>] [--n 1]     (the apprentice writes past commits itself)
  *   npx tsx scripts/v3/gelistirici.ts uygula --id <öneri id>          (into this checkout's branch; push stays yours)
  *   npx tsx scripts/v3/gelistirici.ts kapat --id <öneri id> --not "…"  (already done elsewhere)
  */
-import { brainBudget } from "../../src/lib/v3/council/BrainModels";
-import { codeExperienceLines, listCodeExperience, listGrades, loadDevBrainView, readiness, say } from "../../src/lib/v3/council/DevBrain";
+import { brainBudget, writerBudget } from "../../src/lib/v3/council/BrainModels";
+import { apprenticeAgent, apprenticePolicy, examCandidates, writeExam } from "../../src/lib/v3/council/DevApprentice";
+import { codeExperienceLines, listCodeExperience, listGrades, listWriteExams, loadDevBrainView, readiness, say, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { applyBuild, developerLock } from "../../src/lib/v3/council/Developer";
+import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
 import { developerWindow, EVENING_MAX_JOBS, nextJob, waitingForLimit } from "../../src/lib/v3/council/DevQueue";
 import { EXAMS_PER_PASS, learnFromCommits, RECIPES_PER_PASS, type ResearchDeps, researchJob, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { listProposals, updateProposal } from "../../src/lib/v3/council/SelfImprovement";
@@ -32,8 +36,10 @@ const arg = (name: string) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 
-/** The developer brain's model calls per run (cheap: search words, a guess, a lesson). */
-const BRAIN_CAP_USD = 0.1;
+/** The developer brain's model calls per run (search words, a guess on gpt-4.1, a lesson). */
+const BRAIN_CAP_USD = 0.15;
+/** One writing exam's cap (as the idle loop's; `ATOLYE_V3_CIRAK_SINAV_USD`). */
+const EXAM_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_SINAV_USD) || 0.4;
 
 const LABEL: Readonly<Record<string, string>> = { onaylandi: "kuyrukta", yapiliyor: "geliştiriliyor", hazir: "hazır", yapilamadi: "yapılamadı", yapildi: "yapıldı" };
 
@@ -45,7 +51,8 @@ async function main() {
   const models = () => brainBudget(paths, BRAIN_CAP_USD);
   const deps = (): ResearchDeps => {
     const m = models();
-    return { repoRoot: paths.repoRoot, workRoot: paths.workRoot, budget: m.budget, model: m.critic, log };
+    const meaning = localEmbedder();
+    return { repoRoot: paths.repoRoot, workRoot: paths.workRoot, budget: m.budget, model: m.critic, guessModel: m.director, ...(meaning ? { meaning } : {}), log };
   };
   if (cmd === "liste") {
     log(`geliştirici: ${developerWindow(process.env).neden}`);
@@ -64,6 +71,23 @@ async function main() {
     if (v.kod) log(`kod deneyimi: ${v.kod.toplam} değişikliğin kodu (dosya, fonksiyon, eklenen kod, test) · ${v.kod.tarifli} tanesinin "nasıl yapıldı" tarifi${v.kod.sonTarif ? `\n  son tarif — ${v.kod.sonTarif.gorev.slice(0, 70)}: ${v.kod.sonTarif.nasil}` : ""}`);
     for (const n of v.notlar) log(`  ${n.tarih.slice(0, 16)} ${n.gorev.slice(0, 70)} — ${n.satir}`);
     for (const d of v.dersler) log(`  ders: ${d}`);
+    log(`yazma: ${writeReadiness(await listWriteExams(paths.workRoot)).ozet}`);
+    for (const w of v.yazma?.son ?? []) log(`  ${w.tarih.slice(0, 16)} ${w.gorev.slice(0, 70)} — ${w.sonuc === "gecti" ? "geçti" : w.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} (${w.turlar} tur)`);
+    return;
+  }
+  if (cmd === "yazma-sinavi") {
+    // The apprentice writes past V3 commits itself (newest first, or the one asked), graded by their own new scenarios.
+    const want = arg("--id");
+    const all = await examCandidates(paths.repoRoot, paths.workRoot);
+    const list = want ? all.filter((c) => c.sha.startsWith(want)) : all.slice(0, Math.max(1, Number(arg("--n")) || 1));
+    if (!list.length) return log(want ? `sınava uygun commit değil ya da zaten sınav oldu: ${want}` : "sınava uygun yeni commit yok");
+    for (const c of list) {
+      const writer = writerBudget(paths, EXAM_CAP_USD);
+      if (!writer) throw new Error("çırak OpenAI olmadan yazmaz (ATOLYE_V3_SCRIPT_PROVIDER=openai ve anahtar gerekir)");
+      const x = await writeExam(c, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, research: deps(), writer, log });
+      log(`${x.sonuc === "gecti" ? "GEÇTİ" : x.sonuc === "kaldi" ? "KALDI" : "SAYILMADI"} ${c.sha.slice(0, 10)} "${c.gorev.slice(0, 70)}" — ${x.turlar} tur, $${x.maliyetUsd.toFixed(3)}${x.neden ? `\n  ${x.neden.replace(/\s+/g, " ").slice(-300)}` : ""}`);
+    }
+    log(writeReadiness(await listWriteExams(paths.workRoot)).ozet);
     return;
   }
   const id = arg("--id");
@@ -128,8 +152,9 @@ async function main() {
           log(`durdu: PC sağlığı — ${(e as Error).message.slice(0, 200)}`);
           break;
         }
-        const done = await runDevJob(job, d);
-        log(`${LABEL[done.durum] ?? done.durum}: ${done.baslik}`);
+        const cirak = await apprenticePolicy(paths.repoRoot, paths.workRoot);
+        const done = await runDevJob(job, d, cirak ? { cirak } : {});
+        log(`${LABEL[done.durum] ?? done.durum}: ${done.baslik}${done.is?.yazan === "cirak" ? " (çırak yazdı)" : ""}`);
         if (waitingForLimit(done)) {
           // Every other job would meet the same limit: the evening waits for it (the order watcher calls again).
           log(`durdu: Claude kullanım sınırı, ${done.is!.bekle!.slice(0, 16)} sonrasına kadar`);
@@ -151,8 +176,9 @@ async function main() {
     const release = await developerLock(paths.workRoot);
     if (!release) throw new Error("geliştirici başka bir işte");
     try {
-      const done = await runDevJob(job, deps());
-      log(`${LABEL[done.durum] ?? done.durum}: ${done.baslik}`);
+      const policy = process.argv.includes("--cirak") ? { agent: apprenticeAgent(paths.repoRoot, paths.workRoot), when: "zorla" as const } : await apprenticePolicy(paths.repoRoot, paths.workRoot);
+      const done = await runDevJob(job, deps(), policy ? { cirak: policy } : {});
+      log(`${LABEL[done.durum] ?? done.durum}: ${done.baslik}${done.is?.yazan === "cirak" ? " (çırak yazdı)" : ""}`);
     } finally {
       await release();
     }
@@ -174,7 +200,7 @@ async function main() {
     log(`yapıldı: ${p.baslik}`);
     return;
   }
-  throw new Error('Kullanım: gelistirici.ts liste | karne | arastir [--id <id>] | ogren [--sinav <n>] | aksam | calistir [--id <id>] | uygula --id <id> | kapat --id <id> --not "…"');
+  throw new Error('Kullanım: gelistirici.ts liste | karne | arastir [--id <id>] | ogren [--sinav <n>] | yazma-sinavi [--id <sha>] [--n <n>] | aksam | calistir [--id <id>] [--cirak] | uygula --id <id> | kapat --id <id> --not "…"');
 }
 
 main().catch((e) => {

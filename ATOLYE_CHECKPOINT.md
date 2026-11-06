@@ -1,3 +1,68 @@
+## 6 Kasım 2026 — öneriler onaya düşer; geliştirici beyin kendi kodunu yazar (yazma sınavı); skill'ler; Wan 2.2 denemesi
+
+Owner: "ne gibi öneriler var onaya birşey düşmüyor ki nasıl onay vericem ve ne eksikse bu beyinde hepsini tamamla
+skilleri entegre et kullansın ve hem öğrenmesi hızlansın hem de claude olmadan yazabilecek duruma gelsin; indirme
+bittiyse denemeye başla". Yarıda: "ne yapıyorsan bellek %99 oluyor" (Wan yüklemesi; aşağıda).
+
+**Öneriler neden onaya düşmüyordu.** 39 önerinin 34'ü `bekliyor`; hepsi `fikir`, hepsi `sayi: 1`. Kural (`needsOwner`):
+fikir ikinci üretimde tekrar edince owner'a gider; ama beyinler aynı isteği her seferinde başka sözlerle yazıyor
+("anlatılan metinle senkronize animasyon" altı başlıkla) ve `proposeDevelopment`'ın kelime örtüşmesi (0,45) bunları
+eşleştirmiyordu. Yeni `council/ProposalMerge.ts`: başlık+neden anlam vektörü (qwen3-embedding, işlemcide, önbellek
+`_kutuphane/gelisim/.anlam-*.json`), eşik `SAME_MEANING` 0,74 (39 öneride ölçüldü: aynı istek 0,74–0,90, farklı ≤ 0,71);
+eşleşen bekleyen öneri öncekine sayılır (`absorbProposal`, durum `birlesti` + `birlesti.hedef`), kök öneri yapılmış ya
+da reddedilmişse istek cevaplanmış sayılır. `gelisim.ts birlestir` + döngünün `oneriler` görevi. Gerçek çalıştırma:
+8 birleşme → **2 öneri onaya düştü** ("Karakter yüz ve saç benzerlik analiz modülü" 3 üretim; "Dönem görseli
+aramasına tarihsel bağlam ve eski adlar" 3 üretim); anlatıyla senkron animasyon fikirleri yapılmış `kurgu-6`'ya sayıldı.
+Kalan 26 fikir Gelişim Merkezi'nde **"Diğer fikirler"** altında ONAYLA/REDDET ile (`BrainsReport.fikirler`, panel).
+
+**Geliştirici beyin — öğrenme hızı.** Geriye dönük ölçüm (157 değişiklik): anlamca en yakın 5 geçmiş değişiklik yeni
+değişikliğin dosyalarının %63'ünü içeriyor, kelimeyle en yakın 5'i %17 → `DevResearch.meaningNeighbours` tahmine
+eklendi (`MeaningCache.ts`, `gelistirici/.anlam-*.json`). Tahmin modeli gpt-4.1 (`guessModel`; 15 sınavın 8'inde
+doğru dosya adaylar arasındaydı ama seçilmemişti), arama/tarif/ders gpt-4.1-mini. Kaçırılan commit sınavı da ders
+yazar (eskiden yalnız Claude'un inşa ettiği işten; hiç iş inşa edilmediği için `dersler.jsonl` boştu). Geliştirici
+beyninin döngü bütçesi ayrı ($0,15).
+
+**Geliştirici beyin — kendi kodu.** `council/DevWriter.ts`: tur başına dosyaları gösterir (uzun dosyada bildirim listesi
++ odaktakiler), model `OKU:` ile dosya/bildirim/satır okur, değişikliği düz metin `DOSYA / <<<<<<< ARA / ======= /
+>>>>>>> YERINE` bloklarıyla verir (tam eşleşme, yoksa satır satır boşluk-hoşgörülü; iki yere uyan reddedilir),
+tsc + testler koşar, hata ve **kendi diff'i** sonraki tura gider (ilk gerçek sınavda uzun dosyada eklediği fonksiyonu
+göremeyip ikinci kez ekledi → düzeltildi), ≤ 6 tur. Sınavın testi ve V3 dışı dosyalar reddedilir; sipariş gelince
+tur arasında durur. `council/DevApprentice.ts`: **yazma sınavı** = 1–4 kod dosyalı ve smoke-v3 değiştiren geçmiş bir
+commit, ebeveyninde, commit'in kendi test dosyası şartname olarak; önceden geçiyorsa ya da gerçek değişiklikle de
+geçmiyorsa sayılmaz; kalırsa gerçek koddan ders. Kayıt `gelistirici/yazma.jsonl`, yama `gelistirici/yazma/<sha>.diff`.
+`ogren` görevi döngü başına bir sınav yapar (ayrı CycleTask değil: yeni görev `BrainCouncilFeed.ts`'i yani ana sayfa
+kaynağını değiştirmeyi gerektirirdi). Tavan $0,40/sınav, $1/gün (`ATOLYE_V3_CIRAK_SINAV_USD`, `_GUNLUK_USD`,
+`ATOLYE_V3_CIRAK_SINAV=0` kapatır); model `BrainModels.writerBudget` gpt-4.1, gemma yedeği yok. `writeReadiness`: son 10
+sayılan sınavda ≥ 6 ve ≥ %50 → `ATOLYE_V3_CIRAK_YAZAR` (varsayılan `yedek`: Claude kullanım sınırına takılınca;
+`once`: Claude'dan önce; `kapali`) onaylı işi `scripts/v3/cirak-yaz.ts` ajanıyla kendisi yazar; `develop()` yine bütün
+kontrolleri koşar, commit mesajı "Atölye çırağı (kendi yazdı, Claude olmadan)", push/canlı yok. CLI:
+`gelistirici.ts yazma-sinavi [--id <sha>] [--n]`, `calistir --cirak`, karnede "yazma:" satırı; panelde "Kendi kodu".
+İlk gerçek sınav: 5e8982bf ("rötuşta yeni sayı/ay/isim getiremez") **kaldı**, 6 tur, $0,285 (fonksiyonu iki kez
+tanımladı, olmayan `unvan` alanı) — sınav geçerli sayıldı (gerçek değişiklikle testler geçti), ders yazıldı. Kendi
+diff'ini görme düzeltmesinden sonra ikinci sınav 96c7034b ("küçük yüz kırpımı da portre; 'of <yer>' isim sayılmaz")
+**kaldı**, 6 tur, $0,273: "of <yer>" kısmını doğru yazdı, testin istediği `LEAD_MIN_HEIGHT` sabitini eklemedi, son
+turda $0,40 tavanına çarptı. Şimdilik 0/2: boru hattı çalışıyor, sınır gpt-4.1'in bu kod tabanındaki becerisi; hazır
+olma kapısı işi Claude'da tutuyor. Daha güçlü bir model (fiyat tablosunda olmayan) owner kararı.
+
+**Skill'ler.** `.claude/skills/v3-gelistirici/SKILL.md` (izlenen, `git add -f`): V3 düzeni, ev stili, smoke kalıbı,
+makinenin tuzakları. `council/DevSkills.ts`: işe uyan skill'ler (temel: v3-gelistirici + ayas/tests; işe göre
+remotion-*, scene-direction, editorial-animation) çırağın istemine girer. `Developer.linkShared`: akşam Claude'unun ve
+sınavın çalışma kopyasına node_modules ile birlikte izlenmeyen skill klasörleri junction olarak bağlanır (silinirken
+hedefe girilmez). Claude'a `node scripts/lint-yerel.mjs` ve Remotion tsc izni; `DEVELOPER_RULES` skill'i okumasını ister;
+`defaultChecks` artık `remotion-v3` tsc'sini de koşar (kök tsconfig onu dışlıyordu).
+
+**Wan 2.2 TI2V-5B (545740b1).** İndirme 00:43'te bitti (24,2 GB, SHA-256 doğru); sondaki iz `schtasks` çıktısının kod
+sayfası hatasıydı (düzeltildi). `scripts/v3/wan22_dene.py`: Zanzibar gravürü, Kosova minyatürü, Sezar tablosu → 480p,
+73 kare (~3 sn), 40 adım, rehber 5. Çıkış `v3-runtime/denemeler/2026-11-06-wan22/`. Hatalar sırayla: ftfy yok (ASCII
+istemle atlandı), pin_memory "resource already mapped" (akışsız grup boşaltma), VAE döşemeli kodlama 3/12 kanal
+(döşeme kapalı). **Bellek:** tek dosya yüklemesi 10 GB dosya + 10 GB bf16 kopyayı birlikte tutup PC'yi %99'a çıkardı →
+dönüştürücü bir kez tensör tensör bf16 Diffusers parçalarına (`wan22-ti2v-5b/transformer/`, 5 parça, 199 sn) çevrilir,
+istem gömmeleri saklanır (umt5 kartta 106 sn, işlemcide 605 sn), yükleme öncesi boş RAM denetimi. Çalışırken süreç
+~10–14 GB, adım ~17 sn (82 °C'de dinlenir, en çok 84 °C).
+
+**Doğrulama:** tsc 0; lint 0/0; 18 smoke-v3 PASS (yeni `smoke-v3-cirak` 5 senaryo, brains-report 4, self-improvement 10);
+AYAS firewall-closure 13, development-center 64, homepage-v2 13; Remotion tsc 0.
+
 ## 5 Kasım 2026 (gece, 4) — boştaki beyinler PC sağlığına bakar; derinlikli kamera (Depth Anything V2 Small) denemesi
 
 **Bakım:** V3 sipariş izleyicisi owner'ın isteğiyle boştayken yeniden başlatıldı (23:17, `yapim.ts` değişikliği devrede).
