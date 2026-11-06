@@ -41,6 +41,7 @@ import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../sr
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
+import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -450,6 +451,17 @@ async function main() {
     assert.ok(Math.abs(vid1!.labelY! - 500) > 16 || Math.abs(vid1!.labelX! - 400) > 60, "Vidin's name moved off the city of Vidin");
     assert.deepEqual([vid2!.labelX, vid2!.labelY], [vid1!.labelX, vid1!.labelY], "the state changing hands keeps its name's place");
     assert.deepEqual([placed.arrows[0]!.labelX, placed.arrows[0]!.labelY], [600, 380], "Belgrade is above the short arrow: its name goes below the line");
+    // A state too small for its name with its town on its centre (the Zanzibar Short, 4 Nov 2026: "ZANZIBAR (BRITISH
+    // OCCUPATION)" over "Zanzibar Town"): the name goes just beside it, off the town.
+    const islet: [number, number][] = [[1040, 580], [1072, 580], [1072, 608], [1040, 608]];
+    const town = { x: 1056, y: 594, label: "Zanzibar Town" };
+    const isle = placeStateLabels({ land: "", lakes: "", rivers: "", territories: [{ d: "", color: "#d7263d", label: "Zanzibar (British Occupation)", labelX: 1056, labelY: 594, labelSize: 46, start: 0 }], cities: [town], armies: [], arrows: [] }, 1920, 1080, 1, [islet]).territories[0]!;
+    const isleLines = labelLines("ZANZIBAR (BRITISH OCCUPATION)");
+    const iw = (Math.max(...isleLines.map((l) => l.length)) * LABEL_CHAR_W * isle.labelSize!) / 2;
+    const ih = (isleLines.length * isle.labelSize!) / 2;
+    const townBox = { x0: town.x - 10, y0: town.y - 16, x1: town.x + 16 + town.label.length * 13, y1: town.y + 16 };
+    assert.ok(!(isle.labelX! - iw < townBox.x1 && townBox.x0 < isle.labelX! + iw && isle.labelY! - ih < townBox.y1 && townBox.y0 < isle.labelY! + ih), `off the town: ${JSON.stringify(isle)}`);
+    assert.ok(Math.hypot(isle.labelX! - 1056, isle.labelY! - 594) < 160, `still beside its island: ${JSON.stringify(isle)}`);
     // A campaign sets off with its line; a map shot keeps a quarter of the scene camera's push.
     const ep = sampleEpisode();
     const cast = ep.oyuncu_kadrosu[1]!.id;
@@ -1524,6 +1536,13 @@ async function main() {
     sounds.sahneler[0]!.satirlar.forEach((l, i) => Object.assign(l, { sfx: ["coins_jingle", "crowd laugh", "dice roll", "mystic hum"][i] }));
     const heard = (normalizeDraft(sounds, []).value as Episode).sahneler[0]!.satirlar.map((l) => l.sfx);
     assert.deepEqual(heard, ["para", "kalabalik", "para", undefined]);
+    // A close map's building kinds (the first Zanzibar Short lost its draft over one): by their near word, else left out.
+    const zanzibar = { merkez: [39.19, -6.16], genislik_km: 2, yapilar: [{ tur: "Sultan's palace", konum: [39.19, -6.16], satir: 0 }, { tur: "lighthouse", konum: [39.18, -6.16], satir: 0 }, { tur: "warship", konum: [39.18, -6.15], satir: 0 }, { tur: "kale", konum: [39.2, -6.16], satir: 0 }] };
+    const built = normalizeDraft({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: zanzibar }] }, []);
+    const kinds = (built.value as Episode).sahneler[0]!.harita!.yapilar!.map((y) => y.tur);
+    assert.deepEqual(kinds, ["saray", "kule", "kale"], "palace → saray, lighthouse → kule, an unknown kind left out, a valid one kept");
+    assert.ok(built.fixes.some((f) => f.includes('"warship" → silindi')));
+    assert.ok(validateEpisode(built.value).errors.every((e) => !e.path.includes("yapilar")), JSON.stringify(validateEpisode(built.value).errors.filter((e) => e.path.includes("yapilar"))));
   });
 
   await scenario("P3 costume review: the historian reads colours by name; a part set to null, or a hat left out when hair is given, is removed (the Rubicon's legionary and Cicero)", async () => {

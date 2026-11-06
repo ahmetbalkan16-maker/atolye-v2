@@ -465,8 +465,22 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
       spot = spots.map(([x, y]) => placeAt(x, y, size)).find((c) => free(c.r));
       if (spot) break;
     }
-    // Nowhere inside (a sliver of a state at the frame's edge): the smallest name at the centre, kept in the picture.
-    spot ??= placeAt(t.labelX, t.labelY, ring ? LABEL_MIN : full);
+    // Nowhere free inside (a sliver of a state at the frame's edge, an island with its town on its centre — the
+    // Zanzibar Short, 4 Nov 2026: "ZANZIBAR (BRITISH OCCUPATION)" was written over "Zanzibar Town"): the smallest name
+    // where it covers the fewest marks — inside the state first, else just beside it, nearest first — kept in the picture.
+    if (!spot) {
+      const size = ring ? LABEL_MIN : full;
+      const b = box(0, 0, size);
+      const [bw, bh] = [b.x1 - b.x0, b.y1 - b.y0];
+      const beside: [number, number][] = [];
+      for (let r = 1; r <= 4; r++) for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]] as const) beside.push([t.labelX + dx * r * bw * 0.6, t.labelY + dy * r * bh * 0.9]);
+      const covers = (r: Rect) => [...marks, ...placed].reduce((a, o) => a + (overlaps(o, r) ? 1 : 0), 0);
+      const tries = [...spots, ...beside].map(([x, y], i) => {
+        const c = placeAt(x, y, size);
+        return { c, cost: covers(c.r) * 100 + (fits(c.r) ? 0 : 10) + i * 0.01 };
+      });
+      spot = tries.reduce((best, x) => (x.cost < best.cost ? x : best)).c;
+    }
     placed.push({ ...spot.r, label: t.label });
     return { ...t, labelX: r1(spot.x), labelY: r1(spot.y), ...(spot.size !== full ? { labelSize: spot.size } : {}) };
   });

@@ -215,6 +215,13 @@ export function composedTrack(file: string, mood: MusicMood): MusicTrack {
 }
 
 /**
+ * The shortest piece asked for. A Short's beds run 3–5 s, and every piece under 8 s is refused (`pieceProblems`) —
+ * the Zanzibar Short, 4 Nov 2026: a 4.9 s request came back 3.8 s after its silent edges were cut and the bed kept its
+ * library track. A longer piece is cut to its bed by the mixer, so a short bed asks for this much.
+ */
+export const MIN_PIECE_REQUEST_S = 12;
+
+/**
  * Composes every bed of the plan; a bed whose piece fails keeps its library track. Seeds follow the episode and the
  * bed, so a rerun asks for the same pieces (and gets them from the library).
  */
@@ -228,7 +235,7 @@ export async function composeBeds(
   const out: MusicSegment[] = [];
   for (const [i, seg] of segments.entries()) {
     const seed = parseInt(createHash("sha256").update(`${episode.id}#${i}#${seg.mood}`).digest("hex").slice(0, 8), 16) % 1_000_000;
-    const req: CompositionRequest = { mood: seg.mood, seconds: seg.end - seg.start + 2, caption: compositionCaption(episode, seg.mood), seed };
+    const req: CompositionRequest = { mood: seg.mood, seconds: Math.max(MIN_PIECE_REQUEST_S, seg.end - seg.start + 2), caption: compositionCaption(episode, seg.mood), seed };
     const got = await composer.compose(req).catch((e: Error) => ({ problems: [`besteci çalışmadı: ${e.message.slice(0, 160)}`] }));
     if ("file" in got) {
       out.push({ ...seg, track: composedTrack(got.file, seg.mood) });

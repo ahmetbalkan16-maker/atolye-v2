@@ -1,5 +1,5 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
-import { ARCH_STYLES, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
+import { ARCH_STYLES, BUILDING_KINDS, type BuildingKind, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
 import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
@@ -119,6 +119,20 @@ const SET_ALIASES: Readonly<Record<string, { readonly list: readonly string[]; r
   isik: { list: SET_LIGHTS, words: [[/camp.?fire|bonfire|fire|kamp/i, "kamp_atesi"], [/torch|lamp|candle|lantern|meşale|mesale/i, "mesale"]], fallback: "yok" },
 };
 const MOOD_ALIASES: readonly [RegExp, string][] = [[/tens|suspens|danger|war|battle|siege|fear|dark|dramatic|gerilim/i, "gerilim"], [/funny|humou?r|comic|comedy|playful|silly|komik/i, "komik"], [/sad|grief|tragic|loss|melanchol|hüzün|huzun/i, "huzun"], [/victor|triumph|celebrat|glory|hope|joy|zafer/i, "zafer"], [/myster|secret|unknown|gizem/i, "gizem"], [/curio|wonder|intrigu|merak/i, "merak"]];
+
+/**
+ * A close map's building kinds by the words models use (the first Zanzibar Short, 3 Nov 2026: one building's "tur"
+ * outside the list failed three repair rounds and threw the whole draft away). A kind with no near word is left out
+ * of the map — one building less, never a lost script.
+ */
+const BUILDING_ALIASES: readonly [RegExp, BuildingKind][] = [
+  [/tent|pavilion|yurt|camp|otağ|otag|çadır|cadir/i, "otag"],
+  [/mosque|minaret|masjid|cami|mescit/i, "cami"],
+  [/church|cathedral|basilica|abbey|monaster|chapel|temple|kilise|katedral|manast/i, "kilise"],
+  [/tower|lighthouse|belfry|keep|kule|fener/i, "kule"],
+  [/palace|harem|residence|court|villa|mansion|consulate|embassy|saray|konak/i, "saray"],
+  [/fort|castle|citadel|stronghold|bastion|battery|barracks|wall|kale|hisar|sur\b/i, "kale"],
+];
 
 /** The formation keys of a side's tokens, which belong inside each of its "yerler". */
 const FORMATION_KEYS = ["cephe", "kume", "kusatma"] as const;
@@ -252,6 +266,19 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
     if (aboard && isObj(s.ortam) && !String(s.ortam.manzara).startsWith("gemi_")) {
       fixes.push(`sahneler[${si}].ortam.manzara ${String(s.ortam.manzara)} → ${aboard} ("${String(s.mekan)}")`);
       s.ortam.manzara = aboard;
+    }
+    if (isObj(s.harita) && Array.isArray(s.harita.yapilar)) {
+      const kept: unknown[] = [];
+      for (const [yi, y] of (s.harita.yapilar as unknown[]).entries()) {
+        if (!isObj(y) || typeof y.tur !== "string" || (BUILDING_KINDS as readonly string[]).includes(y.tur)) {
+          kept.push(y);
+          continue;
+        }
+        const mapped = BUILDING_ALIASES.find(([re]) => re.test(y.tur as string))?.[1];
+        fixes.push(`sahneler[${si}].harita.yapilar[${yi}].tur "${y.tur}" → ${mapped ?? "silindi"}`);
+        if (mapped) kept.push({ ...y, tur: mapped });
+      }
+      s.harita.yapilar = kept;
     }
     // Tokens whose formation was written on the side instead of in its "yerler" (the Belgrade run: "kusatma", "km"
     // and "kayip" beside "yerler", so the siege had no ring and no losses): moved into the formations that lack one,

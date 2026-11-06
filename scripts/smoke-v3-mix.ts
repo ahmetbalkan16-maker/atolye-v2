@@ -13,7 +13,7 @@ import { armsOf } from "../src/lib/v3/episode/Period";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
-import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
+import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { voiceCredit } from "../src/lib/v3/tts/Tts";
@@ -253,6 +253,11 @@ async function main() {
     const again: number[] = [];
     await composeBeds(segs, rome, { compose: async (r) => (again.push(r.seed), { file: "x", cached: true }) }, () => undefined);
     assert.deepEqual(again, asked, "the same episode asks for the same seeds (rerun = library)");
+    // A Short's 2.9 s bed (the Zanzibar Short: asked 4.9 s, got 3.8 s, refused) asks for a piece long enough to pass.
+    const lengths: number[] = [];
+    await composeBeds([{ start: 0, end: 2.9, mood: "historical" as const, track: lib("historical"), scenes: [0] }], rome, { compose: async (r) => (lengths.push(r.seconds), { file: "x", cached: true }) }, () => undefined);
+    assert.equal(lengths[0], MIN_PIECE_REQUEST_S);
+    assert.deepEqual(pieceProblems({ ...ok, durationS: MIN_PIECE_REQUEST_S - 1.2 }, lengths[0]!), [], "its piece, edges cut, is used");
   });
 
   await scenario("sound designer: period effects by era, ambience from the place, a failing sound keeps Kenney or silence", async () => {
