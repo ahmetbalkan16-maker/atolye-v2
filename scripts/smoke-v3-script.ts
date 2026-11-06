@@ -16,7 +16,7 @@ import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
-import { clearBattleCards, resolveTactics } from "../src/lib/v3/maps/Tactics";
+import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/maps/Tactics";
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -666,6 +666,31 @@ async function main() {
     } as unknown as Episode;
     assert.equal(dialogueSceneRatio(ep), 0.2, "a long video as before: only s5");
     assert.equal(dialogueSceneRatio(ep, { short: true }), 0.6, "a Short: s2, s3 (badge lines) and s5; never the narrator alone, never one line on stage");
+  });
+
+  await scenario("Waterloo (6 Nov 2026): the Prussians placed at Plancenoit, off the writer's map, are taken in — the climax is on screen", () => {
+    const harita = {
+      merkez: [4.4, 50.7],
+      genislik_km: 10,
+      birlikler: [
+        { taraf: "France", ad: "French infantry", tur: "piyade", kanat: "merkez", renk: "#2f6fb0", sayi: 5, yerler: [{ satir: 0, cephe: [[4.41, 50.695], [4.42, 50.695]] }, { satir: 2, hareket: "ilerle", cephe: [[4.402, 50.699], [4.412, 50.699]] }] },
+        { taraf: "United Kingdom", ad: "British squares", tur: "piyade", kanat: "merkez", renk: "#c0392b", sayi: 5, yerler: [{ satir: 0, cephe: [[4.39, 50.705], [4.4, 50.705]] }] },
+        { taraf: "Prussia", ad: "Prussian infantry", tur: "piyade", kanat: "sol", renk: "#1f2d55", sayi: 4, yerler: [{ satir: 2, cephe: [[4.45, 50.66], [4.46, 50.66]] }] },
+      ],
+      rozetler: [{ karakter: "blucher", konum: [4.45, 50.66], satir: 2 }],
+    };
+    const map = structuredClone(harita) as unknown as Record<string, unknown> & { merkez: [number, number]; genislik_km: number };
+    const fixes = fitBattleMap(map, "s3");
+    assert.ok(fixes[0]?.includes("haritanın dışında kalan birlik ya da rozet haritaya alındı"), fixes.join("\n"));
+    const kmLon = 111.32 * Math.cos((map.merkez[1] * Math.PI) / 180);
+    const inside = (p: [number, number]) => Math.abs(p[0] - map.merkez[0]) * kmLon <= map.genislik_km / 2 && Math.abs(p[1] - map.merkez[1]) * 110.57 <= (map.genislik_km * 9) / 16 / 2;
+    assert.ok(inside([4.45, 50.66]) && inside([4.39, 50.705]), `Plancenoit and the British line both on the map: ${JSON.stringify([map.merkez, map.genislik_km])}`);
+    // Through the normaliser: the second fit (after the tactics) does not crop them out again.
+    const ep = { id: "w", baslik: "W", konu: "Waterloo", donem: "1815", oyuncu_kadrosu: [], sahneler: [{ id: "s3", satirlar: [{ karakter: "anlatici", metin: "They attack." }, { karakter: "anlatici", metin: "Hold." }, { karakter: "anlatici", metin: "Blücher's Prussians arrive." }], harita: structuredClone(harita) }] };
+    const out = normalizeDraft(ep, []).value as { sahneler: { harita: { merkez: [number, number]; genislik_km: number } }[] };
+    const m2 = out.sahneler[0]!.harita;
+    const kmLon2 = 111.32 * Math.cos((m2.merkez[1] * Math.PI) / 180);
+    assert.ok(Math.abs(4.45 - m2.merkez[0]) * kmLon2 <= m2.genislik_km / 2 && Math.abs(50.66 - m2.merkez[1]) * 110.57 <= (m2.genislik_km * 9) / 16 / 2, `still inside after the tactics: ${JSON.stringify(m2)}`);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

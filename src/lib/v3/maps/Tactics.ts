@@ -212,6 +212,16 @@ export function fitBattleMap(map: Obj, where = "harita", maxKm?: number): string
   const [y0, y1] = [Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1]))];
   // The picture is 16:9: the armies' spread with a margin, the height counted as width.
   const need = Math.max(MIN_FIELD_KM, (x1 - x0) * kmLon * 1.5, (y1 - y0) * 110.57 * 1.5 * (16 / 9));
+  // A side or a leader the writer placed off the map is never left out (the Waterloo Short, 6 Nov 2026: Blücher's
+  // Prussians "arrive and strike Napoleon's right at Plancenoit", placed at Plancenoit 2 km south of the map's edge —
+  // the climax showed an empty field): the map takes them in, centred on the armies, up to a close map's width.
+  const outside = pts.some((p) => Math.abs(p[0] - centre[0]) * kmLon > width / 2 || Math.abs(p[1] - centre[1]) * 110.57 > (width * 9) / 16 / 2);
+  if (outside && maxKm === undefined) {
+    const fit = Math.round(Math.min(Math.max(need, width), CLOSE_MAP_MAX_KM) * 10) / 10;
+    map.merkez = [Math.round(((x0 + x1) / 2) * 1e5) / 1e5, Math.round(((y0 + y1) / 2) * 1e5) / 1e5];
+    map.genislik_km = fit;
+    return [`${where}: haritanın dışında kalan birlik ya da rozet haritaya alındı (${width} km → ${fit} km, merkez ordulara)`];
+  }
   const widen = maxKm !== undefined && need > width * 1.05;
   if (!widen && need >= width * 0.8) return [];
   const fit = Math.round(Math.min(need, maxKm ?? need) * 10) / 10;

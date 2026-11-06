@@ -327,8 +327,10 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       const where = `sahneler[${si}].harita`;
       const written = typeof s.harita.genislik_km === "number" ? s.harita.genislik_km : undefined;
       fixes.push(...capUnitBlocks(s.harita, where), ...narrateMoves(s, where), ...clearBattleCards(s, `sahneler[${si}]`), ...fitBattleMap(s.harita, where));
+      // The ceiling for the second fit: the writer's width, or the wider map that took in what was off it.
+      const ceiling = written !== undefined && typeof s.harita.genislik_km === "number" ? Math.max(written, s.harita.genislik_km) : written;
       fixes.push(...resolveTactics(s.harita, where, typeof draft.donem === "string" ? periodEndYear(draft.donem) : undefined));
-      fixes.push(...fitBattleMap(s.harita, where, written));
+      fixes.push(...fitBattleMap(s.harita, where, ceiling));
     }
     if (Array.isArray(s.sahne_duzeni)) {
       const before = s.sahne_duzeni.length;
