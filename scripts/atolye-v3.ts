@@ -57,6 +57,7 @@ import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
+import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { beats, buildRenderPlan, HOOK_S, longestEmptyStretch, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -803,7 +804,9 @@ async function main() {
         const shortS = seconds(arg("--sure") ?? "90");
         const channelGoals = isShorts(shortS) ? (() => { try { return loadChannelGoals(paths.contentRoot); } catch (e) { log(`  kanal hedefleri okunamadı: ${(e as Error).message.slice(0, 120)}`); return undefined; } })() : undefined;
         const kisaZamanHaritasi = channelGoals ? shortBeatRule(channelGoals, shortS, dil) : undefined;
-        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}) };
+        // The period atlas: each side's uniform by rank for this era (owner, 6 Nov 2026), so the writer dresses them right.
+        const donemKiyafetleri = periodDressBlock(readAtlas(paths.repoRoot), period);
+        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}), ...(donemKiyafetleri ? { donemKiyafetleri } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;

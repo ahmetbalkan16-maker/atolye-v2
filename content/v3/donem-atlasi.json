@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "aciklama": "Atölye dönem atlası (owner onayı 6 Kasım 2026: her dönemin askerî ve sivil kıyafetleri, yardımcı beyinler doldurur, video istenince yazar dönem ve tarafa göre buradan giydirir). Kostümler EpisodeTypes.CastCostume biçiminde; 'yeni:' parçaları önce PartFamilies'ten ücretsiz çizilir. Okuyan: src/lib/v3/costumes/PeriodAtlas.ts. Tarafların renkleri yaygın üniforma renklerinin düz çizgi film tonlarıdır.",
+  "donemler": [
+    {
+      "id": "napolyon",
+      "ad": "Napoleonic Wars",
+      "yillar": [1792, 1815],
+      "not": "Most officers were clean-shaven; French grenadiers, sappers and hussars wore moustaches. Generals wore bicornes (Napoleon sideways, most others front-to-back). Napoleon himself: a plain grey greatcoat over a green or blue uniform and a plain black bicorne with a tricolour cockade.",
+      "taraflar": [
+        {
+          "ad": "France",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2b3f7a", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:French officer's black bicorne with tricolor cockade", "gogus": "yeni:gold epaulettes", "ayakkabi": "siyah-cizme" } },
+            { "rol": "line infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2b3f7a", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:French infantry black shako with red plume", "ayakkabi": "siyah-cizme" } },
+            { "rol": "Imperial Guard grenadier", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2b3f7a", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:French Imperial Guard black bearskin with red plume", "biyik": "yeni:thick black moustache", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Britain",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#c62839", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "yeni:British officer's black bicorne with black cockade", "gogus": "yeni:British officer's gold epaulettes and crimson sash", "ayakkabi": "siyah-cizme" } },
+            { "rol": "redcoat infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#c62839", "ikincil": "#9aa0a8", "ic": "#fffdf6", "sus": "#fffdf6" }, "bas": "yeni:British infantry black shako with white plume", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Prussia",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#1f2d55", "ikincil": "#9aa0a8", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Prussian officer's black bicorne with black and white cockade", "gogus": "yeni:silver epaulettes", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#1f2d55", "ikincil": "#9aa0a8", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Prussian infantry black shako", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Austria",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#fffdf6", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Austrian officer's black bicorne with gold trim", "gogus": "yeni:Austrian officer's black and gold sash", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#fffdf6", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Austrian infantry black shako", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Russia",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2f4a2e", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Russian officer's black bicorne with gold trim", "gogus": "yeni:gold epaulettes", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2f4a2e", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:Russian infantry black shako with black plume", "ayakkabi": "siyah-cizme" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amerikan-devrimi",
+      "ad": "American Revolutionary War",
+      "yillar": [1775, 1783],
+      "not": "Tricornes everywhere; most men clean-shaven with long hair tied back (often powdered for officers).",
+      "taraflar": [
+        {
+          "ad": "Continental Army",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "ceket", "renkler": { "ana": "#22305e", "ikincil": "#d8c08a", "ic": "#d8c08a", "sus": "#e1ad3e" }, "bas": "yeni:Continental Army officer's black tricorne with gold trim", "gogus": "yeni:gold epaulettes", "ayakkabi": "siyah-cizme" } },
+            { "rol": "soldier", "kostum": { "giysi": "ceket", "renkler": { "ana": "#22305e", "ikincil": "#d8c08a", "ic": "#fffdf6", "sus": "#d8c08a" }, "bas": "yeni:black tricorne", "ayakkabi": "siyah-cizme" } },
+            { "rol": "militiaman", "kostum": { "giysi": "ceket", "renkler": { "ana": "#6b4a2e", "ikincil": "#d8c08a", "ic": "#fffdf6", "sus": "#6b4a2e" }, "bas": "yeni:plain black tricorne", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "Britain",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "ceket", "renkler": { "ana": "#c62839", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "yeni:British officer's black tricorne with gold trim", "gogus": "yeni:British officer's gold epaulettes and crimson sash", "ayakkabi": "siyah-cizme" } },
+            { "rol": "redcoat soldier", "kostum": { "giysi": "ceket", "renkler": { "ana": "#c62839", "ikincil": "#fffdf6", "ic": "#fffdf6", "sus": "#fffdf6" }, "bas": "yeni:black tricorne with white trim", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Hesse (German auxiliaries)",
+          "roller": [
+            { "rol": "soldier", "kostum": { "giysi": "ceket", "renkler": { "ana": "#22305e", "ikincil": "#e8c93a", "ic": "#e8c93a", "sus": "#c62839" }, "bas": "yeni:Hessian black tricorne", "biyik": "yeni:thin black moustache", "ayakkabi": "siyah-cizme" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "birinci-dunya-savasi",
+      "ad": "First World War",
+      "yillar": [1914, 1918],
+      "not": "Moustaches were common in every army. Steel helmets from 1915–1916; caps before.",
+      "taraflar": [
+        {
+          "ad": "Britain",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#8f8456", "ikincil": "#8f8456", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:British officer's khaki peaked cap", "ayakkabi": "kahve-cizme" } },
+            { "rol": "Tommy (infantryman)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#8f8456", "ikincil": "#8f8456", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:WWI British Brodie steel helmet", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "Germany",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7d8471", "ikincil": "#7d8471", "ic": "#d8d8cc", "sus": "#c62839" }, "bas": "yeni:German officer's grey peaked cap", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman (1914–1915)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7d8471", "ikincil": "#7d8471", "ic": "#d8d8cc", "sus": "#c62839" }, "bas": "yeni:German Pickelhaube spiked helmet", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman (1916–1918)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7d8471", "ikincil": "#7d8471", "ic": "#d8d8cc", "sus": "#c62839" }, "bas": "yeni:German WWI Stahlhelm steel helmet", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "France",
+          "roller": [
+            { "rol": "poilu (1914)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#2b3f7a", "ikincil": "#c62839", "ic": "#fffdf6", "sus": "#c62839" }, "bas": "yeni:French red kepi", "ayakkabi": "siyah-cizme" } },
+            { "rol": "poilu (1915–1918)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7d9fc0", "ikincil": "#7d9fc0", "ic": "#fffdf6", "sus": "#2b3f7a" }, "bas": "yeni:French Adrian helmet in horizon blue", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Ottoman Empire",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#a39b6a", "ikincil": "#a39b6a", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:Ottoman officer's grey lambskin cap", "biyik": "yeni:black moustache", "ayakkabi": "kahve-cizme" } },
+            { "rol": "Mehmetçik (infantryman)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#a39b6a", "ikincil": "#a39b6a", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:Ottoman WWI kabalak cloth helmet", "biyik": "yeni:black moustache", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "United States (1917–1918)",
+          "roller": [
+            { "rol": "doughboy (infantryman)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#6b6b3a", "ikincil": "#6b6b3a", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:WWI US Brodie steel helmet", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "Russia",
+          "roller": [
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#8f8a5a", "ikincil": "#8f8a5a", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:Russian WWI khaki peaked cap", "ayakkabi": "siyah-cizme" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ikinci-dunya-savasi",
+      "ad": "Second World War",
+      "yillar": [1939, 1945],
+      "not": "Most soldiers clean-shaven; steel helmets in combat, caps behind the lines.",
+      "taraflar": [
+        {
+          "ad": "United States",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#5f5f34", "ikincil": "#8f8456", "ic": "#d8c08a", "sus": "#e1ad3e" }, "bas": "yeni:US Army officer's olive peaked cap", "ayakkabi": "kahve-cizme" } },
+            { "rol": "GI (infantryman)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#5f5f34", "ikincil": "#5f5f34", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:US Army M1 steel helmet", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "Germany",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#6f7563", "ikincil": "#6f7563", "ic": "#d8d8cc", "sus": "#c9ced6" }, "bas": "yeni:German officer's grey peaked cap", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#6f7563", "ikincil": "#6f7563", "ic": "#d8d8cc", "sus": "#23232b" }, "bas": "yeni:German Stahlhelm M35 steel helmet", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Britain",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#8f8456", "ikincil": "#8f8456", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:British officer's khaki peaked cap", "ayakkabi": "kahve-cizme" } },
+            { "rol": "Tommy (infantryman)", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#8f8456", "ikincil": "#8f8456", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:British Brodie steel helmet", "ayakkabi": "kahve-cizme" } }
+          ]
+        },
+        {
+          "ad": "Soviet Union",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7a7148", "ikincil": "#7a7148", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:Soviet officer's khaki peaked cap with red band", "ayakkabi": "siyah-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#7a7148", "ikincil": "#7a7148", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:Soviet SSh-40 steel helmet", "ayakkabi": "siyah-cizme" } }
+          ]
+        },
+        {
+          "ad": "Japan",
+          "roller": [
+            { "rol": "officer", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#a39b6a", "ikincil": "#a39b6a", "ic": "#d8c08a", "sus": "#c62839" }, "bas": "yeni:Japanese officer's khaki field cap", "ayakkabi": "kahve-cizme" } },
+            { "rol": "infantryman", "kostum": { "giysi": "uniforma", "renkler": { "ana": "#a39b6a", "ikincil": "#a39b6a", "ic": "#d8c08a", "sus": "#6b4a2e" }, "bas": "yeni:Japanese Type 90 steel helmet", "ayakkabi": "kahve-cizme" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "roma",
+      "ad": "Rome (late Republic and early Empire)",
+      "yillar": [-200, 300],
+      "not": "Romans of this time were mostly clean-shaven (beards came back with Hadrian, 117 AD); Gauls and Germans wore long moustaches or beards.",
+      "taraflar": [
+        {
+          "ad": "Rome",
+          "roller": [
+            { "rol": "general", "kostum": { "giysi": "zirh", "renkler": { "ana": "#b8862f", "ikincil": "#b8283a", "ic": "#fffbe5", "sus": "#e8b23a" }, "bas": "yeni:Roman general's laurel wreath", "pelerin": "#b8283a", "ayakkabi": "kahve-cizme" } },
+            { "rol": "legionary", "kostum": { "giysi": "tunik", "renkler": { "ana": "#b8283a", "ikincil": "#e8b23a", "ic": "#fffbe5", "sus": "#b0b0b0" }, "bas": "yeni:Roman legionary helmet with a red crest", "ayakkabi": "kahve-cizme" } },
+            { "rol": "senator", "kostum": { "giysi": "toga", "renkler": { "ana": "#fffdf6", "ikincil": "#6a3d8f", "ic": "#fffdf6", "sus": "#6a3d8f" }, "ayakkabi": "kahve-mest" } }
+          ]
+        },
+        {
+          "ad": "Gauls and Germanic tribes",
+          "roller": [
+            { "rol": "warrior", "kostum": { "giysi": "tunik", "renkler": { "ana": "#2f7a3e", "ikincil": "#6b4a2e", "ic": "#d8c08a", "sus": "#e1ad3e" }, "biyik": "yeni:long drooping brown moustache", "ayakkabi": "kahve-mest" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "osmanli-yukselis",
+      "ad": "Rise of the Ottomans (Balkans and Constantinople)",
+      "yillar": [1350, 1520],
+      "not": "Ottoman men wore beards (sultans) or moustaches (janissaries); Byzantine and Balkan nobles bearded. Use the ottoman-1453 and byzantine-1453 packs.",
+      "taraflar": [
+        {
+          "ad": "Ottoman Empire",
+          "roller": [
+            { "rol": "sultan", "kostum": { "giysi": "kaftan", "renkler": { "ana": "#2f7a3e", "ikincil": "#e1ad3e", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "ottoman-1453/padisah-kavugu", "sakal": "ottoman-1453/sakal-kahve", "ayakkabi": "sari-mest" } },
+            { "rol": "vizier", "kostum": { "giysi": "cubbe", "renkler": { "ana": "#6a3d8f", "ikincil": "#e1ad3e", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "ottoman-1453/vezir-sarigi", "sakal": "ottoman-1453/sakal-beyaz", "ayakkabi": "sari-mest" } },
+            { "rol": "janissary", "kostum": { "giysi": "yeniceri", "renkler": { "ana": "#2f6fb0", "ikincil": "#c62839", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "ottoman-1453/yeniceri-burku", "biyik": "ottoman-1453/biyik-pala", "ayakkabi": "kirmizi-mest" } }
+          ]
+        },
+        {
+          "ad": "Byzantine Empire",
+          "roller": [
+            { "rol": "emperor", "kostum": { "giysi": "bizans", "renkler": { "ana": "#6a3d8f", "ikincil": "#e1ad3e", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "byzantine-1453/bizans-taci", "sakal": "byzantine-1453/sakal-koyu", "ayakkabi": "kirmizi-mest" } },
+            { "rol": "soldier", "kostum": { "giysi": "zirh", "renkler": { "ana": "#9aa0a8", "ikincil": "#c62839", "ic": "#fffdf6", "sus": "#e1ad3e" }, "bas": "byzantine-1453/italyan-migferi", "ayakkabi": "kahve-cizme" } }
+          ]
+        }
+      ]
+    }
+  ]
+}

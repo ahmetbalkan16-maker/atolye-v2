@@ -43,6 +43,11 @@ export interface ScriptBrief {
   readonly kaynakBankasi?: SourceBank;
   /** Voices the writer picks from for this language (`ses_id`), by what they sound like. */
   readonly sesler?: readonly { readonly id: string; readonly tarif: string }[];
+  /**
+   * The period atlas's dress for the episode's era (PeriodAtlas.periodDressBlock): each side's costume by rank, written
+   * after the costume catalog (owner, 6 Nov 2026).
+   */
+  readonly donemKiyafetleri?: string;
   /** The script brain's lessons from earlier episodes and the chief's measures (experience memory). */
   readonly dersler?: readonly string[];
   /** Real historical borders available near the episode's year (HistoricalBorders): snapshot year → polity names. */
@@ -557,7 +562,7 @@ giysi (body garment, coloured by "renkler"): ${GARMENTS.map((g) => `${g} (${GARM
 ayakkabi: ${SHOES.join(", ")}
 sac (hair, optional; shows under or without headwear — give it to everyone without a full head covering): {"stil": one of ${HAIR_STYLES.join(", ")}, "renk": "#RRGGBB"}
 ${catalogText(catalog)}
-
+${brief.donemKiyafetleri ? `\n${brief.donemKiyafetleri}\n` : ""}
 ALLOWED VALUES
 ton: ${EPISODE_TONES.join(", ")}
 sahne duygu: ${SCENE_MOODS.join(", ")}

@@ -156,7 +156,8 @@ const HEADWEAR: readonly { readonly family: string; readonly match: RegExp; read
   {
     // A tall fur cap (guards, grenadiers, hussars' busby).
     family: "bearskin",
-    match: /^(bearskins?|busby|kalpak|colpack|kolpak)$/,
+    // Not "kalpak": a Turkish kalpak is a short lambskin cap, not a grenadier's tall fur.
+    match: /^(bearskins?|busby|colpack)$/,
     fallback: "#2a2420",
     draw: (h) =>
       svg(

@@ -11,6 +11,8 @@ import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { designParts, hatShapeNotes, partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { familyPart } from "../src/lib/v3/costumes/PartFamilies";
+import { erasFor, periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
+import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
@@ -468,6 +470,36 @@ async function main() {
     console.error("FAIL L1 parametric families draw the Waterloo parts for free");
     throw e;
   }
+
+  scenario("L2 period atlas: every costume is valid, the uniforms' hats and moustaches are free family parts, the writer gets its era", () => {
+    const atlas = readAtlas(process.cwd());
+    assert.ok(atlas.donemler.length >= 6, `${atlas.donemler.length} eras`);
+    for (const era of atlas.donemler)
+      for (const side of era.taraflar)
+        for (const role of side.roller) {
+          const ep = episode();
+          const dressed = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "caesar" ? { ...c, kostum: role.kostum } : c)) };
+          assert.ok(validateEpisode(dressed).ok, `${era.id} / ${side.ad} / ${role.rol}: ${JSON.stringify(validateEpisode(dressed).errors.slice(0, 2))}`);
+          // The eras with a family for every part order: nothing goes to the paid designer.
+          if (era.id === "napolyon" || era.id === "amerikan-devrimi")
+            for (const [field, slot] of [["bas", "head"], ["sakal", "beard"], ["biyik", "mustache"], ["gogus", "chest"]] as const) {
+              const v = (role.kostum as unknown as Record<string, string | undefined>)[field];
+              const m = v ? /^yeni:\s*(.+)$/.exec(v) : null;
+              if (m) assert.ok(familyPart({ slot, tarif: m[1]! }), `${era.id} / ${side.ad} / ${role.rol}: "${m[1]}" has no family`);
+            }
+        }
+    assert.deepEqual(erasFor(atlas, "1815").map((e) => e.id), ["napolyon"]);
+    assert.deepEqual(erasFor(atlas, "49 BC").map((e) => e.id), ["roma"]);
+    assert.deepEqual(erasFor(atlas, "1453").map((e) => e.id), ["osmanli-yukselis"]);
+    assert.deepEqual(erasFor(atlas, "1600").map((e) => e.id), [], "no era: nothing");
+    const block = periodDressBlock(atlas, "1815")!;
+    assert.match(block, /^PERIOD DRESS — Napoleonic Wars \(1792–1815\)/);
+    assert.match(block, /- Prussia: officer \{"giysi":"uniforma","renkler":\{"ana":"#1f2d55"/, "Blücher's side is dark blue, not green");
+    assert.equal(periodDressBlock(atlas, "1600"), undefined);
+    const prompt = writingPrompt({ konu: "Waterloo", donem: "1815", hedefSureSn: 60, ton: "mizahi", dil: "en", donemKiyafetleri: block }, []);
+    assert.ok(prompt.indexOf("PERIOD DRESS") > prompt.indexOf("COSTUME CATALOG") && prompt.indexOf("PERIOD DRESS") < prompt.indexOf("ALLOWED VALUES"));
+    assert.ok(!writingPrompt({ konu: "Waterloo", donem: "1815", hedefSureSn: 60, ton: "mizahi", dil: "en" }, []).includes("PERIOD DRESS"));
+  });
 
   console.log(`V3 likeness smoke: PASS (${scenarios} scenarios)`);
 }
