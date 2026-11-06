@@ -603,3 +603,20 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   seviyedeki yatağın altında kaybolmaz. Konuşma eskisi gibi müziği 8:1, savaşı 3:1 kısar; ortam sesi konuşmanın altında
   sabit kalır (yer anlatıcıyla nefes almaz). Smoke-v3-mix F2 bütün yatak birleşimlerinde FFmpeg grafiğinde açık ya da
   iki kez kullanılmış bağlantı kalmadığını denetler.
+- Kostüm beyninin onaylı önerisi (Sezar ve korsanlar: "reddedilme sebepleri ve alternatif öneriler daha hızlı
+  değerlendirilebilmeli"): 3 turda kabul edilmeyen parçanın bulgusu artık son ret sebebini ve stüdyonun elindeki,
+  aynı yuvadan en çok kelimesi ortak en fazla 3 parçayı (`pack/item` + notu) tek satırda verir; başka bir kişinin yüz
+  parçası önerilmez (`PartDesigner.partAlternatives`, `failedPartFinding`; `gardirop.json` kaydında `alternatifler`).
+  Üretim hiçbir parçayı kendiliğinden değiştirmez; karar senaryoda verilir.
+- Kostüm beyninin onaylı önerisi (kostum-43, Waterloo Short): aynı kişinin aynı yuva ve dönemdeki parçası başka sözlerle
+  istenince gardırop kütüphanedekini kullanır (`PartDesigner.similarOwnPart`, sahip adı dışındaki kelimelerin %75'i;
+  sahipsiz siparişler yalnız birebir). Blücher'in "Prussian and allied medals and orange sash" siparişi üç turda düşmüştü,
+  kütüphanede 10/10 "orange sash and Prussian medals" dururken; kütüphanede 11 çift böyle yeniden çizilmişti. Benzerlik
+  tasarımcısının farklarla yeniden tasarladığı kişinin parçaları (`redraw`) eşleşmez, yeniden çizilir.
+- Kalite beyninin onaylı önerisi (kalite-42, Waterloo Short): savaş haritasındaki birim adları, güç etiketleri ve savaş
+  adı `hudLayout.labelSpot` ile kadraja kayar; tarih damgası/güç çubuğu, rozet, konuşan rozetin balonu ve önce yerleşen
+  etiketin üstüne yazılmaz (en yakın boş yer; yoksa ya da birimi kadrajdan çıktıysa söner). Waterloo planının yeniden
+  çizilen 20/30/32.5/34.5 sn karelerinde beş yerleşim hatasının hiçbiri yok.
+- Geliştiricinin görev paketi kaynak üretimlerin KURUL.md'sinde o beyne ait "Eksikler/Uyarılar" satırlarını taşır
+  (`DevQueue.measuredFaults`): genel başlıklı fikirlerin arkasındaki ölçülmüş hata (ses-44'te davulun vuruşsuz kalması)
+  artık Claude'a ve çırağa görünür. Onarım beyninin önerisi (onarim-40) zaten vardı: çöken render yarı işçiyle yeniden.
