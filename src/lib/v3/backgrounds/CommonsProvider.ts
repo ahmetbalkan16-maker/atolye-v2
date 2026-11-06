@@ -78,7 +78,11 @@ export async function politeFetch(url: string, tries = 5): Promise<Response> {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, ...(/(^|\.)artic\.edu$/.test(new URL(url).hostname) ? { "AIC-User-Agent": USER_AGENT } : {}) } });
     if ((res.status !== 429 && res.status !== 503) || i >= tries - 1) return res;
     const after = Number(res.headers.get("retry-after"));
-    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0 ? Math.min(after, 60) * 1000 : 2000 * 2 ** i));
+    const pause = Number.isFinite(after) && after > 0 ? Math.min(after, 60) * 1000 : 2000 * 2 ** i;
+    // A rate limit holds every Wikimedia call, not only this one: the queued ones kept going a second apart into it
+    // (Waterloo, 6 Nov 2026: Wellington's six and Blücher's four previews lost while single requests passed minutes later).
+    if (/wikimedia\.org|wikipedia\.org/.test(url)) lastWikimedia = Math.max(lastWikimedia, Date.now() + pause);
+    await new Promise((r) => setTimeout(r, pause));
   }
 }
 

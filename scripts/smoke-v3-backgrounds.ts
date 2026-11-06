@@ -385,6 +385,20 @@ async function main() {
     const sorted = [...at].sort((a, b) => a - b);
     assert.equal(sorted.length, 3);
     assert.ok(sorted[1]! - sorted[0]! >= 950 && sorted[2]! - sorted[1]! >= 950, `spaced: ${sorted.map((t) => t - sorted[0]!).join(", ")} ms`);
+    // A rate limit holds the next caller too, for its Retry-After, not only the call that met it.
+    const hits: { u: string; t: number }[] = [];
+    globalThis.fetch = (async (u: string | URL | Request) => (hits.push({ u: String(u), t: Date.now() }), hits.length === 1 ? new Response("", { status: 429, headers: { "retry-after": "2" } }) : new Response("ok", { status: 200 }))) as typeof fetch;
+    try {
+      const first = politeFetch("https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/x.jpg/500px-x.jpg", 2);
+      while (!hits.length) await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 20));
+      const second = politeFetch("https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/y.jpg/500px-y.jpg", 2);
+      await Promise.all([first, second]);
+    } finally {
+      globalThis.fetch = real;
+    }
+    const later = hits.find((h) => h.u.includes("/y.jpg"))!;
+    assert.ok(later.t - hits[0]!.t >= 1_900, `the second caller waited out the limit: ${later.t - hits[0]!.t} ms`);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
