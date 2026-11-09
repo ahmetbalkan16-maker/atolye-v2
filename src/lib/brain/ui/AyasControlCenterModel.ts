@@ -104,6 +104,12 @@ export interface AyasCcGraphifyFacts {
   readonly graph: { readonly nodes: number; readonly links: number; readonly anomalies: number } | null;
   readonly recoveryCommand: string | null;
   readonly nextAction: string;
+  /** When HEAD last moved in this repository (reflog); null when unreadable. */
+  readonly headArrivedAt?: string | null;
+  /** Until this instant a graph merely behind a freshly arrived HEAD is being refreshed (AyasGraphHealWindow), not stale. */
+  readonly refreshPendingUntil?: string | null;
+  /** The self-heal's latest attempt for this HEAD failed: no longer "being refreshed". */
+  readonly healFailedForHead?: boolean;
 }
 
 export interface AyasCcExperimentRow {
@@ -358,6 +364,30 @@ export function ayasCcUpdateClosureInFlight(input: AyasControlCenterInput): Ayas
     && apply.commitSha === graph.sourceHead && at - (isoMs(apply.startedAt) ?? Number.NEGATIVE_INFINITY) <= AYAS_CC_UPDATE_CLOSURE_WINDOW_MS) ?? null;
 }
 
+/**
+ * A new commit reached this repository (a session's pull, a merge) on a clean tree and the graph is only behind it:
+ * the session's own refresh or AYAS's self-heal (AyasPublicationSelfHeal, a few minutes after arrival) brings it
+ * current. Inside the collector's window this is "being refreshed", not "ESKİ" — nothing is broken (9 Nov 2026). A
+ * failed heal for this HEAD, a dirty tree or a graph still behind after the window keeps the warning.
+ */
+export interface AyasCcGraphRefreshPending { readonly head: string; readonly arrivedAt: string | null }
+
+export function ayasCcGraphRefreshPending(input: AyasControlCenterInput): AyasCcGraphRefreshPending | null {
+  const graph = input.server?.graphify.kind === "ok" ? input.server.graphify.value : null;
+  const at = isoMs(input.server?.generatedAt);
+  const until = isoMs(graph?.refreshPendingUntil);
+  if (!graph || graph.classification !== "GRAPH_STALE" || graph.worktreeState !== "CLEAN" || !graph.sourceHead || graph.healFailedForHead === true
+    || at === null || until === null || at > until) return null;
+  // An "Uygula" whose own Graphify closure failed for this commit is a real failure, not a pending refresh.
+  const head = graph.sourceHead;
+  if ((input.researchEngineStatus?.updateApplies ?? []).some((apply) => apply.commitSha === head && apply.closure !== undefined && !apply.closure.ok)) return null;
+  return { head, arrivedAt: graph.headArrivedAt ?? null };
+}
+
+function graphRefreshLine(pending: AyasCcGraphRefreshPending): string {
+  return `Yeni commit geldi (${ayasCcShortSha(pending.head)}); Graphify onun için yenileniyor — AYAS birkaç dakika içinde kendisi yeniler. Graf tabanlı keşif o zamana kadar bekler.`;
+}
+
 function updateClosureLine(apply: AyasUpdateApplyRecord): string {
   return `${ayasCcText(apply.toolName, 40)} ${ayasCcText(apply.targetVersion, 30)} güncellemesi yayında (${ayasCcShortSha(apply.commitSha)}); Graphify yeni commit için yenileniyor, birkaç dakika sürer.`;
 }
@@ -403,7 +433,7 @@ const HEALTH_LABEL: Readonly<Record<AyasHealthVerdict, { readonly attention: Aya
 
 const OBSERVER_NOT_RUNNING = new Set(["OBSERVER_STATE_ABSENT", "OBSERVER_STATE_UNREADABLE", "OBSERVER_LOCK_ABSENT", "OBSERVER_OWNER_DEAD", "OBSERVER_HEARTBEAT_STALE", "OBSERVER_HEARTBEAT_UNREADABLE"]);
 
-function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null): AyasCcDomainStatus {
+function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null, refresh: AyasCcGraphRefreshPending | null = null): AyasCcDomainStatus {
   const seed: DomainSeed = { id: "health", title: "AYAS sağlığı", source: "AyasSelfImprovementHealth", panel: "autonomous" };
   if (!fact || fact.kind !== "ok") {
     const status = factStatus(seed, fact, "Sağlık verisi yok.");
@@ -415,6 +445,10 @@ function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: Ay
   // The stale graph is the update closure's own step: discovery waits for it, nothing is broken.
   if (closure && health.verdict === "DEGRADED" && top.length > 0 && top.every((finding) => finding.code === "GRAPH_STALE_VS_HEAD")) {
     return { ...seed, attention: "IN_PROGRESS", statusLabel: "GÜNCELLEME KAPANIŞI", summary: "Graphify yeni commit için yenileniyor; graf tabanlı keşif bitene kadar bekliyor.", availability: "OK", observedAt: fact.observedAt, dataAt: health.observer.heartbeatAt, dataAtLabel: "son gözlemci kalp atışı" };
+  }
+  // Same for a commit that arrived by a pull or a merge: the graph refresh is due, nothing is broken.
+  if (refresh && health.verdict === "DEGRADED" && top.length > 0 && top.every((finding) => finding.code === "GRAPH_STALE_VS_HEAD")) {
+    return { ...seed, attention: "IN_PROGRESS", statusLabel: "GRAFİK YENİLENİYOR", summary: "Yeni commit için Graphify yenileniyor; graf tabanlı keşif bitene kadar bekliyor.", availability: "OK", observedAt: fact.observedAt, dataAt: health.observer.heartbeatAt, dataAtLabel: "son gözlemci kalp atışı" };
   }
   const mapped = HEALTH_LABEL[health.verdict] ?? HEALTH_LABEL.UNKNOWN;
   const summary = top.length ? ayasCcText(top[0].message) : "Gözlemci ve araştırma döngüsü beklenen düzende.";
@@ -656,7 +690,7 @@ const GRAPHIFY_LABEL: Readonly<Record<string, { readonly attention: AyasCcAttent
   GRAPH_EXTRACTION_FAILED: { attention: "WARNING", label: "ÇIKARIM BAŞARISIZ" },
 };
 
-function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null): AyasCcDomainStatus {
+function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null, refresh: AyasCcGraphRefreshPending | null = null): AyasCcDomainStatus {
   const seed: DomainSeed = { id: "graphify", title: "Graphify", source: "AyasGraphifyState (Stage 10A)", panel: "system" };
   if (!fact || fact.kind !== "ok") {
     const status = factStatus(seed, fact, "Graphify durumu yok.");
@@ -672,6 +706,11 @@ function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items
     const reason = updateClosureLine(closure);
     items.push({ id: "graphify:update-closure", domain: "graphify", level: "IN_PROGRESS", title: "Güncelleme kapanışı: Graphify yenileniyor", reason, source: "AyasUpdateApplyRunner · AyasGraphifyState", at: closure.startedAt, next: { kind: "READ_ONLY", label: "Araştırma sekmesinde izle", panel: "research" }, details: [] });
     return { ...seed, attention: "IN_PROGRESS", statusLabel: "YENİLENİYOR", summary: reason, availability: "OK", observedAt: fact.observedAt, dataAt: graph.analyzedAt, dataAtLabel: "son Graphify güncellemesi" };
+  }
+  if (refresh) {
+    const reason = graphRefreshLine(refresh);
+    items.push({ id: "graphify:refresh-pending", domain: "graphify", level: "IN_PROGRESS", title: "Graphify yeni commit için yenileniyor", reason, source: "AyasPublicationSelfHeal · AyasGraphifyState", at: refresh.arrivedAt ?? fact.observedAt, next: { kind: "READ_ONLY", label: "Sistem sekmesinde izle", panel: "system" }, details: [] });
+    return { ...seed, attention: "IN_PROGRESS", statusLabel: "YENİLENİYOR", summary: `${reason} · ${heads}`, availability: "OK", observedAt: fact.observedAt, dataAt: graph.analyzedAt, dataAtLabel: "son Graphify güncellemesi" };
   }
   if (mapped.attention === "WARNING") {
     items.push({
@@ -942,12 +981,13 @@ export function buildAyasControlCenterView(input: AyasControlCenterInput): AyasC
   const server = input.server;
   const items: AyasCcAttentionItem[] = [];
   const closure = ayasCcUpdateClosureInFlight(input);
+  const refresh = closure ? null : ayasCcGraphRefreshPending(input);
   const domains: AyasCcDomainStatus[] = [
-    healthDomain(server?.health, items, closure),
+    healthDomain(server?.health, items, closure, refresh),
     autonomyDomain(server?.health, input.autonomous),
     approvalsDomain(input, items),
     developmentDomain(server?.development, items),
-    graphifyDomain(server?.graphify, items, closure),
+    graphifyDomain(server?.graphify, items, closure, refresh),
     researchDomain(input, items),
     experimentsDomain(server?.experiments, items),
     memoryDomain(server?.memory, items),

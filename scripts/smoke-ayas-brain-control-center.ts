@@ -736,6 +736,11 @@ async function main(): Promise<void> {
       const behindView = domain(build(behind), "development");
       assert.equal(behindView.attention, "WARNING");
       assert.notEqual(behindView.statusLabel, "TEMİZ · EŞİT");
+      // H15's facts come from the real reflog: when HEAD arrived, and the end of its refresh window 30 min later.
+      const arrived = valueOf(behind.graphify).headArrivedAt;
+      assert.ok(arrived && Math.abs(Date.parse(arrived) - Date.now()) < 10 * 60_000, `HEAD arrival read from the reflog: ${arrived}`);
+      assert.equal(Date.parse(valueOf(behind.graphify).refreshPendingUntil!) - Date.parse(arrived!), 30 * 60_000);
+      assert.equal(valueOf(behind.graphify).healFailedForHead, false);
       fs.writeFileSync(path.join(local, "c.txt"), "c\n");
       git(local, ["add", "c.txt"]);
       git(local, ["commit", "-q", "-m", "chore: local moves on"]);
@@ -758,7 +763,8 @@ async function main(): Promise<void> {
   await scenario("held-out", "H14", "update closure: stale graph after a pushed 'Uygula' reads as in progress, never as broken; a failed, foreign or old closure keeps the warning", async () => {
     const base = await healthyServer();
     const server = withServer(base, {
-      graphify: ok({ ...valueOf(base.graphify), classification: "GRAPH_STALE", structuralStatus: "STALE", lastAnalyzedHead: OLD_HEAD, structuralReasons: ["HEAD_MOVED"], recoveryCommand: "graphify update --scope all --no-description --no-label .", nextAction: "Run the refresh." }) as Server["graphify"],
+      // Arrival unknown: this scenario is about the update closure alone (H15 covers a freshly arrived HEAD).
+      graphify: ok({ ...valueOf(base.graphify), classification: "GRAPH_STALE", structuralStatus: "STALE", lastAnalyzedHead: OLD_HEAD, structuralReasons: ["HEAD_MOVED"], recoveryCommand: "graphify update --scope all --no-description --no-label .", nextAction: "Run the refresh.", headArrivedAt: null, refreshPendingUntil: null }) as Server["graphify"],
       health: ok({ ...valueOf(base.health), verdict: "DEGRADED", findings: [{ code: "GRAPH_STALE_VS_HEAD", severity: "WARN", subject: "graph", message: "graph-dependent discovery is paused" }] }) as Server["health"],
     });
     const apply = { schemaVersion: 1 as const, applyId: "ayas-update-apply-run-x", applyDecisionId: "d", trialId: "t", sourceId: "remotion", toolName: "Remotion", installedVersion: "4.0.536", targetVersion: "4.0.538", baseHead: OLD_HEAD, status: "RUNNING" as const, startedAt: minutesAgo(2), commitSha: HEAD, pushed: true, livePending: true };
@@ -780,6 +786,36 @@ async function main(): Promise<void> {
     // A second, real problem is never hidden behind the closure.
     const twoProblems = withServer(server, { health: ok({ ...valueOf(server.health), findings: [...valueOf(server.health).findings, { code: "OBSERVER_HEARTBEAT_STALE", severity: "WARN", subject: "observer", message: "heartbeat stale" }] }) as Server["health"] });
     assert.equal(domain(build(twoProblems, withApplies([apply])), "health").statusLabel, "KISMEN BOZUK");
+  });
+
+  await scenario("held-out", "H15", "a commit that arrived by a pull: a graph merely behind it reads as being refreshed inside the window; a failed heal or closure, a dirty tree or the end of the window keep the warning (9 Nov 2026)", async () => {
+    const base = await healthyServer();
+    const stale = (over: Record<string, unknown>) => ok({ ...valueOf(base.graphify), classification: "GRAPH_STALE", structuralStatus: "STALE", lastAnalyzedHead: OLD_HEAD, structuralReasons: ["HEAD_MOVED"],
+      worktreeState: "CLEAN", headArrivedAt: minutesAgo(2), refreshPendingUntil: minutesAgo(-28), healFailedForHead: false,
+      recoveryCommand: "graphify update --scope all --no-description --no-label .", nextAction: "Run the refresh.", ...over }) as Server["graphify"];
+    const health = ok({ ...valueOf(base.health), verdict: "DEGRADED", findings: [{ code: "GRAPH_STALE_VS_HEAD", severity: "WARN", subject: "graph", message: "graph-dependent discovery is paused" }] }) as Server["health"];
+    const server = withServer(base, { graphify: stale({}), health });
+    const view = build(server);
+    assert.equal(domain(view, "graphify").attention, "IN_PROGRESS");
+    assert.equal(domain(view, "graphify").statusLabel, "YENİLENİYOR");
+    assert.match(domain(view, "graphify").summary, /Yeni commit geldi \(aaaaaaa\)/);
+    assert.equal(domain(view, "health").attention, "IN_PROGRESS");
+    assert.equal(domain(view, "health").statusLabel, "GRAFİK YENİLENİYOR");
+    assert.deepEqual(view.attention.map((entry) => `${entry.level}:${entry.id}`), ["IN_PROGRESS:graphify:refresh-pending"]);
+    assert.doesNotMatch(renderAttention(server), /KISMEN BOZUK|GRAPH_STALE/);
+    // Outside the window, after a failed heal for this HEAD, on a dirty tree or with an unknown arrival: the real warning.
+    for (const over of [{ refreshPendingUntil: minutesAgo(1) }, { healFailedForHead: true }, { worktreeState: "DIRTY_COVERED" }, { refreshPendingUntil: null }]) {
+      const late = build(withServer(server, { graphify: stale(over) }));
+      assert.equal(domain(late, "graphify").attention, "WARNING", JSON.stringify(over));
+      assert.equal(domain(late, "health").statusLabel, "KISMEN BOZUK", JSON.stringify(over));
+    }
+    // An "Uygula" whose own closure failed for this commit is a failure, not a pending refresh.
+    const failedApply = { schemaVersion: 1 as const, applyId: "ayas-update-apply-run-y", applyDecisionId: "d", trialId: "t", sourceId: "remotion", toolName: "Remotion", installedVersion: "4.0.536", targetVersion: "4.0.538", baseHead: OLD_HEAD, status: "COMPLETED" as const, startedAt: minutesAgo(3), commitSha: HEAD, pushed: true, closure: { ok: false, summary: "graphify failed" } };
+    const withFailed = { ...healthyInputs(), researchEngineStatus: { ...healthyInputs().researchEngineStatus!, updateApplies: [failedApply] } };
+    assert.equal(domain(build(server, withFailed as never), "graphify").attention, "WARNING");
+    // A second, real problem is never hidden behind the refresh.
+    const twoProblems = withServer(server, { health: ok({ ...valueOf(health), findings: [...valueOf(health).findings, { code: "OBSERVER_HEARTBEAT_STALE", severity: "WARN", subject: "observer", message: "heartbeat stale" }] }) as Server["health"] });
+    assert.equal(domain(build(twoProblems), "health").statusLabel, "KISMEN BOZUK");
   });
 
   await scenario("integration", "I3", "performance: pure build over a large fixture stays cheap", async () => {

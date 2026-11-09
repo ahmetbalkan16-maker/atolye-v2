@@ -1,3 +1,39 @@
+## 9 Kasım 2026 (2) — belirsiz araştırma turu tekrar oynatılmaz; pull sonrası Graphify "YENİLENİYOR", onarım 5 dk'da
+
+Owner: "onu da düzelt ayrıca graphify eski sistem kısmen bozuk diyor bunları da kalıcı olarak düzelt".
+
+**1. Belirsiz turun tekrarı** (aşağıdaki kaydın "ayrıca görülen"i): RECOVERED_UNCERTAIN `nextLightAt/nextDeepAt`'i
+now+aralık yapıyordu ama sonraki turun "cadence defaults" yeniden hesabı `lastCompleted + aralık`'tan (6 Kasım) sayıp aynı
+occurrence'ı 5 dk sonra yeniden çalıştırıyor, kaçırılan 49 turu ikinci kez sayıyordu. Çözüm: zamanlayıcı durumuna
+`lastUncertainAt` + `lastUncertainMode`; yeniden hesap çapası = en geç (tamamlanma, belirsiz kurtarma) — DEEP kesintisi iki
+modu, LIGHT kesintisi yalnız LIGHT'ı öteler. smoke-ayas-research-scheduler'a 9 Kasım durumunun birebiri (eski kodda FAIL,
+yenide PASS; 18 senaryo).
+
+**2. "Graphify ESKİ (GRAPH_STALE)" + "Öz-gelişim döngüsü: KISMEN BOZUK":** şu an (ölçüldü) GRAPH_CURRENT / HEALTHY. Kök
+neden: kanonik depoda HEAD bir pull ile ilerleyince (bugün 07:28 ve 07:35 TSİ, benim canlıya alma adımım) Graphify birkaç dk
+sonra yenilenene kadar kontrol merkezi grafiği ESKİ, sağlığı KISMEN BOZUK sayıyordu; muafiyet yalnız "Uygula" kapanışı
+içindi. AYAS'ın kendi Graphify onarımı da commit saatinden 15 dk sonra bakıyordu (çekilen eski bir commit hemen, yeni bir
+commit 15 dk sonra). Çözüm:
+- Yeni saf modül `AyasGraphHealWindow` (yalnız dosya okur; sunucu okuma yolu push/refresh yetkili `AyasPublicationSelfHeal`'i
+  içe aktarmaz): bekleme 5 dk, "yenileniyor" penceresi 30 dk, `graph-heal.json` okuyucu, reflog'dan HEAD'in geliş anı
+  (`git log -g -1 --date=unix --format=%gd HEAD`).
+- `AyasPublicationSelfHeal`: bekleme HEAD'in bu depoya geliş anından (reflog; okunamazsa commit saati) 5 dk. Yarışma yok:
+  "Uygula" kapanışı aynı yürütücüde sırayla, onay yayınları `isAyasPublicationInFlight` ile korunuyor.
+- Kontrol merkezi (`AyasControlCenterCollector` geliş anı + pencere sonu + bu HEAD için onarım başarısız mı;
+  `AyasControlCenterModel.ayasCcGraphRefreshPending`): temiz ağaç + GRAPH_STALE + pencere içinde → Graphify "YENİLENİYOR",
+  sağlık (tek bulgu GRAPH_STALE_VS_HEAD ise) "GRAFİK YENİLENİYOR", ikisi de IN_PROGRESS (bildirim ROUTINE). Pencere geçince,
+  bu HEAD için onarım ya da "Uygula" kapanışı başarısızsa, ağaç kirliyse ya da geliş anı bilinmiyorsa gerçek uyarı kalır;
+  ikinci bir gerçek bulgu asla gizlenmez. Ana sayfa dosyasına dokunulmadı (sabit yuvadaki etiket gerçek gözlemi yansıtır).
+- Testler: smoke-ayas-brain-control-center H15 (yeni) + I4'te gerçek reflog okuması (41 PASS); H14 fikstürü geliş anını
+  bilinmez yapar (yalnız kapanışı sınar); smoke-ayas-publication-self-heal geliş anına dayalı bekleme + reflog (8 PASS).
+
+**Doğrulama:** tsc 0; lint 0/0 (2054 dosya); brain-control-center 41, publication-self-heal 8, research-scheduler 18,
+research-time-budget 12, action-firewall-closure 13 (yeni saf modül sunucu yüzeyinde kabul), auto-live-publish 12,
+constitution-run-binding 18 (+mutations 13/13), design-review-proposals 7, development-center 64, discovery-run-firewall 13,
+error-code-contract 16, executive-briefing 30 (+mutations 68/68), goal-research-schedule 33, guarded-publication 33,
+homepage-v2 13, owner-ui-v2 36, recovery-reconciliation 23, research-engine-status-view 6, research-intelligence 28,
+self-improvement-health 61, update-apply 14, revenue-center-closure 131/131, daemon-authority-boundary 23 PASS.
+
 ## 9 Kasım 2026 — "Araştırma sorunlu": araştırma turuna süre sınırı, yarıda kalan derin analiz sonraki turda sürer
 
 Owner: "araştırma sorunlu diyor nedenine bak ve çöz kalıcı olarak". Araştırma Sağlığı DEGRADED'di: "art arda 1 kez
@@ -28,7 +64,7 @@ süre sınırı yoktu (Ollama çağrı zaman aşımı 600 sn); uzun bir kapalı 
 
 **Canlı durum:** c59bedaf canlıda (`ayas-live-c59bedaf`, sağlık denetimi healthy, 04:32 UTC). Sağlık 04:05 UTC'deki
 turla zaten HEALTHY'ye döndü (hesaplandı: 37 bulgu/7 gün, hata 0); 03:46'daki öldürülen turun bulguları kayıtlıydı, kayıp
-yok. Yarım kalan `.tmp` zararsız artık; dokunulmadı. **Ayrıca görülen (düzeltilmedi):** RECOVERED_UNCERTAIN yolu
+yok. Yarım kalan `.tmp` zararsız artık; dokunulmadı. **Ayrıca görülen (aynı gün düzeltildi, yukarıdaki kayıt):** RECOVERED_UNCERTAIN yolu
 `nextLightAt/nextDeepAt`'i now+aralık yapar, ama sonraki turdaki "cadence defaults" yeniden hesabı bunları
 `lastCompleted + aralık`'a (6 Kasım → geçmiş) geri çeker; 04:05'te aynı occurrence (b162…) yeniden çalıştı ve 49 kaçırılmış
 tur ikinci kez sayıldı (410 → 459). "Belirsiz occurrence tekrar oynatılmaz" ilkesiyle çelişir; araştırmada dış etkisi yok

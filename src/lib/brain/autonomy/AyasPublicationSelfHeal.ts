@@ -8,6 +8,7 @@ import type { AyasMicroBatchStoreHandle } from "./AyasMicroBatch";
 import { countAyasOpenMicroBatchRecoveries, createAyasMicroBatchArtifactView, createAyasMicroBatchRecoveryInbox } from "./AyasMicroBatchRecovery";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
+import { AYAS_GRAPH_HEAL_GRACE_MS, AYAS_HEAD_ARRIVAL_GIT_ARGS, ayasGraphHealFile, parseAyasHeadArrivalMs, readAyasGraphHealAttempts, type AyasGraphHealAttempt } from "./AyasGraphHealWindow";
 import { closeAyasPostPublication, refreshAyasGraphifyForHead } from "./AyasPostPublicationClosure";
 import { ayasMicroBatchPublicationOperation, isAyasPublicationInFlight, reconcileAyasRecoveryRequiredProposals, type AyasRecoveryReconciliationResult } from "./AyasRecoveryReconciliation";
 
@@ -24,8 +25,9 @@ import { ayasMicroBatchPublicationOperation, isAyasPublicationInFlight, reconcil
  *     ordinary post-publication closure (Graphify + health) runs for the pushed HEAD. The same proof covers a micro
  *     batch (AyasMicroBatchRecovery) and, in AyasUpdateApplyRunner, an "Uygula" whose push failed.
  *
- *  2. Graphify self-heal. A HEAD whose graph is still not fresh well after its commit — its publication closure
- *     failed or never ran — gets the closure's own Graphify refresh and verification, a bounded number of times.
+ *  2. Graphify self-heal. A HEAD whose graph is still not fresh a few minutes after it arrived in this repository —
+ *     its publication closure failed or never ran, or it came in by a pull — gets the closure's own Graphify refresh
+ *     and verification, a bounded number of times (timing in AyasGraphHealWindow).
  *     Without it, "Graphify ESKİ / KISMEN BOZUK" and the paused graph-dependent discovery waited for a human.
  *
  * Neither step approves, re-runs, rewrites, resets or forces anything. `AYAS_PUBLICATION_RECOVERY=0` and
@@ -117,13 +119,11 @@ export function runAyasPublicationRecovery(deps: AyasPublicationRecoveryDeps): A
 
 /* ------------------------------------------------------ 2. Graphify heal --- */
 
-/** A publication's own closure finishes within minutes; only a graph still stale after this long is healed. */
-export const AYAS_GRAPH_HEAL_GRACE_MS = 15 * 60_000;
+// Shared with the control center (which must not import this module): the grace counts from when HEAD arrived here.
+export { AYAS_GRAPH_HEAL_GRACE_MS, readAyasGraphHealAttempts, type AyasGraphHealAttempt } from "./AyasGraphHealWindow";
 export const AYAS_GRAPH_HEAL_MAX_ATTEMPTS_PER_HEAD = 3;
 export const AYAS_GRAPH_HEAL_RETRY_SPACING_MS = 30 * 60_000;
 const ATTEMPT_HISTORY = 30;
-
-export interface AyasGraphHealAttempt { readonly head: string; readonly at: string; readonly ok: boolean; readonly detail: string }
 
 export interface AyasGraphHealFacts {
   readonly enabled: boolean;
@@ -131,8 +131,10 @@ export interface AyasGraphHealFacts {
   readonly graphFresh: boolean;
   readonly treeClean: boolean;
   readonly publicationInFlight: boolean;
-  /** Committer time of HEAD; undefined when unreadable. */
+  /** Committer time of HEAD; undefined when unreadable. The fallback when the reflog cannot say when HEAD arrived. */
   readonly headCommittedAtMs: number | undefined;
+  /** When HEAD last moved in this repository (reflog): a pulled commit arrives long after its commit time. */
+  readonly headArrivedAtMs?: number;
   readonly nowMs: number;
   readonly attempts: readonly AyasGraphHealAttempt[];
 }
@@ -144,7 +146,8 @@ export function decideAyasGraphHeal(facts: AyasGraphHealFacts): AyasGraphHealDec
   if (facts.graphFresh) return { kind: "NONE", reason: "GRAPH_FRESH" };
   if (!facts.treeClean) return { kind: "NONE", reason: "DIRTY_TREE" };
   if (facts.publicationInFlight) return { kind: "NONE", reason: "PUBLICATION_IN_FLIGHT" };
-  if (facts.headCommittedAtMs === undefined || facts.nowMs - facts.headCommittedAtMs < AYAS_GRAPH_HEAL_GRACE_MS) return { kind: "NONE", reason: "WITHIN_CLOSURE_WINDOW" };
+  const arrivedAtMs = facts.headArrivedAtMs ?? facts.headCommittedAtMs;
+  if (arrivedAtMs === undefined || facts.nowMs - arrivedAtMs < AYAS_GRAPH_HEAL_GRACE_MS) return { kind: "NONE", reason: "WITHIN_CLOSURE_WINDOW" };
   const mine = facts.attempts.filter((attempt) => attempt.head === facts.head);
   if (mine.length >= AYAS_GRAPH_HEAL_MAX_ATTEMPTS_PER_HEAD) return { kind: "NONE", reason: "ATTEMPTS_EXHAUSTED" };
   const last = mine.at(-1);
@@ -163,21 +166,10 @@ export function isAyasGraphFresh(repoRoot: string, head: string): boolean {
   } catch { return false; }
 }
 
-function graphHealFile(storeRoot: string): string { return path.join(storeRoot, "graph-heal.json"); }
-
-export function readAyasGraphHealAttempts(storeRoot: string): readonly AyasGraphHealAttempt[] {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(graphHealFile(storeRoot), "utf8")) as { readonly attempts?: unknown };
-    return Array.isArray(parsed.attempts)
-      ? parsed.attempts.filter((a): a is AyasGraphHealAttempt => typeof a?.head === "string" && typeof a?.at === "string" && typeof a?.ok === "boolean" && typeof a?.detail === "string")
-      : [];
-  } catch { return []; }
-}
-
 function recordAttempt(storeRoot: string, attempt: AyasGraphHealAttempt): void {
   const attempts = [...readAyasGraphHealAttempts(storeRoot), attempt].slice(-ATTEMPT_HISTORY);
   fs.mkdirSync(storeRoot, { recursive: true });
-  const file = graphHealFile(storeRoot);
+  const file = ayasGraphHealFile(storeRoot);
   const temp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(temp, `${JSON.stringify({ schemaVersion: 1, attempts }, null, 2)}\n`);
   fs.renameSync(temp, file);
@@ -190,7 +182,9 @@ const gitRead = (repoRoot: string, args: readonly string[]): string | undefined 
 export function collectAyasGraphHealFacts(repoRoot: string, storeRoot: string, now: Date = new Date()): AyasGraphHealFacts {
   const head = gitRead(repoRoot, ["rev-parse", "HEAD"]) ?? "";
   const committedAt = Number(gitRead(repoRoot, ["log", "-1", "--format=%ct", "HEAD"]));
+  const arrivedAtMs = parseAyasHeadArrivalMs(gitRead(repoRoot, AYAS_HEAD_ARRIVAL_GIT_ARGS));
   return {
+    ...(arrivedAtMs === undefined ? {} : { headArrivedAtMs: arrivedAtMs }),
     enabled: process.env.AYAS_GRAPH_SELF_HEAL !== "0",
     head,
     graphFresh: head !== "" && isAyasGraphFresh(repoRoot, head),

@@ -38,6 +38,7 @@ import { classifyAyasChangeAreas } from "../../ayas/developer/AyasDeveloperTaskM
 import { AYAS_KNOWN_UNSAFE_TESTS } from "../../ayas/developer/AyasDeveloperTestIntelligence";
 import { collectAyasGraphifyFacts } from "../../ayas/developer/AyasGraphifyStateCollector";
 import { evaluateAyasGraphifyState } from "../../ayas/developer/AyasGraphifyState";
+import { AYAS_GRAPH_REFRESH_PENDING_WINDOW_MS, AYAS_HEAD_ARRIVAL_GIT_ARGS, ayasGraphHealFailedFor, parseAyasHeadArrivalMs, readAyasGraphHealAttempts, resolveAyasGraphHealStoreRoot } from "../autonomy/AyasGraphHealWindow";
 import { AYAS_MEMORY_MAX_RECORDS, createAyasMemoryStore } from "../../ayas/memory/AyasMemoryStore";
 import { ayasMemoryRecordFact, currentAyasMemoryFactRecords } from "../../ayas/memory/AyasMemoryTemporal";
 import { inventoryAyasCapabilities } from "../../ayas/routing/AyasAgenticRouting";
@@ -201,6 +202,9 @@ async function readGraphify(cwd: string, env: NodeJS.ProcessEnv, now: () => stri
   const facts = await collectAyasGraphifyFacts({ cwd, env, includeUserConsumers: false });
   const status = evaluateAyasGraphifyState(facts);
   const graph = typeof facts.graph === "object" ? facts.graph : null;
+  // When HEAD arrived and whether the self-heal already failed for it: a graph merely behind a fresh HEAD is being refreshed.
+  const arrivedAtMs = parseAyasHeadArrivalMs(await git(cwd, AYAS_HEAD_ARRIVAL_GIT_ARGS));
+  const healFailedForHead = ayasGraphHealFailedFor(status.sourceHead, readAyasGraphHealAttempts(resolveAyasGraphHealStoreRoot(cwd)));
   return {
     kind: "ok",
     observedAt: now(),
@@ -226,6 +230,9 @@ async function readGraphify(cwd: string, env: NodeJS.ProcessEnv, now: () => stri
       graph: graph ? { nodes: graph.nodes, links: graph.links, anomalies: graph.duplicateIds + graph.duplicateEdges + graph.dangling + graph.selfLoops } : null,
       recoveryCommand: status.recoveryCommand,
       nextAction: ayasCcText(status.nextAction, 240),
+      headArrivedAt: arrivedAtMs === undefined ? null : new Date(arrivedAtMs).toISOString(),
+      refreshPendingUntil: arrivedAtMs === undefined ? null : new Date(arrivedAtMs + AYAS_GRAPH_REFRESH_PENDING_WINDOW_MS).toISOString(),
+      healFailedForHead,
     },
   };
 }

@@ -84,6 +84,10 @@ function earlierIso(a: string | undefined, b: string | undefined): string | unde
   return a === undefined ? b : b === undefined ? a : Date.parse(a) <= Date.parse(b) ? a : b;
 }
 
+function laterIso(a: string | undefined, b: string | undefined): string | undefined {
+  return a === undefined ? b : b === undefined ? a : Date.parse(a) >= Date.parse(b) ? a : b;
+}
+
 /**
  * One tick. Safe to call on every observer heartbeat — it is a fast no-op
  * (`NONE_DUE`) the overwhelming majority of the time, and a real research
@@ -136,6 +140,8 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
           currentOccurrenceId: undefined,
           currentScheduledFor: undefined,
           lastUncertainRunId: state.currentRunId,
+          lastUncertainAt: nowIso,
+          lastUncertainMode: interruptedMode,
           lastReconciledAt: nowIso,
           lastError: "RESEARCH_OUTCOME_UNCERTAIN",
           consecutiveFailures: state.consecutiveFailures + 1,
@@ -168,11 +174,15 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
       // Scheduler state survives deployments and otherwise retains the old
       // 6h/24h deadlines until they expire, delaying the new schedule. DEEP
       // keeps an earlier stored deadline: that is a budget-cut cycle's
-      // continuation, which must not wait a full interval.
-      const nextLightAt = nextAtFromLastCompletion(state.lastLightCompletedAt, lightInterval, state.nextLightAt);
-      const nextDeepAt = state.pendingDeepSourceIds?.length
-        ? earlierIso(nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt), state.nextDeepAt)
-        : nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt);
+      // continuation, which must not wait a full interval. An uncertain
+      // reconciliation counts like a completion of the mode it interrupted (a
+      // DEEP cycle includes its LIGHT scan): counting from the older completion
+      // instead put the uncertain occurrence straight back on the schedule
+      // (9 Nov 2026: replayed 5 min later, its 49 missed slots counted twice).
+      const uncertainDeepAt = state.lastUncertainMode === "LIGHT" ? undefined : state.lastUncertainAt;
+      const nextLightAt = nextAtFromLastCompletion(laterIso(state.lastLightCompletedAt, state.lastUncertainAt), lightInterval, state.nextLightAt);
+      const deepFromCompletion = nextAtFromLastCompletion(laterIso(state.lastDeepCompletedAt, uncertainDeepAt), deepInterval, state.nextDeepAt);
+      const nextDeepAt = state.pendingDeepSourceIds?.length ? earlierIso(deepFromCompletion, state.nextDeepAt) : deepFromCompletion;
       if (nextLightAt !== state.nextLightAt || nextDeepAt !== state.nextDeepAt) {
         state = stateStore.write({ ...state, nextLightAt, nextDeepAt });
       }

@@ -143,6 +143,13 @@ async function main(): Promise<void> {
       assert.deepEqual(decideAyasGraphHeal({ ...f, attempts: [old] }), { kind: "HEAL" });
       assert.deepEqual(decideAyasGraphHeal({ ...f, attempts: Array.from({ length: AYAS_GRAPH_HEAL_MAX_ATTEMPTS_PER_HEAD }, () => old) }), { kind: "NONE", reason: "ATTEMPTS_EXHAUSTED" });
       assert.deepEqual(decideAyasGraphHeal({ ...f, attempts: Array.from({ length: 5 }, () => ({ ...old, head: "b".repeat(40) })) }), { kind: "HEAL" }, "another HEAD's attempts do not count");
+      // 9 Nov 2026: the grace counts from when HEAD arrived here (reflog), not from its commit time.
+      const pulledJustNow = { ...f, headCommittedAtMs: f.nowMs - 3 * 24 * 60 * 60_000, headArrivedAtMs: f.nowMs - 60_000 };
+      assert.deepEqual(decideAyasGraphHeal(pulledJustNow), { kind: "NONE", reason: "WITHIN_CLOSURE_WINDOW" }, "a commit pulled a minute ago gets the session's own refresh first");
+      assert.deepEqual(decideAyasGraphHeal({ ...pulledJustNow, headArrivedAtMs: f.nowMs - AYAS_GRAPH_HEAL_GRACE_MS - 1 }), { kind: "HEAL" });
+      assert.deepEqual(decideAyasGraphHeal({ ...f, headCommittedAtMs: f.nowMs - 60_000, headArrivedAtMs: f.nowMs - AYAS_GRAPH_HEAL_GRACE_MS - 1 }), { kind: "HEAL" },
+        "a fresh commit time does not hold back a heal once the arrival grace passed");
+      assert.ok(AYAS_GRAPH_HEAL_GRACE_MS <= 5 * 60_000, "the heal comes within minutes, inside the control center's 30-minute 'refreshing' window");
     });
 
     await scenario("facts are read from the real tree: stale vs fresh graph, dirty tree, an open gate", () => {
@@ -152,6 +159,7 @@ async function main(): Promise<void> {
       const later = new Date(Date.now() + AYAS_GRAPH_HEAL_GRACE_MS + 60_000);
       let read = collectAyasGraphHealFacts(repo, store, later);
       assert.equal(read.head, head);
+      assert.ok(read.headArrivedAtMs !== undefined && Math.abs(read.headArrivedAtMs - Date.now()) < 10 * 60_000, "HEAD's arrival is read from the reflog");
       assert.equal(read.graphFresh, false, "no graph at all is not fresh");
       assert.equal(read.treeClean, true);
       assert.equal(read.publicationInFlight, false);

@@ -232,6 +232,30 @@ async function main() {
     assert.equal((await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore })).outcome, "NONE_DUE");
   });
 
+  await scenario("an uncertain occurrence after days off is not put back on the schedule by the cadence recompute (9 Nov 2026)", async () => {
+    const gateRoot = tempDir("ayas-sched-uncertain-replay-");
+    const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    // The live state of 9 Nov 03:43: last completions on 6 Nov, then a DEEP reservation whose process was killed.
+    const sixNov = new Date(Date.now() - 3 * 24 * 60 * 60_000).toISOString();
+    const scheduledFor = new Date(Date.parse(sixNov) + AYAS_RESEARCH_DEEP_INTERVAL_MS).toISOString();
+    stateStore.write({ schemaVersion: "1", consecutiveFailures: 0, lastLightCompletedAt: sixNov, lastDeepCompletedAt: sixNov, lastSuccessfulResearchAt: sixNov,
+      nextLightAt: new Date(Date.parse(sixNov) + AYAS_RESEARCH_LIGHT_INTERVAL_MS).toISOString(), nextDeepAt: scheduledFor, totalMissedOccurrences: 410, totalAttempts: 217,
+      currentRunId: "killed-at-240s", currentMode: "DEEP", currentScheduledFor: scheduledFor,
+      currentOccurrenceId: crypto.createHash("sha256").update(`ayas-research:DEEP:${scheduledFor}`).digest("hex") });
+    const recovered = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
+    assert.equal(recovered.outcome, "RECOVERED_UNCERTAIN");
+    assert.equal(recovered.state.lastUncertainMode, "DEEP");
+    const next = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
+    assert.equal(next.outcome, "NONE_DUE", "the uncertain occurrence must not run again on the next tick");
+    assert.ok(Date.parse(next.state.nextLightAt!) > Date.now() && Date.parse(next.state.nextDeepAt!) > Date.now(), "the cadence counts from the reconciliation");
+    assert.equal(next.state.totalAttempts, 217, "nothing was reserved again");
+    assert.equal(next.state.totalMissedOccurrences, 410, "the missed slots are not counted a second time");
+    // After a LIGHT-only interruption the DEEP cadence keeps counting from its own completion.
+    stateStore.write({ ...stateStore.read(), lastUncertainMode: "LIGHT", nextDeepAt: undefined });
+    const afterLight = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
+    assert.equal(afterLight.outcome, "DEEP", "an interrupted LIGHT does not push back an overdue DEEP");
+  });
+
   await scenario("the research scheduler's lock is completely independent from Package C's own execution-authority lock (different gateRoot) — a research run in progress never blocks a governed source-mutation execution", async () => {
     const repoRoot = tempDir("ayas-sched-independence-");
     const packageCGateRoot = createAyasIsolatedGateRoot(path.join(repoRoot, "data", "brain", "self-improvement"));

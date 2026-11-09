@@ -79,6 +79,13 @@ export interface AyasResearchSchedulerState {
   /** Last Goal-path fault; unlike `lastError`, a later completed cadence cycle does not clear it. */
   readonly lastGoalFaultAt?: string;
   readonly lastUncertainRunId?: string;
+  /**
+   * When an interrupted reservation was reconciled as uncertain, and the mode it
+   * had. The cadence counts from here like from a completion, so the uncertain
+   * occurrence is never run again by the cadence recompute.
+   */
+  readonly lastUncertainAt?: string;
+  readonly lastUncertainMode?: "LIGHT" | "DEEP";
   readonly lastMissedCount?: number;
   readonly totalMissedOccurrences?: number;
   readonly totalAttempts?: number;
@@ -118,10 +125,11 @@ function validateState(value: unknown): AyasResearchSchedulerState {
   if (!Number.isSafeInteger(record.consecutiveFailures) || (record.consecutiveFailures as number) < 0) {
     throw new AyasResearchSchedulerStateError("INVALID", "research scheduler failure count is invalid");
   }
-  const timestamps = ["lastLightStartedAt", "lastLightCompletedAt", "nextLightAt", "lastDeepStartedAt", "lastDeepCompletedAt", "nextDeepAt", "lastSuccessfulResearchAt", "currentScheduledFor", "lastScheduledFor", "lastAttemptAt", "lastExecutedAt", "lastReconciledAt", "lastGoalFaultAt"];
+  const timestamps = ["lastLightStartedAt", "lastLightCompletedAt", "nextLightAt", "lastDeepStartedAt", "lastDeepCompletedAt", "nextDeepAt", "lastSuccessfulResearchAt", "currentScheduledFor", "lastScheduledFor", "lastAttemptAt", "lastExecutedAt", "lastReconciledAt", "lastGoalFaultAt", "lastUncertainAt"];
   if (timestamps.some((key) => record[key] !== undefined && !isAyasCanonicalUtc(record[key])) ||
     (record.currentRunId !== undefined && typeof record.currentRunId !== "string") ||
     (record.currentMode !== undefined && record.currentMode !== "LIGHT" && record.currentMode !== "DEEP") ||
+    (record.lastUncertainMode !== undefined && record.lastUncertainMode !== "LIGHT" && record.lastUncertainMode !== "DEEP") ||
     ["currentOccurrenceId", "lastOccurrenceId", "lastUncertainRunId"].some((key) => record[key] !== undefined && (typeof record[key] !== "string" || !(record[key] as string).length)) ||
     ["lastMissedCount", "totalMissedOccurrences", "totalAttempts"].some((key) => record[key] !== undefined && (!Number.isSafeInteger(record[key]) || (record[key] as number) < 0)) ||
     (record.currentOccurrenceId !== undefined && record.currentRunId === undefined) ||
