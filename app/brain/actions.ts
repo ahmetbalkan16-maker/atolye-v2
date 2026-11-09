@@ -81,7 +81,9 @@ import {
 } from "@/lib/brain/selfheal/BrainReportCenter";
 import { AYAS_SESSION_COOKIE, resolveAccessGate, verifySession } from "@/lib/auth/accessGate";
 import { type AtolyeBrainsView, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
-import { decideProposal } from "@/lib/v3/council/SelfImprovement";
+import { AyasCodeChangeError, createAyasCodeChangeStore, decideAyasCodeChangeApply } from "@/lib/brain/autonomy/AyasCodeChangeStore";
+import { codeBuildOf } from "@/lib/v3/council/DevQueue";
+import { decideProposal, listProposals, recordCodeApply, rejectBuild, requestDevelopment } from "@/lib/v3/council/SelfImprovement";
 import { resolveV3Paths } from "@/lib/v3/V3Paths";
 import {
   ayasReplyMessage,
@@ -647,5 +649,63 @@ export async function decideAtolyeProposal(input: { id: string; decision: "onayl
   } catch (error) {
     const code = /^(V3_[A-Z_]+|authentication_required|brain_report_decision_unavailable)/.exec((error as Error).message)?.[1] ?? "V3_PROPOSAL_DECISION_FAILED";
     return { ok: false, code, view: await loadAtolyeBrainsView(workRoot) };
+  }
+}
+
+const v3Code = (error: unknown, fallback: string): string =>
+  error instanceof AyasCodeChangeError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError
+    ? error.code
+    : /^(V3_[A-Z_]+|authentication_required|brain_report_decision_unavailable)/.exec((error as Error)?.message ?? "")?.[1] ?? fallback;
+
+/**
+ * "ONAYLA VE UYGULA" on one developer build (owner decision 2026-11-09; CLAUDE.md standing exception for this click):
+ * the one approval for that build's commit, push and live publish. Records the sealed decision only, bound to the
+ * build's exact identity (job, branch, commit, base, every file's bytes); the observer's update executor carries it
+ * out through the guarded code-change lane.
+ */
+export async function applyAyasCodeChangeAction(input: { id: string; buildHash: string }): Promise<AtolyeProposalDecisionResult> {
+  const workRoot = resolveV3Paths().workRoot;
+  try {
+    await requireBrainSession();
+    const id = String(input?.id ?? "");
+    await decideAyasCodeChangeApply({ jobId: id, buildHash: String(input?.buildHash ?? "") }, {
+      store: createAyasCodeChangeStore(),
+      build: async () => {
+        const job = (await listProposals(workRoot)).find((x) => x.proposal.id === id)?.proposal;
+        return job ? codeBuildOf(job) : undefined;
+      },
+      admit: (subject) => requireOwnerApprovalAdmission("applyAyasCodeChange", subject),
+    });
+    await recordCodeApply(workRoot, id, { status: "QUEUED", reasons: [] }).catch(() => undefined);
+    return { ok: true, view: await loadAtolyeBrainsView(workRoot) };
+  } catch (error) {
+    return { ok: false, code: v3Code(error, "CODE_APPLY_FAILED"), view: await loadAtolyeBrainsView(workRoot) };
+  }
+}
+
+/** REDDET on a ready build: the job closes, nothing is applied (its branch stays). Behind the verified brain session. */
+export async function rejectAyasCodeChangeAction(input: { id: string }): Promise<AtolyeProposalDecisionResult> {
+  const workRoot = resolveV3Paths().workRoot;
+  try {
+    await requireBrainSession();
+    await rejectBuild(workRoot, String(input?.id ?? ""));
+    return { ok: true, view: await loadAtolyeBrainsView(workRoot) };
+  } catch (error) {
+    return { ok: false, code: v3Code(error, "V3_BUILD_REJECT_FAILED"), view: await loadAtolyeBrainsView(workRoot) };
+  }
+}
+
+/**
+ * The owner's own development request to AYAS (owner decision 2026-11-09): straight into the development queue as an
+ * approved main-AYAS job. The developer builds it in its hours; the finished change still waits for "ONAYLA VE UYGULA".
+ */
+export async function requestAyasDevelopmentAction(input: { metin: string }): Promise<AtolyeProposalDecisionResult> {
+  const workRoot = resolveV3Paths().workRoot;
+  try {
+    await requireBrainSession();
+    await requestDevelopment(workRoot, String(input?.metin ?? "").slice(0, 4_000));
+    return { ok: true, view: await loadAtolyeBrainsView(workRoot) };
+  } catch (error) {
+    return { ok: false, code: v3Code(error, "V3_REQUEST_FAILED"), view: await loadAtolyeBrainsView(workRoot) };
   }
 }

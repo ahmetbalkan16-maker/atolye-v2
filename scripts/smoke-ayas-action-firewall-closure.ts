@@ -214,6 +214,9 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       // 2026-11-02: the trial's known-vulnerability check, package names and versions to osv.dev only.
       "src/lib/brain/autonomy/AyasDependencyVulnerabilities.ts": "OWNER_LEASE",
       "src/lib/brain/autonomy/AyasUpdateApplyRunner.ts": "OWNER_PUBLICATION",
+      // Owner decision 2026-11-09 (EVAL v72): "ONAYLA VE UYGULA" on a developer build — the build proven from Git,
+      // its checks re-run in a separate worktree on a newer HEAD, then the guarded code-change lane's commit and push.
+      "src/lib/brain/autonomy/AyasCodeChangeApplyRunner.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasModelTrialRunner.ts": "OWNER_LEASE",
       // 2026-11-05 self-heal: completes the push of an owner-approved commit proven by its own durable record, and
       // re-runs the publication closure's Graphify refresh for a HEAD whose closure never completed.

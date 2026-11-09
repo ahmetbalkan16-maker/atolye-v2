@@ -1,3 +1,4 @@
+import { type AyasCodeBuild, type AyasCodeScope, ayasCodeLaneRefusals, isAyasCodeBuildShape } from "../../brain/autonomy/AyasCodeChangeLane";
 import { BRAIN_NAMES } from "./Council";
 import type { DevProposal } from "./SelfImprovement";
 
@@ -28,6 +29,43 @@ export interface DevJob {
   readonly bekle?: string;
   /** Who wrote the last try: Claude, or the studio's own apprentice (DevWriter). Older records: Claude. */
   readonly yazan?: "claude" | "cirak";
+  /**
+   * A kept build's identity, which the owner's "ONAYLA VE UYGULA" binds to (owner decision 2026-11-09, the code lane:
+   * AyasCodeChangeLane): the build commit, its base, every changed file with the sha256 of its new bytes (null: deleted),
+   * the checks it passed and the smoke suites among them, and the hash over all of it. Builds before 9 Nov 2026 have none
+   * and are applied by a development session as before.
+   */
+  readonly commit?: string;
+  readonly taban?: string;
+  readonly dosyaHash?: readonly { readonly path: string; readonly sha256: string | null }[];
+  readonly kontroller?: readonly string[];
+  readonly smokelar?: readonly string[];
+  readonly yapiHash?: string;
+  /** Checks that failed on the base too (an environment or an older fault), so they did not count against the build. */
+  readonly tabandaDusen?: readonly string[];
+  /** What the owner's click did with the build, as the observer's executor reports it. */
+  readonly uygulama?: { readonly durum: "sirada" | "uygulaniyor" | "uygulandi" | "bayat" | "reddedildi" | "basarisiz" | "kurtarma"; readonly tarih: string; readonly commit?: string; readonly neden?: string };
+}
+
+/**
+ * The scope of a job (owner decision 2026-11-09, "Ana AYAS'a gerçek kod yazan model"): v3 — the V3 studio's own files,
+ * as before; ayas — main AYAS too (its chat, pages, components, its own lib), inside the code lane's limits
+ * (AyasCodeChangeLane.ayasCodeLaneRefusals). Older records: v3.
+ */
+export const scopeOf = (p: Pick<DevProposal, "kapsam">): AyasCodeScope => (p.kapsam === "ayas" ? "ayas" : "v3");
+
+/** Main-AYAS jobs are built unless `ATOLYE_AYAS_GELISTIRME=0` (they still need the developer switched on and in its hours). */
+export const ayasScopeEnabled = (env: Readonly<Record<string, string | undefined>>): boolean => env.ATOLYE_AYAS_GELISTIRME !== "0";
+
+/** A kept build as the code lane sees it, or undefined when the job holds none (or one built before 9 Nov 2026). */
+export function codeBuildOf(p: DevProposal): AyasCodeBuild | undefined {
+  const j = p.is;
+  if (p.durum !== "hazir" || !j?.dal || !j.commit || !j.taban || !j.dosyaHash?.length) return undefined;
+  const build: AyasCodeBuild = {
+    jobId: p.id, scope: scopeOf(p), title: p.baslik, branch: j.dal, commit: j.commit, baseHead: j.taban,
+    files: [...j.dosyaHash].sort((a, b) => a.path.localeCompare(b.path)), checks: j.kontroller ?? [], smokes: j.smokelar ?? [],
+  };
+  return isAyasCodeBuildShape(build) ? build : undefined;
 }
 
 export const MAX_DEV_TRIES = 2;
@@ -64,10 +102,11 @@ export function usageLimitUntil(output: string, now = new Date()): string | unde
 export const waitingForLimit = (p: Pick<DevProposal, "is">, now = Date.now()) => !!p.is?.bekle && Date.parse(p.is.bekle) > now;
 
 /** The next proposal to build: the earliest approved one (not waiting out a usage limit), else a failed one that may be tried again. */
-export function nextJob(proposals: readonly DevProposal[], now = Date.now()): DevProposal | undefined {
-  const approved = proposals.filter((p) => p.durum === "onaylandi" && !waitingForLimit(p, now)).sort((a, b) => (a.karar?.tarih ?? a.tarih).localeCompare(b.karar?.tarih ?? b.tarih));
+export function nextJob(proposals: readonly DevProposal[], now = Date.now(), env: Readonly<Record<string, string | undefined>> = process.env): DevProposal | undefined {
+  const open = proposals.filter((p) => scopeOf(p) === "v3" || ayasScopeEnabled(env));
+  const approved = open.filter((p) => p.durum === "onaylandi" && !waitingForLimit(p, now)).sort((a, b) => (a.karar?.tarih ?? a.tarih).localeCompare(b.karar?.tarih ?? b.tarih));
   if (approved[0]) return approved[0];
-  return proposals.find((p) => p.durum === "yapilamadi" && (p.is?.deneme ?? 0) < MAX_DEV_TRIES && now - Date.parse(p.is?.bitis ?? p.tarih) >= RETRY_AFTER_MS);
+  return open.find((p) => p.durum === "yapilamadi" && (p.is?.deneme ?? 0) < MAX_DEV_TRIES && now - Date.parse(p.is?.bitis ?? p.tarih) >= RETRY_AFTER_MS);
 }
 
 /** The files a build may change: the V3 studio's own code, tests, content and notes. */
@@ -79,9 +118,15 @@ const ALLOWED = [/^src\/lib\/v3\//, /^scripts\/v3\//, /^scripts\/smoke-v3-[\w-]+
  */
 const HOMEPAGE_SOURCES = [/^src\/lib\/v3\/council\/BrainCouncilFeed\.ts$/i];
 
-/** Changed files outside the allowed area (dependencies, secrets, AYAS, the live app, the homepage's sources, git config…). */
-export function forbiddenChanges(files: readonly string[]): string[] {
-  return files.map((f) => f.replace(/\\/g, "/")).filter((f) => !ALLOWED.some((re) => re.test(f)) || HOMEPAGE_SOURCES.some((re) => re.test(f)));
+/**
+ * Changed files outside the allowed area (dependencies, secrets, AYAS, the live app, the homepage's sources, git
+ * config…). A main-AYAS job may change what the code lane allows (AyasCodeChangeLane): never the homepage, the
+ * authority and publication machinery, governance, safety, the eval yardstick, packages or the production layers.
+ */
+export function forbiddenChanges(files: readonly string[], kapsam: AyasCodeScope = "v3"): string[] {
+  const norm = files.map((f) => f.replace(/\\/g, "/"));
+  if (kapsam === "ayas") return [...new Set(ayasCodeLaneRefusals(norm).map((r) => r.file))];
+  return norm.filter((f) => !ALLOWED.some((re) => re.test(f)) || HOMEPAGE_SOURCES.some((re) => re.test(f)));
 }
 
 /** The developer's hours by default: from 16:30 in the evening until 7 in the morning. */
@@ -122,6 +167,54 @@ export const DEVELOPER_RULES = `You are the Atölye V3 studio's unattended devel
 - Prove it: add or extend a scenario in the matching scripts/smoke-v3-*.ts, run \`npx tsc --noEmit\` and the smoke suites you
   touched until they pass.
 - End with a short summary in Turkish: what you changed, in which files, and how you tested it.`;
+
+/**
+ * The rules for a main-AYAS job (owner decision 2026-11-09: AYAS writes its own code, the owner applies it with one
+ * click), added to the developer's own system prompt. The code lane enforces the same limits on the files afterwards.
+ */
+export const AYAS_DEVELOPER_RULES = `You are AYAS's unattended developer: AYAS (the owner's personal assistant and its Atölye studio) writes its own code
+through you, in a sandbox git worktree with no one watching. The owner reads your finished, tested change and applies it
+with one click ("ONAYLA VE UYGULA"); nothing you do here reaches the live app before that click.
+- Do NOT run git and do not commit, push, pull or switch branches; AYAS commits your work itself after its checks.
+- Ignore the session start and end steps of AGENTS.md (git pull, commit/push, checkpoint, Graphify): they are not yours.
+- Load the project skill ayas-gelistirici first (.claude/skills/ayas-gelistirici/SKILL.md: where main AYAS code lives, what
+  you may never change, how a change is proven, this machine's traps); ayas/tests to find a file's smoke suites;
+  v3-gelistirici when the job touches the V3 studio; ayas-ui-audit only after changing app/ or src/components/ (run its
+  audit with --routes on the pages you touched).
+- You may change src/, app/, scripts/smoke-*.ts, docs/, content/v3/ and remotion-v3/src/, but NEVER: the homepage
+  (src/components/homepage/, src/components/workspace/, app/page.tsx, app/layout.tsx, app/globals.css, AyasConsolePage,
+  BrainCoreConsole, BrainConsoleView, src/lib/v3/council/BrainCouncilFeed.ts), src/lib/brain/autonomy/,
+  src/lib/brain/security/, the self-healing safety kernel, src/lib/ayas/{execution,governance,safety,policy,machine,
+  revenue,briefing,migration,trust,golden,audit,continuous}/, src/lib/production/, src/lib/pipeline/, src/lib/runtime/,
+  src/lib/storage/, an eval-pinned or golden-vault suite, package.json or any lock file, .env files, scripts/ayas-*
+  operator scripts, .ps1/.vbs/.mjs scripts, docs/ayas-execution/, the development queue's own modules, AGENTS.md,
+  CLAUDE.md, .gitignore or .claude/. A change there throws the whole build away.
+- Never run scripts/smoke-ayas-observer-autostart.ts (it registers a real Windows scheduled task), never start or stop
+  the live app, never read or write D:\\ÜRETİM\\Atolye\\atolye-v2 (the live checkout) or its data.
+- Do not add a new runtime store under data/ (it would need a .gitignore line you may not write); use the existing ones.
+- Follow CLAUDE.md's code conventions (match the surrounding code, its comment density and naming; Turkish text for
+  the owner, English code comments). Business logic belongs in src/lib, never in routes or components. Keep the change
+  small and backward compatible; never break a working feature.
+- Prove it: add or extend a scenario in the matching scripts/smoke-*.ts (a new suite when none fits; never edit an
+  eval-pinned one), run \`npx tsc --noEmit\`, \`node scripts/lint-yerel.mjs\` and the suites you touched until they pass.
+- End with a short summary in Turkish: what you changed, in which files, and how you tested it. When AYAS already does it,
+  or it cannot be done inside these limits, change nothing and say why.`;
+
+/** The task for one main-AYAS job: the owner's request or what AYAS measured, and why the last try was thrown away. */
+export function ayasTaskPacket(p: Pick<DevProposal, "id" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, measured?: readonly string[]): string {
+  const lead = p.kaynakTuru === "istek" ? "The owner asked AYAS for this, in their own words" : p.kaynakTuru === "olcum" ? "AYAS measured this fault in itself" : "AYAS raised this improvement and the owner approved it";
+  return `AYAS GELİŞTİRME İŞİ ${p.id}
+${lead}:
+TITLE: ${p.baslik}
+REQUEST / WHY: ${p.neden}
+SOURCES: ${p.kaynaklar.join(", ") || "—"}${measured?.length ? `\nWHAT WAS MEASURED (start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""}${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
+    previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
+  }
+
+First find out whether AYAS already does this (search src/, app/ and scripts/; read the newest entries of
+ATOLYE_CHECKPOINT.md — \`grep -n "^## " ATOLYE_CHECKPOINT.md\` — and docs/): if it does, change nothing and say so. Otherwise
+build the smallest change that does what is asked, inside the existing modules and in their style, with its smoke scenario.`;
+}
 
 /**
  * What the productions behind a proposal measured for its brain: that brain's lines under "Eksikler" and "Uyarılar" in

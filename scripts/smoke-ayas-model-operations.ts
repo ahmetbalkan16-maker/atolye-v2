@@ -17,6 +17,7 @@ import {
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { AYAS_CHAT_MODEL_BENCHMARK_ID, ayasModelSwitchHash, buildAyasModelWatchView, createAyasModelWatchStore, type AyasModelWatchState } from "../src/lib/brain/autonomy/AyasModelWatch";
 import { AYAS_CANONICAL_SYNC_MARKER, createAyasUpdateTrialStore } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import { resolveAyasCodeChangeRoot } from "../src/lib/brain/autonomy/AyasCodeChangeStore";
 import {
   admitAyasOwnerApproval, checkAyasOwnerAdmissionBinding, type AyasOwnerAdmissionAction, type AyasOwnerAdmissionSubject,
 } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
@@ -377,6 +378,8 @@ async function main(): Promise<void> {
     const roots = [
       createAyasModelOperationStore().rootDir, path.join(repo, "data", "brain", "self-improvement", "model-watch"),
       createAyasUpdateTrialStore().rootDir, path.join(repo, "data", "brain", "self-improvement", "update-approvals"),
+      // The code lane's decisions and applies (owner decision 2026-11-09).
+      resolveAyasCodeChangeRoot(repo),
     ];
     for (const root of roots) {
       for (const file of ["state.json", "jobs.json", "decisions.json", "executor.lock", AYAS_CANONICAL_SYNC_MARKER]) {

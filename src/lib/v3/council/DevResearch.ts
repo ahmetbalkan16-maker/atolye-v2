@@ -38,6 +38,7 @@ import {
   taskWords,
   writeInstincts,
 } from "./DevBrain";
+import { scopeOf } from "./DevQueue";
 import { develop, type DeveloperDeps } from "./Developer";
 import type { Embedder } from "./ExperienceMemory";
 import { cachedVectors, nearestByMeaning, vectorFile } from "./MeaningCache";
@@ -313,7 +314,8 @@ export async function researchJob(p: DevProposal, d: ResearchDeps): Promise<DevG
 /** The jobs waiting for the evening, researched by day: approved and not yet researched (or tried again since). */
 export async function researchQueue(proposals: readonly DevProposal[], d: ResearchDeps, max = 3): Promise<string[]> {
   const done: string[] = [];
-  for (const p of proposals.filter((x) => x.durum === "onaylandi" || x.durum === "yapilamadi")) {
+  // Only the V3 studio's jobs: the developer brain knows no main-AYAS code (its research would be a paid wrong guess).
+  for (const p of proposals.filter((x) => scopeOf(x) === "v3" && (x.durum === "onaylandi" || x.durum === "yapilamadi"))) {
     if (done.length >= max) break;
     if (!(await needsResearch(d.workRoot, p))) continue;
     const g = await researchJob(p, d);
@@ -487,6 +489,14 @@ export async function runDevJob(
     readonly cirak?: { readonly agent: readonly string[]; readonly when: "zorla" | "yedek" | "once" };
   } = {},
 ): Promise<DevProposal> {
+  if (scopeOf(p) === "ayas") {
+    // A main-AYAS job (owner decision 2026-11-09): Claude writes it. The developer brain and its apprentice know only
+    // the V3 studio's code (SEARCH_PATHS), so they neither research, write nor grade it.
+    const { cirak: _apprentice, ...rest } = builder;
+    void _apprentice;
+    await say(d.workRoot, `"${p.baslik.slice(0, 80)}" ana AYAS işini Claude'a veriyorum; kendi kopyasında yazıp test edecek, hazır olunca "ONAYLA VE UYGULA" ile onayına gelecek.`, "Claude");
+    return develop(p, { ...rest, repoRoot: d.repoRoot, workRoot: d.workRoot, log: d.log });
+  }
   if (await needsResearch(d.workRoot, p)) await researchJob(p, d).catch((e: Error) => d.log(`  geliştirici beyni: araştıramadı (${e.message.slice(0, 160)})`));
   const note = researchNote(d.workRoot, p.id);
   const research = existsSync(note) && (await lastGuess(d.workRoot, p.id)) ? await fs.readFile(note, "utf8") : undefined;

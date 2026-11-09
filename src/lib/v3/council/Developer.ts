@@ -1,8 +1,10 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { type AyasCodeBuild, type AyasCodeScope, ayasCodeBuildHash, ayasCodeContentSha256, ayasCodeJobTrailer } from "../../brain/autonomy/AyasCodeChangeLane";
 import { runProcess } from "../util/Proc";
 import { BRAIN_NAMES } from "./Council";
-import { DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, taskPacket, usageLimitUntil } from "./DevQueue";
+import { AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
 
 /**
@@ -38,11 +40,69 @@ const CHECK_TIMEOUT_MS = 20 * 60_000;
  * 2026: a lint failure used to surface only in the studio's checks after the run and threw the whole build away).
  */
 const AGENT_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "Bash(npx tsc:*)", "Bash(npx tsx scripts/smoke-v3-:*)", "Bash(node scripts/lint-yerel.mjs:*)", "Bash(node remotion-v3/node_modules/typescript/bin/tsc:*)"];
+/**
+ * A main-AYAS job (owner decision 2026-11-09) may run any smoke suite and, after a UI change, the project's UI audit
+ * skill (its own throwaway server on 127.0.0.1:3210, refused in the live checkout) — never the suite that registers a
+ * real Windows scheduled task.
+ */
+const AYAS_AGENT_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "Bash(npx tsc:*)", "Bash(npx tsx scripts/smoke-:*)", "Bash(node scripts/lint-yerel.mjs:*)", "Bash(node remotion-v3/node_modules/typescript/bin/tsc:*)", "Bash(node .claude/skills/ayas-ui-audit/scripts/run-audit.mjs:*)"];
+const AYAS_AGENT_DENIED = ["Bash(npx tsx scripts/smoke-ayas-observer-autostart.ts:*)"];
 
 /** The Claude Code command line (its Node entry, so no shell parses the arguments). */
-export function claudeAgent(env: Readonly<Record<string, string | undefined>> = process.env): string[] {
+export function claudeAgent(env: Readonly<Record<string, string | undefined>> = process.env, kapsam: AyasCodeScope = "v3"): string[] {
   const cli = env.ATOLYE_V3_CLAUDE_CLI || path.join(env.APPDATA ?? "", "npm", "node_modules", "@anthropic-ai", "claude-code", "cli-wrapper.cjs");
+  if (kapsam === "ayas") return [process.execPath, cli, "-p", "--permission-mode", "acceptEdits", `--allowedTools=${AYAS_AGENT_TOOLS.join(",")}`, `--disallowedTools=${AYAS_AGENT_DENIED.join(",")}`, "--append-system-prompt", AYAS_DEVELOPER_RULES, "--output-format", "text"];
   return [process.execPath, cli, "-p", "--permission-mode", "acceptEdits", `--allowedTools=${AGENT_TOOLS.join(",")}`, "--append-system-prompt", DEVELOPER_RULES, "--output-format", "text"];
+}
+
+/** Suites never run by a build's checks: helpers another suite spawns, the scheduled-task probe, frozen evidence. */
+const NOT_RUN = new Set(["smoke-ayas-observer-autostart.ts", "smoke-sprint-129-36-race-worker.ts", "smoke-ayas-retrieval-evaluation.ts", "smoke-ayas-owner-approval-resume.ts"]);
+/** Every main-AYAS build: no new effectful reach left unclassified, and the eval yardstick's protection intact. */
+const AYAS_ALWAYS = ["smoke-ayas-action-firewall-closure.ts", "smoke-ayas-eval-yardstick-protection.ts"];
+export const MAX_AYAS_SMOKES = 40;
+
+/**
+ * A main-AYAS build's checks (CLAUDE.md: grep scripts/ for a changed file's name to find its suites): the type check,
+ * the suites the build changed, the two closure suites above, every suite that names a changed module, every V3 suite
+ * when V3 files changed (at most MAX_AYAS_SMOKES suites), then the lint.
+ */
+export async function ayasChecks(dir: string, files: readonly string[]): Promise<string[][]> {
+  const all = (await fs.readdir(path.join(dir, "scripts"))).filter((f) => /^smoke-[\w.-]+\.ts$/.test(f) && !NOT_RUN.has(f)).sort();
+  const changed = files.map((f) => f.replace(/\\/g, "/"));
+  const changedSmokes = changed.filter((f) => /^scripts\/smoke-[\w.-]+\.ts$/.test(f)).map((f) => f.slice("scripts/".length)).filter((f) => all.includes(f));
+  const names = [...new Set(changed.filter((f) => !/^scripts\/smoke-/.test(f) && /\.(?:tsx?|mjs|json)$/.test(f)).map((f) => path.posix.basename(f).replace(/\.(?:tsx?|mjs|json)$/, "")))].filter((n) => n.length >= 4);
+  const related: string[] = [];
+  if (names.length) {
+    for (const s of all) {
+      if (changedSmokes.includes(s)) continue;
+      const text = await fs.readFile(path.join(dir, "scripts", s), "utf8").catch(() => "");
+      if (names.some((n) => text.includes(`/${n}"`) || text.includes(`/${n}'`) || text.includes(`/${n}.`))) related.push(s);
+    }
+  }
+  const v3 = changed.some((f) => /^(?:src\/lib\/v3\/|scripts\/v3\/|remotion-v3\/src\/|content\/v3\/)/.test(f)) ? all.filter((s) => s.startsWith("smoke-v3-")) : [];
+  const smokes = [...new Set([...changedSmokes, ...AYAS_ALWAYS.filter((s) => all.includes(s)), ...related, ...v3])].slice(0, MAX_AYAS_SMOKES);
+  const remotionTsc = path.join("remotion-v3", "node_modules", "typescript", "bin", "tsc");
+  const remotion = changed.some((f) => f.startsWith("remotion-v3/src/")) && existsSync(path.join(dir, remotionTsc));
+  return [
+    [process.execPath, path.join("node_modules", "typescript", "bin", "tsc"), "--noEmit"],
+    ...(remotion ? [[process.execPath, remotionTsc, "--noEmit", "-p", "remotion-v3"]] : []),
+    ...smokes.map((s) => [process.execPath, path.join("node_modules", "tsx", "dist", "cli.mjs"), path.join("scripts", s)]),
+    [process.execPath, path.join("scripts", "lint-yerel.mjs")],
+  ];
+}
+
+/** A check as the build records it: its arguments after node, forward-slashed. */
+const checkLabel = (c: readonly string[]): string => c.slice(1).map((a) => a.replace(/\\/g, "/")).join(" ");
+/** The smoke suite a check runs, or undefined. */
+const smokeOf = (c: readonly string[]): string | undefined => c.slice(1).map((a) => a.replace(/\\/g, "/")).find((a) => /^scripts\/smoke-[\w.-]+\.ts$/.test(a));
+
+/** A file's exact bytes at a commit of `cwd`'s repository, or undefined when the commit has no such file. */
+function showBytes(cwd: string, commit: string, file: string): Buffer | undefined {
+  try {
+    return execFileSync("git", ["show", `${commit}:${file}`], { cwd, windowsHide: true, timeout: 120_000, maxBuffer: 64_000_000, stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -129,6 +189,9 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
   const branch = `gelistirme/${p.id}`;
   const record = path.join(improvementDir(d.workRoot), "isler", p.id);
   await fs.mkdir(record, { recursive: true });
+  const kapsam = scopeOf(p);
+  /** A worktree of the build's base, opened only when a suite fails, to tell an older fault from the build's own. */
+  const base: { dir?: string } = {};
   const yazan = d.yazan ?? "claude";
   const job: DevJob = { deneme: (p.is?.deneme ?? 0) + 1, baslangic: new Date().toISOString(), kayit: record, yazan };
   await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "yapiliyor", is: job }));
@@ -147,13 +210,18 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const add = await git(d.repoRoot, ["worktree", "add", "-b", branch, dir, "HEAD"]);
     if (add.code !== 0) return await fail([`çalışma kopyası açılamadı: ${(add.stderr || add.stdout).slice(-300)}`]);
     await linkShared(d.repoRoot, dir);
-    // The exact faults behind the idea: what its productions measured for this brain (their KURUL.md).
-    const kurul = await Promise.all(p.kaynaklar.map((id) => fs.readFile(path.join(d.workRoot, "bolumler", id, "KURUL.md"), "utf8").catch(() => "")));
-    const measured = [...new Set(kurul.flatMap((t) => measuredFaults(t, BRAIN_NAMES[p.beyin] ?? p.beyin)))].slice(0, 8);
-    const packet = taskPacket(p, p.is, d.research, measured);
+    const taban = (await git(dir, ["rev-parse", "HEAD"])).stdout.trim();
+    let packet: string;
+    if (kapsam === "ayas") packet = ayasTaskPacket(p, p.is);
+    else {
+      // The exact faults behind the idea: what its productions measured for this brain (their KURUL.md).
+      const kurul = await Promise.all(p.kaynaklar.map((id) => fs.readFile(path.join(d.workRoot, "bolumler", id, "KURUL.md"), "utf8").catch(() => "")));
+      const measured = [...new Set(kurul.flatMap((t) => measuredFaults(t, BRAIN_NAMES[p.beyin] ?? p.beyin)))].slice(0, 8);
+      packet = taskPacket(p, p.is, d.research, measured);
+    }
     await fs.writeFile(path.join(record, `gorev-${job.deneme}.md`), packet);
-    d.log(`  geliştirici: "${p.baslik}" — ${dir} içinde ${yazan === "cirak" ? "çırak" : "Claude"} çalışıyor (deneme ${job.deneme})`);
-    const agent = d.agent ?? claudeAgent();
+    d.log(`  geliştirici: "${p.baslik}"${kapsam === "ayas" ? " (ana AYAS)" : ""} — ${dir} içinde ${yazan === "cirak" ? "çırak" : "Claude"} çalışıyor (deneme ${job.deneme})`);
+    const agent = d.agent ?? claudeAgent(process.env, kapsam);
     const run = await runProcess(agent[0]!, agent.slice(1), { cwd: dir, input: packet, timeoutMs: d.agentTimeoutMs ?? AGENT_TIMEOUT_MS });
     await fs.writeFile(path.join(record, `ajan-${job.deneme}.log`), `${run.stdout}\n--- stderr ---\n${run.stderr}`);
     const ozet = run.stdout.trim().slice(-1500);
@@ -176,28 +244,71 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
       await git(d.repoRoot, ["branch", "-D", branch]);
       return await finish("yapildi", { ozet: `Değişiklik yapılmadı — ${ozet}`, dosyalar: [] });
     }
-    const bad = forbiddenChanges(dosyalar);
+    const bad = forbiddenChanges(dosyalar, kapsam);
     if (bad.length) return await fail([`izin dışı dosyalar değişti: ${bad.join(", ")}`]);
-    const checks = d.checks ?? (await defaultChecks(dir));
+    const checks = d.checks ?? (kapsam === "ayas" ? await ayasChecks(dir, dosyalar) : await defaultChecks(dir));
     const outputs: string[] = [];
+    const tabandaDusen: string[] = [];
+    const changedSet = new Set(dosyalar.map((f) => f.replace(/\\/g, "/")));
     for (const c of checks) {
       const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, timeoutMs: CHECK_TIMEOUT_MS });
       outputs.push(`$ ${c.slice(1).join(" ")}\n${r.stdout.slice(-2000)}${r.stderr.slice(-1000)}`);
       if (r.code !== 0) {
+        // A main-AYAS build runs suites it did not write: one that fails on the untouched base too (this machine's
+        // environment, an older fault) is not the build's, and is recorded instead. A suite the build changed counts.
+        const smoke = smokeOf(c);
+        if (kapsam === "ayas" && smoke && !changedSet.has(smoke) && (await failsOnBase(d.repoRoot, `${dir}-taban`, taban, c, base))) {
+          tabandaDusen.push(smoke);
+          outputs.push(`(${smoke} tabanda da düşüyor — yapının hatası sayılmadı)`);
+          continue;
+        }
         await fs.writeFile(path.join(record, `kontrol-${job.deneme}.log`), outputs.join("\n\n"));
         return await fail([`kontrol geçmedi: ${c.slice(1).join(" ")} — ${(r.stdout + r.stderr).trim().slice(-300)}`]);
       }
     }
     await fs.writeFile(path.join(record, `kontrol-${job.deneme}.log`), outputs.join("\n\n"));
     await git(dir, ["add", "-A"]);
-    const commit = await git(dir, ["commit", "-q", "-m", `feat(v3): ${p.baslik.slice(0, 90)}\n\n${yazan === "cirak" ? "Atölye çırağı (kendi yazdı, Claude olmadan)" : "Atölye geliştiricisi (Claude)"}, öneri ${p.id} (owner onayı ${p.karar?.tarih?.slice(0, 10) ?? "?"}).\nKontroller: ${checks.length} komut geçti.\n\n${ozet.slice(0, 1200)}`]);
+    const who = yazan === "cirak" ? "Atölye çırağı (kendi yazdı, Claude olmadan)" : kapsam === "ayas" ? "AYAS geliştiricisi (Claude)" : "Atölye geliştiricisi (Claude)";
+    const source = p.kaynakTuru === "istek" ? `owner isteği ${p.id}` : `öneri ${p.id} (owner onayı ${p.karar?.tarih?.slice(0, 10) ?? "?"})`;
+    const commit = await git(dir, ["commit", "-q", "-m", `feat(${kapsam}): ${p.baslik.slice(0, 90)}\n\n${who}, ${source}.\nKontroller: ${checks.length - tabandaDusen.length} komut geçti${tabandaDusen.length ? `, ${tabandaDusen.length} tabanda da düşüyordu` : ""}.\n\n${ozet.slice(0, 1200)}\n\n${ayasCodeJobTrailer(p.id)}`]);
     if (commit.code !== 0) return await fail([`commit yapılamadı: ${(commit.stderr || commit.stdout).slice(-300)}`]);
+    // The build's identity, which the owner's "ONAYLA VE UYGULA" binds to (AyasCodeChangeLane).
+    const head = (await git(dir, ["rev-parse", "HEAD"])).stdout.trim();
+    const names = (await git(dir, ["diff", "--name-only", "--no-renames", taban, head])).stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).sort();
+    const dosyaHash = names.map((f) => {
+      const bytes = showBytes(dir, head, f);
+      return { path: f, sha256: bytes ? ayasCodeContentSha256(bytes) : null };
+    });
+    const kontroller = checks.map(checkLabel);
+    const smokelar = checks.map(smokeOf).filter((s): s is string => !!s && !tabandaDusen.includes(s));
+    const build: AyasCodeBuild = { jobId: p.id, scope: kapsam, title: p.baslik, branch, commit: head, baseHead: taban, files: dosyaHash, checks: kontroller, smokes: smokelar };
     await dropWorktree(d.repoRoot, dir);
-    d.log(`  geliştirici: "${p.baslik}" hazır — dal ${branch} (${dosyalar.length} dosya, ${checks.length} kontrol geçti)`);
-    return await finish("hazir", { dal: branch, ozet, dosyalar });
+    d.log(`  geliştirici: "${p.baslik}" hazır — dal ${branch} (${dosyalar.length} dosya, ${checks.length - tabandaDusen.length} kontrol geçti${tabandaDusen.length ? `, ${tabandaDusen.length} tabanda da düşüyordu` : ""})`);
+    return await finish("hazir", {
+      dal: branch, ozet, dosyalar, commit: head, taban, dosyaHash, kontroller, smokelar, yapiHash: ayasCodeBuildHash(build),
+      ...(tabandaDusen.length ? { tabandaDusen } : {}),
+    });
   } catch (e) {
     return fail([`geliştirici hatası: ${(e as Error).message.slice(0, 300)}`]);
+  } finally {
+    if (base.dir) await dropWorktree(d.repoRoot, base.dir).catch(() => undefined);
   }
+}
+
+/**
+ * Whether a check fails on the build's base too: run once in a detached worktree of the base (opened on the first
+ * failure, linked like the build's, removed when the build ends).
+ */
+async function failsOnBase(repoRoot: string, dir: string, taban: string, c: readonly string[], base: { dir?: string }): Promise<boolean> {
+  if (!base.dir) {
+    await dropWorktree(repoRoot, dir);
+    const add = await git(repoRoot, ["worktree", "add", "--detach", dir, taban]);
+    if (add.code !== 0) return false;
+    await linkShared(repoRoot, dir);
+    base.dir = dir;
+  }
+  const r = await runProcess(c[0]!, c.slice(1), { cwd: base.dir, timeoutMs: CHECK_TIMEOUT_MS });
+  return r.code !== 0;
 }
 
 /** One developer at a time: a second one finds the lock of a live process and stops. */

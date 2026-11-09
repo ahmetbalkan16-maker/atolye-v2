@@ -48,7 +48,8 @@ export type AyasOwnerAdmissionAction =
   | "decideAyasUpdateRadar"
   | "applyAyasUpdate"
   | "decideAyasModelTrial"
-  | "switchAyasModel";
+  | "switchAyasModel"
+  | "applyAyasCodeChange";
 
 export type AyasOwnerAdmissionSubject =
   | { readonly kind: "proposal"; readonly proposalId: string; readonly proposalHash: string; readonly decision: "APPROVE" | "REJECT" | "LATER" | "EXECUTE" }
@@ -60,7 +61,9 @@ export type AyasOwnerAdmissionSubject =
   /** "İndir ve ölç" on one watched model, bound to the registry digest the owner saw (see AyasModelOperationStore). */
   | { readonly kind: "model-trial"; readonly tag: string; readonly registryDigest: string; readonly decision: "APPROVE" | "WITHDRAW" }
   /** "Bu modele geç": the one approval for switching AYAS chat to this measured model, bound to both measurements. */
-  | { readonly kind: "model-switch"; readonly tag: string; readonly switchHash: string; readonly decision: "SWITCH" };
+  | { readonly kind: "model-switch"; readonly tag: string; readonly switchHash: string; readonly decision: "SWITCH" }
+  /** "ONAYLA VE UYGULA" on one developer build (owner decision 2026-11-09): the one approval for its commit, push and live publish. */
+  | { readonly kind: "code-apply"; readonly jobId: string; readonly buildHash: string; readonly decision: "APPLY" };
 
 export interface AyasOwnerAdmission {
   readonly schema: typeof AYAS_OWNER_ADMISSION_SCHEMA;
@@ -90,7 +93,9 @@ export class AyasOwnerAdmissionError extends Error {
   }
 }
 
-const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision", "decideAyasUpdateRadar", "applyAyasUpdate", "decideAyasModelTrial", "switchAyasModel"]);
+const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision", "decideAyasUpdateRadar", "applyAyasUpdate", "decideAyasModelTrial", "switchAyasModel", "applyAyasCodeChange"]);
+/** A development-queue job id (AyasCodeChangeLane.AYAS_CODE_JOB_ID). */
+const CODE_JOB_ID = /^[\w.-]{1,120}$/;
 /** An Ollama library tag such as `gemma4:12b`; the stores also require it to be on the reviewed watch list. */
 const MODEL_TAG = /^[a-z0-9][a-z0-9._-]{0,80}:[a-z0-9][a-z0-9._-]{0,80}$/;
 const PROPOSAL_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "LATER", "EXECUTE"]);
@@ -130,6 +135,9 @@ function normalizeSubject(subject: AyasOwnerAdmissionSubject): AyasOwnerAdmissio
   }
   if (subject.kind === "model-switch" && typeof subject.tag === "string" && MODEL_TAG.test(subject.tag) && typeof subject.switchHash === "string" && HEX64.test(subject.switchHash) && subject.decision === "SWITCH") {
     return { kind: "model-switch", tag: subject.tag, switchHash: subject.switchHash, decision: "SWITCH" };
+  }
+  if (subject.kind === "code-apply" && typeof subject.jobId === "string" && CODE_JOB_ID.test(subject.jobId) && typeof subject.buildHash === "string" && HEX64.test(subject.buildHash) && subject.decision === "APPLY") {
+    return { kind: "code-apply", jobId: subject.jobId, buildHash: subject.buildHash, decision: "APPLY" };
   }
   return null;
 }
@@ -266,7 +274,8 @@ export function isAyasOwnerAdmissionActionCompatible(a: AyasOwnerAdmission): boo
   if (a.subject.kind === "update-apply") return a.action === "applyAyasUpdate";
   if (a.subject.kind === "model-trial") return a.action === "decideAyasModelTrial";
   if (a.subject.kind === "model-switch") return a.action === "switchAyasModel";
-  if (a.action === "decideAyasUpdateRadar" || a.action === "applyAyasUpdate" || a.action === "decideAyasModelTrial" || a.action === "switchAyasModel") return false;
+  if (a.subject.kind === "code-apply") return a.action === "applyAyasCodeChange";
+  if (a.action === "decideAyasUpdateRadar" || a.action === "applyAyasUpdate" || a.action === "decideAyasModelTrial" || a.action === "switchAyasModel" || a.action === "applyAyasCodeChange") return false;
   if (a.subject.kind === "micro-batch") return a.subject.decision === "EXECUTE" ? a.action === "executeAyasApprovedMicroBatch" : a.action === "batchOnaylaVeUygula";
   if (a.subject.decision === "EXECUTE") return a.action === "executeAyasApprovedProposal";
   if (a.action === "decideAyasApproval") return true;
@@ -291,7 +300,7 @@ export function verifyAyasOwnerDecisionSeal(d: OwnerDecision): boolean {
 
 export function checkAyasOwnerExecutionAdmission(d: OwnerDecision, admission: unknown, subject: AyasOwnerAdmissionSubject, at: string, usedActionRefs: ReadonlySet<string>): boolean {
   // Update and model decisions are checked by their own stores; never as a proposal or batch execution.
-  if (subject.kind === "update-radar" || subject.kind === "update-apply" || subject.kind === "model-trial" || subject.kind === "model-switch") return false;
+  if (subject.kind === "update-radar" || subject.kind === "update-apply" || subject.kind === "model-trial" || subject.kind === "model-switch" || subject.kind === "code-apply") return false;
   if (!verifyAyasOwnerDecisionSeal(d) || !d.ownerAdmission || d.ownerAdmission.subject.decision !== "APPROVE" || !isAyasOwnerAdmissionShape(admission)) return false;
   const approvalSubject = { ...subject, decision: "APPROVE" } as AyasOwnerAdmissionSubject;
   if (!checkAyasOwnerAdmissionBinding(d.ownerAdmission, { subject: approvalSubject, at: d.decidedAt, usedActionRefs: new Set() }).ok) return false;

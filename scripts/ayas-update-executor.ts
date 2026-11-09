@@ -10,6 +10,10 @@
  *   - LIVE_PUBLISH: a committed and pushed update whose live copy is not yet published (bounded attempts).
  *   - APPLY: an owner "Uygula" on a passed trial: commit + push through the guarded dependency-update lane, Graphify
  *     closure, then the live publish (AyasUpdateApplyRunner; CLAUDE.md standing exception for this click).
+ *   - CODE_APPLY: an owner "ONAYLA VE UYGULA" on a developer build (owner decision 2026-11-09, the code lane): the build
+ *     is proven from Git, checked again on a newer HEAD, committed and pushed through the guarded code-change lane,
+ *     then the Graphify closure; the automatic live publish below takes it live (AyasCodeChangeApplyRunner; CLAUDE.md
+ *     standing exception for this click). A build touching the V3 studio waits while a V3 production runs or waits.
  *   - WORKSPACE_SYNC: after an applied sub-package update (V3's remotion-v3/, owner decision 2026-11-02), its canonical
  *     node_modules is reinstalled from the committed lock while no V3 production runs or waits. No Git change.
  *   - MODEL_SWITCH: an owner "Bu modele geç": AYAS_OLLAMA_MODEL in both .env.local files, a live restart and a short
@@ -27,6 +31,7 @@
  * JSON line; exits 0 unless something unexpected throws.
  */
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -38,6 +43,8 @@ import { runAyasChatModelBenchmark } from "../src/lib/ayas/model/AyasChatModelBe
 import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
 import { createAyasModelOperationStore, selectAyasModelJob } from "../src/lib/brain/autonomy/AyasModelOperationStore";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { isAyasCodeApplyPushPending, reconcileAyasCodeApplyOrphan, recoverAyasCodeApplyPushes, runAyasCodeChangeApply } from "../src/lib/brain/autonomy/AyasCodeChangeApplyRunner";
+import { createAyasCodeChangeStore, selectAyasCodeApplyJob } from "../src/lib/brain/autonomy/AyasCodeChangeStore";
 import { collectAyasGraphHealFacts, countAyasOpenRecoveries, decideAyasGraphHeal, runAyasGraphHeal, runAyasPublicationRecovery } from "../src/lib/brain/autonomy/AyasPublicationSelfHeal";
 import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
@@ -52,6 +59,8 @@ import { resolveAyasUpdateTrialRoots, runAyasUpdateTrial } from "../src/lib/brai
 import {
   AYAS_WORKSPACE_SYNC_MAX_ATTEMPTS, createAyasUpdateTrialStore, listAyasWorkspaceSyncRequests, selectAyasUpdateApplyJob, selectAyasUpdateTrialJob,
 } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import { codeBuildOf } from "../src/lib/v3/council/DevQueue";
+import { listProposals, recordCodeApply } from "../src/lib/v3/council/SelfImprovement";
 import { listOrders } from "../src/lib/v3/orders/ProductionOrders";
 import { resolveV3Paths } from "../src/lib/v3/V3Paths";
 import { probeAyasModelHardware } from "./lib/AyasModelHardwareProbe";
@@ -131,6 +140,14 @@ async function main(): Promise<void> {
       if (trial.status === "RUNNING") trials.upsert({ ...trial, status: "ABANDONED", finishedAt: new Date().toISOString(), failureReason: "deneme yarıda kesildi (süreç sonlandı)" });
     }
     for (const apply of trials.load().applies ?? []) if (apply.status === "RUNNING") reconcileAyasUpdateApplyOrphan(apply, { repoRoot: root, store: trials });
+    const codeStore = createAyasCodeChangeStore({ rootDir: path.join(root, "data", "brain", "self-improvement", "code-changes") });
+    const v3WorkRoot = resolveV3Paths(root).workRoot;
+    const reportCode = async (jobId: string, outcome: Parameters<typeof recordCodeApply>[2]): Promise<void> => { await recordCodeApply(v3WorkRoot, jobId, outcome); };
+    for (const apply of codeStore.load().applies) {
+      if (apply.status !== "RUNNING") continue;
+      const done = reconcileAyasCodeApplyOrphan(apply, { repoRoot: root, store: codeStore });
+      await reportCode(done.jobId, { status: done.status, ...(done.commitSha ? { commitSha: done.commitSha } : {}), reasons: done.reasons ?? [] }).catch(() => undefined);
+    }
     const models = createAyasModelOperationStore();
     for (const entry of models.loadJobs().switches) if (entry.status === "RUNNING") reconcileAyasModelSwitchOrphan(entry, { repoRoot: root, store: models });
     if (git(["status", "--porcelain"]).length) return report("SKIPPED_DIRTY_TREE");
@@ -163,6 +180,19 @@ async function main(): Promise<void> {
         const pushed = updates.filter((entry) => entry.outcome === "PUSHED" || entry.outcome === "ALREADY_ON_REMOTE");
         if (pushed.length) return report("UPDATE_PUSH_RECOVERED", { commits: pushed.map((entry) => entry.commitSha.slice(0, 8)) });
       }
+      // The code-change lane: an "ONAYLA VE UYGULA" whose commit stood but whose push failed (2026-11-09).
+      const pendingCodePush = codeStore.load().applies.filter(isAyasCodeApplyPushPending);
+      if (pendingCodePush.length && dryRun) return report("DRY_RUN", { job: "CODE_PUSH_RECOVERY", open: pendingCodePush.length });
+      if (pendingCodePush.length) {
+        const codes = recoverAyasCodeApplyPushes({ repoRoot: root, store: codeStore });
+        fs.writeFileSync(path.join(codeStore.rootDir, "push-recovery.json"), `${JSON.stringify({ at: new Date().toISOString(), codes }, null, 2)}\n`);
+        const pushed = codes.filter((entry) => entry.outcome === "PUSHED" || entry.outcome === "ALREADY_ON_REMOTE");
+        for (const entry of pushed) {
+          const apply = codeStore.load().applies.find((a) => a.applyId === entry.applyId);
+          if (apply) await reportCode(apply.jobId, { status: "COMPLETED", ...(apply.commitSha ? { commitSha: apply.commitSha } : {}), reasons: [entry.reason] }).catch(() => undefined);
+        }
+        if (pushed.length) return report("CODE_PUSH_RECOVERED", { applies: pushed.map((entry) => entry.applyId) });
+      }
     }
 
     // Self-heal 2: a HEAD whose Graphify closure never completed (graph-dependent discovery waits on it).
@@ -186,6 +216,30 @@ async function main(): Promise<void> {
     if (applyJob.kind === "APPLY") {
       const done = await runAyasUpdateApply(applyJob.decision, applyJob.trial, { repoRoot: root, store: trials });
       return report("APPLY_" + done.status, { applyId: done.applyId, sourceId: done.sourceId, targetVersion: done.targetVersion, commit: done.commitSha?.slice(0, 8), live: done.live?.status, reasons: done.reasons });
+    }
+
+    // Owner decision 2026-11-09: an "ONAYLA VE UYGULA" on a developer build (the code lane).
+    const codeBuilds = new Map((await listProposals(v3WorkRoot).catch(() => [])).flatMap(({ proposal }) => {
+      const build = codeBuildOf(proposal);
+      return build ? [[proposal.id, build] as const] : [];
+    }));
+    const codeJob = selectAyasCodeApplyJob({ state: codeStore.load(), builds: codeBuilds });
+    if (codeJob.kind !== "NONE" && dryRun) return report("DRY_RUN", { job: `CODE_${codeJob.kind}`, jobId: codeJob.decision.jobId, head });
+    if (codeJob.kind === "REFUSE") {
+      const at = new Date().toISOString();
+      codeStore.upsertApply({ schemaVersion: 1, applyId: `ayas-code-apply-run-${crypto.randomUUID()}`, decisionId: codeJob.decision.decisionId, jobId: codeJob.decision.jobId,
+        buildHash: codeJob.decision.buildHash, baseHead: head, status: "REFUSED", startedAt: at, finishedAt: at, reasons: [codeJob.reason] });
+      await reportCode(codeJob.decision.jobId, { status: "REFUSED", reasons: [codeJob.reason] }).catch(() => undefined);
+      return report("CODE_APPLY_REFUSED", { jobId: codeJob.decision.jobId, reason: codeJob.reason });
+    }
+    if (codeJob.kind === "APPLY") {
+      // A V3 production reads the V3 sources from this tree as it runs: a change to them waits until none runs or waits.
+      if (codeJob.build.files.some((file) => /^(?:src\/lib\/v3\/|scripts\/v3\/|remotion-v3\/src\/|content\/v3\/)/.test(file.path))) {
+        const busy = (await listOrders(v3WorkRoot).catch(() => [])).filter(({ order }) => order.durum === "calisiyor" || order.durum === "bekliyor").length;
+        if (busy) return report("CODE_APPLY_WAITING", { jobId: codeJob.decision.jobId, v3Orders: busy });
+      }
+      const done = await runAyasCodeChangeApply(codeJob.decision, codeJob.build, { repoRoot: root, store: codeStore, report: reportCode });
+      return report("CODE_APPLY_" + done.status, { jobId: done.jobId, commit: done.commitSha?.slice(0, 8), verified: done.verified, reasons: done.reasons });
     }
 
     // An applied sub-package update (V3's remotion-v3/) reinstalls its canonical node_modules, only while no V3

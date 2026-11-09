@@ -231,15 +231,16 @@ export function classifyAyasRuntimeImpact(exactFiles: readonly string[]): AyasRu
     summary: files.length === 0
       ? "the publication declares no files, so its runtime impact cannot be established"
       : `${impactClass} across ${files.length} file(s); most restrictive file matched "${driver?.rule ?? "no rule"}"`,
-    notApplicable: Object.freeze(publishable
-      ? [
-        "service-restart: the declared impact class cannot affect a running service — no process is stopped, started or signalled by this operation",
-        "runtime-config-reload: the declared impact class writes no environment or build-configuration file, so nothing needs reloading",
-        "process-identity-fingerprint: not captured — an operation that may not restart a service is proven by port+pid continuity instead",
-      ]
-      : []),
+    notApplicable: publishable ? PUBLISHABLE_NOT_APPLICABLE : Object.freeze([]),
   });
 }
+
+/** The heavy checks a publishable (TEST_ONLY / SOURCE_ONLY) class rules out. */
+const PUBLISHABLE_NOT_APPLICABLE: readonly string[] = Object.freeze([
+  "service-restart: the declared impact class cannot affect a running service — no process is stopped, started or signalled by this operation",
+  "runtime-config-reload: the declared impact class writes no environment or build-configuration file, so nothing needs reloading",
+  "process-identity-fingerprint: not captured — an operation that may not restart a service is proven by port+pid continuity instead",
+]);
 
 /** The root file set the dependency-update lane may publish (owner decision 2026-10-15). */
 export const AYAS_DEPENDENCY_UPDATE_FILES: readonly string[] = ayasDependencyUpdateFiles();
@@ -279,6 +280,41 @@ export function classifyAyasDependencyUpdateImpact(exactFiles: readonly string[]
       "runtime-config-reload: no environment variable or gate flag is written",
       "process-identity-fingerprint: not captured — the commit may not restart a service, so port+pid continuity is the proof",
     ]),
+  });
+}
+
+/**
+ * The V3 studio's own data and Remotion sources (owner decision 2026-11-09, the code lane): a production reads them
+ * fresh from the canonical tree at its next order and the live app does not load them, so committing them restarts
+ * nothing. Only the code-change lane accepts them; every other lane keeps classifying them UNKNOWN.
+ */
+const CODE_CHANGE_V3_SOURCES: readonly string[] = Object.freeze(["content/v3/", "remotion-v3/src/"]);
+
+export function classifyAyasCodeChangeImpactFile(file: string): AyasRuntimeImpactFileClassification {
+  const normalized = normalize(file);
+  if (normalized !== undefined && CODE_CHANGE_V3_SOURCES.some((prefix) => normalized.startsWith(prefix))) return { file, impactClass: "SOURCE_ONLY", rule: "V3 studio content / Remotion source (code-change lane)" };
+  return classifyAyasRuntimeImpactFile(file);
+}
+
+/**
+ * The code-change lane's declaration (owner decision 2026-11-09): the one-click classes only, with the V3 studio's
+ * content and Remotion sources counted as ordinary source. Anything heavier stays unpublishable, exactly as in the
+ * proposal lane.
+ */
+export function classifyAyasCodeChangeImpact(exactFiles: readonly string[]): AyasRuntimeImpactDecision {
+  const files = (exactFiles ?? []).map(classifyAyasCodeChangeImpactFile);
+  const general = classifyAyasRuntimeImpact(exactFiles);
+  if (files.length === 0) return general;
+  const impactClass = files.reduce<AyasRuntimeImpactClass>((worst, entry) => (severity(entry.impactClass) > severity(worst) ? entry.impactClass : worst), "TEST_ONLY");
+  const publishable = AYAS_PUBLISHABLE_RUNTIME_IMPACT_CLASSES.includes(impactClass);
+  const driver = files.find((entry) => entry.impactClass === impactClass);
+  return Object.freeze({
+    impactClass,
+    files: Object.freeze(files),
+    publishable,
+    serviceRestartApplicable: !publishable,
+    summary: `${impactClass} across ${files.length} file(s); most restrictive file matched "${driver?.rule ?? "no rule"}" (code-change lane)`,
+    notApplicable: publishable ? PUBLISHABLE_NOT_APPLICABLE : Object.freeze([]),
   });
 }
 

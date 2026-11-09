@@ -1,3 +1,58 @@
+## 9 Kasım 2026 (5) — YARIM (wip): Ana AYAS'a kod yazan model — "kod hattı" + tek tık "ONAYLA VE UYGULA"
+
+Owner: "son oturumdaki 3. maddeyi işleme al … bir yeri yaparken çalışan başka birşeyi bozma. ayas tamamen otomatik
+çalışacak benim onay uygula diye tıklama ile onay alıp yapacak … uygun skill varsa ayasa ekle, gerektiğinde otomatik
+kullanacak". Tasarım A uygulandı (V3 geliştirme hattı ana AYAS'a açıldı). Owner kullanım sınırı yüzünden güvenli
+noktada durduruldu; **canlıya alınmadı**, yalnız `feature/cop-adam-v3`'e wip commit.
+
+**Akış:** iş kuyruğa girer (V3 beyin önerisi ONAYLA ile, ya da owner'ın Gelişim Merkezi'ndeki "AYAS'tan geliştirme
+iste" kutusu — doğrudan onaylı, `kapsam: "ayas"`) → akşam 16:30–07 geliştirici (`claude -p`, abonelik, ek maliyet yok)
+ayrı worktree'de yazar → kontroller → `hazir` + **yapı kimliği** (commit, taban, her dosyanın sha256'sı, kontroller,
+`yapiHash`) → Gelişim Merkezi kartında **ONAYLA VE UYGULA** → mühürlü karar (owner admission `code-apply`) → gözlemcinin
+update executor'ı `CODE_APPLY`: yapıyı git'ten kanıtlar; HEAD aynıysa build commit'i ff, HEAD ilerlediyse yapı
+dosyaları değişmemiş olmalı (yoksa STALE → iş yeniden kuyruğa) + kontroller ayrı worktree'de yeniden → cherry-pick;
+korumalı yayının yeni `code-change` lane'i ile commit + push, Graphify closure; canlıya otomatik live publish alır.
+V3 dosyasına dokunan yapı, V3 siparişi varken bekler (`CODE_APPLY_WAITING`).
+
+**Yazılanlar (tsc 0):**
+- `src/lib/brain/autonomy/AyasCodeChangeLane.ts` (saf): `ayasCodeLaneRefusals` — alanlar src/app/scripts/docs/content/v3/
+  remotion-v3/src; hiç değişmez: ana sayfa, `src/lib/brain/autonomy/`, operatör/.ps1/.mjs betikleri, geliştirici hattının
+  kendi modülleri + yapim/gelisim, docs/ayas-execution, BrainPatchSafety FORBIDDEN (governance, safety, execution, EVAL
+  pinli, paketler, production/pipeline, runtime/storage…), yayınlanamaz etki sınıfları. `ayasCodeBuildHash`, iş etiketi
+  `AYAS-Code-Job: <id>`.
+- `AyasCodeChangeStore.ts` (karar deposu `data/brain/self-improvement/code-changes/`, .gitignore eklendi; seçim, tekrar
+  tıklama kuralı), `AyasCodeChangeApplyRunner.ts` (kanıt, yeniden doğrulama worktree'si — junction önce kaldırılır,
+  yayın, yetim uzlaştırma, push kurtarma).
+- `AyasOwnerApprovalAdmission`: konu `code-apply`, eylem `applyAyasCodeChange` (başka hiçbir kararı yetkilendirmez).
+  `AyasGuardedPublication`: lane `code-change`; `AyasProposalRuntimeImpact.classifyAyasCodeChangeImpact` (content/v3 +
+  remotion-v3/src yalnız bu lane'de SOURCE_ONLY; diğer lane'ler aynen).
+- `scripts/ayas-update-executor.ts`: CODE_APPLY / REFUSE / WAITING, yetim + push kurtarma.
+- V3: `DevQueue` (`kapsam`, `scopeOf`, `ATOLYE_AYAS_GELISTIRME=0` kapatır, `forbiddenChanges(files, kapsam)`,
+  `AYAS_DEVELOPER_RULES`, `ayasTaskPacket`, `codeBuildOf`, DevJob yapı kimliği + `uygulama`), `Developer` (ayas araçları:
+  tüm smoke'lar + ayas-ui-audit, `--disallowedTools` observer-autostart; `ayasChecks`: tsc, değişen/ilgili smoke'lar,
+  firewall-closure + yardstick, V3 dosyası varsa smoke-v3, lint; **tabanda da düşen** suite yapının hatası sayılmaz;
+  commit'e trailer), `DevResearch` (ayas işi araştırma/çırak/öğrenme yok), `SelfImprovement` (`requestDevelopment` ≤5
+  açık, `rejectBuild`, `recordCodeApply`), `BrainsReport` (kart: `yapi.buildHash`/`engel`, `uygulama` etiketleri).
+- UI `AtolyeBrainsPanel.tsx`: hazır yapı kartı (ONAYLA VE UYGULA / REDDET, dosyalar, kontroller, durum), istek kutusu;
+  eylemler `app/brain/actions.ts`: `applyAyasCodeChangeAction`, `rejectAyasCodeChangeAction`, `requestAyasDevelopmentAction`.
+  Ana sayfa dosyalarına dokunulmadı.
+- Skill: `.claude/skills/ayas-gelistirici/SKILL.md` (zorla eklendi) — geliştirici her ana AYAS işinde yükler.
+- Testler: yeni `smoke-ayas-code-change-lane.ts` **12/12 PASS**; `smoke-v3-self-improvement.ts` K senaryosu, **11/11 PASS**;
+  `smoke-ayas-action-firewall-closure.ts` haritaya `AyasCodeChangeApplyRunner` (OWNER_PUBLICATION) → **PASS**, EVAL
+  manifest **v71 → v72** (arşiv `EVAL_MANIFEST_V71.json` bayt aynı, yalnız bu pin, hash staged blob'dan);
+  `smoke-ayas-model-operations` Git-dışı depo listesine code-changes eklendi.
+
+**Sırada (sonraki oturum, bu sırayla):**
+1. İlgili smoke taraması sonucu (arka planda başlatıldı; yeniden: `node scripts/tum-smokelar.mjs --yalniz "<liste>"`) +
+   `node scripts/lint-yerel.mjs` + `npx tsx scripts/ayas-cf49-closure.ts` (temiz ağaçta CLOSED_PASS) + tsc.
+2. `smoke-ayas-model-operations`, `-update-apply`, `-guarded-publication`, `-owner-session-admission`, `smoke-v3-brains-report`,
+   `-cirak` tek tek doğrula; UI audit (`ayas-ui-audit`, `--routes '["/brain?panel=development"]'`).
+3. CLAUDE.md "Working conventions"a yeni standing exception (owner kararı 2026-11-09, `applyAyasCodeChangeAction` →
+   `AyasCodeChangeApplyRunner`, yapı kimliğine bağlı, code-change lane) + docs notu.
+4. Doğrulanınca commit/push, canlıya alma (wip → live dalı, canonical pull, Graphify, auto-live), V3 izleyici yeniden
+   başlatma gerekmez (`yapim.ts` değişmedi; `gelistirici.ts aksam` her akşam diskten başlar).
+5. İsteğe bağlı: AYAS sohbetinden "geliştirme isteği" niyeti; kontrollü evrimin başarısız vakalarından otomatik ana AYAS işi.
+
 ## 9 Kasım 2026 (4) — kalite sınavı 49 soru + göz puanı; çırak önce yazar (Claude yedek); yakın savaşta atlama yok, hamleler anlatım sırasıyla
 
 Owner: "Kalite sınavını 8 sorudan 30'un üzerine çıkarmak … Çırağın yazma sınavlarını hızlandırmak … eşiği geçince

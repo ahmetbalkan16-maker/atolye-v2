@@ -124,7 +124,12 @@ export interface DevProposal {
    * The first Caesar harvest (2 Nov 2026) gave 19 proposals, most of them generic ideas, one for a composer the studio
    * already has: an idea asks for the owner only once it comes back from another production.
    */
-  readonly kaynakTuru?: "olcum" | "fikir";
+  readonly kaynakTuru?: "olcum" | "fikir" | "istek";
+  /**
+   * v3 (default): only the V3 studio's files; ayas: a main-AYAS job inside the code lane's limits (owner decision
+   * 2026-11-09, DevQueue.scopeOf). An owner's own request ("istek") is an ayas job.
+   */
+  readonly kapsam?: "v3" | "ayas";
   /**
    * onaylandi: in the development queue (DevQueue); yapiliyor: the developer is building it; hazir: built and checked on
    * its own branch, waiting to be applied; yapilamadi: the build was thrown away (why in `is`); yapildi: in the studio;
@@ -233,6 +238,74 @@ export async function decideProposal(workRoot: string, id: string, durum: "onayl
   const next: DevProposal = { ...hit.proposal, durum, karar: { tarih: now.toISOString(), ...(not?.trim() ? { not: not.trim().slice(0, 300) } : {}) } };
   await writeProposal(hit.file, next);
   return next;
+}
+
+/** Open owner requests at most (queued or being built), so a slip of the hand cannot fill the evening. */
+export const MAX_OPEN_REQUESTS = 5;
+
+/**
+ * The owner's own development request (Gelişim Merkezi, owner decision 2026-11-09: "ayas tamamen otomatik çalışacak"):
+ * a main-AYAS job straight into the development queue, already approved since the owner wrote it. The developer builds
+ * it in the evening like any approved job; the finished change still waits for the owner's "ONAYLA VE UYGULA".
+ */
+export async function requestDevelopment(workRoot: string, metin: string, now = new Date()): Promise<DevProposal> {
+  const text = String(metin ?? "").replace(/\r\n/g, "\n").trim();
+  if (text.length < 10) throw new Error("V3_REQUEST_TOO_SHORT");
+  const all = await listProposals(workRoot);
+  if (all.filter((x) => x.proposal.kaynakTuru === "istek" && (x.proposal.durum === "onaylandi" || x.proposal.durum === "yapiliyor")).length >= MAX_OPEN_REQUESTS) throw new Error("V3_REQUEST_LIMIT");
+  const firstLine = text.split("\n")[0]!.trim();
+  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "");
+  const id = `${stamp}-istek-${all.length + 1}`;
+  const p: DevProposal = {
+    id, tarih: now.toISOString(), beyin: "sef", baslik: firstLine.length > 120 ? `${firstLine.slice(0, 117)}…` : firstLine, neden: text.slice(0, 2_000),
+    kaynaklar: ["owner isteği"], sayi: 1, kaynakTuru: "istek", kapsam: "ayas", durum: "onaylandi", karar: { tarih: now.toISOString(), not: "owner'ın kendi isteği" },
+  };
+  await writeProposal(path.join(proposalDir(workRoot), `${id}.json`), p);
+  return p;
+}
+
+/** The owner's REDDET on a ready build: the job closes, its branch stays for a look. Nothing is applied. */
+export async function rejectBuild(workRoot: string, id: string, now = new Date()): Promise<DevProposal> {
+  const hit = (await listProposals(workRoot)).find((x) => x.proposal.id === id);
+  if (!hit) throw new Error(`V3_PROPOSAL_NOT_FOUND: ${id}`);
+  if (hit.proposal.durum !== "hazir") throw new Error(`V3_BUILD_NOT_READY: ${id} "${hit.proposal.durum}"`);
+  if (hit.proposal.is?.uygulama?.durum === "sirada" || hit.proposal.is?.uygulama?.durum === "uygulaniyor") throw new Error(`V3_BUILD_APPLYING: ${id}`);
+  const tarih = now.toISOString();
+  const next: DevProposal = { ...hit.proposal, durum: "reddedildi", karar: { ...(hit.proposal.karar ?? {}), tarih }, ...(hit.proposal.is ? { is: { ...hit.proposal.is, uygulama: { durum: "reddedildi", tarih } } } : {}) };
+  await writeProposal(hit.file, next);
+  return next;
+}
+
+/** The executor's outcome of an "ONAYLA VE UYGULA" (AyasCodeChangeApplyRunner), as the code lane names it. */
+export interface CodeApplyOutcome {
+  readonly status: "QUEUED" | "RUNNING" | "COMPLETED" | "STALE" | "REFUSED" | "FAILED" | "ROLLED_BACK" | "RECOVERY_REQUIRED" | "ABANDONED";
+  readonly commitSha?: string;
+  readonly reasons: readonly string[];
+}
+
+/**
+ * Writes what the owner's click did into the job: applied → yapildi; stale (the code moved under the build) → back in
+ * the queue to be built again on the new code; refused (the build was not what the owner approved) → yapilamadi; a
+ * failed or interrupted apply leaves it hazir with the reason, so the owner may click again.
+ */
+export async function recordCodeApply(workRoot: string, id: string, outcome: CodeApplyOutcome, now = new Date()): Promise<DevProposal> {
+  return updateProposal(workRoot, id, (p) => {
+    const tarih = now.toISOString();
+    const neden = outcome.reasons.join(" | ").slice(0, 400) || undefined;
+    const job = p.is ?? { deneme: 0, baslangic: tarih };
+    const mark = (durum: NonNullable<DevJob["uygulama"]>["durum"]) => ({ ...job, uygulama: { durum, tarih, ...(outcome.commitSha ? { commit: outcome.commitSha } : {}), ...(neden ? { neden } : {}) } });
+    // A job decided elsewhere meanwhile (a development session applied or closed it) keeps its state; only the note changes.
+    const ready = p.durum === "hazir";
+    switch (outcome.status) {
+      case "QUEUED": return { ...p, is: mark("sirada") };
+      case "RUNNING": return { ...p, is: mark("uygulaniyor") };
+      case "COMPLETED": return ready ? { ...p, durum: "yapildi", is: mark("uygulandi") } : { ...p, is: mark("uygulandi") };
+      case "STALE": return ready ? { ...p, durum: "onaylandi", is: { ...mark("bayat"), sorunlar: [`kod yapıdan sonra değişti, yeniden yapılacak: ${neden ?? ""}`.slice(0, 400)] } } : { ...p, is: mark("bayat") };
+      case "REFUSED": return ready ? { ...p, durum: "yapilamadi", is: { ...mark("basarisiz"), sorunlar: [`uygulanmadı: ${neden ?? ""}`.slice(0, 400)], bitis: tarih } } : { ...p, is: mark("basarisiz") };
+      case "RECOVERY_REQUIRED": return { ...p, is: mark("kurtarma") };
+      default: return { ...p, is: mark("basarisiz") };
+    }
+  });
 }
 
 /**

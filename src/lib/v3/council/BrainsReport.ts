@@ -1,9 +1,11 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { ayasCodeBuildHash, ayasCodeLaneRefusals } from "../../brain/autonomy/AyasCodeChangeLane";
 import { listOrders } from "../orders/ProductionOrders";
 import { type BrainCouncilView, loadBrainCouncil } from "./BrainCouncilFeed";
 import { BRAIN_NAMES } from "./Council";
 import { type DevBrainView, loadDevBrainView } from "./DevBrain";
+import { codeBuildOf, type DevJob, scopeOf } from "./DevQueue";
 import { type CouncilSession, editLine } from "./DirectorCouncil";
 import { kindOf, listReferences, measuresLine, referenceTargets, targetsLine } from "./ReferenceStore";
 import { cycleLine, type DevProposal, listCycles, listProposals, needsOwner, readTuning } from "./SelfImprovement";
@@ -41,29 +43,78 @@ export interface AtolyeBrainsView {
   readonly fikirler?: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly tarih: string }[];
   readonly kararlar: readonly { readonly baslik: string; readonly durum: string }[];
   /** The development queue (DevQueue): approved proposals and what the developer did with them, open ones first. */
-  readonly kuyruk: readonly { readonly id: string; readonly baslik: string; readonly durum: string; readonly ayrinti: string }[];
+  readonly kuyruk: readonly QueueRow[];
   /** The developer brain (DevBrain): its report card, what it knows, its lessons and notes. */
   readonly gelistirici?: DevBrainView;
   /** The brains' council for AYAS's homepage (BrainCouncilFeed): who works now and their latest words. */
   readonly meclis: BrainCouncilView;
 }
 
+/** One row of the development queue as the owner reads it. */
+export interface QueueRow {
+  readonly id: string;
+  readonly baslik: string;
+  readonly durum: string;
+  readonly ayrinti: string;
+  /** ayas: a main-AYAS job; v3: the V3 studio's (owner decision 2026-11-09). */
+  readonly kapsam?: "v3" | "ayas";
+  /** Where the job came from: the owner's own request, a measured fault, an idea. */
+  readonly kaynak?: string;
+  /**
+   * A ready build (the code lane): what it changed and how it was checked; `buildHash` is present only when the owner
+   * may apply it with one click ("ONAYLA VE UYGULA"), `engel` says why not otherwise.
+   */
+  readonly yapi?: { readonly buildHash?: string; readonly ozet: string; readonly dosyalar: readonly string[]; readonly kontroller: number; readonly tabandaDusen: readonly string[]; readonly engel?: string };
+  /** What the owner's click did with the build, as the observer's executor reported it. */
+  readonly uygulama?: { readonly durum: string; readonly ayrinti?: string; readonly bekliyor: boolean };
+}
+
 const EMPTY: Omit<AtolyeBrainsView, "connected"> = { referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, fikirler: [], kararlar: [], kuyruk: [], meclis: { beyinler: [], akis: [] } };
 
-const QUEUE_LABEL: Readonly<Record<string, string>> = { yapiliyor: "Geliştiriliyor", hazir: "Hazır — uygulanmayı bekliyor", onaylandi: "Kuyrukta", yapilamadi: "Yapılamadı", yapildi: "Yapıldı" };
+const QUEUE_LABEL: Readonly<Record<string, string>> = { yapiliyor: "Geliştiriliyor", hazir: "Hazır — onayını bekliyor", onaylandi: "Kuyrukta", yapilamadi: "Yapılamadı", yapildi: "Yapıldı" };
 const QUEUE_ORDER = ["yapiliyor", "hazir", "onaylandi", "yapilamadi", "yapildi"];
+const SOURCE_LABEL: Readonly<Record<string, string>> = { istek: "SENİN İSTEĞİN", olcum: "ÖLÇÜLDÜ", fikir: "FİKİR" };
+const APPLY_LABEL: Readonly<Record<NonNullable<NonNullable<DevJob["uygulama"]>["durum"]>, string>> = {
+  sirada: "Onaylandı — gözlemcinin sıradaki turunda uygulanacak",
+  uygulaniyor: "Uygulanıyor (commit ve push)",
+  uygulandi: "Uygulandı — canlıya alınıyor",
+  bayat: "Kod bu arada değişti — iş yeni koda göre yeniden yapılacak",
+  basarisiz: "Uygulanamadı",
+  kurtarma: "Uygulama yarıda kaldı — elle doğrulanmalı",
+  reddedildi: "Reddedildi",
+};
+
+/** A ready build's card: one-click only for a build with a recorded identity whose every file the code lane allows. */
+function buildCard(p: DevProposal): QueueRow["yapi"] {
+  const j = p.is;
+  const base = { ozet: (j?.ozet ?? "").trim().slice(0, 1_500), dosyalar: [...(j?.dosyalar ?? [])].slice(0, 40), kontroller: (j?.kontroller?.length ?? 0) - (j?.tabandaDusen?.length ?? 0), tabandaDusen: [...(j?.tabandaDusen ?? [])] };
+  const build = codeBuildOf(p);
+  if (!build) return { ...base, engel: "Bu yapı tek tıkla uygulama gelmeden önce yapıldı; bir geliştirme oturumu uygular." };
+  const hash = ayasCodeBuildHash(build);
+  if (j?.yapiHash && j.yapiHash !== hash) return { ...base, engel: "Yapı kaydı yapıldıktan sonra değişmiş; tek tıkla uygulanamaz." };
+  const refused = ayasCodeLaneRefusals(build.files.map((f) => f.path));
+  if (refused.length) return { ...base, engel: `Tek tıkla uygulanamaz — ${refused.slice(0, 3).map((r) => `${r.file}: ${r.why}`).join("; ")}. Bir geliştirme oturumu uygular.` };
+  return { ...base, buildHash: hash };
+}
 
 /** The queue's rows: every open job, and the last five finished ones. */
 function queueRows(proposals: readonly DevProposal[]): AtolyeBrainsView["kuyruk"] {
   const open = proposals.filter((p) => QUEUE_ORDER.slice(0, 4).includes(p.durum)).sort((a, b) => QUEUE_ORDER.indexOf(a.durum) - QUEUE_ORDER.indexOf(b.durum));
   const done = proposals.filter((p) => p.durum === "yapildi").sort((a, b) => (b.is?.bitis ?? b.karar?.tarih ?? "").localeCompare(a.is?.bitis ?? a.karar?.tarih ?? "")).slice(0, 5);
-  return [...open, ...done].map((p) => ({
-    id: p.id,
-    baslik: p.baslik,
-    durum: QUEUE_LABEL[p.durum] ?? p.durum,
-    ayrinti:
-      p.durum === "hazir" ? `dal ${p.is?.dal ?? "?"} · ${p.is?.dosyalar?.length ?? 0} dosya · testler geçti` : p.durum === "yapilamadi" ? `${(p.is?.sorunlar ?? []).join(" | ").slice(0, 240)} (deneme ${p.is?.deneme ?? 0})` : (p.is?.ozet ?? "").replace(/\s+/g, " ").slice(0, 240),
-  }));
+  return [...open, ...done].map((p): QueueRow => {
+    const u = p.is?.uygulama;
+    return {
+      id: p.id,
+      baslik: p.baslik,
+      durum: QUEUE_LABEL[p.durum] ?? p.durum,
+      ayrinti:
+        p.durum === "hazir" ? `dal ${p.is?.dal ?? "?"} · ${p.is?.dosyalar?.length ?? 0} dosya · testler geçti` : p.durum === "yapilamadi" ? `${(p.is?.sorunlar ?? []).join(" | ").slice(0, 240)} (deneme ${p.is?.deneme ?? 0})` : (p.is?.ozet ?? "").replace(/\s+/g, " ").slice(0, 240),
+      kapsam: scopeOf(p),
+      ...(p.kaynakTuru ? { kaynak: SOURCE_LABEL[p.kaynakTuru] ?? p.kaynakTuru } : {}),
+      ...(p.durum === "hazir" ? { yapi: buildCard(p) } : {}),
+      ...(u ? { uygulama: { durum: APPLY_LABEL[u.durum] ?? u.durum, bekliyor: u.durum === "sirada" || u.durum === "uygulaniyor", ...(u.neden || u.commit ? { ayrinti: [u.commit ? `commit ${u.commit.slice(0, 8)}` : "", u.neden ?? ""].filter(Boolean).join(" · ").slice(0, 300) } : {}) } } : {}),
+    };
+  });
 }
 
 /** The latest council of a production (or of a dry run) among the orders' work folders. */
@@ -151,6 +202,8 @@ export function brainsReportText(v: AtolyeBrainsView): string {
   else if (v.fikirSayisi) parts.push(`Bu ${v.fikirSayisi} fikri Gelişim Merkezi'nde "Diğer fikirler" altında görüp istediğini şimdi onaylayabilirsin.`);
   const open = v.kuyruk.filter((k) => k.durum !== "Yapıldı");
   if (v.kuyruk.length) parts.push(`Geliştirme kuyruğu: ${open.length ? open.map((k) => `"${k.baslik}" — ${k.durum}`).join("; ") : "açık iş yok"}${v.kuyruk.length > open.length ? ` (${v.kuyruk.length - open.length} iş yapıldı)` : ""}.`);
+  const ready = v.kuyruk.filter((k) => k.yapi?.buildHash && !k.uygulama?.bekliyor).length;
+  if (ready) parts.push(`${ready} hazır değişiklik Gelişim Merkezi'nde "ONAYLA VE UYGULA" ile onayını bekliyor; bastığında commit'lenip canlıya alınır.`);
   if (v.gelistirici) parts.push(`Geliştirici beyni (gündüz araştırır, akşam 16:30'dan sonra Claude yapar, o da Claude'dan öğrenir): ${v.gelistirici.hazirlik.ozet}; hafızasında ${v.gelistirici.gecmis} değişiklik, ${v.gelistirici.icgudu.dogrulanan} doğrulanmış içgüdü${v.gelistirici.kod?.toplam ? `, ${v.gelistirici.kod.toplam} değişikliğin kodu (${v.gelistirici.kod.tarifli} tanesinin nasıl yapıldığını yazdı)` : ""}.${v.gelistirici.yazma ? ` Kendi kodu: ${v.gelistirici.yazma.ozet}.` : ""}${v.gelistirici.dersler[0] ? ` Son dersi: ${v.gelistirici.dersler[0]}` : ""}`);
   return parts.join("\n");
 }

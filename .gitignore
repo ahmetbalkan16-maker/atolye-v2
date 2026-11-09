@@ -169,6 +169,9 @@ graphify-out/
 /data/brain/self-improvement/update-approvals/
 /data/brain/self-improvement/update-trials/
 /data/brain/self-improvement/model-operations/
+# The code lane (2026-11-09): the owner's "ONAYLA VE UYGULA" decisions on developer builds and the
+# executor's apply records.
+/data/brain/self-improvement/code-changes/
 
 # Continuous local-discovery run evidence. Runtime-owned like the scheduler
 # state above; tracking it would make the next observer tick pause itself as

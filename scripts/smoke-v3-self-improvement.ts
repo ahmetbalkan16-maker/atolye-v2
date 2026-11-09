@@ -46,8 +46,11 @@ import {
   wantsOf,
   writeTuning,
 } from "../src/lib/v3/council/SelfImprovement";
-import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
-import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, measuredFaults, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
+import { applyBuild, ayasChecks, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
+import { AYAS_DEVELOPER_RULES, ayasTaskPacket, codeBuildOf, DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, measuredFaults, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
+import { recordCodeApply, rejectBuild, requestDevelopment } from "../src/lib/v3/council/SelfImprovement";
+import { brainsReportText, loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
+import { ayasCodeBuildHash, ayasCodeContentSha256, ayasCodeJobTrailer } from "../src/lib/brain/autonomy/AyasCodeChangeLane";
 import {
   changedSymbols,
   codeExperience,
@@ -585,6 +588,109 @@ async function main() {
     assert.match(md, /bildirimler:\*\* crowdVolume/);
     assert.match(md, /- "kalabalık sesi" \(abc\)\n {2}src\/lib\/v3\/mix\/Mixer\.ts \(\+4\/-5\)/);
     assert.match(md, /kod \(src\/lib\/v3\/mix\/Mixer\.ts\):\n {4}@@ import x/);
+  });
+
+  await scenario("K main-AYAS jobs (owner, 9 Nov 2026: \"ayas tamamen otomatik çalışacak, benim onay uygula diye tıklama ile onay alıp yapacak\"): the owner's request, the code lane's limits, the build identity the click binds to, the outcome back in the queue", async () => {
+    const base = mkdtempSync(path.join(os.tmpdir(), "v3-ayas-is-"));
+    const repo = path.join(base, "repo");
+    const work = path.join(base, "runtime");
+    mkdirSync(path.join(repo, "src", "lib", "ayas"), { recursive: true });
+    mkdirSync(path.join(repo, "scripts"), { recursive: true });
+    mkdirSync(path.join(repo, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(path.join(repo, "node_modules", "pkg", "keep.txt"), "dep");
+    writeFileSync(path.join(repo, ".gitignore"), "/node_modules\n");
+    writeFileSync(path.join(repo, "src", "lib", "ayas", "Greeting.ts"), "export const greeting = \"merhaba\";\n");
+    writeFileSync(path.join(repo, "scripts", "smoke-ayas-flaky.ts"), "// an older suite this machine cannot pass\n");
+    const g = async (args: string[], cwd = repo) => {
+      const r = await runProcess("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.autocrlf=false", ...args], { cwd });
+      assert.equal(r.code, 0, `${args.join(" ")}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    await g(["init", "-q", "-b", "main"]);
+    await g(["add", "-A"]);
+    await g(["commit", "-q", "-m", "init"]);
+    const head = await g(["rev-parse", "HEAD"]);
+
+    // The owner's own request goes straight into the queue as an approved main-AYAS job.
+    await assert.rejects(requestDevelopment(work, "kısa"), /V3_REQUEST_TOO_SHORT/);
+    const req = await requestDevelopment(work, "Gelişim Merkezi'nde araştırma kartlarına tarih ekle\nher kartın altında, gün ve saatle.");
+    assert.deepEqual([req.durum, req.kapsam, req.kaynakTuru, req.baslik, req.beyin], ["onaylandi", "ayas", "istek", "Gelişim Merkezi'nde araştırma kartlarına tarih ekle", "sef"]);
+    assert.equal(nextJob([req])?.id, req.id);
+    assert.equal(nextJob([req], Date.now(), { ATOLYE_AYAS_GELISTIRME: "0" }), undefined, "main-AYAS jobs can be switched off on their own");
+    for (let i = 0; i < 4; i++) await requestDevelopment(work, `İstek numarası ${i} için yeterince uzun bir metin`);
+    await assert.rejects(requestDevelopment(work, "Altıncı istek kuyruk dolu olduğu için kabul edilmemeli"), /V3_REQUEST_LIMIT/);
+
+    // The lane's limits, the rules and the agent.
+    assert.deepEqual(forbiddenChanges(["src/lib/ayas/A.ts", "app/brain/actions.ts", "src/components/brain/AtolyeBrainsPanel.tsx", "src/lib/v3/maps/X.ts", "src/components/homepage/H.tsx", "package.json", "src/lib/brain/autonomy/AyasCodeChangeLane.ts", "scripts/v3/yapim.ts"], "ayas"),
+      ["src/components/homepage/H.tsx", "package.json", "src/lib/brain/autonomy/AyasCodeChangeLane.ts", "scripts/v3/yapim.ts"]);
+    assert.deepEqual(forbiddenChanges(["src/lib/ayas/A.ts"]), ["src/lib/ayas/A.ts"], "a V3 job still changes only the studio");
+    const packet = ayasTaskPacket(req, { sorunlar: ["tsc failed"] });
+    assert.ok(packet.startsWith(`AYAS GELİŞTİRME İŞİ ${req.id}`) && packet.includes("The owner asked AYAS for this") && packet.includes("THE LAST ATTEMPT WAS THROWN AWAY BECAUSE: tsc failed") && packet.includes("already does this"));
+    assert.ok(AYAS_DEVELOPER_RULES.includes("ayas-gelistirici") && AYAS_DEVELOPER_RULES.includes("ONAYLA VE UYGULA") && AYAS_DEVELOPER_RULES.includes("Do NOT run git") && AYAS_DEVELOPER_RULES.includes("smoke-ayas-observer-autostart"));
+    const agent = claudeAgent({ APPDATA: "C:\\AppData", ATOLYE_V3_CLAUDE_CLI: "" }, "ayas");
+    assert.ok(agent.some((a) => a.startsWith("--allowedTools=") && a.includes("Bash(npx tsx scripts/smoke-:*)") && a.includes("ayas-ui-audit")) && agent.includes(AYAS_DEVELOPER_RULES));
+    assert.ok(agent.some((a) => a === "--disallowedTools=Bash(npx tsx scripts/smoke-ayas-observer-autostart.ts:*)"));
+    assert.ok(!claudeAgent({ APPDATA: "C:\\AppData", ATOLYE_V3_CLAUDE_CLI: "" }).some((a) => a.includes("smoke-:*")), "a V3 job's tools are unchanged");
+
+    // The checks a main-AYAS build runs: its own suites, the closure suites, the suites naming a changed module, the V3 ones for a V3 file.
+    mkdirSync(path.join(base, "checks", "scripts"), { recursive: true });
+    for (const [name, text] of [["smoke-ayas-greeting.ts", "import { greeting } from \"../src/lib/ayas/Greeting\";"], ["smoke-ayas-other.ts", "// nothing"], ["smoke-ayas-action-firewall-closure.ts", ""], ["smoke-ayas-eval-yardstick-protection.ts", ""], ["smoke-v3-a.ts", ""], ["smoke-ayas-observer-autostart.ts", "Greeting"]] as const) writeFileSync(path.join(base, "checks", "scripts", name), text);
+    const labels = (await ayasChecks(path.join(base, "checks"), ["src/lib/ayas/Greeting.ts"])).map((c) => c.slice(1).join(" ").replace(/\\/g, "/"));
+    assert.deepEqual(labels.slice(1, -1).map((l) => l.replace(/^.*?(scripts\/smoke-[\w.-]+\.ts)$/, "$1")), ["scripts/smoke-ayas-action-firewall-closure.ts", "scripts/smoke-ayas-eval-yardstick-protection.ts", "scripts/smoke-ayas-greeting.ts"]);
+    assert.ok(labels[0]!.endsWith("tsc --noEmit") && labels.at(-1)!.endsWith("lint-yerel.mjs"));
+    assert.ok((await ayasChecks(path.join(base, "checks"), ["src/lib/v3/maps/X.ts"])).some((c) => c.some((a) => a.replace(/\\/g, "/").endsWith("scripts/smoke-v3-a.ts"))));
+
+    // A build: kept with its identity; a suite failing on the base too does not count, one the build changed does.
+    const fakeAgent = (code: string) => [process.execPath, "-e", `${code};process.stdin.resume();process.stdin.on("end",()=>console.log("selamlama değişti"))`];
+    const deps = (agentCode: string, checks: string[][]) => ({ repoRoot: repo, workRoot: work, worktreeRoot: path.join(base, "gelistirme"), agent: fakeAgent(agentCode), checks, log: () => {} });
+    const flaky = [process.execPath, "-e", "process.exit(1)", path.join("scripts", "smoke-ayas-flaky.ts")];
+    const pass = [process.execPath, "-e", "require('fs').accessSync('node_modules/pkg/keep.txt')"];
+    const done = await develop(req, deps(`require("fs").writeFileSync("src/lib/ayas/Greeting.ts","export const greeting = \\"selam\\";\\n")`, [pass, flaky]));
+    assert.equal(done.durum, "hazir", JSON.stringify(done.is));
+    assert.deepEqual([done.is?.taban, done.is?.tabandaDusen, done.is?.dosyaHash?.map((f) => f.path)], [head, ["scripts/smoke-ayas-flaky.ts"], ["src/lib/ayas/Greeting.ts"]]);
+    const build = codeBuildOf(done)!;
+    assert.ok(build && build.scope === "ayas" && build.commit === done.is?.commit && build.smokes.length === 0);
+    assert.equal(ayasCodeBuildHash(build), done.is?.yapiHash, "the identity the owner's card shows");
+    assert.equal(done.is!.dosyaHash![0]!.sha256, ayasCodeContentSha256("export const greeting = \"selam\";\n"));
+    const message = await g(["log", "-1", "--format=%B", `gelistirme/${req.id}`]);
+    assert.match(message, /^feat\(ayas\): Gelişim Merkezi'nde araştırma kartlarına tarih ekle/);
+    assert.ok(message.includes(ayasCodeJobTrailer(req.id)) && message.includes("AYAS geliştiricisi (Claude), owner isteği"));
+    assert.equal(await g(["rev-parse", "HEAD"]), head, "the checkout did not move");
+    assert.equal(readFileSync(path.join(repo, "node_modules", "pkg", "keep.txt"), "utf8"), "dep");
+    assert.equal(existsSync(path.join(base, "gelistirme", `${req.id}-taban`)), false, "the base worktree is gone too");
+    // The homepage is never changed through the lane; a suite the build changed always counts.
+    const other = (await listProposals(work)).map((x) => x.proposal).find((p) => p.kaynakTuru === "istek" && p.durum === "onaylandi")!;
+    const homepage = await develop(other, deps(`require("fs").mkdirSync("src/components/homepage",{recursive:true});require("fs").writeFileSync("src/components/homepage/H.tsx","x")`, [pass]));
+    assert.equal(homepage.durum, "yapilamadi");
+    assert.match(homepage.is!.sorunlar![0]!, /izin dışı dosyalar değişti: src\/components\/homepage\/H\.tsx/);
+    await updateProposal(work, other.id, (q) => ({ ...q, durum: "onaylandi" }));
+    const own = await develop((await listProposals(work)).find((x) => x.proposal.id === other.id)!.proposal, deps(`require("fs").writeFileSync("scripts/smoke-ayas-flaky.ts","// rewritten\\n")`, [flaky]));
+    assert.equal(own.durum, "yapilamadi");
+    assert.match(own.is!.sorunlar![0]!, /^kontrol geçmedi/);
+
+    // The owner's card, the click's outcome in the queue, REDDET.
+    let view = await loadAtolyeBrainsView(work);
+    const row = view.kuyruk.find((k) => k.id === req.id)!;
+    assert.deepEqual([row.kapsam, row.kaynak, row.yapi?.buildHash, row.yapi?.dosyalar, row.yapi?.tabandaDusen], ["ayas", "SENİN İSTEĞİN", done.is?.yapiHash, ["src/lib/ayas/Greeting.ts"], ["scripts/smoke-ayas-flaky.ts"]]);
+    await recordCodeApply(work, req.id, { status: "QUEUED", reasons: [] });
+    view = await loadAtolyeBrainsView(work);
+    assert.equal(view.kuyruk.find((k) => k.id === req.id)?.uygulama?.bekliyor, true);
+    assert.equal(codeBuildOf((await listProposals(work)).find((x) => x.proposal.id === req.id)!.proposal) && ayasCodeBuildHash(codeBuildOf((await listProposals(work)).find((x) => x.proposal.id === req.id)!.proposal)!), done.is?.yapiHash, "the click's mark leaves the identity alone");
+    await assert.rejects(rejectBuild(work, req.id), /V3_BUILD_APPLYING/);
+    const stale = await recordCodeApply(work, req.id, { status: "STALE", reasons: ["Greeting.ts değişti"] });
+    assert.deepEqual([stale.durum, stale.is?.uygulama?.durum], ["onaylandi", "bayat"], "back in the queue to be built on the new code");
+    await updateProposal(work, req.id, () => done);
+    const applied = await recordCodeApply(work, req.id, { status: "COMPLETED", commitSha: "c".repeat(40), reasons: [] });
+    assert.deepEqual([applied.durum, applied.is?.uygulama?.durum, applied.is?.uygulama?.commit], ["yapildi", "uygulandi", "c".repeat(40)]);
+    assert.equal((await recordCodeApply(work, req.id, { status: "REFUSED", reasons: ["x"] })).durum, "yapildi", "a job decided meanwhile keeps its state");
+    await updateProposal(work, req.id, () => done);
+    assert.equal((await rejectBuild(work, req.id)).durum, "reddedildi");
+    // A build made before the lane has no identity: no button, a reason instead.
+    await updateProposal(work, req.id, () => ({ ...done, is: { deneme: 1, baslangic: at(0), dal: `gelistirme/${req.id}`, dosyalar: ["src/lib/ayas/Greeting.ts"] } }));
+    view = await loadAtolyeBrainsView(work);
+    const old = view.kuyruk.find((k) => k.id === req.id)!;
+    assert.ok(!old.yapi?.buildHash && /geliştirme oturumu uygular/.test(old.yapi?.engel ?? ""));
+    assert.match(brainsReportText(view), /Geliştirme kuyruğu/);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);
