@@ -382,6 +382,8 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         "kalkan" | "kilic" | "gunes" | "orak_cekic" | "harf" (then "harf": 1–3 letters), "sayi": 4–12,
         "yerler": [{"satir": 0, "cephe": [[lon, lat], …]}, {"satir": 2, "kume": [lon, lat], "km": 1.5},
                    {"satir": 4, "kusatma": [lon, lat], "km": 2, "kayip": 2}]}]
+        // an emblem the side really bore in that year: no "hac" (cross) before 312 AD, when Constantine's army first
+        // marched under a Christian sign, and no "orak_cekic" before 1917.
         // each side's round emblem tokens along a front, in a cluster or ringing a besieged place, sliding to the next
         // formation with its line. "kayip": tokens lost on that line — the sides rush at each other and the losses fall
         // one by one, swords heard. On a fight line give BOTH sides a formation, side by side (on a close map a few

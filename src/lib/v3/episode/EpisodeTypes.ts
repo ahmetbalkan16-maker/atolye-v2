@@ -304,6 +304,14 @@ export interface MapVehicle {
 export const UNIT_EMBLEMS = ["kartal", "hilal", "hac", "yildiz", "aslan", "tac", "kalkan", "kilic", "gunes", "orak_cekic", "harf"] as const;
 export type UnitEmblem = (typeof UNIT_EMBLEMS)[number];
 
+/**
+ * The first year a side could bear an emblem: the episode's last year must not fall before it (the Cannae measurement,
+ * 9 Nov 2026, 216 BC: the quality brain found "a religious cross on the map"). The cross from Constantine's army under
+ * the Chi-Rho at the Milvian Bridge (312), the hammer and sickle from the October Revolution (1917); the others fit any
+ * year.
+ */
+export const UNIT_EMBLEM_FROM: Readonly<Partial<Record<UnitEmblem, number>>> = { hac: 312, orak_cekic: 1917 };
+
 /** Where a side's tokens stand: along a front line, in a cluster round a point, or in a ring round a besieged place. */
 export type UnitFormation =
   | { readonly cephe: readonly [number, number][] }

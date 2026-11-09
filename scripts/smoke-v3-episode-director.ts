@@ -41,6 +41,7 @@ import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../sr
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
+import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
 import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
@@ -1445,6 +1446,24 @@ async function main() {
     assert.deepEqual(sinking.vehicles![1]!.losses, [2.4, 3.4], "no more lost than there are");
     assert.equal(withMap({ ...six, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40], satir: 0, kayip: 1, kayip_satir: 0 }] }).ok, true);
     assert.equal(withMap({ ...six, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40], satir: 0, kayip: 1 }] }).ok, false, "a loss needs its line");
+  });
+
+  await scenario("O9b a side's emblem only from the year it was borne (Cannae measurement, 9 Nov 2026: \"a religious cross on the map\" in 216 BC)", () => {
+    const ep = sampleEpisode();
+    const map = (amblem: string): SceneMap => ({ merkez: [22, 40], genislik_km: 1200, birlikler: [{ taraf: "Romans", renk: "#c0392b", amblem: amblem as never, sayi: 4, yerler: [{ satir: 0, kume: [20, 40] }] }] });
+    const withMap = (amblem: string, donem: string) => validateEpisode({ ...ep, donem, sahneler: [{ ...ep.sahneler[0]!, harita: map(amblem) }] } as never);
+    const cannae = withMap("hac", "216 BC");
+    assert.deepEqual(cannae.errors.map((e) => e.code), ["HARITA_AMBLEM_DONEM"], JSON.stringify(cannae.errors.slice(0, 2)));
+    assert.ok(cannae.errors[0]!.path.endsWith("birlikler[0].amblem") && cannae.errors[0]!.message.includes("312"), cannae.errors[0]!.message);
+    assert.equal(withMap("hac", "MÖ 216").ok, false, "the Turkish BC form too");
+    assert.equal(withMap("kartal", "216 BC").ok, true, "Rome's eagle at Cannae");
+    assert.equal(withMap("hac", "312").ok, true, "Constantine's army at the Milvian Bridge");
+    assert.equal(withMap("hac", "1389").ok, true, "a Christian side in 1389");
+    assert.equal(withMap("orak_cekic", "1905").ok, false, "no hammer and sickle before the revolution");
+    assert.equal(withMap("orak_cekic", "1941").ok, true);
+    assert.equal(withMap("hac", "Antik çağ").ok, true, "a period without a year is not judged");
+    // The writer is told before it picks one.
+    assert.match(writingPrompt({ konu: "Cannae", donem: "216 BC", hedefSureSn: 180, ton: "epik", dil: "en" }, []), /no "hac" \(cross\) before 312 AD[\s\S]*no "orak_cekic" before 1917/);
   });
 
   await scenario("O7 the living map (owner, 22 Oct 2026): a conquest sweeps from where the army came, the old owner's name goes as the front passes, armies march, lines glow, the camera follows a march", () => {
