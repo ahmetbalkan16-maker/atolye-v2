@@ -1,3 +1,52 @@
+## 9 Kasım 2026 (3) — Cannae Short'u; tarih kapısı (senaryoda kim-ne-yaptı hatası gardıroptan önce durdurur)
+
+Owner: "Cannae Savaşı ile ilgili shorts videosu ürettirelim ayasa … takib et yardımcı beyinlere deneyim ve tecrübe
+olarak aktar … yardımcı beyinler codex yada claude olmadan kendini geliştiriyor mu"; durdurma sırasında "evet durdur ve
+bu durdurmayı sonraki videolar için sisteme ekle".
+
+**Sipariş** `20261109T052009-the-battle-of-cannae-2-august-216-bc-by-` (60sn, en, mizahi, kaynak ayas; konu metni
+olgularla: Hasdrubal'ın süvarisi, merkez hilal, Maharbal'ın sözü, filler Alpler'den sonra öldü). Senaryo yazıldıktan
+sonra okundu, tarih hataları: Maharbal'a Hasdrubal'ın süvarisi verilmiş; "Rome in a week?" diyen Hannibal (yürümeyi
+isteyen Maharbal, reddeden Hannibal — Livy 22.51); merkez "geri" bükülmüş (ileri hilal); Varro savaşta toga+miğfer;
+kaynaksız birlik sayıları. Doğrulayıcı (`dogrulama.json`) **0 iddia** ile "tamam" demişti. Owner onayıyla miks
+adımında durduruldu (`onceki-deneme-1/NEDEN.txt`), `episode-siparisli.json` elle düzeltildi, gardıroptan sürdü.
+İkinci deneme render'da ENOENT `remotion-v3/public/costumes/gardirob/pack.json`: yazar paketi "gardirob" yazmış,
+kostüm tarihçisi kalabalığa öneksiz kütüphane parçası vermiş ve Varro'yu yine togaya döndürmüş → `episode.json` elle
+(`onceki-deneme-2/`), render'dan sürdü. Tur 0: 55,9 sn, $0,385, kurul 7/10, UYARIYLA (2 eksik); final sahnesi artık
+doğru (Maharbal "Rome in five days!", Hannibal "Not yet.", Maharbal "Not how to use one."). Kalan kusurlar: Varro'nun
+defne tacı mavi bant gibi; 24–27 sn Romalılar dikey pencerede yok, merkez etiketi iki kez. AYAS bir rötuş turu açtı.
+
+**Kod (c9669730, 68c009c0):**
+- `ScriptPrompts.factCheckPrompt(…, order)`: sipariş metni doğrulayıcıya; öncelik kişi/eylem karışıklığı → manevra
+  yönü → çağ hatası; kaynak aralığındaki sayı doğru (eski istem gpt-4.1'de 86 000'i 70 000'e "düzeltiyordu").
+- `orderFidelityPrompt` + `readOrderFidelity`: ≥20 kelimelik siparişte her olgu tek tek; yalnız kişiyi değiştiren
+  (`changesPerson`) düzeltme uygulanır (esprileri "düzeltmesin").
+- `applyFactCheck`: her düzeltme ayrı doğrulanır (`bozuyor`), konuşan değişebilir (`karakter`, "Ad: …", kendi adıyla
+  seslenme), balon yeni sözle; **karakter repliği tek satır yamanmaz** (`sahne`).
+- `historyGate` / `checkScriptHistory`: düzeltilemeyen yanlış satır → `V3_SCRIPT_HISTORY` (gardıroptan önce durur);
+  `RepairBrain` bir kez yeni taslak (nedenler `tarih-hatalari.json` → yazarın `dersler`'i), yine olursa `dur`; AYAS'ın
+  "video durumu" cevabı başarısız adım satırını okur. Uzun bölümler de aynı kapıdan geçer.
+- `DraftNormalizer`: katalogda olmayan paket adı en yakın pakete (düzeltme mesafesi ≤ 2); `WardrobeBrain.qualifyParts`
+  + istem kuralı (savaşta komutan zırh); `PortraitFaces`: 1839 öncesine fotoğraf araması yok (`portraitQueries`,
+  `laterPhotograph`) — Hannibal Mejbri/Hannibal Hamlin aday gelmişti.
+- **Ölçüm** (gerçek gpt-4.1, hatalı orijinal senaryo + gerçek sipariş, `kapi-dene`): Hasdrubal 6/6, merkez 4/6
+  düzeltildi; iki karakterli final 6 koşunun 2'sinde satır yamasıyla bozuluyordu → artık durdurup yeniden yazdırır.
+  Not: ilk denemelerde `episode.konu` (yazarın kısa konusu) sipariş sanılmıştı; sipariş metni `brief.konu`'dur.
+
+**Beyinlere aktarılan:** kurgu `kural` (kim ne yaptı), araştırma (Cannae'de kim ne yaptı), kostüm (Varro savaşta zırh,
+defne tacı yalnız zaferde, Hannibal'ın yaşarken portresi yok + adaşlar, paket/parça adı), kalite `ogret`
+`cannae-short-romalilar-pencere-disinda` (25 sn, yakin-harita).
+
+**Otonomluk ölçümü (owner sorusu):** V3 öz-gelişim döngüsü Claude'suz çalışıyor (2–9 Kasım 40 döngü, $1,41: referans
+inceleme, benzer arama, kalite sınavı, kod öğrenme) ama **hiçbir öz-ayar kalıcı olmadı** (5 istem eki + ayar denemesinin
+5'i geri alındı; kalite sınavı 4 koşudur %83 — 8 soru, gürültü ±12). **Kod yazma Claude'a bağlı**: akşam geliştiricisi
+`claude -p`; çırak (gpt-4.1) yalnız Claude limitindeyken, yazma sınavı 1/4 (%25; eşik ≥6 sınavda %50). Ana AYAS'ın
+"priority-safe improvement" commit'leri (71 adet) şablon işi (smoke assert'lerine mesaj ekleme) ve her biri owner
+tıklamasıyla; kontrollü evrim 55/55 → yapacak iş yok.
+
+**Doğrulama:** tsc 0; lint 0/0 (2054); 18 smoke-v3 (script 31, director 61, council 15, likeness 25 …) +
+action-firewall-closure PASS. Canlıya alma ve izleyici yeniden başlatma: üretim bitince.
+
 ## 9 Kasım 2026 (2) — belirsiz araştırma turu tekrar oynatılmaz; pull sonrası Graphify "YENİLENİYOR", onarım 5 dk'da
 
 Owner: "onu da düzelt ayrıca graphify eski sistem kısmen bozuk diyor bunları da kalıcı olarak düzelt".
