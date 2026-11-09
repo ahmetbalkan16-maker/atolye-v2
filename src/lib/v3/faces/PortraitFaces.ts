@@ -78,27 +78,53 @@ export function namesPerson(c: Pick<CommonsCandidate, "title" | "description">, 
   return !own || said.some((w, i) => isName(w) && said[i + 1] === own);
 }
 
+/** The first year a person can have been photographed (the daguerreotype, 1839). */
+export const PHOTOGRAPHY_FROM = 1839;
+const PHOTO_WORDS = /(?<![a-z])(?:photo|photos|photograph|photography|photographic|fotografie|fotografia|foto)(?![a-z])/;
+const ARTWORK_WORDS = /(?<![a-z])(?:bust|statue|sculpture|relief|coin|tetradrachm|shekel|denarius|painting|engraving|etching|lithograph|mosaic|fresco|drawing|miniature|tapestry|museum|musee|museo|marble|bronze|medal|stele|cameo|gem)(?![a-z])/;
+
+/**
+ * The Commons searches for a person's portrait. Photographs only for someone who lived in the age of photography:
+ * the Cannae Short (9 Nov 2026) asked Commons for "Hannibal photograph" and got the footballer Hannibal Mejbri and
+ * Lincoln's vice-president Hannibal Hamlin as candidates for Hannibal Barca — each one a Wikimedia request that took
+ * the place (and the 429 quota) of a real portrait.
+ */
+export function portraitQueries(wiki: string, year: number | undefined): string[] {
+  const queries = [`${wiki} portrait`, `${wiki} painting`];
+  return year !== undefined && year < PHOTOGRAPHY_FROM ? queries : [...queries, `${wiki} photograph`];
+}
+
+/**
+ * A photograph that is not of an artwork, for a person from before photography: it shows a later namesake (Hannibal
+ * Hamlin's "photo portrait seated, c1860-65" for Hannibal Barca), an actor or a reenactor. A photographed bust, coin or
+ * painting stays — that is how an ancient face survives.
+ */
+export function laterPhotograph(c: Pick<CommonsCandidate, "title" | "description">, year: number | undefined): boolean {
+  if (year === undefined || year >= PHOTOGRAPHY_FROM) return false;
+  const said = plain(`${c.title.replace(/^File:/, "").replace(/\.\w+$/, "")} ${c.description.slice(0, 200)}`);
+  return PHOTO_WORDS.test(said) && !ARTWORK_WORDS.test(said);
+}
+
 /**
  * Portrait candidates: the article's lead image first (Wikipedia's choice of the person's likeness, judged even when its
  * file name does not say who it is), then — taken in turn, so no one source fills the list — the article's other
  * pictures and Commons' portraits, paintings and photographs (owner, 2 Nov 2026: "sadece büstlerden değil internetten
  * fotoğraflardan çizilmiş tablolardan da yapabilir"). Until then the article's own pictures filled all six places, and
  * a painting or photograph from Commons never reached the judge. Every one but the lead image must name the person.
+ * `year` is the episode's year: before photography no photograph of the person is searched or kept.
  */
-export async function portraitCandidates(cacheDir: string, p: PortraitPerson): Promise<CommonsCandidate[]> {
+export async function portraitCandidates(cacheDir: string, p: PortraitPerson, year?: number): Promise<CommonsCandidate[]> {
   const search = (q: string) => searchCommons(cacheDir, q, { minWidth: 400, landscape: false, limit: 8 }).catch(() => [] as CommonsCandidate[]);
   const lead = await leadImage(cacheDir, p.wiki).catch(() => undefined);
-  const [first, article, portraits, paintings, photographs] = await Promise.all([
+  const [first, article, ...searched] = await Promise.all([
     lead ? wikiFilesByTitles(cacheDir, [lead]).catch(() => [] as CommonsCandidate[]) : Promise.resolve([] as CommonsCandidate[]),
     wikipediaCandidates(cacheDir, p.wiki).catch(() => [] as CommonsCandidate[]),
-    search(`${p.wiki} portrait`),
-    search(`${p.wiki} painting`),
-    search(`${p.wiki} photograph`),
+    ...portraitQueries(p.wiki, year).map(search),
   ]);
   const usable = (c: CommonsCandidate, min = 400) => c.width === 0 || c.height >= min;
   const out = first.filter((c) => usable(c, LEAD_MIN_HEIGHT)).slice(0, 1);
   const seen = new Set(out.map((c) => c.url));
-  const queues = [article, portraits, paintings, photographs].map((q) => q.filter((c) => usable(c) && namesPerson(c, p)));
+  const queues = [article, ...searched].map((q) => q.filter((c) => usable(c) && namesPerson(c, p) && !laterPhotograph(c, year)));
   while (out.length < MAX_PORTRAIT_CANDIDATES && queues.some((q) => q.length)) {
     for (const q of queues) {
       const next = q.shift();
@@ -181,7 +207,7 @@ export async function findPortrait(input: {
   readonly faces?: (images: readonly Buffer[]) => Promise<(FaceMeasure | undefined)[]>;
 }): Promise<PortraitResult | undefined> {
   const { person, log } = input;
-  let candidates = await portraitCandidates(input.cacheDir, person);
+  let candidates = await portraitCandidates(input.cacheDir, person, periodEndYear(input.donem));
   if (input.faces && candidates.length) {
     const shown = candidates.slice(0, MAX_PORTRAIT_CANDIDATES);
     const previews = await Promise.all(shown.map((c) => commonsPreview(input.cacheDir, c).catch(() => undefined)));

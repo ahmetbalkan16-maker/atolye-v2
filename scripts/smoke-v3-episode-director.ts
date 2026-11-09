@@ -10,7 +10,7 @@ import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, se
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { applyParts, foreignFacePart, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
-import { LEAD_MIN_HEIGHT, namesPerson, portraitFaceProblem, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
+import { LEAD_MIN_HEIGHT, laterPhotograph, namesPerson, portraitFaceProblem, portraitQueries, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -1246,6 +1246,21 @@ async function main() {
     assert.equal(namesPerson(pic("Hamoud bin mhamed (cropped).jpg"), hamoud), true);
     assert.equal(namesPerson(pic("Joan of Arc miniature graded.jpg"), { ad: "Joan of Arc", wiki: "Joan of Arc" }), true, "the name before 'of' still counts");
     assert.equal(LEAD_MIN_HEIGHT <= 248, true, "Wikipedia's 192×248 crop of Hamoud's face is kept");
+  });
+
+  await scenario("O24c no photograph of someone from before photography (Cannae Short, 9 Nov 2026: Hannibal Mejbri and Hannibal Hamlin came up for Hannibal Barca)", () => {
+    const pic = (title: string, description = "") => ({ title: `File:${title}`, description });
+    assert.deepEqual(portraitQueries("Hannibal", -216), ["Hannibal portrait", "Hannibal painting"], "no photograph search in 216 BC");
+    assert.deepEqual(portraitQueries("Napoleon", 1815), ["Napoleon portrait", "Napoleon painting"]);
+    assert.deepEqual(portraitQueries("Atatürk", 1922), ["Atatürk portrait", "Atatürk painting", "Atatürk photograph"]);
+    assert.deepEqual(portraitQueries("Someone", undefined), ["Someone portrait", "Someone painting", "Someone photograph"], "unknown period keeps the old searches");
+    assert.equal(laterPhotograph(pic("Hannibal Hamlin, photo portrait seated, c1860-65-retouched.jpg"), -216), true, "a namesake's photograph");
+    assert.equal(laterPhotograph(pic("Hannibal Hamlin, photo portrait seated, c1860-65-retouched.jpg"), 1861), false, "Hamlin himself, in his own time");
+    assert.equal(laterPhotograph(pic("Hannibal Barca bust, photo by Ruthven.jpg"), -216), false, "a photographed bust is how an ancient face survives");
+    assert.equal(laterPhotograph(pic("Carthage coin Hannibal.jpg", "Photograph of a Carthaginian shekel"), -216), false);
+    assert.equal(laterPhotograph(pic("Pauwels Casteels - Hannibal in the Alps.jpg"), -216), false, "a painting");
+    assert.equal(laterPhotograph(pic("Photographer at work.jpg"), -216), false, "a word that only starts like photo");
+    assert.equal(namesPerson(pic("Hannibal Mejbri 21032026 (4).jpg"), { ad: "Hannibal", wiki: "Hannibal" }), true, "the name test alone cannot tell a namesake — the search must not ask for photographs");
   });
 
   await scenario("O25 Kosovo 1389 maps: two fronts on one line are pushed apart, badges resting on one spot move aside, an inland close map asks no coast, a later atlas year is flagged", () => {
