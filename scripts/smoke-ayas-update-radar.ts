@@ -81,14 +81,14 @@ scenario("V3's Remotion is tracked from remotion-v3's own lock and briefed with 
     ...findings, finding({ findingId: "pitch", provider: "Remotion", evidenceQuote: "Preserve pitch when changing playback speed", sourceUrl: "https://github.com/remotion-dev/remotion/releases/tag/v4.0.538" }),
   ] });
   const item = withRemotion.find((entry) => entry.sourceId === "remotion")!;
-  assert.deepEqual([item.target, item.installedVersion, item.latestVersion, item.bump, item.newerStableReleases, item.applyChannel], ["npm:remotion-v3/remotion", "4.0.536", "4.0.538", "PATCH", 1, "DEVELOPMENT_SESSION"]);
-  assert.deepEqual(item.evidence.map((entry) => entry.findingId), ["pitch"]);
+  assert.deepEqual([item.target, item.installedVersion, item.latestVersion, item.bump, item.newerStableReleases, item.applyChannel], ["npm:remotion-v3/remotion", "4.0.536", "4.0.538", "PATCH", 1, "DEVELOPMENT_SESSION"], "assert.deepEqual([item.target, item.installedVersion, item.latestVersion, item.bump, item.newerStableReleases, item.applyChannel], [\"npm:remotion-v3/remotion\", \"4.0.536\", \"4.0.538\", \"PATCH\", 1, \"DEVELOPMENT_SESSION\"])");
+  assert.deepEqual(item.evidence.map((entry) => entry.findingId), ["pitch"], "assert.deepEqual(item.evidence.map((entry) => entry.findingId), [\"pitch\"])");
   assert.deepEqual(item.brief.affectedFiles, ["remotion-v3/src/scene/Map.tsx"], "the sub-package's own importers, not the root's");
   assert.match(item.brief.summary, /remotion-v3\//);
   assert.ok(item.brief.validation.includes("Remotion ile 15 karelik deneme videosu") && item.brief.validation.includes("npx tsx scripts/smoke-v3-motion.ts"), JSON.stringify(item.brief.validation));
   assert.match(item.brief.risk, /canlı uygulama etkilenmez/);
   // The root tools read exactly as before (same targets, so existing approvals keep their item hash).
-  assert.deepEqual(withRemotion.filter((entry) => entry.sourceId !== "remotion").map((entry) => [entry.sourceId, entry.target, entry.itemHash]), radar.map((entry) => [entry.sourceId, entry.target, entry.itemHash]));
+  assert.deepEqual(withRemotion.filter((entry) => entry.sourceId !== "remotion").map((entry) => [entry.sourceId, entry.target, entry.itemHash]), radar.map((entry) => [entry.sourceId, entry.target, entry.itemHash]), "assert.deepEqual(withRemotion.filter((entry) => entry.sourceId !== \"remotion\").map((entry) => [entry.sourceId, entry.target, entry.itemHash]), radar.map((entry) => [entry.sourceId, entry.target, entry.itemHash]))");
   fs.rmSync(path.join(repo, "remotion-v3"), { recursive: true, force: true });
 });
 scenario("research health reports degraded, quiet and healthy states with reasons", () => {
