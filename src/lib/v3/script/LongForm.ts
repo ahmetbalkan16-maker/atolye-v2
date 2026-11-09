@@ -318,7 +318,7 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     scenes.push(...chapterScenes);
     previous = chapterEnding(chapterScenes, outline.header.oyuncu_kadrosu);
     log(`  bölüm ${i + 1}/${outline.bolumler.length} "${ch.baslik}": ${chapterScenes.length} sahne, ${wordsOf(chapterScenes)}/${want} kelime`);
-    factChecks.push((await d.budget.generate(`dogrulama-${i + 1}`, d.checker, factCheckPrompt(JSON.stringify(chapterEpisode(outline, i, chapterScenes)), d.brief.dil, d.brief.kaynakBankasi), { maxTokens: 3_000 })).result.content);
+    factChecks.push((await d.budget.generate(`dogrulama-${i + 1}`, d.checker, factCheckPrompt(JSON.stringify(chapterEpisode(outline, i, chapterScenes)), d.brief.dil, d.brief.kaynakBankasi, d.brief.konu), { maxTokens: 3_000 })).result.content);
   }
   // 3) The story editor reads the whole and mends each break with one line; mends that would break the episode are dropped.
   let joined = scenes;

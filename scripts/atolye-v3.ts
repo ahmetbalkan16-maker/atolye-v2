@@ -810,9 +810,18 @@ async function main() {
         // An era the atlas lacks is written once by the archivist (one short text call) and kept for later episodes.
         const era = await ensureEra({ atlas, donem: period, konu, workRoot: paths.workRoot, budget, model: providerName === "openai" ? { provider: "openai", model: "gpt-4.1-mini" } : { provider: "ollama" }, log });
         const donemKiyafetleri = era ? periodDressBlock({ ...atlas, donemler: [era] }, period) : undefined;
+        // The history gate's stop (owner, 9 Nov 2026: "bu durdurmayı sonraki videolar için sisteme ekle"): what an
+        // earlier draft of this very script got wrong goes to the writer of the next one.
+        const historyErrors = existsSync(f("tarih-hatalari.json")) ? (await readJson<{ hatalar: string[] }>(f("tarih-hatalari.json"))).hatalar : [];
+        for (const h of historyErrors) dersler.push(`An earlier draft of THIS script got this history wrong — tell it right, with the deed or words given to the person history gives them to: ${h}`);
         const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}), ...(donemKiyafetleri ? { donemKiyafetleri } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
+          if (e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && e.reasons?.length) {
+            await writeJson(f("tarih-hatalari.json"), { hatalar: [...historyErrors, ...e.reasons].slice(-8) });
+            for (const r of e.reasons) log(`  tarih kapısı: ${r}`);
+            council.find({ beyin: "arastirma", onem: "uyari", baslik: "senaryoda tarih hatası — üretim gardıroptan önce durdu", ayrinti: e.reasons.join(" | ").slice(0, 600), oneri: "yeni taslak bu hataları bilerek yazılır; yine olursa bir kişi bakmalı", tur: "veri", yer: "senaryo" });
+          }
           throw e;
         });
         const written = series ? { ...out.episode, dizi: series } : out.episode;

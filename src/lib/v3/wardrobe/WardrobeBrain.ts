@@ -131,6 +131,7 @@ export async function reviewCostumes(episode: Episode, catalog: readonly PackCat
   const items = catalog.map((p) => `${p.pack}: ${Object.values(p.items).flat().map((id) => (p.notes?.[id!] ? `${id} (${p.notes[id!]})` : id)).join(", ")}`).join("\n");
   const prompt = `You are the historian of an animated history show's costume team. Episode: "${episode.konu}" (${episode.donem}).
 Check each costume against the period, the place and the person's rank: body garment, colours, headwear, beard, held objects.
+The garment for what the person does in the episode: a commander or magistrate on campaign or in battle wears armour, not civic or court dress (a Roman consul leading an army wears a cuirass and a general's red sash, never his toga — the Cannae Short, 9 Nov 2026, put Varro in a toga on the battlefield).
 Headwear only for those who wore it in that role and period (soldiers' helmets, rulers' crowns, a turban, a working cap); many went bareheaded — Roman senators and citizens in town, for example: then remove "bas" and give "sac" ({"stil", "renk"}) instead.
 Colours as that rank could wear them: costly dyes marked rank (in Rome and Byzantium purple was for emperors, magistrates and the senators' stripe, never a common soldier; legionaries wore red or undyed wool). Correct a colour with another hex code.
 Garments available: kaftan, cubbe, zirh, onluk, bizans, yeniceri, sade, tunik, toga, ceket, uniforma, takim, elbise.
@@ -149,7 +150,9 @@ Return ONLY JSON: {"sorunlar": [{"kim": "…", "sorun": "…"}], "duzeltmeler": 
   let applied = 0;
   for (const d of v?.duzeltmeler ?? []) {
     if (!d.kim || typeof d.kostum !== "object" || d.kostum === null) continue;
-    const next = applyCostume(current, d.kim, d.kostum as Record<string, unknown>);
+    const pack = /^(.+)\/kalabalik\/(\d+)$/.exec(d.kim);
+    const own = pack ? current.sahneler.find((s) => s.id === pack[1])?.kalabalik?.[Number(pack[2])]?.kostum_paketi : current.oyuncu_kadrosu.find((c) => c.id === d.kim)?.kostum_paketi;
+    const next = applyCostume(current, d.kim, qualifyParts(d.kostum as Record<string, unknown>, own ?? "", catalog));
     if (next && validateEpisode(next).ok) {
       current = next;
       applied++;
@@ -158,6 +161,25 @@ Return ONLY JSON: {"sorunlar": [{"kim": "…", "sorun": "…"}], "duzeltmeler": 
   transcript.push({ rol: "Şef", metin: `${applied} düzeltme uygulandı${(v?.duzeltmeler?.length ?? 0) > applied ? `, ${(v?.duzeltmeler?.length ?? 0) - applied} düzeltme bölümü bozacağı için alınmadı` : ""}` });
   deps.council.debate("kostum", "kostüm incelemesi", transcript);
   return current;
+}
+
+/**
+ * A correction's library parts with their pack: the historian named a part by its bare id
+ * ("roman-legionary-helmet-with-a-red-crest-b64362", Cannae Short, 9 Nov 2026) for a crowd whose own pack does not have
+ * it, and the render looked for it in that pack and stopped. A bare id of another pack gets that pack's name; one no
+ * pack has is left out (the costume keeps its old part).
+ */
+export function qualifyParts(kostum: Record<string, unknown>, pack: string, catalog: readonly PackCatalogEntry[]): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...kostum };
+  for (const f of PART_FIELDS) {
+    const v = out[f];
+    if (typeof v !== "string" || !v.trim() || v.includes("/") || v.startsWith("yeni:") || /^(none|null|yok|-)$/i.test(v.trim())) continue;
+    const owners = catalog.filter((p) => Object.values(p.items).some((ids) => ids?.includes(v)));
+    if (owners.some((p) => p.pack === pack)) continue;
+    if (owners.length) out[f] = `${owners[0]!.pack}/${v}`;
+    else delete out[f];
+  }
+  return out;
 }
 
 /** A correction's parts: one set to null, empty or "none" is removed, as is "bas" when "sac" is given without it. */

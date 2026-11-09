@@ -49,6 +49,9 @@ export function knownRemedy(c: RepairContext): RepairAction | undefined {
   if (/V3_RESEARCH_NOTHING/.test(e)) return { tur: "dur", neden: "konunun Wikipedia makalesi bulunamadı; aynı arama yine boş döner" };
   if (/V3_RESEARCH_THIN/.test(e)) return c.attempt <= 1 ? { tur: "bekle_tekrar", saniye: 0, neden: "az olgu doğrulandı; yeni çıkarım" } : { tur: "dur", neden: "makalelerden yeterli olgu doğrulanamadı" };
   if (/V3_SCRIPT_INVALID|V3_SCRIPT_NO_JSON|V3_SCRIPT_JSON_SYNTAX/.test(e)) return c.attempt <= 2 ? { tur: "bekle_tekrar", saniye: 0, neden: "senaryo taslağı geçersiz; yeni taslak" } : { tur: "dur", neden: "üç taslak da geçersiz" };
+  // The history gate (owner, 9 Nov 2026: "bu durdurmayı sonraki videolar için sisteme ekle"): a wrong line no correction
+  // fixed gets one fresh script; when that one has one too, the video waits for a person rather than being made wrong.
+  if (/V3_SCRIPT_HISTORY/.test(e)) return c.attempt <= 1 ? { tur: "bekle_tekrar", saniye: 0, neden: "senaryoda düzeltilemeyen tarih hatası; yeni taslak" } : { tur: "dur", neden: "yeni taslakta da düzeltilemeyen tarih hatası var — bir kişinin bakması gerek" };
   if (/V3_PYTHON_EXIT|V3_PYTHON_START_TIMEOUT|V3_TTS_START_TIMEOUT|V3_SDXL_FAILED/.test(e)) return { tur: "bekle_tekrar", saniye: 15, neden: "model süreci çöktü; yeniden başlatılıyor" };
   if (c.step === "render" && /Target closed|Protocol error|crash|ERR_|timed out|Timeout/i.test(e)) {
     const now = Number(c.env.ATOLYE_V3_RENDER_CONCURRENCY) || 0;

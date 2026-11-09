@@ -62,6 +62,9 @@ async function main() {
     assert.equal(knownRemedy(ctx('V3_RESEARCH_NOTHING: "Sezar’ın rubicon’u geçmesi" için okunabilir Wikipedia makalesi bulunamadı', { step: "senaryo" }))?.tur, "dur", "aynı arama yine boş döner");
     assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo" }))?.tur, "bekle_tekrar");
     assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo", attempt: 2 }))?.tur, "dur");
+    // The history gate (owner, 9 Nov 2026): one fresh script, then the video waits for a person.
+    assert.equal(knownRemedy(ctx("V3_SCRIPT_HISTORY: tarih hatası düzeltilemedi — s4 #1", { step: "senaryo" }))?.tur, "bekle_tekrar");
+    assert.equal(knownRemedy(ctx("V3_SCRIPT_HISTORY: tarih hatası düzeltilemedi — s4 #1", { step: "senaryo", attempt: 2 }))?.tur, "dur");
     assert.equal(knownRemedy(ctx("TypeError: cannot read properties of undefined")), undefined);
   });
 

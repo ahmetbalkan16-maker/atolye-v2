@@ -142,6 +142,17 @@ const EMPTY = /^(none|no|null|yok|-|n\/a)?$/i;
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
+/** Letters to change, add or drop to turn one word into the other (a pack name's typo: "gardirob" → "gardirop" is 1). */
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) row.push(Math.min(prev[j]! + 1, row[j - 1]! + 1, prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    prev = row;
+  }
+  return prev[b.length]!;
+}
+
 export interface NormalizedDraft {
   readonly value: unknown;
   readonly fixes: readonly string[];
@@ -185,6 +196,18 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
     }
   };
 
+  // A pack name the catalog lacks: the Cannae Short (9 Nov 2026) wrote "gardirob" for the wardrobe library "gardirop";
+  // every bare item of it was looked up in a pack that does not exist and the render stopped (ENOENT pack.json).
+  const packs = catalog.map((p) => p.pack);
+  const fixPack = (c: Obj, where: string) => {
+    const pack = typeof c.kostum_paketi === "string" ? c.kostum_paketi.trim() : "";
+    if (!pack || packs.includes(pack) || !packs.length) return;
+    const near = packs.map((p) => [p, editDistance(p, pack)] as const).sort((a, b) => a[1] - b[1])[0]!;
+    const to = near[1] <= 2 ? near[0] : defaultPack;
+    fixes.push(`${where}.kostum_paketi "${pack}" katalogda yok → ${to}`);
+    c.kostum_paketi = to;
+  };
+
   const cast = Array.isArray(draft.oyuncu_kadrosu) ? (draft.oyuncu_kadrosu as unknown[]) : [];
   for (const [i, c] of cast.entries()) {
     if (!isObj(c)) continue;
@@ -202,6 +225,7 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       c.kostum_paketi = defaultPack;
       fixes.push(`${where}.kostum_paketi → ${defaultPack}`);
     }
+    fixPack(c, where);
     if (isObj(c.kostum)) fixCostume(c.kostum, String(c.kostum_paketi ?? defaultPack), `${where}.kostum`);
   }
   const visible = new Set(cast.filter((c) => isObj(c) && c.gorunur === true).map((c) => String((c as Obj).id)));
@@ -341,6 +365,7 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
     for (const [gi, g] of (s.kalabalik as unknown[]).entries()) {
       if (!isObj(g)) continue;
       if (typeof g.kostum_paketi !== "string" || !g.kostum_paketi.trim()) g.kostum_paketi = defaultPack;
+      fixPack(g, `sahneler[${si}].kalabalik[${gi}]`);
       if (isObj(g.kostum)) fixCostume(g.kostum, String(g.kostum_paketi), `sahneler[${si}].kalabalik[${gi}].kostum`);
     }
   }

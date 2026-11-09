@@ -44,7 +44,7 @@ import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormaliz
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
-import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
+import { colourName, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
@@ -1621,6 +1621,25 @@ async function main() {
     assert.equal(halil.kostum!.bas, undefined, "hair given without a hat: the hat goes");
     assert.equal(halil.kostum!.sakal, "sakal-beyaz", "a part the correction does not name stays");
     assert.equal(validateEpisode(reviewed).ok, true);
+  });
+
+  await scenario("P3b a pack name's typo and a bare library part (Cannae Short, 9 Nov 2026: \"gardirob\", the render stopped on its pack.json)", () => {
+    const catalog = [{ pack: "ottoman-1453", title: "o", items: { head: ["padisah-kavugu"] } }, { pack: "gardirop", title: "g", items: { head: ["roman-legionary-helmet-with-a-red-crest-b64362"] } }];
+    const ep = sampleEpisode();
+    const draft = JSON.parse(JSON.stringify(ep)) as { oyuncu_kadrosu: Record<string, unknown>[]; sahneler: Record<string, unknown>[] };
+    draft.oyuncu_kadrosu[1]!.kostum_paketi = "gardirob";
+    draft.sahneler[0] = { ...draft.sahneler[0], kalabalik: [{ ad: "Army", kostum_paketi: "gardirob", kostum: { giysi: "zirh", renkler: { ana: "#8b0000", ikincil: "#333333", ic: "#cccccc", sus: "#e8b23a" }, bas: "roman-legionary-helmet-with-a-red-crest-b64362", ayakkabi: "kahve-mest" } }] };
+    const { value, fixes } = normalizeDraft(draft, catalog);
+    const v = value as Episode;
+    assert.equal(v.oyuncu_kadrosu[1]!.kostum_paketi, "gardirop");
+    assert.equal(v.sahneler[0]!.kalabalik![0]!.kostum_paketi, "gardirop");
+    assert.ok(fixes.some((f) => f.includes('"gardirob" katalogda yok → gardirop')), fixes.join(" | "));
+    const far = JSON.parse(JSON.stringify(ep)) as { oyuncu_kadrosu: Record<string, unknown>[] };
+    far.oyuncu_kadrosu[1]!.kostum_paketi = "roman-army";
+    assert.equal((normalizeDraft(far, catalog).value as Episode).oyuncu_kadrosu[1]!.kostum_paketi, "ottoman-1453", "nothing near: the first pack");
+    // The historian's correction with a bare id of another pack gets the pack; an id no pack has keeps the old part.
+    assert.deepEqual(qualifyParts({ giysi: "zirh", bas: "roman-legionary-helmet-with-a-red-crest-b64362" }, "ottoman-1453", catalog), { giysi: "zirh", bas: "gardirop/roman-legionary-helmet-with-a-red-crest-b64362" });
+    assert.deepEqual(qualifyParts({ bas: "padisah-kavugu", sakal: "made-up-beard", el_on: "yeni:a spear" }, "ottoman-1453", catalog), { bas: "padisah-kavugu", el_on: "yeni:a spear" });
   });
 
   await scenario("Q opening cover and closing subscribe card: everything shifts by the cover, the title shows on it, the last seconds carry the card", () => {

@@ -6,7 +6,7 @@ import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
-import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
+import { factCheckPrompt, lengthPrompt, orderFidelityPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
 /**
@@ -15,10 +15,12 @@ import type { V3Budget, V3ModelChoice } from "./V3Budget";
  */
 export class ScriptError extends Error {
   constructor(
-    readonly code: "V3_SCRIPT_NO_JSON" | "V3_SCRIPT_JSON_CUT" | "V3_SCRIPT_JSON_SYNTAX" | "V3_SCRIPT_REFUSED" | "V3_SCRIPT_INVALID",
+    readonly code: "V3_SCRIPT_NO_JSON" | "V3_SCRIPT_JSON_CUT" | "V3_SCRIPT_JSON_SYNTAX" | "V3_SCRIPT_REFUSED" | "V3_SCRIPT_INVALID" | "V3_SCRIPT_HISTORY",
     message: string,
     /** The last draft that failed, kept for diagnosis. */
     readonly draft?: string,
+    /** V3_SCRIPT_HISTORY: what the history gate found wrong, for the next draft's writer (atolye-v3 tarih-hatalari.json). */
+    readonly reasons?: readonly string[],
   ) {
     super(`${code}: ${message}`);
   }
@@ -33,8 +35,18 @@ export interface FactClaim {
   readonly gerekce?: string;
   readonly yeni_metin?: string;
   readonly kaynak_onerisi?: string;
-  /** What happened to the claim: the line was rewritten, or why it was not. */
-  readonly sonuc?: "duzeltildi" | "rivayet_eklendi" | "rapor" | "bulunamadi" | "gecersiz_metin";
+  /**
+   * The cast id who should say the corrected line, when history gives it to another character (Cannae Short, 9 Nov
+   * 2026: Maharbal, not Hannibal, urged the march on Rome — the text alone could not put that right).
+   */
+  readonly karakter?: string;
+  /** Which check found it: the editor's fact check (default) or the order-fidelity check (`siparis`). */
+  readonly denetim?: "siparis";
+  /**
+   * What happened to the claim: the line was rewritten, or why it was not (`bozuyor`: the episode would not validate;
+   * `sahne`: a character's line — the scene must be written again, see `applyFactCheck`).
+   */
+  readonly sonuc?: "duzeltildi" | "rivayet_eklendi" | "rapor" | "bulunamadi" | "gecersiz_metin" | "bozuyor" | "sahne";
 }
 
 export interface FactCheckReport {
@@ -201,9 +213,91 @@ function readFactCheck(text: string): { iddialar: FactClaim[]; genel_not?: strin
       ...(typeof o.gerekce === "string" ? { gerekce: o.gerekce } : {}),
       ...(typeof o.yeni_metin === "string" ? { yeni_metin: o.yeni_metin.trim() } : {}),
       ...(typeof o.kaynak_onerisi === "string" && o.kaynak_onerisi.trim() ? { kaynak_onerisi: o.kaynak_onerisi.trim() } : {}),
+      ...(typeof o.karakter === "string" && o.karakter.trim() ? { karakter: o.karakter.trim() } : {}),
     }];
   });
   return { iddialar, ...(typeof v.genel_not === "string" && v.genel_not.trim() ? { genel_not: v.genel_not.trim() } : {}) };
+}
+
+/** Name words of a text: capitalised words not opening a sentence ("Hasdrubal's" → "Hasdrubal"). */
+function nameWords(text: string, known: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const m of text.matchAll(/(^|[.!?]\s+|\s|["'(—–-])(\p{Lu}[\p{L}]{2,})(?:['’]s)?/gu)) {
+    const w = m[2]!;
+    if (known.has(w) || !/^$|[.!?]\s+$/.test(m[1]!)) out.add(w);
+  }
+  return out;
+}
+
+/**
+ * Whether a correction changes WHO a line names (a person's deed given back to its owner) — the only kind of the
+ * order-fidelity check's answers applied without a person reading them: asked about every fact, it also "corrects"
+ * jokes the order never mentions ("Now that's what I call a group hug" → "The trap's shut"), which keep their words.
+ */
+export function changesPerson(oldText: string, newText: string, known: ReadonlySet<string>): boolean {
+  const before = nameWords(oldText, known);
+  const after = nameWords(newText, known);
+  const gained = [...after].some((w) => !before.has(w) && known.has(w));
+  const lost = [...before].some((w) => !after.has(w) && known.has(w));
+  return gained && lost;
+}
+
+/** The people the order and the cast name: capitalised words of the order, the cast's names. */
+export function knownNames(order: string, cast: readonly { readonly ad: string }[]): Set<string> {
+  const out = new Set<string>();
+  for (const m of order.matchAll(/(\p{Lu}[\p{L}]{2,})/gu)) if (!NOT_NAMES.has(m[1]!)) out.add(m[1]!);
+  for (const c of cast) for (const m of c.ad.matchAll(/(\p{Lu}[\p{L}]{2,})/gu)) if (!NOT_NAMES.has(m[1]!)) out.add(m[1]!);
+  return out;
+}
+
+/** Capitalised words that open sentences, not names. */
+const NOT_NAMES = new Set(["The", "And", "But", "His", "Her", "Their", "This", "That", "These", "Those", "When", "Then", "After", "Before", "About", "Only", "With", "From", "Narrator"]);
+
+/** An order with facts to compare (the owner's or AYAS's detailed brief), not a bare topic ("Cannae hakkında video yap"). */
+export const ORDER_FACTS_MIN_WORDS = 20;
+
+/**
+ * The order-fidelity check's answer (ScriptPrompts.orderFidelityPrompt) as claims: only a "celisir" whose correction
+ * changes who the line names, and lines that exist in the episode.
+ */
+export function readOrderFidelity(text: string, episode: Pick<Episode, "sahneler" | "oyuncu_kadrosu">, order: string): FactClaim[] | undefined {
+  const parsed = parse(text);
+  if (!parsed.ok || typeof parsed.value !== "object" || parsed.value === null) return undefined;
+  const v = parsed.value as { olgular?: unknown };
+  if (!Array.isArray(v.olgular)) return undefined;
+  const known = knownNames(order, episode.oyuncu_kadrosu);
+  return v.olgular.flatMap((c): FactClaim[] => {
+    if (typeof c !== "object" || c === null) return [];
+    const o = c as Record<string, unknown>;
+    if (o.karar !== "celisir" || typeof o.sahne !== "string" || typeof o.satir !== "number" || typeof o.yeni_metin !== "string") return [];
+    const line = episode.sahneler.find((s) => s.id === o.sahne)?.satirlar[o.satir];
+    if (!line || !changesPerson(line.metin, o.yeni_metin, known)) return [];
+    const why = [typeof o.olgu === "string" ? `sipariş: ${o.olgu}` : "", typeof o.gerekce === "string" ? o.gerekce : ""].filter(Boolean).join(" — ");
+    return [{ sahne: o.sahne, satir: o.satir, karar: "yanlis", ...(why ? { gerekce: why } : {}), yeni_metin: o.yeni_metin.trim(), ...(typeof o.karakter === "string" && o.karakter.trim() ? { karakter: o.karakter.trim() } : {}), denetim: "siparis" }];
+  });
+}
+
+/** Titles in a cast name that call no one by name. */
+const TITLES = new Set(["Paşa", "Pasha", "Sultan", "Sultanı", "King", "Queen", "Emperor", "Consul", "General", "Lord", "Lady", "Sir", "Bey", "Han", "Khan"]);
+
+/** The words a person is called by ("Gaius Terentius Varro" → Gaius, Terentius, Varro; "Zağanos Paşa" → Zağanos). */
+function nameWordsOf(ad: string): string[] {
+  return [...ad.matchAll(/(\p{Lu}[\p{L}]{2,})/gu)].map((m) => m[1]!).filter((w) => !NOT_NAMES.has(w) && !TITLES.has(w));
+}
+
+const anyName = (ad: string) => nameWordsOf(ad).join("|");
+
+/** Whether a line addresses someone by their name ("Hannibal, let's go", "So, Hannibal, …", "…, Hannibal!"). */
+export function callsByName(text: string, ad: string): boolean {
+  const n = anyName(ad);
+  if (!n) return false;
+  return new RegExp(`(^|[,.!?—–]\\s*)(?:${n})\\s*[,!?—–]|,\\s*(?:${n})\\s*[.!?,]|,\\s*(?:${n})$`, "u").test(text.trim());
+}
+
+/** The speech bubble for a corrected line: its shortest sentence when it fits a bubble (≤ 8 words, 70 chars). */
+function bubbleOf(text: string): string | undefined {
+  const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  return sentences.filter((s) => countWords(s) <= 8 && s.length <= 70).sort((a, b) => a.length - b.length)[0];
 }
 
 /**
@@ -217,24 +311,82 @@ export async function checkFacts(episode: Episode, dil: ScriptLanguage, bank: So
 
 /**
  * Applies the editor's verdicts: a wrong line is replaced by its correction, a disputed one gets its hedged text
- * and `rivayet`; an unsupported one is only reported (a suggested source cannot be verified here).
+ * and `rivayet`; an unsupported one is only reported (a suggested source cannot be verified here). A correction may
+ * give the line to another cast member (`karakter`, or a "Maharbal: …" the checker wrote into the text); a line with a
+ * speech bubble gets the new words in it (the old bubble would have floated the wrong history). Each correction is kept
+ * only if a valid episode stays valid — until 9 Nov 2026 one bad correction threw all of them away.
  */
 export function applyFactCheck(episode: Episode, claims: readonly FactClaim[]): { episode: Episode; claims: FactClaim[]; applied: number } {
-  const copy = JSON.parse(JSON.stringify(episode)) as { sahneler: { id: string; satirlar: Record<string, unknown>[] }[] };
+  type Line = Record<string, unknown> & { karakter?: string; metin?: string; balon?: string };
+  let copy = JSON.parse(JSON.stringify(episode)) as { oyuncu_kadrosu?: { id: string; ad: string; gorunur?: boolean }[]; sahneler: { id: string; satirlar: Line[] }[] };
+  const cast = copy.oyuncu_kadrosu ?? [];
+  const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
+  const castBy = (who: string) => cast.find((c) => c.id === who.trim() || fold(c.ad) === fold(who));
+  const checkValid = validateEpisode(episode).ok;
   let applied = 0;
   const out = claims.map((claim): FactClaim => {
     if (claim.karar === "dogru") return claim;
-    const line = copy.sahneler.find((s) => s.id === claim.sahne)?.satirlar[claim.satir];
-    if (!line) return { ...claim, sonuc: "bulunamadi" };
+    if (!copy.sahneler.find((s) => s.id === claim.sahne)?.satirlar[claim.satir]) return { ...claim, sonuc: "bulunamadi" };
     if (claim.karar === "kaynaksiz") return { ...claim, sonuc: "rapor" };
-    const text = claim.yeni_metin ?? "";
+    // A character's invented line told wrong is part of an exchange: measured on the Cannae script (9 Nov 2026, six
+    // runs) one-line corrections put Maharbal's urging into Hannibal's mouth, or wrote over Maharbal's true retort. Such
+    // a line is not patched; the history gate has the script written again (V3_SCRIPT_HISTORY).
+    const told = copy.sahneler.find((s) => s.id === claim.sahne)!.satirlar[claim.satir]!;
+    if (claim.karar === "yanlis" && told.kurgu === true && told.karakter !== "anlatici") return { ...claim, sonuc: "sahne" };
+    let text = (claim.yeni_metin ?? "").trim().replace(/^["“]([\s\S]*)["”]$/u, "$1").trim();
+    let speaker = claim.karakter ? castBy(claim.karakter) : undefined;
+    const prefixed = /^([^:"“]{2,40}):\s*([\s\S]+)$/u.exec(text);
+    const named = prefixed ? castBy(prefixed[1]!) : undefined;
+    if (prefixed && named) {
+      speaker = named;
+      text = prefixed[2]!.trim().replace(/^["“]([\s\S]*)["”]$/u, "$1").trim();
+    }
     if (!text || text.length > MAX_LINE_CHARS) return { ...claim, sonuc: "gecersiz_metin" };
+    const before = JSON.stringify(copy);
+    const scene = copy.sahneler.find((s) => s.id === claim.sahne)!;
+    const line = scene.satirlar[claim.satir]!;
+    // A correction that calls its own speaker by name belongs to someone else (Cannae, 9 Nov 2026: "Hannibal, let's
+    // march on Rome now!" written for Hannibal's line): the one the reason names who speaks in the scene, else anyone it names.
+    const current = cast.find((c) => c.id === line.karakter);
+    if (!speaker && current && current.id !== "anlatici" && callsByName(text, current.ad)) {
+      const named = cast.filter((c) => c.id !== current.id && c.id !== "anlatici" && c.gorunur !== false && anyName(c.ad) !== "" && new RegExp(`(?<!\\p{L})(?:${anyName(c.ad)})(?!\\p{L})`, "u").test(`${claim.gerekce ?? ""} ${claim.yeni_metin ?? ""}`));
+      speaker = named.find((c) => scene.satirlar.some((l) => l.karakter === c.id)) ?? named[0];
+    }
     line.metin = text;
+    if (speaker && speaker.id !== line.karakter) line.karakter = speaker.id;
+    if (line.balon !== undefined || (speaker && speaker.id !== "anlatici")) {
+      const visible = cast.find((c) => c.id === line.karakter)?.gorunur !== false && line.karakter !== "anlatici";
+      const bubble = visible ? bubbleOf(text) : undefined;
+      if (bubble) line.balon = bubble;
+      else delete line.balon;
+    }
     if (claim.karar === "tartismali") line.rivayet = true;
+    if (checkValid && !validateEpisode(copy as unknown as Episode).ok) {
+      copy = JSON.parse(before) as typeof copy;
+      return { ...claim, sonuc: "bozuyor" };
+    }
     applied++;
-    return { ...claim, sonuc: claim.karar === "yanlis" ? "duzeltildi" : "rivayet_eklendi" };
+    return { ...claim, ...(speaker && claim.karakter !== speaker.id ? { karakter: speaker.id } : {}), sonuc: claim.karar === "yanlis" ? "duzeltildi" : "rivayet_eklendi" };
   });
   return { episode: copy as unknown as Episode, claims: out, applied };
+}
+
+/**
+ * A wrong line the corrections could not put right — the production must not go on with it. A claim about a line the
+ * episode does not have (`bulunamadi`: the checker's own slip of scene or index) is reported, never a reason to stop.
+ */
+export function unresolvedErrors(claims: readonly FactClaim[]): FactClaim[] {
+  return claims.filter((c) => c.karar === "yanlis" && (c.sonuc === "gecersiz_metin" || c.sonuc === "bozuyor" || c.sonuc === "rapor" || c.sonuc === "sahne"));
+}
+
+/** The gate's stop: the wrong lines with their reasons, for the log, AYAS and the next draft. */
+function historyStop(left: readonly FactClaim[], episode: Episode): ScriptError {
+  const reasons = left.map((c) => {
+    const line = episode.sahneler.find((s) => s.id === c.sahne)?.satirlar[c.satir];
+    const who = line ? episode.oyuncu_kadrosu.find((p) => p.id === line.karakter)?.ad ?? line.karakter : "";
+    return `${c.sahne} #${c.satir}${who ? ` (${who}: "${line!.metin.slice(0, 80)}")` : ""}: ${(c.gerekce ?? "yanlış").slice(0, 200)}`;
+  });
+  return new ScriptError("V3_SCRIPT_HISTORY", `tarih hatası düzeltilemedi, üretim gardıroptan önce durdu — ${reasons.join(" | ")}`, JSON.stringify(episode), reasons);
 }
 
 export interface ScriptEngineInput {
@@ -265,15 +417,17 @@ async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome
   const fixed = applyFactCheck(written, claims);
   const fixedValidation = validateEpisode(fixed.episode);
   const keep = fixedValidation.ok;
-  const episode = keep ? fixed.episode : written;
+  // The same history gate as a Short's (order compared fact by fact; a wrong line still standing stops here).
+  const checked = await historyGate({ episode: keep ? fixed.episode : written, claims: keep ? fixed.claims : claims.map((c) => ({ ...c, sonuc: "rapor" as const })), applied: keep ? fixed.applied : 0 }, input.brief, input);
+  const episode = checked.episode;
   return {
     episode,
-    validation: keep ? fixedValidation : validation,
+    validation: validateEpisode(episode),
     factCheck: {
       durum: reports.some((r) => r) ? "tamam" : "okunamadi",
-      iddialar: keep ? fixed.claims : claims.map((c) => ({ ...c, sonuc: "rapor" as const })),
+      iddialar: checked.claims,
       ...(notes.length ? { genel_not: notes.join(" ") } : {}),
-      uygulanan: keep ? fixed.applied : 0,
+      uygulanan: checked.applied,
     },
     repairs: draft.repairs,
     lengthRounds: draft.lengthRounds,
@@ -379,26 +533,69 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   for (const fix of directed.fixes) input.log?.(`  senaryo: ${fix}`);
   written = withBankSources(directed.episode, brief.kaynakBankasi);
   const lengthFields = { lengthRounds, spokenWords: spokenWords(written), targetWords };
-  const editor = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi), { maxTokens: FACT_CHECK_MAX_TOKENS });
-  const report = readFactCheck(editor.result.content);
-  if (!report) {
+  const checked = await checkScriptHistory(written, brief, input);
+  if (!checked) {
     return { episode: written, validation, factCheck: { durum: "okunamadi", iddialar: [], uygulanan: 0 }, repairs, ...lengthFields, writerUsed };
   }
+  return { episode: checked.episode, validation: validateEpisode(checked.episode), factCheck: checked.factCheck, repairs, ...lengthFields, writerUsed };
+}
+
+/**
+ * The script's history review as the script step runs it: the editor's fact check (with the order), its corrections,
+ * then the history gate. Undefined when the editor's answer could not be read (the episode counts as unchecked).
+ * Throws V3_SCRIPT_HISTORY when a wrong line stays. Also run by hand on a kept script (owner checks, experiments).
+ */
+export async function checkScriptHistory(written: Episode, brief: ScriptBrief, input: Pick<ScriptEngineInput, "budget" | "checker" | "log">): Promise<{ episode: Episode; factCheck: FactCheckReport } | undefined> {
+  const editor = await input.budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  const report = readFactCheck(editor.result.content);
+  if (!report) return undefined;
   const fixed = applyFactCheck(written, report.iddialar);
-  const fixedValidation = validateEpisode(fixed.episode);
   // A correction must never break a valid episode; if one would, the written text stays and the claims are reported.
-  const keep = fixedValidation.ok;
+  const keep = validateEpisode(fixed.episode).ok;
+  const checked = await historyGate({ episode: keep ? fixed.episode : written, claims: keep ? fixed.claims : report.iddialar.map((c) => ({ ...c, sonuc: "rapor" as const })), applied: keep ? fixed.applied : 0 }, brief, input);
   return {
-    episode: keep ? fixed.episode : written,
-    validation: keep ? fixedValidation : validation,
-    factCheck: {
-      durum: "tamam",
-      iddialar: keep ? fixed.claims : report.iddialar.map((c) => ({ ...c, sonuc: "rapor" as const })),
-      ...(report.genel_not ? { genel_not: report.genel_not } : {}),
-      uygulanan: keep ? fixed.applied : 0,
-    },
-    repairs,
-    ...lengthFields,
-    writerUsed,
+    episode: checked.episode,
+    factCheck: { durum: "tamam", iddialar: checked.claims, ...(report.genel_not ? { genel_not: report.genel_not } : {}), uygulanan: checked.applied },
   };
+}
+
+const FIDELITY_MAX_TOKENS = 3_000;
+
+/**
+ * The history gate after the editor's fact check (owner, 9 Nov 2026, after the Cannae Short was stopped for three
+ * swapped deeds: "evet durdur ve bu durdurmayı sonraki videolar için sisteme ekle"). Before any costume is drawn:
+ * 1) a detailed order is compared fact by fact (orderFidelityPrompt) and a correction that gives a deed back to its
+ *    person is applied — the fact check alone missed Hasdrubal's cavalry given to Maharbal in two runs of two;
+ * 2) when a wrong line could not be corrected, the editor looks once more at the corrected script;
+ * 3) a wrong line still standing stops the production here (V3_SCRIPT_HISTORY), so no video is made with it.
+ */
+async function historyGate(
+  state: { episode: Episode; claims: FactClaim[]; applied: number },
+  brief: ScriptBrief,
+  input: Pick<ScriptEngineInput, "budget" | "checker" | "log">,
+): Promise<{ episode: Episode; claims: FactClaim[]; applied: number }> {
+  let { episode, applied } = state;
+  const claims = [...state.claims];
+  if (countWords(brief.konu) >= ORDER_FACTS_MIN_WORDS) {
+    const answer = await input.budget.generate("dogrulama-siparis", input.checker, orderFidelityPrompt(episode, brief.konu, brief.dil), { maxTokens: FIDELITY_MAX_TOKENS }).catch((e: Error) => (input.log?.(`  senaryo: sipariş denetimi yapılamadı: ${e.message.slice(0, 120)}`), undefined));
+    const found = answer ? readOrderFidelity(answer.result.content, episode, brief.konu) : undefined;
+    if (found?.length) {
+      const fixed = applyFactCheck(episode, found);
+      episode = fixed.episode;
+      applied += fixed.applied;
+      claims.push(...fixed.claims);
+      for (const c of fixed.claims) input.log?.(`  senaryo: sipariş denetimi ${c.sahne} #${c.satir} ${c.sonuc === "duzeltildi" ? "düzeltildi" : c.sonuc}: ${(c.gerekce ?? "").slice(0, 140)}`);
+    }
+  }
+  // A character's line told wrong: the scene must be written again — no second look patches it line by line.
+  const scenes = claims.filter((c) => c.sonuc === "sahne");
+  if (scenes.length) throw historyStop(scenes, episode);
+  if (!unresolvedErrors(claims).length) return { episode, claims, applied };
+  // A wrong line still standing: the editor reads the corrected script once more; what it still calls wrong must go.
+  const second = await input.budget.generate("dogrulama-2", input.checker, factCheckPrompt(JSON.stringify(episode), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  const report = readFactCheck(second.result.content);
+  const fixed = report ? applyFactCheck(episode, report.iddialar) : undefined;
+  const left = fixed ? unresolvedErrors(fixed.claims) : unresolvedErrors(claims);
+  if (left.length) throw historyStop(left, fixed?.episode ?? episode);
+  return { episode: fixed!.episode, claims: [...claims.map((c) => (c.karar === "yanlis" && c.sonuc !== "duzeltildi" ? { ...c, sonuc: "rapor" as const } : c)), ...fixed!.claims], applied: applied + fixed!.applied };
 }

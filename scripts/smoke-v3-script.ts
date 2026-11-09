@@ -11,7 +11,7 @@ import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader"
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { articleSource, factPrompt, readTopic, researchDepth, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
-import { applyFactCheck, dialogueSceneRatio, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
@@ -181,6 +181,86 @@ async function main() {
     const res = applyFactCheck(episode(), [{ sahne: "s1-kanca", satir: 0, karar: "yanlis", yeni_metin: "a".repeat(300) }]);
     assert.equal(res.applied, 0);
     assert.equal(res.claims[0]!.sonuc, "gecersiz_metin");
+  });
+
+  // The history gate (owner, 9 Nov 2026, after the Cannae Short was stopped for swapped deeds: "evet durdur ve bu
+  // durdurmayı sonraki videolar için sisteme ekle").
+  const ORDER = "Rumeli Hisarı (1452): II. Mehmed Boğazkesen'i dört ayda yaptırır; Çandarlı Halil Paşa savaşa karşı çıkar, Zağanos Paşa savaşı ister; hisar Ağustos 1452'de biter ve Bizans'ın Karadeniz yolu kesilir.";
+  const gateBrief = { konu: ORDER, donem: "1452", hedefSureSn: 14, ton: "mizahi" as const, dil: "tr" as const };
+  const gateModels = { writer: { provider: "openai" as const, model: "gpt-4.1" }, checker: { provider: "openai" as const, model: "gpt-4.1" } };
+
+  await scenario("H2 the order is compared fact by fact: a deed given back to its person is applied, a rewritten joke is not", async () => {
+    const swapped = JSON.parse(validJson());
+    swapped.sahneler[0].satirlar[0].metin = "Zağanos Paşa hisarı dört ayda bitirir.";
+    const fidelity = JSON.stringify({ olgular: [
+      { olgu: "II. Mehmed Boğazkesen'i dört ayda yaptırır", sahne: "s1-kanca", satir: 0, karar: "celisir", gerekce: "hisarı yaptıran Mehmed", yeni_metin: "Mehmed hisarı dört ayda bitirtir." },
+      { olgu: "Çandarlı Halil Paşa savaşa karşı çıkar", sahne: "s2-divan", satir: 1, karar: "celisir", yeni_metin: "Sultanım, bu iş olmaz." },
+      { olgu: "hisar Ağustos 1452'de biter", sahne: "s1-kanca", satir: 1, karar: "ayni" },
+    ] });
+    const openai = new FakeProvider([JSON.stringify(swapped), JSON.stringify({ iddialar: [] }), fidelity]);
+    const budget = new V3Budget({ providers: { openai } });
+    const out = await writeScript({ brief: gateBrief, catalog: CATALOG, ...gateModels, budget });
+    assert.equal(out.episode.sahneler[0]!.satirlar[0]!.metin, "Mehmed hisarı dört ayda bitirtir.", "the deed back to Mehmed");
+    assert.equal(out.episode.sahneler[1]!.satirlar[1]!.metin, "Sultanım, Bizans buna kızar.", "Halil's joke keeps its words");
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-siparis");
+    assert.deepEqual(out.factCheck.iddialar.map((c) => [c.denetim, c.sonuc]), [["siparis", "duzeltildi"]]);
+    assert.ok(openai.calls[1]!.prompt.includes("THE OWNER'S ORDER") && openai.calls[1]!.prompt.includes(ORDER), "the fact check reads the order");
+    assert.ok(openai.calls[2]!.prompt.includes('s2-divan #1 Çandarlı Halil [invented wording]: "Sultanım, Bizans buna kızar."'), openai.calls[2]!.prompt.slice(0, 600));
+    // A bare topic has no facts to compare: no fidelity call.
+    const bare = new FakeProvider([validJson(), JSON.stringify({ iddialar: [] })]);
+    const b2 = new V3Budget({ providers: { openai: bare } });
+    await writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget: b2 });
+    assert.equal(b2.ledger.map((e) => e.step).join(","), "senaryo,dogrulama");
+    assert.equal(changesPerson("Maharbal's cavalry closes the rear.", "Hasdrubal's cavalry hits the Roman rear.", knownNames("Hasdrubal's cavalry hits the Roman rear; Maharbal speaks", [{ ad: "Maharbal" }])), true, "the Cannae swap");
+    assert.equal(changesPerson("Now that's what I call a group hug.", "The trap's shut—no Roman's getting out now.", knownNames("Hasdrubal's cavalry hits the Roman rear", [{ ad: "Maharbal" }])), false, "a rewritten joke names no other person");
+  });
+
+  await scenario("H3 a character's invented line told wrong is never patched alone; a sourced line may go to the one history gives it to, the bubble following", () => {
+    // Cannae (9 Nov 2026): one-line corrections of the Hannibal–Maharbal exchange made it worse in two runs of six.
+    const kept = applyFactCheck(episode(), [{ sahne: "s2-divan", satir: 1, karar: "yanlis", yeni_metin: "Zağanos Paşa: Sultanım, hemen saldıralım!" }]);
+    assert.equal(kept.claims[0]!.sonuc, "sahne");
+    assert.equal(kept.episode.sahneler[1]!.satirlar[1]!.metin, "Sultanım, Bizans buna kızar.", "the exchange is left to a new draft");
+    assert.deepEqual(unresolvedErrors(kept.claims).map((c) => c.sonuc), ["sahne"]);
+    const sourced = () => {
+      const ep = episode();
+      for (const l of ep.sahneler[1]!.satirlar) delete (l as { kurgu?: boolean }).kurgu;
+      return ep;
+    };
+    const ep = sourced();
+    (ep.sahneler[1]!.satirlar[1] as { balon?: string }).balon = "Bizans kızar.";
+    const res = applyFactCheck(ep, [{ sahne: "s2-divan", satir: 1, karar: "yanlis", yeni_metin: "Zağanos Paşa: \"Sultanım, hemen saldıralım!\"" }]);
+    const line = res.episode.sahneler[1]!.satirlar[1]! as { karakter: string; metin: string; balon?: string };
+    assert.deepEqual([line.karakter, line.metin, line.balon], ["zaganos", "Sultanım, hemen saldıralım!", "Sultanım, hemen saldıralım!"]);
+    assert.equal(res.claims[0]!.karakter, "zaganos");
+    const byId = applyFactCheck(sourced(), [{ sahne: "s2-divan", satir: 1, karar: "yanlis", karakter: "mehmed", yeni_metin: "Boğazı keseceğiz, Halil!" }]);
+    assert.equal(byId.episode.sahneler[1]!.satirlar[1]!.karakter, "mehmed");
+    assert.equal(validateEpisode(byId.episode).ok, true);
+    // A correction calling its own speaker by name goes to the one its reason names (Cannae: "Hannibal, let's march
+    // on Rome now!" had been written for Hannibal's own line).
+    const self = applyFactCheck(sourced(), [{ sahne: "s2-divan", satir: 0, karar: "yanlis", gerekce: "boğazı kesmeyi Zağanos Paşa istedi, Mehmed değil", yeni_metin: "Mehmed, boğazı hemen keselim!" }]);
+    assert.equal(self.episode.sahneler[1]!.satirlar[0]!.karakter, "zaganos");
+    assert.equal(callsByName("So, Hannibal, let's march on Rome!", "Hannibal"), true);
+    assert.equal(callsByName("Hannibal marches on Rome.", "Hannibal"), false, "a name in a sentence is not an address");
+    assert.equal(callsByName("You know how to win, Varro.", "Gaius Terentius Varro"), true);
+  });
+
+  await scenario("H4 a wrong line the corrections cannot fix stops the script before any costume; a second look may fix it", async () => {
+    const tooLong = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", gerekce: "hisar Ağustos'ta değil", yeni_metin: "a".repeat(300) }] });
+    const openai = new FakeProvider([validJson(), tooLong, tooLong]);
+    const budget = new V3Budget({ providers: { openai } });
+    await assert.rejects(writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && /tarih hatası düzeltilemedi/.test(e.message) && /s1-kanca #1/.test(e.message) && e.reasons?.length === 1);
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-2");
+    const fixedSecond = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", yeni_metin: "Hisar 1452 yazında tamamlandı." }] });
+    const again = new FakeProvider([validJson(), tooLong, fixedSecond]);
+    const out = await writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget: new V3Budget({ providers: { openai: again } }) });
+    assert.equal(out.episode.sahneler[0]!.satirlar[1]!.metin, "Hisar 1452 yazında tamamlandı.");
+    assert.deepEqual(out.factCheck.iddialar.map((c) => c.sonuc), ["rapor", "duzeltildi"]);
+    // A character's line told wrong stops at once, with who said what, for the next draft's writer.
+    const exchange = new FakeProvider([validJson(), JSON.stringify({ iddialar: [{ sahne: "s2-divan", satir: 1, karar: "yanlis", gerekce: "savaşa karşı çıkan Halil'di; burada savaşı istiyor" }] })]);
+    const b3 = new V3Budget({ providers: { openai: exchange } });
+    await assert.rejects(writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget: b3 }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && e.reasons?.[0] === "s2-divan #1 (Çandarlı Halil: \"Sultanım, Bizans buna kızar.\"): savaşa karşı çıkan Halil'di; burada savaşı istiyor");
+    assert.equal(b3.ledger.map((e) => e.step).join(","), "senaryo,dogrulama", "no second look patches an exchange");
+    assert.deepEqual(unresolvedErrors([{ sahne: "s9", satir: 0, karar: "yanlis", sonuc: "bulunamadi" }]), [], "the checker's slip of index never stops a video");
   });
 
   await scenario("I prompts carry the contract's values, the catalog and the language's own rules", () => {

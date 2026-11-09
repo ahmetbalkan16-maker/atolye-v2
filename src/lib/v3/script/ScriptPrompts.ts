@@ -627,22 +627,80 @@ JSON:
 ${previousJson}`;
 }
 
-/** The fact-check pass: only problem lines come back, so the answer stays short. */
-export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank): string {
+/** What the order-fidelity check reads of an episode: the cast's names and the spoken lines. */
+export interface FidelityEpisode {
+  readonly oyuncu_kadrosu: readonly { readonly id: string; readonly ad: string }[];
+  readonly sahneler: readonly { readonly id: string; readonly satirlar: readonly { readonly karakter: string; readonly metin: string; readonly kurgu?: boolean }[] }[];
+}
+
+/**
+ * The narrow check after the fact check: does the script tell its order's history right — WHO did and said WHAT, and
+ * which way? The general fact check, given the Cannae Short's script and its order (9 Nov 2026), twice found none of
+ * the three swaps the order itself contradicted (Maharbal given Hasdrubal's cavalry, Hannibal asking to march on Rome,
+ * the centre bent back); asked to list only problems it skipped the comparison, so every fact of the order must get
+ * an answer (ScriptEngine.readOrderFidelity turns a "celisir" into a "yanlis" claim for `applyFactCheck`).
+ */
+export function orderFidelityPrompt(episode: FidelityEpisode, order: string, dil: ScriptLanguage): string {
+  const lang = dil === "tr" ? "Turkish" : "American English";
+  const names = new Map(episode.oyuncu_kadrosu.map((c) => [c.id, c.ad] as const));
+  const lines = episode.sahneler.flatMap((s) => s.satirlar.map((l, i) => `${s.id} #${i} ${names.get(l.karakter) ?? l.karakter}${l.kurgu ? " [invented wording]" : ""}: "${l.metin}"`));
+  return `You check one thing: whether this script tells the history of its order right — WHO did and said WHAT, and which way. The owner wrote the order from the sources.
+
+ORDER:
+${order.trim()}
+
+CAST (id: name): ${episode.oyuncu_kadrosu.map((c) => `${c.id}: ${c.ad}`).join("; ")}
+
+SCRIPT LINES (scene id, line index, speaker):
+${lines.join("\n")}
+
+Split the order into its facts (one deed, troop movement, decision or saying each) and give EVERY fact one entry:
+- "olgu": the fact in the order's words; "sahne"/"satir": the line that tells it (the closest one), or none;
+- "karar": "ayni" (the line tells it as the order does), "celisir" (it tells it otherwise) or "yok" (no line tells it);
+- compare the PERSON (is the deed, the troops, the words or the decision given to the person the order gives it to?) and
+  the DIRECTION (forward or back, attack or retreat, urging or refusing, winning or losing, which side) — a line that
+  differs in either is "celisir", also an [invented wording] line: its words are free, its history is not;
+- for "celisir" give "gerekce" and "yeni_metin": the corrected line in ${lang}, about the same length, keeping the
+  joke where it can — for the same speaker (who may refuse or answer instead of urging), or, when history gives the
+  words to another character, "karakter": that character's id from the CAST and the line as they say it.
+Then add one entry ("olgu": the known fact) for each other line that gives a real person a deed, words or decision
+well-known history gives to someone else or the other way round. Never judge numbers, wording or style.
+Return ONLY this JSON:
+{"olgular":[{"olgu":"…","sahne":"…","satir":0,"karar":"ayni|celisir|yok","gerekce":"…","yeni_metin":"…","karakter":"<only when another character says it>"}]}`;
+}
+
+/**
+ * The fact-check pass: only problem lines come back, so the answer stays short. `order` is the owner's order text —
+ * the facts the owner asked to be told. The Cannae Short (9 Nov 2026) showed what the check had missed: its order said
+ * Hasdrubal's cavalry hit the Roman rear and Maharbal told Hannibal he knew how to win but not how to use a victory;
+ * the script gave the cavalry to Maharbal, had Hannibal ask "Rome in a week?" (Maharbal urged the march, Hannibal
+ * refused) and bent Hannibal's centre back instead of forward. The check passed all three (character lines were
+ * flagged "only when they contradict the period") and spent its answer on army sizes — once "correcting" Polybius'
+ * 86,000 to 70,000. The owner had the video stopped ("evet durdur ve bu durdurmayı sonraki videolar için sisteme ekle").
+ */
+export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank, order?: string): string {
   const lang = dil === "tr" ? "Turkish" : "American English";
   const truth = bank
     ? `\nVERIFIED FACTS (ground truth, checked against the cited works): a line that agrees with one of these is "dogru" — never rewrite it or hedge it.\n${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}\n`
     : "";
-  return `You are a meticulous history editor. Check the factual claims in this episode script (spoken text is ${lang}).${truth}
-For each line that states a fact, decide: "dogru" (correct), "tartismali" (disputed / traditional account), "yanlis" (wrong) or "kaynaksiz" (plausible but its cited source does not support it or none is cited).
-- yanlis: give "yeni_metin", the corrected line in the same language, length and style.
+  const ordered = order?.trim()
+    ? `\nTHE OWNER'S ORDER (written from the sources): a line that contradicts it is "yanlis" unless the verified facts say otherwise.\n${order.trim()}\n`
+    : "";
+  return `You are a meticulous history editor. Check this episode script (spoken text is ${lang}) for history a viewer would take away wrong.${truth}${ordered}
+Look hardest at the errors that matter most, in this order:
+1. People swapped or deeds turned around: who commanded which troops, who struck where, who won, who said a famous line, who urged an action and who refused it. A real person's line that gives them another person's words, decision or deed, or turns their known position around, is "yanlis" — also when the line is "kurgu": true (the general who refused to march must not be the one saying "let's march").
+2. Manoeuvres told the wrong way: advancing or falling back, which wing, what happened first.
+3. Anachronisms: objects, words, titles or places from another age.
+4. Numbers, dates and places: a figure inside the range the main ancient or modern sources give is "dogru" — never replace one source's figure with another's; only a figure no source gives is "yanlis".
+For each problem line decide: "tartismali" (disputed / traditional account), "yanlis" (wrong) or "kaynaksiz" (plausible but its cited source does not support it or none is cited).
+- yanlis: give "yeni_metin", the corrected line in the same language, length and style; a joke stays a joke where it can. When history gives the words to another character, also give "karakter": that character's id from oyuncu_kadrosu (the line as they say it).
 - tartismali: give "yeni_metin" with a hedge ("${dil === "tr" ? "rivayete göre" : "legend has it"}" or similar) added.
 - kaynaksiz: give "kaynak_onerisi" only for a work you are certain exists; otherwise leave it out.
-- Character lines with "kurgu": true are flagged only when they contradict the period.
-- Also flag anachronisms in costumes or settings in "genel_not".
-List ONLY problem lines (never "dogru" ones). "sahne" is the scene id, "satir" the 0-based line index.
+- Character lines with "kurgu": true are invented wording: their exact words need no source, but rules 1–3 apply to them.
+- Costumes and settings: a visible real person dressed as they would not be in that scene (a civilian toga on the battlefield, armour of another age) and other anachronisms of costume or setting go in "genel_not".
+List ONLY problem lines (never correct ones). "sahne" is the scene id, "satir" the 0-based line index.
 Return ONLY this JSON:
-{"iddialar":[{"sahne":"s1-kanca","satir":0,"karar":"yanlis","gerekce":"…","yeni_metin":"…","kaynak_onerisi":"…"}],"genel_not":"…"}
+{"iddialar":[{"sahne":"s1-kanca","satir":0,"karar":"yanlis","gerekce":"…","yeni_metin":"…","karakter":"<only when another character says it>","kaynak_onerisi":"…"}],"genel_not":"…"}
 
 EPISODE:
 ${episodeJson}`;
