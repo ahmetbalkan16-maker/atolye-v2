@@ -1,3 +1,63 @@
+## 9 Kasım 2026 (4) — kalite sınavı 49 soru + göz puanı; çırak önce yazar (Claude yedek); yakın savaşta atlama yok, hamleler anlatım sırasıyla
+
+Owner: "Kalite sınavını 8 sorudan 30'un üzerine çıkarmak … Çırağın yazma sınavlarını hızlandırmak … eşiği geçince
+işleri önce çırak yazsın, Claude yalnız yedek olsun … Ana AYAS'a gerçek kod yazan bir model bağlamak … maliyet
+oluşturmadan … bu hafta 1 adet uzun video yapmak istiyorum haniball ile ilgili; yakın savaş sahnelerinde askerlerin
+hareketlerinde biraz atlama var … anlatırken videoda başka hareket veya gösterim olmaması lazım".
+
+**1. Kalite sınavı (b6a41f0f):** `content/v3/kalite-sinavi.json` 12 → 49 soru (Kanne, Waterloo, Zanzibar, Sezar
+`video-sessiz.mp4`): 21 temiz kare (Claude kare kare baktı), render kutularının ölçtüğü 5 yerleşim kusuru, kutuların
+**kaçırdığı** Zanzibar 22. sn saray simgesi yazının üstünde (yapı simgesinin kutusu yok — açık iş), temiz karelere konmuş
+10 yapay göz kusuru (`bozma`: boş yüz, kopuk kafa, gri kutu, okunmaz yazı, gerilmiş/kaymış/ters renk şerit; raporda
+`yapay`). `QualityExam.ts` (soru denetimi, `examScore`, `faultsAt`, `MIN_EYE_QUESTIONS` 30); `kalite-sinavi.ts`:
+`yerlesim`/`plan` alanlı soruda yerleşim render kutularından ölçülür, piksel denetimi planın tasarlanmış anlarını atlar,
+`denetle` komutu, rapora **göz puanı** (`goz`: yalnız görsel modelin karar verdiği 37 soru). `gelisim.ts` öz-ayar
+döngüsü göz puanını karşılaştırır (ayarlar yalnız görsel modeli değiştirir), istem eki yalnız gözün hatalarından;
+sınav süresi 150 dk. İlk koşu gemma4:12b `--olculu`: 36/45 (dengeli %79); **göz 28/37, dengeli %70** (kusurlu 6/11,
+temiz 22/26). Bir soru dönmesi artık ~3 puan (eskiden ~12). Doğru kararın bir kısmı yanlış nedenle ("German Consulate
+modern nesne") — sınav kararı ölçer, gerekçeyi değil.
+
+**2. Çırak (b6a41f0f):** `apprenticePolicy` varsayılanı `once` (eşik aynı: ≥6 sayılan sınav, %50 — bugün 1/4);
+`runDevJob` çırağın yapamadığını aynı akşam Claude'a verir (`ATOLYE_V3_CIRAK_YAZAR=yedek|kapali` eski davranış).
+Maliyetsiz hızlandırma: `OpenAIText` (V3'e özel; ana uygulamanın OpenAIProvider'ı değişmedi) `cached_tokens` bildirir,
+`V3Budget` önbellekten okunan girdiyi kendi fiyatından yazar (gpt-4.1 ¼, gpt-4o ½, bilinmeyen model tam fiyat);
+`DevWriter` istemi değişmeyen başı (görev, rehber, cevap biçimi, okunan dosyalar, dokunulmamış dosyalar) öne alır;
+döngü başına en çok 3 sınav (`ATOLYE_V3_CIRAK_SINAV_DONGU`), günlük $1 tavanı aynı. Gerçek önbellek oranı ilk
+sınavlarda `maliyet` defterinde (`cachedTokens`) görülecek — henüz ölçülmedi.
+
+**3. Ana AYAS'a kod yazan model:** yapılmadı — owner onayı bekliyor. Bugünkü durum: Stage 10 (`src/lib/ayas/developer/`)
+yalnız öneri ve görev paketi üretir, paket elle yapıştırılır. Önerilen tasarım (A): V3 geliştirme hattı (ayrı worktree,
+`claude -p` abonelikle — ek API maliyeti yok, tsc/lint/smoke/EVAL pin/Graphify kontrolleri, `hazir` dal) onaylı ana AYAS
+önerilerine açılır; izinli yollar `src/lib/ayas/` (production/ ve pipeline/ hariç) + `src/components`/`app/` (homepage
+hariç); canlıya yalnız mevcut "ONAYLA VE UYGULA" tek tıkıyla. Açma bayrağını owner kendisi yazar (sınıflandırıcı ajan
+açmayı reddediyor). B (yerel Ollama kod modeli) ücretsiz ama zayıf; C (Codex) ayrı maliyet.
+
+**4. Yakın savaş hareketi (52549b56, a8afb81d):** pul başına kare kare ölçüm (Kanne/Waterloo planları): **277 px/kare** ve **201
+px/kare** sıçramalar. Kökler: pul i → yer i (yollar kesişiyordu) → `unitLayout.assignPlaces` (Hungarian, en kısa toplam
+yol); kanat değiştiren iki süvari geçerken aralama yönü ters dönüyordu → `passShare`; sık hat zikzakı her karede
+yeniden aralanıp ters dönüyordu → `spacedSteps` (birlik içi aralama dizilişte bir kez); düşen pul solarken kayıyordu →
+düştüğü yerde 4 karede durur. Sonuç: Kanne en çok 28,6 px/kare (hücum hızı), Waterloo 21,5; ani hız değişimi 498 →
+19,6 px. Anlatım senkronu `src/lib/v3/maps/NarratedMoves.ts`: tutan birlik dizilişini aynen korur (separateFronts da
+itmez), aynı satırda çift adım tek adım, her birlik adının söylendiği kelimede kalkar (kendi adı → tarafının ortak adı
+"African" → türü "horsemen" → tarafı), aynı kelimeyle adlananlar birlikte, adı geçmeyenler 1,6 sn arayla sonra; ok ve
+ad etiketi kendi hareketiyle. Kanne'de 6 birlik + 4 ok aynı karede kalkıyordu. Yazar istemi: her hamle kendi satırında,
+birliğin adıyla. Deneme render'ı `bolumler/olcut-cannae-hareket/` (Kanne kopyası, render'dan itibaren, kurul/rötuş/kapak
+kapalı — ücretli çağrı yok) ölçerle iki yeni atlama gösterdi (senkron hareketleri kaydırınca sonraki adım kayma bitmeden
+başlıyor: 153 ve 45 px) → a8afb81d: geçiş payı son 12 karenin ortalaması (`passMean`), pul kalkana kadar eski yolunu
+bildirir, kayarken yeni adım alan pul hızını 0,4 sn taşır (`KEEP_SPEED_S`, yinelemeli `slideAt`). Ölçer aracı
+`npx tsx scripts/v3/hareket-olcer.ts <plan.json>` (40 px eşiği). Son render (final.mp4, 55,5 sn): ölçer en çok 27,6
+px/kare, yerleşim 0, piksel 0 kusur; kareler anlatımla tutarlı ("The African veterans [30,0 sn, iki kanat birlikte]
+swing in. Hasdrubal's horsemen [32,2 sn] hit the Roman rear [33,8 sn]").
+
+**GitHub:** yeni bağımlılık eklenmedi (V3 kuralı); atama için Kuhn–Munkres algoritması kendi kodumuzla yazıldı.
+
+**Doğrulama:** tsc 0, remotion tsc 0, lint 0/0 (2057); smoke-v3 script 32, cirak 5, council 16, self-improvement 10,
+motion 12 (J2 eski kodda 108,9 px ile düşer), episode-director 62 (W5), render 8, director-council 9;
+action-firewall-closure PASS.
+
+**Sırada:** Hannibal uzun videosu (owner "bu hafta") — kod canlıya alındıktan sonra AYAS siparişi; 3. madde owner
+kararı; Zanzibar saray simgesine yerleşim kutusu.
+
 ## 9 Kasım 2026 (3) — Cannae Short'u; tarih kapısı (senaryoda kim-ne-yaptı hatası gardıroptan önce durdurur)
 
 Owner: "Cannae Savaşı ile ilgili shorts videosu ürettirelim ayasa … takib et yardımcı beyinlere deneyim ve tecrübe
