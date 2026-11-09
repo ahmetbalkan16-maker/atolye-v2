@@ -57,22 +57,22 @@ async function main(): Promise<void> {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-evolution-local-gaps-"));
   try {
     await scenario("on by default; AYAS_CONTROLLED_EVOLUTION=0 or an explicitly empty register path is off; a register path keeps it on", () => {
-      assert.equal(ayasControlledEvolutionMode({}), "AUTO");
-      assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION: "0" }), "OFF");
+      assert.equal(ayasControlledEvolutionMode({}), "AUTO", "assert.equal(ayasControlledEvolutionMode({}), \"AUTO\")");
+      assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION: "0" }), "OFF", "assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION: \"0\" }), \"OFF\")");
       assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE: "" }), "OFF", "the old 'no register' meaning the discovery suites rely on");
-      assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE: "data/brain/evolution.json" }), "AUTO");
+      assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE: "data/brain/evolution.json" }), "AUTO", "assert.equal(ayasControlledEvolutionMode({ AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE: \"data/brain/evolution.json\" }), \"AUTO\")");
     });
 
     await scenario("each measured gap (capability × dimension, held-out excluded) is one LOCAL_EVALUATOR opportunity bound to the snapshot; ids are stable", () => {
       const register = buildAyasLocalGapEvolutionRegister(GAPS, registry);
       const again = buildAyasLocalGapEvolutionRegister(GAPS, registry);
-      assert.deepEqual(register.opportunities.map((o) => o.opportunityId), again.opportunities.map((o) => o.opportunityId));
+      assert.deepEqual(register.opportunities.map((o) => o.opportunityId), again.opportunities.map((o) => o.opportunityId), "assert.deepEqual(register.opportunities.map((o) => o.opportunityId), again.opportunities.map((o) => o.opportunityId))");
       const dims = register.opportunities.map((o) => o.evidence[0]!.benchmark!.dimension).sort();
-      assert.deepEqual(dims, ["CONTEXT_CONTINUITY", "INTENT_ACCURACY"]);
+      assert.deepEqual(dims, ["CONTEXT_CONTINUITY", "INTENT_ACCURACY"], "assert.deepEqual(dims, [\"CONTEXT_CONTINUITY\", \"INTENT_ACCURACY\"])");
       for (const o of register.opportunities) {
-        assert.equal(o.origin, "LOCAL_EVALUATOR");
+        assert.equal(o.origin, "LOCAL_EVALUATOR", "assert.equal(o.origin, \"LOCAL_EVALUATOR\")");
         assert.deepEqual([o.normalizationIssues, o.instructionSignals], [[], []], o.opportunityId);
-        assert.deepEqual([o.evidence[0]!.benchmark!.measuredAtHead, o.evidence[0]!.benchmark!.evaluatorSha256], [HEAD, EVALUATOR]);
+        assert.deepEqual([o.evidence[0]!.benchmark!.measuredAtHead, o.evidence[0]!.benchmark!.evaluatorSha256], [HEAD, EVALUATOR], "assert.deepEqual([o.evidence[0]!.benchmark!.measuredAtHead, o.evidence[0]!.benchmark!.evaluatorSha256], [HEAD, EVALUATOR])");
         assert.ok(!o.evidence[0]!.benchmark!.caseIds.includes("ctx-held-out-case"), "a held-out case is never a target");
       }
       assert.deepEqual(buildAyasLocalGapEvolutionRegister(snapshot([]), registry).opportunities, [], "no gap, no opportunity");
@@ -82,11 +82,11 @@ async function main(): Promise<void> {
       const register = buildAyasLocalGapEvolutionRegister(GAPS, registry);
       const plan = planAyasControlledSelfEvolution({ register, environment: env([GAPS]) });
       assert.ok(plan.candidate, "a candidate");
-      assert.equal(plan.candidate.strategy.strategyId, "exp-fixture-context-continuity");
-      assert.deepEqual(plan.candidate.hypothesis.targetCaseIds, ["ctx-older-correction"]);
-      assert.equal(plan.candidate.qualification.executionAuthority, "NONE");
+      assert.equal(plan.candidate.strategy.strategyId, "exp-fixture-context-continuity", "assert.equal(plan.candidate.strategy.strategyId, \"exp-fixture-context-continuity\")");
+      assert.deepEqual(plan.candidate.hypothesis.targetCaseIds, ["ctx-older-correction"], "assert.deepEqual(plan.candidate.hypothesis.targetCaseIds, [\"ctx-older-correction\"])");
+      assert.equal(plan.candidate.qualification.executionAuthority, "NONE", "assert.equal(plan.candidate.qualification.executionAuthority, \"NONE\")");
       const outcomes = qualifyAyasEvolutionRegister(register, env([GAPS])).map((q) => q.stage8.outcome).sort();
-      assert.deepEqual(outcomes, ["HYPOTHESIS", "NEEDS_EXPERIMENT_DESIGN"]);
+      assert.deepEqual(outcomes, ["HYPOTHESIS", "NEEDS_EXPERIMENT_DESIGN"], "assert.deepEqual(outcomes, [\"HYPOTHESIS\", \"NEEDS_EXPERIMENT_DESIGN\"])");
       assert.equal(planAyasControlledSelfEvolution({ register, environment: env([snapshot(GAPS.failing, "3".repeat(40))]) }).candidate, null, "a snapshot of another HEAD proves nothing");
     });
 
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
       await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("measure"); return GAPS; } });
       assert.equal(calls.length, 0, "no evaluator in the checkout: nothing measured");
       const status = () => JSON.parse(fs.readFileSync(ayasControlledEvolutionStatusFile(root), "utf8")) as AyasControlledEvolutionStatus;
-      assert.deepEqual([status().measurement, status().plan.reason], ["NOT_MEASURED", "benchmark not measured at this HEAD yet"]);
+      assert.deepEqual([status().measurement, status().plan.reason], ["NOT_MEASURED", "benchmark not measured at this HEAD yet"], "assert.deepEqual([status().measurement, status().plan.reason], [\"NOT_MEASURED\", \"benchmark not measured at this HEAD yet\"])");
       fs.writeFileSync(path.join(root, "scripts", "smoke-ayas-cognitive-quality.ts"), "// fixture evaluator\n");
       await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("fail"); return null; } });
       await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("fail"); return null; } });
@@ -108,17 +108,17 @@ async function main(): Promise<void> {
       assert.deepEqual(calls, ["fail", "fail"], "at most two measurement attempts per HEAD");
       fs.rmSync(ayasControlledEvolutionStatusFile(root));
       const register = await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("measure"); return GAPS; } });
-      assert.equal(register.opportunities.length, 2);
-      assert.deepEqual([status().measurement, status().snapshot], ["MEASURED", { benchmarkId: "cognitive-quality", passed: 52, caseCount: 55, failing: 3 }]);
+      assert.equal(register.opportunities.length, 2, "assert.equal(register.opportunities.length, 2)");
+      assert.deepEqual([status().measurement, status().snapshot], ["MEASURED", { benchmarkId: "cognitive-quality", passed: 52, caseCount: 55, failing: 3 }], "assert.deepEqual([status().measurement, status().snapshot], [\"MEASURED\", { benchmarkId: \"cognitive-quality\", passed: 52, caseCount: 55, failing: 3 }])");
       assert.equal(store.listGapSnapshots().filter((s) => s.measuredAtHead === HEAD).length, 1, "the snapshot is the research loop's own store");
       await prepareAyasControlledEvolutionRegister({ ...base, measure: async () => { calls.push("again"); return GAPS; } });
       assert.equal(calls.filter((c) => c === "again").length, 0, "reused, not measured twice");
-      assert.equal(status().measurement, "REUSED");
-      assert.equal(status().plan.candidate, register.opportunities.find((o) => o.evidence[0]!.benchmark!.dimension === "CONTEXT_CONTINUITY")!.opportunityId);
+      assert.equal(status().measurement, "REUSED", "assert.equal(status().measurement, \"REUSED\")");
+      assert.equal(status().plan.candidate, register.opportunities.find((o) => o.evidence[0]!.benchmark!.dimension === "CONTEXT_CONTINUITY")!.opportunityId, "assert.equal(status().plan.candidate, register.opportunities.find((o) => o.evidence[0]!.benchmark!.dimension === \"CONTEXT_CONTINUITY\")!.opportunityId)");
       assert.equal(status().plan.strategyApplies, true, "a SAFE-path strategy needs no reviewed-patch match");
-      assert.equal(status().executionAuthority, "NONE");
+      assert.equal(status().executionAuthority, "NONE", "assert.equal(status().executionAuthority, \"NONE\")");
       recordAyasControlledEvolutionOutcome(root, null);
-      assert.equal(status().proposalCandidate, null);
+      assert.equal(status().proposalCandidate, null, "assert.equal(status().proposalCandidate, null)");
     });
 
     await scenario("the production registry: a saturated benchmark means nothing to evolve; its one strategy no longer applies to today's source", async () => {
@@ -133,9 +133,9 @@ async function main(): Promise<void> {
       fs.rmSync(ayasControlledEvolutionStatusFile(root));
       const store2 = createAyasResearchExperimentStore({ rootDir: path.join(temp, "prod-research-improvement-2") });
       await prepareAyasControlledEvolutionRegister({ ...base, experimentStore: store2, measure: async () => snapshot([{ id: "stale-case", dimension: "STALE_CONTEXT_LEAKAGE", heldOut: false, knownLimitation: false }]) });
-      assert.equal(status().plan.strategyApplies, false);
+      assert.equal(status().plan.strategyApplies, false, "assert.equal(status().plan.strategyApplies, false)");
       assert.match(status().plan.reason, /strategy no longer applies/);
-      assert.equal(status().opportunities.find((o) => o.stage8 === "HYPOTHESIS")?.origin, "LOCAL_EVALUATOR");
+      assert.equal(status().opportunities.find((o) => o.stage8 === "HYPOTHESIS")?.origin, "LOCAL_EVALUATOR", "assert.equal(status().opportunities.find((o) => o.stage8 === \"HYPOTHESIS\")?.origin, \"LOCAL_EVALUATOR\")");
     });
 
     await scenario("an operator register file is kept beside the measured opportunities, never duplicated", async () => {
