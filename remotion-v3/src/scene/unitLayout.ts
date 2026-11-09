@@ -123,13 +123,28 @@ export function passShare(a: TokenWay, b: TokenWay): number {
   return Math.max(moving(a), moving(b));
 }
 
-export function separateTokens(points: readonly { x: number; y: number }[], gap: number, weights?: readonly number[], ways?: readonly (TokenWay | undefined)[], groups?: readonly number[]): { x: number; y: number }[] {
+/**
+ * A pair's pass share over their ways sampled across the last frames (one way, or the same number of samples each):
+ * the mean, so it changes gradually even where a token's way changes — a new step setting off mid-slide reset it from
+ * full to none in one frame and pushed two crossing cavalries 153 px apart (Cannae trial, 9 Nov 2026).
+ */
+export function passMean(a: TokenWay | readonly (TokenWay | undefined)[] | undefined, b: TokenWay | readonly (TokenWay | undefined)[] | undefined): number {
+  const list = (w: typeof a): readonly (TokenWay | undefined)[] => (w === undefined ? [] : Array.isArray(w) ? w : [w as TokenWay]);
+  const [sa, sb] = [list(a), list(b)];
+  const n = Math.min(sa.length, sb.length);
+  if (!n) return 0;
+  let sum = 0;
+  for (let j = 0; j < n; j++) if (sa[j] && sb[j]) sum += passShare(sa[j]!, sb[j]!);
+  return sum / n;
+}
+
+export function separateTokens(points: readonly { x: number; y: number }[], gap: number, weights?: readonly number[], ways?: readonly (TokenWay | readonly (TokenWay | undefined)[] | undefined)[], groups?: readonly number[]): { x: number; y: number }[] {
   const p = points.map((q) => ({ x: q.x, y: q.y }));
   // A pair's room for this frame: less as their ways pass each other (passShare).
   const room = new Map<number, number>();
   const roomOf = (a: number, b: number) => {
     const key = a * 100_000 + b;
-    if (!room.has(key)) room.set(key, 1 - (ways?.[a] && ways?.[b] ? passShare(ways[a]!, ways[b]!) : 0));
+    if (!room.has(key)) room.set(key, 1 - passMean(ways?.[a], ways?.[b]));
     return room.get(key)!;
   };
   for (let round = 0; round < MAX_ROUNDS; round++) {

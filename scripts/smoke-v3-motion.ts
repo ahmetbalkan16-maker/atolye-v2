@@ -242,6 +242,10 @@ async function main() {
         { side: "B", color: "#3fae3a", emblem: "hilal", kind: "suvari" as const, steps: [{ start: 9, points: row(600, 2, 1300, 80), alive: 2 }, { start: 60, points: row(600, 2, 300, 80), alive: 2 }] },
         // A block that forms a line 30 px apart (room 69 px).
         { side: "B", color: "#3fae3a", emblem: "hilal", kind: "kilicli" as const, steps: [{ start: 9, points: [...row(900, 4, 600, 80), ...row(980, 3, 640, 80)], alive: 7 }, { start: 60, points: row(860, 7, 620, 30), alive: 7 }] },
+        // Moves told later now set off later (NarratedMoves): a unit still sliding past a standing enemy is given its next
+        // step (a rout) before it arrives — its new way, not yet begun, flipped the spacing (Cannae trial: 153 and 45 px).
+        { side: "A", color: "#3a5eb3", emblem: "kalkan", kind: "suvari" as const, steps: [{ start: 9, points: row(1150, 2, 1400, 80), alive: 2 }, { start: 60, points: row(1150, 2, 300, 80), alive: 2 }, { start: 100, points: row(1080, 2, 150, 80), alive: 2, rout: true }] },
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "kilicli" as const, steps: [{ start: 9, points: [{ x: 880, y: 1150 }], alive: 1 }] },
       ],
     } as unknown as V3GeoMap;
     let prev: ({ x: number; y: number } | undefined)[][] | undefined;

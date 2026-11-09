@@ -212,11 +212,9 @@ function departure(to: Units["steps"][number], i: number, fps: number): { begin:
   return { begin, frames: Math.round(slide * fps), queue };
 }
 
-/**
- * Where token `i` is in step `s` at `frame`: from wherever it was when it set off to its place in this formation. A line
- * that comes before the last slide is over takes the token on from mid-way (the Kosovo trial's tokens jumped back to
- * the last formation first); until it sets off it goes on with the last slide.
- */
+/** Frames back at which a token's way is sampled for the pass share (the last 12 frames). */
+const PASS_SAMPLES = [0, 3, 6, 9, 12] as const;
+
 const spacedCache = new WeakMap<Units["steps"], Map<number, Units["steps"]>>();
 /**
  * A unit's steps with each formation's places spaced for tokens `gap` apart (at the gap rounded to half a world pixel,
@@ -250,18 +248,91 @@ function placeOf(steps: Units["steps"], s: number, i: number): number {
   return order[s]?.[i] ?? Math.min(i, steps[s]!.points.length - 1);
 }
 
-function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps: number): { x: number; y: number; t: number; queue: number; from: { x: number; y: number }; goal: { x: number; y: number } } {
-  const to = steps[s]!;
-  const b = to.points[placeOf(steps, s, i)]!;
-  if (s === 0) return { x: b.x, y: b.y, t: 1, queue: -1, from: b, goal: b };
-  const { begin, frames, queue } = departure(to, i, fps);
-  const a = slideAt(steps, s - 1, i, Math.min(frame, begin), fps);
+/** A token's slide to its place in one step: from where it set off, with the speed it had then. */
+interface Motion {
+  readonly a: { x: number; y: number };
+  /** Its speed when it set off (px a frame): a step given mid-slide carries the slide's speed on (KEEP_SPEED_S). */
+  readonly v: { x: number; y: number };
+  readonly b: { x: number; y: number };
+  readonly via?: { x: number; y: number };
+  readonly begin: number;
+  readonly frames: number;
+  readonly rout: boolean;
+  readonly queue: number;
+}
+
+/**
+ * How long a token's speed carries into a step that took it on mid-slide (seconds). It used to stop dead and set off
+ * again from rest — a change of speed of a whole slide's pace in one frame, more often now that moves start on the word
+ * that tells them (NarratedMoves; Cannae trial, 9 Nov 2026: 19 px a frame).
+ */
+const KEEP_SPEED_S = 0.4;
+
+const motionCache = new WeakMap<Units["steps"], Map<string, Motion[]>>();
+
+/** Where a slide has the token at `f`, and how far it is on its way (eased). */
+function moveAt(m: Motion, f: number, fps: number): { x: number; y: number; t: number } {
   // A routed token breaks into a run within a few frames (an ease-out started at full speed: a 22 px leap) and slows as
   // it gets away.
-  const t = interpolate(frame, [begin, begin + frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: to.rout ? Easing.bezier(0.3, 0, 0.25, 1) : Easing.inOut(Easing.cubic) });
+  const t = interpolate(f, [m.begin, m.begin + m.frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: m.rout ? Easing.bezier(0.3, 0, 0.25, 1) : Easing.inOut(Easing.cubic) });
   // Through the breach: to the gap, then on to its place in the new formation.
-  const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-  return { ...pos, t, queue, from: { x: a.x, y: a.y }, goal: b };
+  const base = m.via ? along([m.a, m.via, m.b], t) : { x: m.a.x + (m.b.x - m.a.x) * t, y: m.a.y + (m.b.y - m.a.y) * t };
+  // The speed it set off with, dying away over KEEP_SPEED_S: x·(1 − x/τ)² starts at that speed and ends at rest.
+  const tau = Math.max(1, Math.round(KEEP_SPEED_S * fps));
+  const x = Math.min(tau, Math.max(0, f - m.begin));
+  const keep = x * (1 - x / tau) ** 2;
+  return { x: base.x + m.v.x * keep, y: base.y + m.v.y * keep, t };
+}
+
+/**
+ * Token `i`'s slides, step by step (index 0: standing in its first formation). Each sets off from where the token is
+ * at its departure under the slides before it, with its speed there. Computed once per token.
+ */
+function motionsOf(steps: Units["steps"], i: number, fps: number): Motion[] {
+  let byToken = motionCache.get(steps);
+  if (!byToken) motionCache.set(steps, (byToken = new Map()));
+  const key = `${i}|${fps}`;
+  const hit = byToken.get(key);
+  if (hit) return hit;
+  const b0 = steps[0]!.points[placeOf(steps, 0, i)]!;
+  const ms: Motion[] = [{ a: b0, v: { x: 0, y: 0 }, b: b0, begin: -Infinity, frames: 1, rout: false, queue: -1 }];
+  for (let k = 1; k < steps.length; k++) {
+    const to = steps[k]!;
+    const { begin, frames, queue } = departure(to, i, fps);
+    const p1 = positionAt(ms, k - 1, begin, fps);
+    const p0 = positionAt(ms, k - 1, begin - 1, fps);
+    ms.push({ a: { x: p1.x, y: p1.y }, v: { x: p1.x - p0.x, y: p1.y - p0.y }, b: to.points[placeOf(steps, k, i)]!, ...(queue >= 0 && to.via ? { via: to.via } : {}), begin, frames, rout: !!to.rout, queue });
+  }
+  byToken.set(key, ms);
+  return ms;
+}
+
+/** Where the slides up to step `k` have the token at `f` (a slide not yet set off leaves it on the one before). */
+function positionAt(ms: readonly Motion[], k: number, f: number, fps: number): { x: number; y: number; t: number; k: number } {
+  let j = k;
+  while (j > 0 && f < ms[j]!.begin) j--;
+  if (j === 0) return { x: ms[0]!.b.x, y: ms[0]!.b.y, t: 1, k: 0 };
+  return { ...moveAt(ms[j]!, f, fps), k: j };
+}
+
+/**
+ * Where token `i` is in step `s` at `frame`: from wherever it was when it set off to its place in this formation. A line
+ * that comes before the last slide is over takes the token on from mid-way (the Kosovo trial's tokens jumped back to
+ * the last formation first) at the speed it had; until it sets off it goes on with the last slide — and that way is the
+ * one the spacing sees (Cannae trial, 9 Nov 2026: a router still sliding into its last place, its new way reported as
+ * not yet begun, was pushed off a token it was passing — 45 px in one frame).
+ */
+function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps: number): { x: number; y: number; t: number; queue: number; from: { x: number; y: number }; goal: { x: number; y: number }; wayT: number } {
+  const ms = motionsOf(steps, i, fps);
+  const m = ms[s]!;
+  if (s === 0) return { x: m.b.x, y: m.b.y, t: 1, queue: -1, from: m.b, goal: m.b, wayT: 1 };
+  if (frame < m.begin) {
+    const p = positionAt(ms, s - 1, frame, fps);
+    const on = ms[p.k]!;
+    return { x: p.x, y: p.y, t: 0, queue: m.queue, from: p.k === 0 ? on.b : on.a, goal: on.b, wayT: p.t };
+  }
+  const p = moveAt(m, frame, fps);
+  return { x: p.x, y: p.y, t: p.t, queue: m.queue, from: m.a, goal: m.b, wayT: p.t };
 }
 
 /**
@@ -275,9 +346,9 @@ function tokenAt(u: Units, i: number, frame: number, fps: number): PlacedToken |
   while (s + 1 < steps.length && steps[s + 1]!.start <= frame) s++;
   const to = steps[s]!;
   const from = steps[Math.max(0, s - 1)]!;
-  const { x, y, t, queue, from: start, goal } = slideAt(steps, s, i, frame, fps);
+  const { x, y, t, queue, from: start, goal, wayT } = slideAt(steps, s, i, frame, fps);
   // Its way too: the spacing lets two tokens whose ways swap sides pass each other (unitLayout.passShare).
-  const pos = { x, y, way: { from: start, goal, t } };
+  const pos = { x, y, way: { from: start, goal, t: wayT } };
   const transit = queue >= 0 && t < 1;
   if (to.rout && s > 0 && i < to.alive) return { ...pos, alpha: 1 - 0.35 * t, transit, rout: t, prog: t };
   // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
@@ -330,7 +401,10 @@ export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number
     const placed = steady.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, f, fps)));
     const shown = placed.flatMap((side) => side.filter((t): t is PlacedToken => t !== undefined));
     const group = placed.flatMap((side, ui) => side.filter((t) => t !== undefined).map(() => ui));
-    separateTokens(shown, gap, shown.map((t) => t.alpha), shown.map((t) => t.way), group).forEach((q, j) => Object.assign(shown[j]!, q));
+    // Each token's way now and over the last PASS_WINDOW frames: two passing tokens let go of their room gradually,
+    // even where a new step sets off mid-slide (unitLayout.passMean).
+    const ways = placed.flatMap((side, ui) => side.flatMap((t, ti) => (t ? [PASS_SAMPLES.map((back) => (back ? tokenAt(steady[ui]!, ti, f - back, fps)?.way : t.way))] : [])));
+    separateTokens(shown, gap, shown.map((t) => t.alpha), ways, group).forEach((q, j) => Object.assign(shown[j]!, q));
     return placed;
   };
   const placed = spaced(frame);
