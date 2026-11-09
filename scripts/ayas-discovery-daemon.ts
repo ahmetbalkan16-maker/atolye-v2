@@ -71,6 +71,12 @@ function graphifyFresh(head: string): boolean {
 
 /** The observer kills this child at 240s; the improvement cycle only spends what is left under this ceiling. */
 const AYAS_DISCOVERY_CHILD_WORK_CEILING_MS = 200_000;
+/**
+ * The research tick starts no new source check, fetch or model call after this much of the child's life, so its
+ * final checkpoint lands well before the kill and the later steps keep their share. 9 Nov 2026: a DEEP cycle after a
+ * weekend off ran 228 s and was killed while writing that checkpoint; the finished research was recorded as uncertain.
+ */
+const AYAS_DISCOVERY_RESEARCH_BUDGET_MS = 120_000;
 
 async function main(): Promise<void> {
   // Stage 15R — SAFE_READ_ONLY holds the whole discovery run: no ledger entry, no lease, no sandbox, no proposal, no
@@ -134,7 +140,7 @@ async function main(): Promise<void> {
   let research: AyasResearchSchedulerTickResult | undefined;
   if (researchSchedulerEnabled && leased("discovery.research-scheduler-tick")) {
     // The scheduler reads exactly the source list whose digest the lease recorded.
-    try { research = await tickAyasResearchScheduler({ repoRoot: root, sources: researchSources }); }
+    try { research = await tickAyasResearchScheduler({ repoRoot: root, sources: researchSources, deadlineAt: new Date(childStartedAt + AYAS_DISCOVERY_RESEARCH_BUDGET_MS).toISOString() }); }
     catch (error) { observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`); }
   }
 

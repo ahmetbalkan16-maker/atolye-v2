@@ -20,6 +20,8 @@ export type AyasGoalResearchCatchUpPolicy = (typeof AYAS_GOAL_RESEARCH_CATCH_UP_
 export const AYAS_GOAL_RESEARCH_MAX_LATENESS_MS = 7 * 24 * 60 * 60_000;
 export const AYAS_GOAL_RESEARCH_MAX_SOURCES = 3;
 export const AYAS_GOAL_RESEARCH_MAX_JOBS = 100;
+/** Bound on `pendingDeepSourceIds`; the scheduler only ever stores ids of registered sources. */
+export const AYAS_RESEARCH_PENDING_DEEP_MAX_SOURCES = 500;
 
 export function isAyasCanonicalUtc(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -81,6 +83,13 @@ export interface AyasResearchSchedulerState {
   readonly totalMissedOccurrences?: number;
   readonly totalAttempts?: number;
   readonly goalResearchJobs?: readonly AyasGoalResearchJob[];
+  /**
+   * Changed sources whose DEEP analysis is still owed: changes a LIGHT-only
+   * cycle found, and sources a DEEP cycle left when it reached its time budget.
+   * The next DEEP cycle analyzes them; a budget-cut DEEP cycle continues on the
+   * next tick instead of waiting a full interval.
+   */
+  readonly pendingDeepSourceIds?: readonly string[];
   readonly lastError?: string;
   readonly consecutiveFailures: number;
   readonly lastSuccessfulResearchAt?: string;
@@ -121,7 +130,11 @@ function validateState(value: unknown): AyasResearchSchedulerState {
     (record.currentRunId !== undefined && record.currentMode === undefined) ||
     (record.currentOccurrenceId !== undefined && (record.currentMode === undefined || record.currentScheduledFor === undefined ||
       record.currentOccurrenceId !== crypto.createHash("sha256").update(`ayas-research:${record.currentMode}:${record.currentScheduledFor}`).digest("hex"))) ||
-    (record.lastError !== undefined && typeof record.lastError !== "string")) {
+    (record.lastError !== undefined && typeof record.lastError !== "string") ||
+    (record.pendingDeepSourceIds !== undefined && (!Array.isArray(record.pendingDeepSourceIds) ||
+      record.pendingDeepSourceIds.length > AYAS_RESEARCH_PENDING_DEEP_MAX_SOURCES ||
+      record.pendingDeepSourceIds.some((id) => typeof id !== "string" || id.length < 1 || id.length > 200) ||
+      new Set(record.pendingDeepSourceIds).size !== record.pendingDeepSourceIds.length))) {
     throw new AyasResearchSchedulerStateError("INVALID", "research scheduler state has invalid fields");
   }
   if (record.goalResearchJobs !== undefined) {

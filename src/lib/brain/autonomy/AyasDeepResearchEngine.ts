@@ -53,6 +53,8 @@ export interface AyasDeepScanResult {
   readonly findingsRecorded: number;
   readonly entryOutcomes: readonly AyasDeepScanEntryOutcome[];
   readonly sourceErrors: readonly { readonly sourceId: string; readonly error: string }[];
+  /** Sources not (fully) analyzed because `deadlineAt` arrived. Entries already judged are in the novelty memory, so a later scan of these is cheap. */
+  readonly deferredSourceIds: readonly string[];
 }
 
 export interface AyasDeepResearchDeps {
@@ -71,6 +73,13 @@ export interface AyasDeepResearchDeps {
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
   readonly now?: () => string;
+  /**
+   * No new source fetch or model call starts at or after this instant
+   * (canonical UTC), and a model call still running then is left behind. The
+   * scan runs inside a child process the observer kills at a fixed time; the
+   * sources this cuts short come back in `deferredSourceIds`.
+   */
+  readonly deadlineAt?: string;
   readonly scheduleContext?: { readonly scheduledFor: string; readonly runId: string; readonly occurrenceId: string; readonly goalId?: string; readonly goalIntent?: string };
   /** Test-only passthrough — see `AyasSafePublicFetch`'s own doc comment. Never set by the real scheduler. */
   readonly dangerouslyAllowPrivateNetworkForTests?: boolean;
@@ -83,6 +92,17 @@ export const AYAS_DEEP_SCAN_DEFAULT_MAX_TOKENS = 500;
 function textOf(output: AIProviderOutput): string {
   if (typeof output === "string") return output;
   return output.refused ? "" : output.content ?? "";
+}
+
+const DEADLINE_REACHED = Symbol("deadline-reached");
+
+/** `work`, unless `remainingMs` runs out first. The abandoned call keeps running; its late result is dropped. */
+async function beforeDeadline<T>(work: Promise<T>, remainingMs: number | undefined): Promise<T | typeof DEADLINE_REACHED> {
+  if (remainingMs === undefined) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<typeof DEADLINE_REACHED>((resolve) => { timer = setTimeout(() => resolve(DEADLINE_REACHED), Math.max(0, remainingMs)); });
+  try { return await Promise.race([work, expiry]); }
+  finally { clearTimeout(timer); work.catch(() => undefined); }
 }
 
 function resolveEntryUrl(entry: AyasFeedEntry, source: AyasResearchSource): string {
@@ -107,11 +127,15 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
 
   const entryOutcomes: AyasDeepScanEntryOutcome[] = [];
   const sourceErrors: { readonly sourceId: string; readonly error: string }[] = [];
+  const deferredSourceIds: string[] = [];
+  const deadlineMs = deps.deadlineAt === undefined ? undefined : Date.parse(deps.deadlineAt);
+  const remainingMs = (): number | undefined => deadlineMs === undefined ? undefined : deadlineMs - Date.parse(now());
   let sourcesAnalyzed = 0;
   let entriesConsidered = 0;
 
   for (const source of deps.sources) {
     admitEffect();
+    if ((remainingMs() ?? 1) <= 0) { deferredSourceIds.push(source.sourceId); continue; }
     let body: string;
     let contentType: string;
     try {
@@ -181,11 +205,15 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
 
       let raw: AIProviderOutput;
       admitEffect();
+      const remaining = remainingMs();
+      if (remaining !== undefined && remaining <= 0) { deferredSourceIds.push(source.sourceId); break; }
       try {
-        raw = await provider.generate(
+        const generated = await beforeDeadline(provider.generate(
           buildAyasDeepAnalysisPrompt({ source: { provider: source.provider, category: source.category }, entry, goalIntent: deps.scheduleContext?.goalIntent }),
           { maxTokens: deps.maxTokens ?? AYAS_DEEP_SCAN_DEFAULT_MAX_TOKENS, jsonSchema: AYAS_DEEP_ANALYSIS_JSON_SCHEMA as unknown as Record<string, unknown> },
-        );
+        ), remaining);
+        if (generated === DEADLINE_REACHED) { admitEffect(); deferredSourceIds.push(source.sourceId); break; }
+        raw = generated;
       } catch (error) {
         admitEffect();
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_ANALYSIS_ERROR" });
@@ -281,5 +309,6 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
     findingsRecorded: entryOutcomes.filter((e) => e.outcome === "RECORDED").length,
     entryOutcomes,
     sourceErrors,
+    deferredSourceIds,
   };
 }

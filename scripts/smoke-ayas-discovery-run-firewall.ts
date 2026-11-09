@@ -290,7 +290,7 @@ async function main() {
       assert.equal(code.split(call).length - 1, 1, `${call} has more than one call site`);
     }
     for (const guardedCall of [
-      /leased\("discovery\.research-scheduler-tick"\)\) \{[^}]*tickAyasResearchScheduler\(\{ repoRoot: root, sources: researchSources \}\)/,
+      /leased\("discovery\.research-scheduler-tick"\)\) \{[^}]*tickAyasResearchScheduler\(\{ repoRoot: root, sources: researchSources, deadlineAt: new Date\(childStartedAt \+ AYAS_DISCOVERY_RESEARCH_BUDGET_MS\)\.toISOString\(\) \}\)/,
       /leased\("discovery\.proposal-inbox"\) \? reconcileAyasStaleProposals\(/,
       /if \(leased\("discovery\.proposal-inbox"\)\) \{[^}]*reconcileAyasRecoveryRequiredProposals\(/,
       /if \(leased\("discovery\.novel-patch-sandbox"\)\) \{[^}]*discoverAyasNovelPatchCandidates\(/,

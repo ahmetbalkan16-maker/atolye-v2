@@ -21,7 +21,7 @@ import { resolveAyasResearchSourceRegistry, resolveAyasResearchSourcePolicy, typ
  * `AYAS_LIGHT_SCAN_MAX_BACKOFF_MS`) instead of being re-attempted on every
  * single scheduler tick — "no rapid retry loops" (Part B).
  */
-export type AyasLightScanSourceStatus = "OK" | "ERROR" | "SKIPPED_BACKOFF" | "SKIPPED_RATE_POLICY";
+export type AyasLightScanSourceStatus = "OK" | "ERROR" | "SKIPPED_BACKOFF" | "SKIPPED_RATE_POLICY" | "SKIPPED_DEADLINE";
 
 export interface AyasLightScanSourceResult {
   readonly sourceId: string;
@@ -65,6 +65,12 @@ export interface AyasLightResearchDeps {
    * into repeated back-to-back polling of someone else's endpoint.
    */
   readonly minCheckIntervalMs?: number;
+  /**
+   * No new source check starts at or after this instant (canonical UTC). The
+   * scan runs inside a child process the observer kills at a fixed time; a
+   * source left unchecked keeps its prior state and is checked on a later tick.
+   */
+  readonly deadlineAt?: string;
   /** Test-only passthrough — see `AyasSafePublicFetch`'s own doc comment. Never set by the real scheduler. */
   readonly dangerouslyAllowPrivateNetworkForTests?: boolean;
 }
@@ -110,6 +116,10 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
     const prior = stateStore.read(source.sourceId);
     const tickNow = now();
 
+    if (deps.deadlineAt && Date.parse(tickNow) >= Date.parse(deps.deadlineAt)) {
+      results.push({ sourceId: source.sourceId, changed: false, status: "SKIPPED_DEADLINE" });
+      continue;
+    }
     if (!backoffElapsed(prior, tickNow)) {
       results.push({ sourceId: source.sourceId, changed: false, status: "SKIPPED_BACKOFF" });
       continue;
@@ -189,7 +199,7 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
     sourcesChecked: results.length,
     sourcesChanged: results.filter((r) => r.changed).length,
     sourcesFailed: results.filter((r) => r.status === "ERROR").length,
-    sourcesSkipped: results.filter((r) => r.status === "SKIPPED_BACKOFF" || r.status === "SKIPPED_RATE_POLICY").length,
+    sourcesSkipped: results.filter((r) => r.status === "SKIPPED_BACKOFF" || r.status === "SKIPPED_RATE_POLICY" || r.status === "SKIPPED_DEADLINE").length,
     results,
   };
 }

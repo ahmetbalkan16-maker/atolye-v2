@@ -1,3 +1,42 @@
+## 9 Kasım 2026 — "Araştırma sorunlu": araştırma turuna süre sınırı, yarıda kalan derin analiz sonraki turda sürer
+
+Owner: "araştırma sorunlu diyor nedenine bak ve çöz kalıcı olarak". Araştırma Sağlığı DEGRADED'di: "art arda 1 kez
+başarısız" + "son başarılı araştırma 6 saatten eski". **Kök neden (canlı veriden):** PC 6 Kasım ~15:00 UTC'den 9 Kasım
+03:43'e kapalıydı (bu kısım tasarım gereği: kaçırılan 49 tur tek tura toplanır). Açılıştaki ilk keşif çocuğu 03:43:16'da
+başladı; DEEP tur hafif taramayı 49 sn'de (54 kaynak, 9'u değişmiş), derin analizi 3 dk'da bitirdi (03:47:06) — toplam
+~228 sn. Observer bu çocuğu `execFileSync` `timeout: 240_000` ile öldürür; son durum kaydı (açılışta HDD meşgulken fsync)
+tam o anda kesildi: `.scheduler-state.14520.*.tmp` içinde `consecutiveFailures: 0, lastSuccessfulResearchAt 03:47:06`
+yazılı ama rename olmadı, keşif defterinde koşu RUNNING kaldı, kilit 10 dk dolmadan sahipsiz (03:53 ANOTHER_RUN_ACTIVE,
+03:59 RECOVERED_UNCERTAIN). Yani biten araştırma (bulgular kaydedilmişti) "sonuç belirsiz" sayıldı. Derin taramanın hiçbir
+süre sınırı yoktu (Ollama çağrı zaman aşımı 600 sn); uzun bir kapalı kalıştan sonraki her ilk tur aynı riski taşıyordu.
+
+**Çözüm:**
+- `AyasLightResearchEngine` / `AyasDeepResearchEngine`: `deadlineAt` — o andan sonra yeni kaynak kontrolü, getirme ya da
+  model çağrısı başlamaz; sınırda süren model çağrısı bırakılır (geç cevabı atılır). Hafifte kalan kaynak `SKIPPED_DEADLINE`
+  (durumu değişmez, sonra kontrol edilir); derinde yarım kalanlar `deferredSourceIds` (yargılanan girdiler novelty'de, tekrar
+  ucuz).
+- `AyasResearchScheduler`: `deadlineAt` yalnız düzenli LIGHT/DEEP taramalara verilir (hedef işleri değil). Zamanlayıcı
+  durumuna `pendingDeepSourceIds`: süre yüzünden yarım kalan kaynaklar + LIGHT-only turun bulduğu değişiklikler (önceden
+  bunlar hiç derin analize girmiyordu: yalnız aynı DEEP turundaki hafif taramanın "değişti" dediği kaynaklar analiz
+  ediliyordu). Yarım kalan DEEP başarılı tur sayılır, `nextDeepAt` = bitiş anı (sonraki ~5 dk'lık turda sürer; kaçırılmış tur
+  sayılmaz), bitince 3 sa düzenine döner. Yeni bir şey yargılayamayan devam turu (model bütçe içinde hiç cevap vermiyor)
+  bir daha sürmez: kaynaklar borçlu kalır, düzenli DEEP'i bekler (model her turda boşuna meşgul edilmez). Bütçe hiç
+  kalmamışsa rezervasyon yapılmaz (boş tur araştırma sayılmaz).
+- `scripts/ayas-discovery-daemon.ts`: `AYAS_DISCOVERY_RESEARCH_BUDGET_MS = 120_000` (çocuğun başından); sonrası son kayıt
+  ve diğer keşif adımları için kalır (240 sn öldürmeye ≥ 90 sn pay, smoke'ta sabit).
+- Eski kodla uyumlu: eski doğrulayıcı bilinmeyen alanı yok sayar, `...state` ile korur.
+
+**Canlı durum:** sağlık bir sonraki başarılı turda kendiliğinden düzelir (`nextLightAt` 05:59:40 UTC = 08:59 TSİ).
+Yarım kalan `.tmp` dosyası zararsız artık; dokunulmadı. **Doğrulama:** yeni `smoke-ayas-research-time-budget` (12 senaryo;
+9 Kasım hatası gerçek alt süreç + öldürmeyle yeniden üretilir, düzeltmeyle aynı öldürmede kayıt önce yazılır ve sonraki tur
+araştırmayı bitirir) PASS; tsc 0; lint 0/0; research-scheduler 17, light 7, deep 22, goal-research-schedule 33,
+discovery-run-firewall 13 (çağrı deseni `deadlineAt` ile güncellendi), action-firewall-closure, constitution-run-binding
+(+mutations), research-engine-status-view, research-intelligence, research-source-resilience, self-improvement-health 61,
+discovery-registry, daemon-authority-boundary, continuous-self-improvement, micro-batch-authority-firewall,
+deferred-reeligibility, owner-approval-daemon-integration, safe-mode, resource-occupancy, error-code-contract,
+research-improvement-loop PASS;
+observer-autostart 41 PASS (AGENTS.md gereği ASCII `D:\URETIM\private\temp` ile; Unicode TEMP'te fikstür hatası verir).
+
 ## 6 Kasım 2026 (akşam, 2) — Waterloo'dan onaylanan 4 öneri + kostum-12 işlendi; geliştiriciye ölçülmüş hata verilir
 
 Owner (16:31–16:34'te 4 öneriyi onayladı): "atölye beyinlerine onayladıklarıma bak geliştirmeleri beyinlere işle ve

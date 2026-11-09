@@ -3,7 +3,7 @@ import path from "node:path";
 import { bindAyasConstitutionRun } from "../../ayas/governance/AyasOwnerConstitutionReader";
 
 import { withAyasExecutionAuthorityLock, AyasExecutionAuthorityLockError } from "./AyasExecutionAuthorityLock";
-import { createAyasResearchSchedulerHeartbeatStore, createAyasResearchSchedulerStateStore, isAyasCanonicalUtc, type AyasResearchSchedulerState, type AyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
+import { AYAS_RESEARCH_PENDING_DEEP_MAX_SOURCES, createAyasResearchSchedulerHeartbeatStore, createAyasResearchSchedulerStateStore, isAyasCanonicalUtc, type AyasResearchSchedulerState, type AyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
 import { runAyasLightResearchScan, type AyasLightScanResult, type AyasLightResearchDeps } from "./AyasLightResearchEngine";
 import { runAyasDeepResearchScan, type AyasDeepScanResult, type AyasDeepResearchDeps } from "./AyasDeepResearchEngine";
 import { resolveAyasResearchSourceRegistry, type AyasResearchSource } from "./AyasResearchSourceRegistry";
@@ -70,6 +70,18 @@ export interface AyasResearchSchedulerDeps {
   readonly deep?: Omit<AyasDeepResearchDeps, "sources">;
   readonly goalStore?: AyasGoalStore;
   readonly sourceStateStore?: AyasResearchSourceStateStore;
+  /**
+   * The regular cadence's LIGHT and DEEP scans start no new source check,
+   * fetch or model call at or after this instant (canonical UTC), so the
+   * final checkpoint is written before the observer kills the discovery child.
+   * Work it cuts short is carried in `pendingDeepSourceIds`. Goal jobs are not
+   * budgeted by it.
+   */
+  readonly deadlineAt?: string;
+}
+
+function earlierIso(a: string | undefined, b: string | undefined): string | undefined {
+  return a === undefined ? b : b === undefined ? a : Date.parse(a) <= Date.parse(b) ? a : b;
 }
 
 /**
@@ -154,9 +166,13 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
 
       // Adopt changed cadence defaults from the last completed occurrence.
       // Scheduler state survives deployments and otherwise retains the old
-      // 6h/24h deadlines until they expire, delaying the new schedule.
+      // 6h/24h deadlines until they expire, delaying the new schedule. DEEP
+      // keeps an earlier stored deadline: that is a budget-cut cycle's
+      // continuation, which must not wait a full interval.
       const nextLightAt = nextAtFromLastCompletion(state.lastLightCompletedAt, lightInterval, state.nextLightAt);
-      const nextDeepAt = nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt);
+      const nextDeepAt = state.pendingDeepSourceIds?.length
+        ? earlierIso(nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt), state.nextDeepAt)
+        : nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt);
       if (nextLightAt !== state.nextLightAt || nextDeepAt !== state.nextDeepAt) {
         state = stateStore.write({ ...state, nextLightAt, nextDeepAt });
       }
@@ -164,6 +180,8 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
       const lightDue = isDue(state.nextLightAt, nowIso);
       const deepDue = isDue(state.nextDeepAt, nowIso);
       if (!lightDue && !deepDue) return { outcome: "NONE_DUE", state, constitution: constitution.evidence };
+      // No budget left at all: reserve nothing and report nothing run, rather than record an empty cycle as research.
+      if (deps.deadlineAt && nowMs >= Date.parse(deps.deadlineAt)) return { outcome: "NONE_DUE", state, constitution: constitution.evidence };
 
       const mode: "LIGHT" | "DEEP" = deepDue ? "DEEP" : "LIGHT";
       const scheduledFor = (mode === "DEEP" ? state.nextDeepAt : state.nextLightAt) ?? nowIso;
@@ -189,18 +207,28 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
         ...(mode === "LIGHT" ? { lastLightStartedAt: nowIso } : { lastLightStartedAt: nowIso, lastDeepStartedAt: nowIso }),
       });
 
-      const light = await runAyasLightResearchScan({ ...lightDeps, sources });
+      const budget = deps.deadlineAt ? { deadlineAt: deps.deadlineAt } : {};
+      const light = await runAyasLightResearchScan({ ...lightDeps, ...budget, sources });
       const lightCompletedAt = now();
 
+      // A change is owed a DEEP analysis until one has run for it: changes a
+      // LIGHT-only cycle found wait for the next DEEP, and a DEEP cut short by
+      // the budget hands its remaining sources to the next tick.
+      const owed = new Set([...(state.pendingDeepSourceIds ?? []), ...light.results.filter((r) => r.changed).map((r) => r.sourceId)]);
+      const owedSources = sources.filter((s) => owed.has(s.sourceId));
       let deep: AyasDeepScanResult | undefined;
       let deepCompletedAt: string | undefined;
       if (mode === "DEEP") {
-        const changedSourceIds = new Set(light.results.filter((r) => r.changed).map((r) => r.sourceId));
-        const changedSources = sources.filter((s) => changedSourceIds.has(s.sourceId));
         admitEffect();
-        deep = await runAyasDeepResearchScan({ ...deepDeps, sources: changedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
+        deep = await runAyasDeepResearchScan({ ...deepDeps, ...budget, sources: owedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
         deepCompletedAt = now();
       }
+      const stillOwed = mode === "DEEP" ? deep!.deferredSourceIds : owedSources.map((s) => s.sourceId);
+      // A continuation that judged nothing new (the model never answers inside the budget) does not continue again: the
+      // owed sources wait for the regular cadence instead of occupying the model every tick.
+      const wasContinuation = !!state.pendingDeepSourceIds?.length && state.nextDeepAt !== undefined && state.nextDeepAt === state.lastExecutedAt;
+      const progressed = stillOwed.length < owedSources.length || (deep?.entryOutcomes.some((entry) => entry.outcome !== "SKIPPED_UNCHANGED") ?? false);
+      const continueDeep = mode === "DEEP" && stillOwed.length > 0 && (!wasContinuation || progressed);
 
       const finalNow = now();
       // Finalization remains inside the same cross-process lock. A failed
@@ -217,7 +245,8 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
         lastLightCompletedAt: lightCompletedAt,
         lastExecutedAt: finalNow,
         nextLightAt: new Date(Date.parse(finalNow) + lightInterval).toISOString(),
-        ...(mode === "DEEP" ? { lastDeepCompletedAt: deepCompletedAt, nextDeepAt: new Date(Date.parse(finalNow) + deepInterval).toISOString() } : {}),
+        ...(mode === "DEEP" ? { lastDeepCompletedAt: deepCompletedAt, nextDeepAt: continueDeep ? finalNow : new Date(Date.parse(finalNow) + deepInterval).toISOString() } : {}),
+        pendingDeepSourceIds: stillOwed.length ? stillOwed.slice(0, AYAS_RESEARCH_PENDING_DEEP_MAX_SOURCES) : undefined,
         lastError: undefined,
         consecutiveFailures: 0,
         lastSuccessfulResearchAt: finalNow,
