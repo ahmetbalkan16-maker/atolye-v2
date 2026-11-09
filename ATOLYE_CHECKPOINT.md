@@ -11,8 +11,9 @@ isteyen Maharbal, reddeden Hannibal — Livy 22.51); merkez "geri" bükülmüş 
 kaynaksız birlik sayıları. Doğrulayıcı (`dogrulama.json`) **0 iddia** ile "tamam" demişti. Owner onayıyla miks
 adımında durduruldu (`onceki-deneme-1/NEDEN.txt`), `episode-siparisli.json` elle düzeltildi, gardıroptan sürdü.
 İkinci deneme render'da ENOENT `remotion-v3/public/costumes/gardirob/pack.json`: yazar paketi "gardirob" yazmış,
-kostüm tarihçisi kalabalığa öneksiz kütüphane parçası vermiş ve Varro'yu yine togaya döndürmüş → `episode.json` elle
-(`onceki-deneme-2/`), render'dan sürdü. Tur 0: 55,9 sn, $0,385, kurul 7/10, UYARIYLA (2 eksik); final sahnesi artık
+kostüm tarihçisi kalabalığa öneksiz kütüphane parçası vermiş; Varro'yu ise ilk turun kişi kütüphanesine yazdığı toga +
+defne tacı kaydı geri getirmiş → `episode.json` elle (`onceki-deneme-2/`), render'dan sürdü. Kişi kütüphanesindeki Varro
+zırh + tepelikli miğferle yeniden yazıldı (eskisi `_kutuphane/kisiler/geri-cekilen/`). Tur 0: 55,9 sn, $0,385, kurul 7/10, UYARIYLA (2 eksik); final sahnesi artık
 doğru (Maharbal "Rome in five days!", Hannibal "Not yet.", Maharbal "Not how to use one."). Kalan kusurlar: Varro'nun
 defne tacı mavi bant gibi; 24–27 sn Romalılar dikey pencerede yok, merkez etiketi iki kez. AYAS bir rötuş turu açtı.
 
@@ -45,7 +46,11 @@ inceleme, benzer arama, kalite sınavı, kod öğrenme) ama **hiçbir öz-ayar k
 tıklamasıyla; kontrollü evrim 55/55 → yapacak iş yok.
 
 **Doğrulama:** tsc 0; lint 0/0 (2054); 18 smoke-v3 (script 31, director 61, council 15, likeness 25 …) +
-action-firewall-closure PASS. Canlıya alma ve izleyici yeniden başlatma: üretim bitince.
+action-firewall-closure PASS.
+
+**Teslim:** rötuş turu 1 Hannibal'ı 6 → 4/10 düşürdü (kurul 7 = 7) → tur 0 teslim edildi (`final.mp4` = `final-tur0.mp4`,
+55,9 sn, UYARIYLA). YouTube'a yüklenmedi — owner karar verir. İzleyici yeniden başlatılmadı (değişen modüller yalnız
+üretim sürecinde; `yapim.ts` ve içe aktardıkları değişmedi).
 
 ## 9 Kasım 2026 (2) — belirsiz araştırma turu tekrar oynatılmaz; pull sonrası Graphify "YENİLENİYOR", onarım 5 dk'da
 
