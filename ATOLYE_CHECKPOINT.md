@@ -26,8 +26,13 @@ süre sınırı yoktu (Ollama çağrı zaman aşımı 600 sn); uzun bir kapalı 
   ve diğer keşif adımları için kalır (240 sn öldürmeye ≥ 90 sn pay, smoke'ta sabit).
 - Eski kodla uyumlu: eski doğrulayıcı bilinmeyen alanı yok sayar, `...state` ile korur.
 
-**Canlı durum:** sağlık bir sonraki başarılı turda kendiliğinden düzelir (`nextLightAt` 05:59:40 UTC = 08:59 TSİ).
-Yarım kalan `.tmp` dosyası zararsız artık; dokunulmadı. **Doğrulama:** yeni `smoke-ayas-research-time-budget` (12 senaryo;
+**Canlı durum:** c59bedaf canlıda (`ayas-live-c59bedaf`, sağlık denetimi healthy, 04:32 UTC). Sağlık 04:05 UTC'deki
+turla zaten HEALTHY'ye döndü (hesaplandı: 37 bulgu/7 gün, hata 0); 03:46'daki öldürülen turun bulguları kayıtlıydı, kayıp
+yok. Yarım kalan `.tmp` zararsız artık; dokunulmadı. **Ayrıca görülen (düzeltilmedi):** RECOVERED_UNCERTAIN yolu
+`nextLightAt/nextDeepAt`'i now+aralık yapar, ama sonraki turdaki "cadence defaults" yeniden hesabı bunları
+`lastCompleted + aralık`'a (6 Kasım → geçmiş) geri çeker; 04:05'te aynı occurrence (b162…) yeniden çalıştı ve 49 kaçırılmış
+tur ikinci kez sayıldı (410 → 459). "Belirsiz occurrence tekrar oynatılmaz" ilkesiyle çelişir; araştırmada dış etkisi yok
+(hafif tarama hız kuralıyla atlandı), bu yüzden ayrı iş olarak bırakıldı. **Doğrulama:** yeni `smoke-ayas-research-time-budget` (12 senaryo;
 9 Kasım hatası gerçek alt süreç + öldürmeyle yeniden üretilir, düzeltmeyle aynı öldürmede kayıt önce yazılır ve sonraki tur
 araştırmayı bitirir) PASS; tsc 0; lint 0/0; research-scheduler 17, light 7, deep 22, goal-research-schedule 33,
 discovery-run-firewall 13 (çağrı deseni `deadlineAt` ile güncellendi), action-firewall-closure, constitution-run-binding
