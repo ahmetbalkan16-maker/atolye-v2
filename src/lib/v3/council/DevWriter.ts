@@ -261,14 +261,13 @@ export function writerPrompt(task: WriterTask, views: readonly string[], reads: 
   if (task.rehber.trim()) parts.push(`GUIDES — the project's skills; follow them:\n${task.rehber}`);
   if (task.dersler.length) parts.push(`YOUR LESSONS FROM EARLIER WORK:\n${task.dersler.map((d) => `- ${d}`).join("\n")}`);
   if (task.benzer.length) parts.push(`SIMILAR PAST CHANGES AND HOW THEY WERE DONE:\n${task.benzer.slice(0, 3).map((x, k) => [`- "${x.gorev}"`, ...codeExperienceLines(x, k === 0 ? { ornek: 900 } : { ornek: 300 })].join("\n")).join("\n")}`);
-  parts.push(`FILES (their current content in the sandbox):\n${views.join("\n\n") || "(none yet — ask with OKU)"}`);
-  if (reads.length) parts.push(`FILES YOU ASKED TO READ:\n${reads.join("\n\n")}`);
-  if (ownDiff.trim()) parts.push(`YOUR EDITS SO FAR — already applied in the sandbox. Do NOT add them again; to change them, use ARA on their current text:\n${tail(ownDiff, DIFF_CHARS)}`);
-  if (feedback) parts.push(`YOUR LAST ROUND — your applied edits stay; the FILES above show the result. Fix what this says:\n${feedback}`);
+  // What stays the same from round to round comes first — the task, the guides, how to answer, the files it read (only
+  // added to), the files it has not touched — and what changes last: OpenAI bills a repeated prompt head from its cache
+  // at a quarter of the price (gpt-4.1), so more writing exams fit the same day's cap (9 Nov 2026).
   parts.push(
     [
       "HOW TO ANSWER — plain text, no JSON:",
-      ...(canRead ? ["- To read more before writing (only if you need it, at most 6 lines, nothing else in that answer): OKU: <repo path> | OKU: <path>#<DeclarationName> | OKU: <path>:<from>-<to>"] : ["- No more reading: answer with edits now."]),
+      "- To read more before writing (only when the last line of this message allows it; at most 6 lines, nothing else in that answer): OKU: <repo path> | OKU: <path>#<DeclarationName> | OKU: <path>:<from>-<to>",
       "- To change code, one block per edit (several blocks may follow one DOSYA line):",
       "DOSYA: <repo path>",
       "<<<<<<< ARA",
@@ -281,6 +280,11 @@ export function writerPrompt(task: WriterTask, views: readonly string[], reads: 
       "Rules: change only src/lib/v3/, scripts/v3/, scripts/smoke-v3-*.ts, remotion-v3/src/, content/v3/; never package.json or a new npm package; match the file's style (English code comments, Turkish log and user text); keep the change small; do not break other scenarios; never declare a name the file (or your edits so far) already declares — change the existing one; use only fields and functions you have seen in the files (read a type with OKU before using it).",
     ].join("\n"),
   );
+  if (reads.length) parts.push(`FILES YOU ASKED TO READ:\n${reads.join("\n\n")}`);
+  parts.push(`FILES (their current content in the sandbox):\n${views.join("\n\n") || "(none yet — ask with OKU)"}`);
+  if (ownDiff.trim()) parts.push(`YOUR EDITS SO FAR — already applied in the sandbox. Do NOT add them again; to change them, use ARA on their current text:\n${tail(ownDiff, DIFF_CHARS)}`);
+  if (feedback) parts.push(`YOUR LAST ROUND — your applied edits stay; the FILES above show the result. Fix what this says:\n${feedback}`);
+  parts.push(canRead ? "NOW: answer with edit blocks and the OZET line as described above — or, only if you must read first, with OKU lines alone." : "NOW: no more reading — answer with edit blocks and the OZET line as described above.");
   return parts.join("\n\n");
 }
 
@@ -304,7 +308,10 @@ export async function writeChange(task: WriterTask, deps: WriterDeps): Promise<W
     const stop = await deps.stop?.();
     if (stop) return { ...result(false, await deps.changed(), `durdu: ${stop}`), turlar: turn - 1, durdu: stop };
     const changedNow = await deps.changed();
-    const show = [...new Set([...changedNow.filter((f) => !korunan.has(f)), ...task.dosyalar.map((f) => f.replace(/\\/g, "/"))])].slice(0, FILES_SHOWN);
+    const picked = [...new Set([...changedNow.filter((f) => !korunan.has(f)), ...task.dosyalar.map((f) => f.replace(/\\/g, "/"))])].slice(0, FILES_SHOWN);
+    // Untouched files before the ones it edited: the prompt's head then repeats round to round (OpenAI's prompt cache).
+    const edited = new Set(changedNow);
+    const show = [...picked.filter((f) => !edited.has(f)), ...picked.filter((f) => edited.has(f))];
     // Its own edits: shown as a diff, and the declarations they touched join the focus of a long file's view.
     const ownDiff = changedNow.length && deps.diff ? await deps.diff() : "";
     const focus = [...new Set([...task.semboller, ...parseDiff(ownDiff).flatMap((f) => f.satirSembolleri)])];

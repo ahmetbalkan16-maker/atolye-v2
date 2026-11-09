@@ -54,6 +54,8 @@ const DEV_CAP_USD = 0.15;
 /** One writing exam at most, and the exams of one day together (`ATOLYE_V3_CIRAK_SINAV_USD`, `ATOLYE_V3_CIRAK_GUNLUK_USD`). */
 const EXAM_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_SINAV_USD) || 0.4;
 const EXAM_DAY_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_GUNLUK_USD) || 1;
+/** Writing exams one cycle may sit, the day's cap still the limit (`ATOLYE_V3_CIRAK_SINAV_DONGU`). */
+const EXAMS_PER_CYCLE = Number(process.env.ATOLYE_V3_CIRAK_SINAV_DONGU) || 3;
 /** What the writing exams of this cycle spent (their budget is their own). */
 let writerSpent = 0;
 /** Code wants are collected from productions of the last this many days. */
@@ -94,11 +96,18 @@ async function qualityExam(paths: V3Paths, extra: readonly string[], tag: string
   await runProcess(process.execPath, [tsx, script, "hazirla"], { cwd: paths.repoRoot, timeoutMs: 30 * 60_000, onLine: () => undefined });
   const out = path.join(improvementDir(paths.workRoot), `sinav-${tag}.json`);
   await fs.rm(out, { force: true });
-  const r = await runProcess(process.execPath, [tsx, script, "calistir", "--olculu", "--rapor", out, ...extra], { cwd: paths.repoRoot, timeoutMs: 60 * 60_000, onLine: (l) => (/^[✓✗]/.test(l) ? log(`    ${l}`) : undefined) });
+  // 45+ questions since 9 Nov 2026 (one vision call each, the GPU resting between them when hot).
+  const r = await runProcess(process.execPath, [tsx, script, "calistir", "--olculu", "--rapor", out, ...extra], { cwd: paths.repoRoot, timeoutMs: 150 * 60_000, onLine: (l) => (/^[✓✗]/.test(l) ? log(`    ${l}`) : undefined) });
   if (r.code !== 0 || !existsSync(out)) return undefined;
-  const rep = await readJson<{ dengeli_yuzde?: number; dogru: number; toplam: number; hep_ayni_karar?: boolean; cevaplar: { tur: string; kusurlu: boolean; dogru: boolean; puan: number; sorunlar: string[]; id: string }[] }>(out);
-  // A judge that gives every frame the same verdict has no score (kalite-sinavi's own warning).
-  return { ...(rep.hep_ayni_karar || rep.dengeli_yuzde === undefined ? {} : { dengeli: rep.dengeli_yuzde }), dogru: rep.dogru, toplam: rep.toplam, cevaplar: rep.cevaplar };
+  type Answer = { tur: string; kusurlu: boolean; dogru: boolean; puan: number; sorunlar: string[]; id: string; goz?: boolean; goz_dogru?: boolean };
+  type Score = { dengeli_yuzde?: number; dogru: number; toplam: number; hep_ayni_karar?: boolean };
+  const rep = await readJson<Score & { goz?: Score; cevaplar: Answer[] }>(out);
+  // The settings tuned here change only the vision model's verdict: compare the eye's own score (owner, 9 Nov 2026:
+  // 30+ questions so a setting's effect can be measured) and learn from the eye's own mistakes; an older report
+  // without it is read as before. A judge that gives every frame the same verdict has no score.
+  const s = rep.goz ?? rep;
+  const cevaplar = rep.goz ? rep.cevaplar.filter((a) => a.goz).map((a) => ({ ...a, dogru: Boolean(a.goz_dogru) })) : rep.cevaplar;
+  return { ...(s.hep_ayni_karar || s.dengeli_yuzde === undefined ? {} : { dengeli: s.dengeli_yuzde }), dogru: s.dogru, toplam: s.toplam, cevaplar };
 }
 
 /** The exam's flags for the quality brain's settings as they stand (or as given): examples shown, the steady judge. */
@@ -114,18 +123,32 @@ const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
  */
 async function writingExam(paths: V3Paths, research: Parameters<typeof writeExam>[1]["research"]): Promise<{ yapildi: boolean; satir: string }> {
   if (/^(0|kapali|off)$/i.test(process.env.ATOLYE_V3_CIRAK_SINAV ?? "")) return { yapildi: false, satir: "kapalı (ATOLYE_V3_CIRAK_SINAV=0)" };
-  const spent = await examSpendToday(paths.workRoot);
-  if (spent + EXAM_CAP_USD > EXAM_DAY_CAP_USD) return { yapildi: false, satir: `bugünkü tavan doldu ($${spent.toFixed(2)} / $${EXAM_DAY_CAP_USD})` };
-  const writer = writerBudget(paths, EXAM_CAP_USD);
-  if (!writer) return { yapildi: false, satir: "OpenAI seçili değil ya da anahtarı yok; çırak yerel modelle yazmaz" };
-  const next = (await examCandidates(paths.repoRoot, paths.workRoot))[0];
-  if (!next) return { yapildi: false, satir: "sınava uygun yeni commit yok" };
-  await fitPc(paths);
   // An order that comes in stops the exam at its next round (the watcher waits for this cycle before producing).
   const stop = async () => ((await listOrders(paths.workRoot)).some((o) => o.order.durum === "bekliyor") ? "sipariş geldi" : undefined);
-  const x = await writeExam(next, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, research, writer, log, stop });
-  writerSpent += x.maliyetUsd;
-  return { yapildi: true, satir: `"${x.gorev.slice(0, 60)}" ${x.sonuc === "gecti" ? "geçti" : x.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} (${x.turlar} tur, $${x.maliyetUsd.toFixed(3)}); ${writeReadiness(await listWriteExams(paths.workRoot)).ozet}` };
+  const lines: string[] = [];
+  // Owner, 9 Nov 2026: "Çırağın yazma sınavlarını hızlandırmak … maliyet oluşturmadan": several exams in one cycle while
+  // the same day's cap allows (each one cheaper since the cached prompt head is booked at its own price).
+  for (let i = 0; i < EXAMS_PER_CYCLE; i++) {
+    const spent = await examSpendToday(paths.workRoot);
+    if (spent + EXAM_CAP_USD > EXAM_DAY_CAP_USD) {
+      if (!lines.length) return { yapildi: false, satir: `bugünkü tavan doldu ($${spent.toFixed(2)} / $${EXAM_DAY_CAP_USD})` };
+      break;
+    }
+    const writer = writerBudget(paths, EXAM_CAP_USD);
+    if (!writer) return { yapildi: false, satir: "OpenAI seçili değil ya da anahtarı yok; çırak yerel modelle yazmaz" };
+    const next = (await examCandidates(paths.repoRoot, paths.workRoot))[0];
+    if (!next) {
+      if (!lines.length) return { yapildi: false, satir: "sınava uygun yeni commit yok" };
+      break;
+    }
+    if (await stop()) break;
+    await fitPc(paths);
+    const x = await writeExam(next, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, research, writer, log, stop });
+    writerSpent += x.maliyetUsd;
+    lines.push(`"${x.gorev.slice(0, 60)}" ${x.sonuc === "gecti" ? "geçti" : x.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} (${x.turlar} tur, $${x.maliyetUsd.toFixed(3)})`);
+    if (x.neden?.startsWith("yarıda kaldı")) break;
+  }
+  return { yapildi: true, satir: `${lines.join(" · ")}; ${writeReadiness(await listWriteExams(paths.workRoot)).ozet}` };
 }
 
 async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[], dev: ReturnType<typeof brainBudget> = budget): Promise<Omit<TaskResult, "bitis">> {

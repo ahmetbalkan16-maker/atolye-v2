@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
 import { addedTestCode, apprenticePolicy, examCandidates, testImports, writeExam } from "../src/lib/v3/council/DevApprentice";
-import { listLessons, listWriteExams, loadDevBrainView, type WriteExam, WRITE_MIN_EXAMS, writeReadiness } from "../src/lib/v3/council/DevBrain";
+import { listLessons, listWriteExams, loadDevBrainView, recordWriteExam, type WriteExam, WRITE_MIN_EXAMS, writeReadiness } from "../src/lib/v3/council/DevBrain";
 import { dropWorktree, linkShared } from "../src/lib/v3/council/Developer";
 import { runDevJob } from "../src/lib/v3/council/DevResearch";
 import { BASE_SKILLS, listSkills, parseSkill, pickSkills, skillsText } from "../src/lib/v3/council/DevSkills";
@@ -319,6 +319,20 @@ async function main() {
     const limited = [process.execPath, "-e", `process.stdin.resume();process.stdin.on("end",()=>{console.log("You've hit your session limit · resets 9:40pm (Europe/Istanbul)");process.exit(1)})`];
     const fallback = await runDevJob((await listProposals(work)).find((x) => x.proposal.id === id)!.proposal, { repoRoot: repo, workRoot: work, budget: mockBudget([]), model: MOCK, log: () => {} }, { agent: limited, checks: [], worktreeRoot: path.join(base, "gelistirme"), cirak: { agent, when: "yedek" } });
     assert.deepEqual([fallback.durum, fallback.is?.yazan], ["hazir", "cirak"], JSON.stringify(fallback.is));
+    // Apprentice first, Claude the backup (owner, 9 Nov 2026: "Eşiği geçince işleri önce çırak yazsın, Claude yalnız
+    // yedek olsun"): the default once ready; what the apprentice cannot build Claude builds the same evening.
+    assert.equal((await apprenticePolicy(repo, work, {}))?.when ?? "hazır değil", "hazır değil", "the threshold still gates it");
+    for (let i = 0; i < WRITE_MIN_EXAMS; i++) await recordWriteExam(work, pass(i));
+    assert.equal((await apprenticePolicy(repo, work, {}))?.when, "once", "ready: the apprentice goes first by default");
+    assert.equal((await apprenticePolicy(repo, work, { ATOLYE_V3_CIRAK_YAZAR: "yedek" }))?.when, "yedek");
+    assert.equal(await apprenticePolicy(repo, work, { ATOLYE_V3_CIRAK_YAZAR: "kapali" }), undefined);
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 0, baslangic: "2026-11-06T10:00:00Z" } }));
+    await g(["branch", "-D", `gelistirme/${id}`]);
+    const stuck = [process.execPath, "-e", `process.stdin.resume();process.stdin.on("end",()=>{console.error("yazamadım");process.exit(1)})`];
+    const claude = [process.execPath, "-e", `process.stdin.resume();process.stdin.on("end",()=>{require("fs").appendFileSync("src/lib/v3/mix/Calc.ts","export const quadruple = (n: number) => n * 4;\\n");console.log("Claude yazdı")})`];
+    const backup = await runDevJob((await listProposals(work)).find((x) => x.proposal.id === id)!.proposal, { repoRoot: repo, workRoot: work, budget: mockBudget([]), model: MOCK, log: () => {} }, { agent: claude, checks: [], worktreeRoot: path.join(base, "gelistirme"), cirak: { agent: stuck, when: "once" } });
+    assert.deepEqual([backup.durum, backup.is?.yazan, backup.is?.deneme], ["hazir", "claude", 2], JSON.stringify(backup.is));
+    assert.ok(existsSync(path.join(work, "_kutuphane", "gelisim", "isler", id, "ajan-1.log")), "the apprentice's try is kept beside Claude's");
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

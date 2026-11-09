@@ -1,5 +1,21 @@
 import { estimateTokenCallCeiling, estimateTokenCost } from "../../ai/AiPricing";
-import type { AIProvider, AIProviderGenerateOptions, AIProviderOutput, AIProviderResult } from "../../ai/providers/AIProvider";
+import type { AIProvider, AIProviderGenerateOptions, AIProviderOutput, AIProviderResult, AIProviderUsage } from "../../ai/providers/AIProvider";
+
+/**
+ * Usage with the part of the prompt OpenAI read from its prompt cache (`prompt_tokens_details.cached_tokens`, reported
+ * by OpenAIText). The apprentice's writing rounds send the same long head every round; OpenAI caches a repeated prefix
+ * of 1 024+ tokens by itself and bills it at a quarter of the input price for gpt-4.1. Booked at full price, the $1 a
+ * day of writing exams bought fewer exams than it paid for (9 Nov 2026).
+ */
+export interface CachedUsage extends AIProviderUsage {
+  readonly cachedPromptTokens?: number;
+}
+
+/** The cached prompt tokens a provider's result reported (0 when none). */
+export function cachedTokensOf(result: Pick<AIProviderResult, "usage">): number {
+  const n = (result.usage as CachedUsage | undefined)?.cachedPromptTokens;
+  return typeof n === "number" && Number.isSafeInteger(n) && n > 0 ? n : 0;
+}
 
 /**
  * Per-episode spend guard for V3. Every paid call is priced at its worst case (prompt + the full output budget)
@@ -41,6 +57,8 @@ export interface V3SpendEntry {
   readonly costUsd: number;
   readonly promptTokens?: number;
   readonly completionTokens?: number;
+  /** Prompt tokens OpenAI read from its cache (priced at the cached-input rate). */
+  readonly cachedTokens?: number;
   /** Set when the planned paid call was replaced by the free fallback. */
   readonly fellBackFrom?: string;
   readonly reason: string;
@@ -76,6 +94,21 @@ export interface V3BudgetOptions {
   readonly providers: Readonly<Partial<Record<V3ModelChoice["provider"], AIProvider>>>;
   /** Free provider used when a paid call would cross the cap; none = stop instead. */
   readonly fallback?: V3ModelChoice;
+}
+
+/**
+ * The share of the input price OpenAI bills for prompt tokens read from its cache (its price list: gpt-4.1 family a
+ * quarter, gpt-4o family a half). A model not listed gets no discount — it is booked at full price, never too cheap.
+ */
+export const CACHED_INPUT_SHARE: Readonly<Record<string, number>> = { "gpt-4.1": 0.25, "gpt-4.1-mini": 0.25, "gpt-4.1-nano": 0.25, "gpt-4o": 0.5, "gpt-4o-mini": 0.5 };
+
+/** What `cached` prompt tokens cost less than at the full input price (dated snapshots priced as their model). */
+export function cachedDiscountUsd(provider: string, model: string, cached: number): number {
+  const base = model.replace(/-\d{4}-\d{2}-\d{2}$/, "");
+  const share = CACHED_INPUT_SHARE[base];
+  if (share === undefined || cached <= 0) return 0;
+  const full = estimateTokenCost({ provider, model: base, promptTokens: cached, completionTokens: 0 });
+  return full.status === "known" ? full.costUsd * (1 - share) : 0;
 }
 
 function asResult(out: AIProviderOutput): AIProviderResult {
@@ -115,15 +148,19 @@ export class V3Budget {
     }
     const out = await this.call(choice, prompt, opts);
     const actual = estimateTokenCost({ provider: choice.provider, model, promptTokens: out.usage?.promptTokens, completionTokens: out.usage?.completionTokens });
+    // The prompt part OpenAI read from its cache is billed cheaper (a provider that reports it: OpenAIText).
+    const cached = Math.min(cachedTokensOf(out), out.usage?.promptTokens ?? 0);
+    const discount = actual.status === "known" && cached ? cachedDiscountUsd(choice.provider, model, cached) : 0;
     this.entries.push({
       step,
       provider: choice.provider,
       model,
       ceilingUsd: ceiling.costUsd,
       // Missing usage cannot be priced, so the worst case is booked rather than zero.
-      costUsd: actual.status === "known" || actual.status === "free" ? actual.costUsd : ceiling.costUsd,
+      costUsd: actual.status === "known" ? Math.max(0, Math.round((actual.costUsd - discount) * 1e6) / 1e6) : actual.status === "free" ? actual.costUsd : ceiling.costUsd,
       ...(out.usage?.promptTokens !== undefined ? { promptTokens: out.usage.promptTokens } : {}),
       ...(out.usage?.completionTokens !== undefined ? { completionTokens: out.usage.completionTokens } : {}),
+      ...(cached ? { cachedTokens: cached } : {}),
       reason: decision.reason,
     });
     return { result: out, used: choice };

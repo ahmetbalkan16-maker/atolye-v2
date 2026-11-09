@@ -12,6 +12,7 @@ import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIPro
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
 import { cutSides, layoutFaults, MIN_PROBES, overlapShare } from "../src/lib/v3/council/LayoutCheck";
+import { examScore, eyeQuestion, faultsAt, type FrameQuestion, MIN_EYE_QUESTIONS, questionProblems } from "../src/lib/v3/council/QualityExam";
 import { BAND_MIN_FRAMES, frameStats, PIXEL_H, PIXEL_W, pixelFaults } from "../src/lib/v3/council/PixelCheck";
 import type { V3LayoutBox } from "../src/lib/v3/render/RenderPlanTypes";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
@@ -296,6 +297,29 @@ async function main() {
     assert.deepEqual(mixed.map((e) => e.kusurlu), [true, false], "two false alarms taught later do not crowd out the fault");
     assert.deepEqual(await frameExamples(lessons, exampleDir(root), "harita"), [], "a close map's lesson is not a wide map's");
     assert.equal((await frameExamples(lessons, exampleDir(root), "yakin-harita", (f) => f === "kosova-rozet.jpg")).length, 1, "a question never sees its own frame");
+  });
+
+  await scenario("Q2 the frame exam (owner, 9 Nov 2026: 8 → 30+ questions): the file is consistent with 30+ eye questions; the eye's score apart from the measures", () => {
+    const file = JSON.parse(readFileSync(path.join(process.cwd(), "content", "v3", "kalite-sinavi.json"), "utf8")) as { sorular: FrameQuestion[] };
+    assert.deepEqual(questionProblems(file.sorular), []);
+    const eye = file.sorular.filter(eyeQuestion);
+    assert.ok(eye.length >= MIN_EYE_QUESTIONS && eye.some((q) => q.kusurlu) && eye.some((q) => !q.kusurlu), `göz sorusu ${eye.length}`);
+    assert.ok(file.sorular.filter((q) => q.bozma).every((q) => q.kusurlu && q.olcum === "goz"), "a laid-on fault is an eye fault");
+    // A broken file is named line by line.
+    const bad = questionProblems([
+      { id: "A b", kaynak: "D:/x.mp4", saniye: -1, donem: "1", tur: "sahne", kusurlu: true },
+      { id: "c", kaynak: "v.mp4", saniye: 1, donem: "1", tur: "sahne", kusurlu: false, ne: "temiz", bozma: "negate" },
+    ] as FrameQuestion[]);
+    assert.equal(bad.length, 7, bad.join("\n"));
+    // Scores: the balanced mean; a judge that calls every frame faulty gets 50 and is named.
+    const s = examScore([{ kusurlu: true, dogru: true }, { kusurlu: true, dogru: false }, { kusurlu: false, dogru: true }, { kusurlu: false, dogru: true }]);
+    assert.deepEqual([s.dogru, s.toplam, s.dengeli, s.hepAyni], [3, 4, 75, false]);
+    const all = examScore([{ kusurlu: true, dogru: true }, { kusurlu: false, dogru: false }, { kusurlu: false, dogru: false }]);
+    assert.deepEqual([all.dengeli, all.hepAyni], [50, true]);
+    assert.equal(examScore([{ kusurlu: true, dogru: true }]).dengeli, undefined, "no clean frame: no balanced score");
+    // A measured fault counts for the moments it covers.
+    assert.deepEqual(faultsAt([{ from: 19.5, to: 21, ayrinti: "kesik" }, { from: 29, to: 31.5, ayrinti: "üst üste" }], 20.2).map((f) => f.ayrinti), ["kesik"]);
+    assert.deepEqual(faultsAt([{ from: 19.5, to: 21, ayrinti: "kesik" }], 22), []);
   });
 
   await scenario("L the layout check (owner, 2 Nov 2026): a box cut by the edge or printed over another, only when it lasts; covers and skipped frames", () => {

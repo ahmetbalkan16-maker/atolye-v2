@@ -20,7 +20,8 @@ import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/ma
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
+import { cachedDiscountUsd, cachedTokensOf, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
+import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
 
@@ -108,6 +109,32 @@ async function main() {
     // 1000 in × $2/M + 500 out × $8/M = $0.006
     assert.equal(budget.spentUsd, 0.006);
     assert.equal(budget.capUsd, 1);
+  });
+
+  await scenario("A2 the prompt head OpenAI read from its cache is booked at its own price (9 Nov 2026: more writing exams for the same $1)", async () => {
+    const cachedReply = (cached: number) => ({ generate: async () => ({ content: "ok", finishReason: "stop" as const, refused: false, complete: true, truncated: false, usage: { promptTokens: 10_000, completionTokens: 500, totalTokens: 10_500, cachedPromptTokens: cached } }) });
+    const budget = new V3Budget({ providers: { openai: cachedReply(8_000) } });
+    await budget.generate("cirak-yaz", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 2000 });
+    // 2000 in × $2/M + 8000 cached × $0.50/M + 500 out × $8/M = $0.012 (full price would be $0.024).
+    assert.equal(budget.spentUsd, 0.012);
+    assert.equal(budget.ledger[0]!.cachedTokens, 8_000);
+    // A model without a known cached price is booked at full price; more cached than sent is capped.
+    const other = new V3Budget({ providers: { openai: cachedReply(50_000) } });
+    await other.generate("x", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 2000 });
+    assert.equal(other.spentUsd, 0.009, "at most the whole prompt is cached");
+    assert.equal(cachedDiscountUsd("openai", "gpt-unknown", 1_000_000), 0);
+    assert.equal(cachedDiscountUsd("openai", "gpt-4.1-2025-04-14", 1_000_000), 1.5, "a dated snapshot priced as its model");
+    // The provider that reports it reads OpenAI's own field.
+    const keyBefore = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test";
+    try {
+      const fake = (async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "x" } }], usage: { prompt_tokens: 3000, completion_tokens: 10, total_tokens: 3010, prompt_tokens_details: { cached_tokens: 2048 } } }), { status: 200 })) as unknown as typeof fetch;
+      const r = await new OpenAITextProvider(fake).generate("p", { model: "gpt-4.1", maxTokens: 20 });
+      assert.deepEqual([r.content, cachedTokensOf(r), r.usage?.promptTokens], ["x", 2048, 3000]);
+    } finally {
+      if (keyBefore === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = keyBefore;
+    }
   });
 
   await scenario("B a call that would cross the cap is never made: the free local model writes instead", async () => {

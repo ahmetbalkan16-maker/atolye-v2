@@ -9,7 +9,13 @@
  *        [--ek-kural "<a candidate rule under test>"] [--rapor <file>]   (the self-improvement loop's prompt tuning)
  *        [--sabit]   the steady judge: temperature 0 and a fixed seed (BrainModels.STEADY_JUDGE)
  *        --olculu: as the production since 2 Nov 2026 — pixel check + the vision model asked only what needs an eye;
- *        layout questions ("olcum": "yerlesim") are left out (measured from the render's boxes, not from a frame)
+ *        a layout question ("olcum": "yerlesim") is measured from the render's own boxes when the question names them
+ *        (`yerlesim`, `plan`: newer episodes), else left out (an old video's frame has no boxes)
+ *   npx tsx scripts/v3/kalite-sinavi.ts denetle                  # the question file's problems, the eye's question count
+ *
+ * Two scores (owner, 9 Nov 2026: "kalite sınavını 8 sorudan 30'un üzerine çıkar"): the whole judge's, and the eye's
+ * (`goz`: only the frames the vision model decides). The self-improvement loop compares the eye's — the settings it
+ * tunes change only the vision model's verdict.
  *   npx tsx scripts/v3/kalite-sinavi.ts ogret --soru <id>         # teach the brain an exam frame it got wrong
  *   npx tsx scripts/v3/kalite-sinavi.ts ogret --video <mp4> --saniye <s> --tur <harita|yakin-harita|sahne|resim|gecis>
  *        --metin "<what is wrong, or why it is fine>" [--temiz] [--ad <name>] [--bolum <episode>]
@@ -28,23 +34,32 @@ import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { exampleDir, recall } from "../../src/lib/v3/council/ExperienceMemory";
 import { activeAdditions } from "../../src/lib/v3/council/SelfImprovement";
 import { STEADY_JUDGE } from "../../src/lib/v3/council/BrainModels";
+import { type LayoutFile, layoutFaults } from "../../src/lib/v3/council/LayoutCheck";
 import { pixelFaults, scanVideo } from "../../src/lib/v3/council/PixelCheck";
-import { edgeStripArgs, FRAME_KINDS, type FrameKind, frameExamples, judgeFrame, QUALITY_BAR, teachFrame } from "../../src/lib/v3/council/QualityBrain";
+import { edgeStripArgs, FRAME_KINDS, type FrameKind, frameExamples, judgeFrame, layoutSkip, pixelSkip, QUALITY_BAR, teachFrame } from "../../src/lib/v3/council/QualityBrain";
+import { examScore, eyeQuestion, faultsAt, type FrameQuestion as Question, MIN_EYE_QUESTIONS, questionProblems } from "../../src/lib/v3/council/QualityExam";
+import type { V3RenderPlan } from "../../src/lib/v3/render/RenderPlanTypes";
 import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
 import { runChecked } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
-interface Question {
+/** One question's verdict in the report. */
+interface Answer {
   readonly id: string;
-  readonly kaynak: string;
-  readonly saniye: number;
-  readonly donem: string;
   readonly tur: FrameKind;
   readonly kusurlu: boolean;
-  readonly kusur?: string;
-  readonly ne?: string;
-  /** Which check catches the fault in production: the render's boxes, the pixel check, or the eye (vision model). */
-  readonly olcum?: "yerlesim" | "piksel" | "goz";
+  /** The whole judge's verdict (measures and the eye) was right. */
+  readonly dogru: boolean;
+  /** An eye question (QualityExam.eyeQuestion), and whether the vision model's own verdict was right. */
+  readonly goz: boolean;
+  readonly goz_dogru?: boolean;
+  readonly yapay?: true;
+  readonly puan?: number;
+  readonly ornek: number;
+  readonly kenar: boolean;
+  readonly sorunlar: readonly string[];
+  readonly olculen?: readonly string[];
+  readonly okunamadi?: true;
 }
 
 function arg(name: string): string | undefined {
@@ -64,18 +79,27 @@ async function main() {
   const frameOf = (q: Question) => path.join(dir, `${q.id}.jpg`);
   const edgesOf = (q: Question) => path.join(dir, `${q.id}.kenar.jpg`);
   const cmd = process.argv[2];
+  if (cmd === "denetle") {
+    const problems = questionProblems(sorular);
+    const eye = sorular.filter(eyeQuestion);
+    for (const p of problems) console.log(`✗ ${p}`);
+    console.log(`${sorular.length} soru (${sorular.filter((q) => q.kusurlu).length} kusurlu, ${sorular.filter((q) => q.bozma).length} yapay); göz sorusu ${eye.length} (${eye.filter((q) => q.kusurlu).length} kusurlu) — en az ${MIN_EYE_QUESTIONS} gerekir`);
+    if (problems.length || eye.length < MIN_EYE_QUESTIONS) process.exitCode = 1;
+    return;
+  }
   if (cmd === "hazirla") {
     for (const q of sorular) {
-      if (existsSync(frameOf(q)) && existsSync(edgesOf(q))) continue;
+      // A frame with a laid-on fault has no edge strips (the strips would show the clean video).
+      if (existsSync(frameOf(q)) && (q.bozma || existsSync(edgesOf(q)))) continue;
       const video = path.join(paths.workRoot, q.kaynak);
       if (!existsSync(video)) {
         console.log(`· ${q.id}: kaynak yok (${q.kaynak})`);
         continue;
       }
       // The production's own cuts: one frame at 960 px, and its edge strips at full size.
-      await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-ss", q.saniye.toFixed(2), "-i", video, "-frames:v", "1", "-vf", "scale=960:-2", "-q:v", "4", frameOf(q)]);
-      await runChecked(paths.ffmpeg, edgeStripArgs(video, q.saniye, edgesOf(q)));
-      console.log(`✓ ${q.id}`);
+      await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-ss", q.saniye.toFixed(2), "-i", video, "-frames:v", "1", "-vf", `scale=960:-2${q.bozma ? `,${q.bozma}` : ""}`, "-q:v", "4", frameOf(q)]);
+      if (!q.bozma) await runChecked(paths.ffmpeg, edgeStripArgs(video, q.saniye, edgesOf(q)));
+      console.log(`✓ ${q.id}${q.bozma ? " (yapay kusur)" : ""}`);
     }
     return;
   }
@@ -108,48 +132,84 @@ async function main() {
   // the vision model asked only what needs an eye. A layout fault is measured from the render's own boxes, which an old
   // video's frame does not have: those questions are left out of the score here (the render test covers them).
   const measured = process.argv.includes("--olculu");
-  const answers = [];
+  const plans = new Map<string, Pick<V3RenderPlan, "fps" | "shots" | "width" | "height"> | undefined>();
+  const planOf = async (rel?: string) => {
+    if (!rel) return undefined;
+    if (!plans.has(rel)) {
+      const file = path.join(paths.workRoot, rel);
+      const raw = existsSync(file) ? (JSON.parse(await fs.readFile(file, "utf8")) as { plan?: V3RenderPlan } & V3RenderPlan) : undefined;
+      plans.set(rel, raw ? (raw.plan ?? raw) : undefined);
+    }
+    return plans.get(rel);
+  };
+  const answers: Answer[] = [];
   const leftOut: string[] = [];
-  let right = 0;
   for (const q of sorular) {
     if (!existsSync(frameOf(q))) {
       console.log(`· ${q.id}: kare yok (önce "hazirla")`);
       continue;
     }
-    if (measured && q.olcum === "yerlesim") {
+    const plan = await planOf(q.plan);
+    const boxes = q.yerlesim ? path.join(paths.workRoot, q.yerlesim) : undefined;
+    if (measured && q.olcum === "yerlesim" && !(boxes && existsSync(boxes))) {
       leftOut.push(q.id);
-      console.log(`· ${q.id.padEnd(28)} yerleşim kusuru: render kutularıyla ölçülür, bu karede ölçülemez`);
+      console.log(`· ${q.id.padEnd(28)} yerleşim kusuru: render kutularıyla ölçülür, bu sorunun kutuları yok`);
+      continue;
+    }
+    // Measured as the production measures: the render's boxes at that moment, the pixel check over the video around it
+    // (the plan's designed moments skipped, the frame's own size).
+    const layout = measured && boxes && existsSync(boxes) ? faultsAt(layoutFaults(JSON.parse(await fs.readFile(boxes, "utf8")) as LayoutFile, plan ? layoutSkip(plan) : undefined), q.saniye) : [];
+    const pixels = measured && !q.bozma ? faultsAt(pixelFaults(await scanVideo(paths.ffmpeg, path.join(paths.workRoot, q.kaynak), { fps: plan?.fps ?? 30, from: Math.max(0, q.saniye - 2), to: q.saniye + 2, ...(plan ? { width: plan.width, height: plan.height } : {}) }), plan ? pixelSkip(plan) : undefined), q.saniye) : [];
+    const found = [...layout.map((x) => `[yerleşim] ${x.ayrinti}`), ...pixels.map((p) => `[piksel] ${p.ayrinti}`)];
+    // A layout fault the boxes caught needs no eye: the production reports it either way.
+    const eye = eyeQuestion(q);
+    if (!eye && layout.length) {
+      answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru: q.kusurlu, goz: false, ornek: 0, kenar: false, sorunlar: [], olculen: found });
+      console.log(`${q.kusurlu ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ölçüldü: ${found.join("; ").slice(0, 120)}`);
       continue;
     }
     // Never its own frame among the examples.
     const examples = await frameExamples(lessons, exampleDir(paths.workRoot), q.tur, (file) => file === `${q.id}.jpg`);
-    // The edge strips as the production shows them (not for a period picture; measured, not at all).
-    const edges = !measured && !process.argv.includes("--kenar-yok") && q.tur !== "resim" && existsSync(edgesOf(q)) ? (await fs.readFile(edgesOf(q))).toString("base64") : undefined;
+    // The edge strips as the production shows them (not for a period picture or a laid-on fault; measured, not at all).
+    const edges = !measured && !process.argv.includes("--kenar-yok") && q.tur !== "resim" && !q.bozma && existsSync(edgesOf(q)) ? (await fs.readFile(edgesOf(q))).toString("base64") : undefined;
     const v = await judgeFrame({ judge, image: (await fs.readFile(frameOf(q))).toString("base64"), donem: q.donem, rules, kind: q.tur, examples, ...(edges ? { edges } : {}), ...(measured ? { measured: true } : {}) });
-    // The pixel faults within a frame's time of the question's moment.
-    const pixels = measured ? pixelFaults(await scanVideo(paths.ffmpeg, path.join(paths.workRoot, q.kaynak), { fps: 30, from: Math.max(0, q.saniye - 2), to: q.saniye + 2 })).filter((p) => p.from <= q.saniye + 0.05 && p.to >= q.saniye - 0.05) : [];
     // The production reports a frame under the bar with a fault named; an unreadable answer is no verdict.
     const seen = !v.okunamadi && v.puan < QUALITY_BAR && v.sorunlar.length > 0;
-    const reported = seen || pixels.length > 0;
-    const dogru = (!v.okunamadi || pixels.length > 0) && reported === q.kusurlu;
-    if (dogru) right++;
-    answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru, puan: v.puan, ornek: examples.length, kenar: Boolean(edges), sorunlar: v.sorunlar, ...(pixels.length ? { piksel: pixels.map((p) => p.ayrinti) } : {}), ...(v.okunamadi ? { okunamadi: true } : {}) });
-    console.log(`${dogru ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ${v.puan}/10 (${examples.length} örnek) ${[...pixels.map((p) => `[piksel] ${p.ayrinti}`), ...v.sorunlar].join("; ").slice(0, 120)}`);
+    const reported = seen || found.length > 0;
+    const dogru = (!v.okunamadi || found.length > 0) && reported === q.kusurlu;
+    // The eye's own verdict: what the vision model said, whatever code measured.
+    const gozDogru = !v.okunamadi && seen === q.kusurlu;
+    answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru, goz: eye, ...(eye ? { goz_dogru: gozDogru } : {}), ...(q.bozma ? { yapay: true } : {}), puan: v.puan, ornek: examples.length, kenar: Boolean(edges), sorunlar: v.sorunlar, ...(found.length ? { olculen: found } : {}), ...(v.okunamadi ? { okunamadi: true } : {}) });
+    console.log(`${dogru ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ${v.puan}/10 (${examples.length} örnek) ${[...found, ...v.sorunlar].join("; ").slice(0, 120)}`);
   }
-  const caught = answers.filter((a) => a.kusurlu && a.dogru).length;
-  const faulty = answers.filter((a) => a.kusurlu).length;
-  const clean = answers.filter((a) => !a.kusurlu && a.dogru).length;
   // The plain count rewards a judge that calls every frame faulty (Moondream, 2 Nov 2026: 7/12 like gemma4:12b, with
   // every frame reported and the prompt's fault list copied): the mean of the two hit rates is 50 % for any judge
   // that answers the same for every frame, and such a judge is named as one.
-  const balanced = faulty && answers.length - faulty ? Math.round(((caught / faulty + clean / (answers.length - faulty)) / 2) * 100) : undefined;
-  const sameVerdict = answers.length > 1 && (caught + (answers.length - faulty - clean) === answers.length || (faulty - caught) + clean === answers.length);
-  const report = { tarih: new Date().toISOString(), model, ...(steady ? { sabit: true } : {}), kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !measured && !process.argv.includes("--kenar-yok"), ...(measured ? { olculu: true, disarida_yerlesim: leftOut } : {}), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
+  const all = examScore(answers);
+  const eyes = examScore(answers.filter((a) => a.goz).map((a) => ({ kusurlu: a.kusurlu, dogru: Boolean(a.goz_dogru) })));
+  const report = {
+    tarih: new Date().toISOString(),
+    model,
+    ...(steady ? { sabit: true } : {}),
+    kurallar: rules.length,
+    ornekli: lessons.some((l) => l.ornek),
+    kenarli: !measured && !process.argv.includes("--kenar-yok"),
+    ...(measured ? { olculu: true, disarida_yerlesim: leftOut } : {}),
+    dogru: all.dogru,
+    toplam: all.toplam,
+    ...(all.dengeli !== undefined ? { dengeli_yuzde: all.dengeli } : {}),
+    hep_ayni_karar: all.hepAyni,
+    // The eye's score: the frames the vision model decides (the self-improvement loop compares this one).
+    goz: { dogru: eyes.dogru, toplam: eyes.toplam, kusurlu: eyes.kusurlu, ...(eyes.dengeli !== undefined ? { dengeli_yuzde: eyes.dengeli } : {}), hep_ayni_karar: eyes.hepAyni },
+    cevaplar: answers,
+  };
   const out = path.join(paths.workRoot, "_kutuphane", "sinav", `kalite-sonuc-${Date.now()}.json`);
   await fs.writeFile(out, JSON.stringify({ ...report, ...(candidate ? { ek_kural: candidate } : {}) }, null, 2));
   // --rapor: the same report where the self-improvement loop reads it.
   if (arg("--rapor")) await fs.writeFile(arg("--rapor")!, JSON.stringify({ ...report, ...(candidate ? { ek_kural: candidate } : {}) }, null, 2));
-  console.log(`\n${model}: ${right}/${answers.length} doğru — kusurlu karelerin ${caught}/${faulty}'ini buldu, temiz karelerin ${clean}/${answers.length - faulty}'ini geçirdi${balanced !== undefined ? `; dengeli doğruluk %${balanced} (yazı-tura %50)` : ""}${sameVerdict ? "\nUYARI: her kareye aynı kararı verdi — bu bir yargı değil, puanı yok sayın" : ""}\nrapor: ${out}`);
+  console.log(`\n${model}: ${all.dogru}/${all.toplam} doğru — kusurlu karelerin ${all.bulunan}/${all.kusurlu}'ini buldu, temiz karelerin ${all.gecen}/${all.toplam - all.kusurlu}'ini geçirdi${all.dengeli !== undefined ? `; dengeli doğruluk %${all.dengeli} (yazı-tura %50)` : ""}`);
+  console.log(`göz (yalnız görsel modelin kararı): ${eyes.dogru}/${eyes.toplam} — kusurlu ${eyes.bulunan}/${eyes.kusurlu}, temiz ${eyes.gecen}/${eyes.toplam - eyes.kusurlu}${eyes.dengeli !== undefined ? `; dengeli %${eyes.dengeli}` : ""}${eyes.toplam < MIN_EYE_QUESTIONS ? ` (UYARI: ${MIN_EYE_QUESTIONS} sorudan az, gürültülü)` : ""}`);
+  console.log(`${all.hepAyni || eyes.hepAyni ? "UYARI: her kareye aynı kararı verdi — bu bir yargı değil, puanı yok sayın\n" : ""}rapor: ${out}`);
 }
 
 main().catch((e) => {

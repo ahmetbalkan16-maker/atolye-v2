@@ -214,11 +214,13 @@ export function apprenticeAgent(repoRoot: string, workRoot: string): string[] {
 }
 
 /**
- * When the apprentice builds an approved job (`ATOLYE_V3_CIRAK_YAZAR`): `kapali` never; `yedek` (default) when Claude's
- * usage limit stops a job; `once` before Claude — the last two only once its writing exams allow it.
+ * When the apprentice builds an approved job (`ATOLYE_V3_CIRAK_YAZAR`): `kapali` never; `once` (default since 9 Nov
+ * 2026) before Claude, Claude building only what it could not (owner: "Eşiği geçince işleri önce çırak yazsın, Claude
+ * yalnız yedek olsun"); `yedek` only when Claude's usage limit stops a job. Either only once its writing exams pass the
+ * threshold (DevBrain.writeReadiness) — until then Claude builds every job.
  */
 export async function apprenticePolicy(repoRoot: string, workRoot: string, env: Readonly<Record<string, string | undefined>> = process.env): Promise<{ readonly agent: string[]; readonly when: "yedek" | "once" } | undefined> {
-  const mode = (env.ATOLYE_V3_CIRAK_YAZAR ?? "yedek").trim();
+  const mode = (env.ATOLYE_V3_CIRAK_YAZAR ?? "once").trim();
   if (mode !== "yedek" && mode !== "once") return undefined;
   if (!writeReadiness(await listWriteExams(workRoot)).yazabilir) return undefined;
   return { agent: apprenticeAgent(repoRoot, workRoot), when: mode };

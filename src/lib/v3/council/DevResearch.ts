@@ -497,8 +497,15 @@ export async function runDevJob(
     return develop(job, { ...base, agent: cirak!.agent, yazan: "cirak" });
   };
   let done: DevProposal;
-  if (cirak && (cirak.when === "zorla" || cirak.when === "once")) done = await byApprentice(p, cirak.when === "zorla" ? "istendiği için" : "önce");
-  else {
+  if (cirak && (cirak.when === "zorla" || cirak.when === "once")) {
+    done = await byApprentice(p, cirak.when === "zorla" ? "istendiği için" : "önce");
+    // Claude is the backup (owner, 9 Nov 2026): what the apprentice could not build, Claude builds the same evening
+    // with the same research note; a forced apprentice run stays the apprentice's.
+    if (cirak.when === "once" && done.durum === "yapilamadi") {
+      await say(d.workRoot, `"${p.baslik.slice(0, 80)}" işini yazamadım; yedek olarak Claude'a veriyorum.`, "Claude");
+      done = await develop(done, base);
+    }
+  } else {
     await say(d.workRoot, `"${p.baslik.slice(0, 80)}" işini araştırma notumla birlikte Claude'a veriyorum.`, "Claude");
     done = await develop(p, base);
     // Claude's usage limit (the evenings of 3 Nov 2026): the apprentice, once its writing exams allow it, builds instead.

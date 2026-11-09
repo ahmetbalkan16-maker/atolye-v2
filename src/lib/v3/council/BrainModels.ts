@@ -2,6 +2,7 @@ import { resolveOllamaConfig } from "../../ai/OllamaConfig";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { OllamaProvider } from "../../ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../../ai/providers/OpenAIProvider";
+import { OpenAITextProvider } from "../script/OpenAIText";
 import { V3Budget, type V3ModelChoice } from "../script/V3Budget";
 import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../util/Gpu";
 import { type V3Paths, v3Secret } from "../V3Paths";
@@ -37,7 +38,9 @@ export function writerBudget(paths: V3Paths, capUsd: number, provider = process.
   if (!key) return undefined;
   process.env.OPENAI_API_KEY = key;
   process.env.AI_PROVIDER = "openai";
-  return { budget: new V3Budget({ providers: { openai: new OpenAIProvider() }, capUsd }), model: { provider: "openai", model: process.env.ATOLYE_V3_CIRAK_MODEL ?? "gpt-4.1" } };
+  // Its own text provider: the same request, and the prompt tokens OpenAI read from its cache are reported and booked
+  // at the cached rate (a writing round repeats the last round's long head) — 9 Nov 2026.
+  return { budget: new V3Budget({ providers: { openai: new OpenAITextProvider() }, capUsd }), model: { provider: "openai", model: process.env.ATOLYE_V3_CIRAK_MODEL ?? "gpt-4.1" } };
 }
 
 /**
