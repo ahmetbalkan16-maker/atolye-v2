@@ -487,7 +487,9 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
                  {"karakter": "anlatici", "metin": "<the wall breaks>"},
                  {"karakter": "<the winning commander>", "metin": "<a quip, after the steps>"}]
     — each move on the narrator line that tells it, seen as it is told, with its arrow; a gunpowder battle the same way
-    with "tufekci" lines and "topcu" batteries in front.
+    with "tufekci" lines and "topcu" batteries in front. One move per line, the line naming the unit by the words of its
+    "ad" ("the Gauls and Spaniards bulge forward"): the unit sets off on that word, and a unit the line does not tell of
+    stands still — while the narrator tells one move, nothing else moves on the map.
 
 CROWDS — a group the narrator tells is SEEN as a group (owner): a scene whose lines tell of soldiers, troops, an army,
   pirates, guards, sailors, rebels or a mob carries a "kalabalik" of them — several figures, never one character standing

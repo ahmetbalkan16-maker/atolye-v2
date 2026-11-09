@@ -3,7 +3,7 @@ import { Easing, interpolate } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { along } from "./mapGeometry";
-import { separateTokens } from "./unitLayout";
+import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
 import { type Box, labelSpot } from "./hudLayout";
 
@@ -198,6 +198,7 @@ export interface PlacedToken {
   transit?: boolean;
   rout?: number;
   prog?: number;
+  way?: TokenWay;
 }
 
 /**
@@ -216,10 +217,43 @@ function departure(to: Units["steps"][number], i: number, fps: number): { begin:
  * that comes before the last slide is over takes the token on from mid-way (the Kosovo trial's tokens jumped back to
  * the last formation first); until it sets off it goes on with the last slide.
  */
-function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps: number): { x: number; y: number; t: number; queue: number } {
+const spacedCache = new WeakMap<Units["steps"], Map<number, Units["steps"]>>();
+/**
+ * A unit's steps with each formation's places spaced for tokens `gap` apart (at the gap rounded to half a world pixel,
+ * so a zooming camera reuses them). A formation with fewer places than tokens is filled with its last place first, as
+ * the tokens stood before (they share it until spaced).
+ */
+function spacedSteps(steps: Units["steps"], gap: number): Units["steps"] {
+  const key = Math.round(gap * 2) / 2;
+  let byGap = spacedCache.get(steps);
+  if (!byGap) spacedCache.set(steps, (byGap = new Map()));
+  const hit = byGap.get(key);
+  if (hit) return hit;
+  const tokens = Math.max(...steps.map((st) => st.points.length));
+  const out = steps.map((st) => {
+    if (!st.points.length) return st;
+    const full = Array.from({ length: tokens }, (_, i) => st.points[Math.min(i, st.points.length - 1)]!);
+    return { ...st, points: separateTokens(full, key) };
+  });
+  byGap.set(key, out);
+  return out;
+}
+
+const orders = new WeakMap<Units["steps"], number[][]>();
+/** The place token `i` takes in step `s` (unitLayout.formationOrder: least total distance, no crossing paths). */
+function placeOf(steps: Units["steps"], s: number, i: number): number {
+  let order = orders.get(steps);
+  if (!order) {
+    order = formationOrder(steps, Math.max(...steps.map((st) => st.points.length)));
+    orders.set(steps, order);
+  }
+  return order[s]?.[i] ?? Math.min(i, steps[s]!.points.length - 1);
+}
+
+function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps: number): { x: number; y: number; t: number; queue: number; from: { x: number; y: number }; goal: { x: number; y: number } } {
   const to = steps[s]!;
-  const b = to.points[Math.min(i, to.points.length - 1)]!;
-  if (s === 0) return { x: b.x, y: b.y, t: 1, queue: -1 };
+  const b = to.points[placeOf(steps, s, i)]!;
+  if (s === 0) return { x: b.x, y: b.y, t: 1, queue: -1, from: b, goal: b };
   const { begin, frames, queue } = departure(to, i, fps);
   const a = slideAt(steps, s - 1, i, Math.min(frame, begin), fps);
   // A routed token breaks into a run within a few frames (an ease-out started at full speed: a 22 px leap) and slows as
@@ -227,7 +261,7 @@ function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps
   const t = interpolate(frame, [begin, begin + frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: to.rout ? Easing.bezier(0.3, 0, 0.25, 1) : Easing.inOut(Easing.cubic) });
   // Through the breach: to the gap, then on to its place in the new formation.
   const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-  return { ...pos, t, queue };
+  return { ...pos, t, queue, from: { x: a.x, y: a.y }, goal: b };
 }
 
 /**
@@ -241,8 +275,9 @@ function tokenAt(u: Units, i: number, frame: number, fps: number): PlacedToken |
   while (s + 1 < steps.length && steps[s + 1]!.start <= frame) s++;
   const to = steps[s]!;
   const from = steps[Math.max(0, s - 1)]!;
-  const { x, y, t, queue } = slideAt(steps, s, i, frame, fps);
-  const pos = { x, y };
+  const { x, y, t, queue, from: start, goal } = slideAt(steps, s, i, frame, fps);
+  // Its way too: the spacing lets two tokens whose ways swap sides pass each other (unitLayout.passShare).
+  const pos = { x, y, way: { from: start, goal, t } };
   const transit = queue >= 0 && t < 1;
   if (to.rout && s > 0 && i < to.alive) return { ...pos, alpha: 1 - 0.35 * t, transit, rout: t, prog: t };
   // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
@@ -286,13 +321,33 @@ export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number
   const units = map.units ?? [];
   const r = TOKEN_R * k;
   const gap = r * (units.some((u) => u.kind) ? 3 : 2.25);
+  // A unit's own tokens are spaced in each of its formations as it stands (once, not frame by frame), and slide between
+  // those spaced places: spaced every frame, a line too tight for its tokens (Cannae: 7 tokens 30 px apart, room 123 px)
+  // was folded into a zigzag that turned over in one frame as they slid in (150 px). Frame by frame only the different
+  // units are kept apart, a pair whose ways swap sides letting each other pass (unitLayout.passShare).
+  const steady = units.map((u) => ({ ...u, steps: spacedSteps(u.steps, gap) }));
   const spaced = (f: number) => {
-    const placed = units.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, f, fps)));
+    const placed = steady.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, f, fps)));
     const shown = placed.flatMap((side) => side.filter((t): t is PlacedToken => t !== undefined));
-    separateTokens(shown, gap, shown.map((t) => t.alpha)).forEach((q, j) => Object.assign(shown[j]!, q));
+    const group = placed.flatMap((side, ui) => side.filter((t) => t !== undefined).map(() => ui));
+    separateTokens(shown, gap, shown.map((t) => t.alpha), shown.map((t) => t.way), group).forEach((q, j) => Object.assign(shown[j]!, q));
     return placed;
   };
   const placed = spaced(frame);
+  // A fallen token comes to lie where it fell, slowing to a stop within a few frames as its blows do below. Its room
+  // shrinks as it fades, and the spacing let it slide back towards its formation while fading (Waterloo, 9 Nov 2026:
+  // 30 px in one frame).
+  const fallen = new Map<number, ReturnType<typeof spaced>>();
+  placed.forEach((side, ui) =>
+    side.forEach((t, ti) => {
+      if (!t || t.lostAt === undefined || frame <= t.lostAt) return;
+      const at = t.lostAt;
+      const slowed = at + FALL_STOP_FRAMES * (1 - Math.exp(-(frame - at) / FALL_STOP_FRAMES));
+      if (!fallen.has(slowed)) fallen.set(slowed, spaced(slowed));
+      const then = fallen.get(slowed)![ui]![ti];
+      if (then) Object.assign(t, { x: then.x, y: then.y });
+    }),
+  );
   // A fight (owner, 22 Oct 2026: "they move, close in on each other … it must show they fight the enemy"): every
   // standing token goes for the enemy near it until they touch, then strikes at it again and again while the losses
   // fall; when the fight is over they step back into their formation.

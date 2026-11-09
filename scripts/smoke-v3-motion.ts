@@ -228,6 +228,54 @@ async function main() {
     assert.ok(gapOf(mid) < gapOf(calm) - 20, `fronts close in: ${gapOf(mid).toFixed(0)} vs ${gapOf(calm).toFixed(0)} px`);
   });
 
+  await scenario("J2 formations change without a leap (owner, 9 Nov 2026: \"yakın savaş sahnelerinde askerlerin hareketlerinde biraz atlama var\"): reordered places, two units swapping flanks, a line too tight for its tokens", () => {
+    // Cannae and Waterloo, measured frame by frame: token i went to place i whatever the order (paths crossed), the
+    // spacing pushed two passing tokens one way and then the other, and a line 30 px apart was folded into a zigzag
+    // that turned over in one frame — 277 px and 201 px in one frame.
+    const row = (y: number, n: number, x0: number, dx: number) => Array.from({ length: n }, (_, i) => ({ x: x0 + i * dx, y }));
+    const map = {
+      units: [
+        // Its line given in the other order: the old way sent every token across the others.
+        { side: "A", color: "#3a5eb3", emblem: "kalkan", kind: "kilicli" as const, steps: [{ start: 9, points: row(250, 5, 400, 90), alive: 5 }, { start: 60, points: row(330, 5, 760, -90), alive: 5 }] },
+        // Two cavalries swapping flanks head-on, on one line.
+        { side: "A", color: "#3a5eb3", emblem: "kalkan", kind: "suvari" as const, steps: [{ start: 9, points: row(600, 2, 300, 80), alive: 2 }, { start: 60, points: row(600, 2, 1300, 80), alive: 2 }] },
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "suvari" as const, steps: [{ start: 9, points: row(600, 2, 1300, 80), alive: 2 }, { start: 60, points: row(600, 2, 300, 80), alive: 2 }] },
+        // A block that forms a line 30 px apart (room 69 px).
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "kilicli" as const, steps: [{ start: 9, points: [...row(900, 4, 600, 80), ...row(980, 3, 640, 80)], alive: 7 }, { start: 60, points: row(860, 7, 620, 30), alive: 7 }] },
+      ],
+    } as unknown as V3GeoMap;
+    let prev: ({ x: number; y: number } | undefined)[][] | undefined;
+    let prevV: { x: number; y: number }[][] = [];
+    let worstStep = 0;
+    let worstAcc = 0;
+    for (let f = 0; f < 200; f++) {
+      const now = placeTokens(map, f, 30, 1);
+      const v: { x: number; y: number }[][] = [];
+      now.forEach((side, ui) =>
+        side.forEach((t, i) => {
+          const p = prev?.[ui]?.[i];
+          if (!t || !p) return;
+          const d = { x: t.x - p.x, y: t.y - p.y };
+          (v[ui] ??= [])[i] = d;
+          worstStep = Math.max(worstStep, Math.hypot(d.x, d.y));
+          const before = prevV[ui]?.[i];
+          if (before) worstAcc = Math.max(worstAcc, Math.hypot(d.x - before.x, d.y - before.y));
+        }),
+      );
+      prev = now.map((side) => side.map((t) => (t ? { x: t.x, y: t.y } : undefined)));
+      prevV = v;
+    }
+    // A 1000 px charge in 2.8 s eased in and out peaks near 30 px a frame; a leap is a whole gap and more.
+    assert.ok(worstStep < 40, `a token moved ${worstStep.toFixed(1)} px in one frame`);
+    assert.ok(worstAcc < 12, `speed changed by ${worstAcc.toFixed(1)} px in one frame`);
+    // Every token still ends in its formation, spaced: the line holds its tokens a room apart.
+    const end = placeTokens(map, 199, 30, 1);
+    const line = end[3]!.filter((t): t is NonNullable<typeof t> => t !== undefined);
+    const closest = Math.min(...line.flatMap((a, i) => line.slice(i + 1).map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
+    assert.ok(closest > 69 * 0.95, `the tight line is spaced (${closest.toFixed(0)} px)`);
+    assert.ok(end[1]!.every((t) => t && t.x > 1200) && end[2]!.every((t) => t && t.x < 450), "the cavalries got past each other");
+  });
+
   await scenario("K guns fire in turn and musket lines in volleys while the fight is on, never outside it", () => {
     // Owner, after the Mohács trial: "topçu ve tüfekçi birlikleri ateş etmiyor".
     const row = (y: number, n: number) => Array.from({ length: n }, (_, i) => ({ x: 700 + i * 80, y }));

@@ -3,8 +3,9 @@ import path from "node:path";
 import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap, V3StrengthSide } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
-import { castleRing, castleStyleFor } from "./CastleShapes";
+import { castleRing, castleStyleFor, kmBetween } from "./CastleShapes";
 import { nameBox, placeCloseLabels } from "./CloseLabels";
+import { narrateMoves, type StepSource } from "./NarratedMoves";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
 import type { SideBadge } from "./MapSpeakers";
@@ -553,9 +554,11 @@ export function separateFronts(units: { readonly steps: readonly { readonly star
         const along = (ca.x - cb.x) * ux + (ca.y - cb.y) * uy;
         const push = minPx - along;
         if (push <= 0) continue;
-        // A formation set on this very line moves; one standing from an earlier line stays put.
-        const moveA = sa.start === f;
-        const moveB = sb.start === f;
+        // A formation set on this very line moves; one standing from an earlier line stays put, and so does one that
+        // holds on this line (its places are the line before's — NarratedMoves; pushed, it turned with the enemy).
+        const holds = (u: (typeof units)[number], i: number) => i > 0 && (u.steps[i]!.points === u.steps[i - 1]!.points || u.steps[i]!.points.every((p, k) => p.x === u.steps[i - 1]!.points[k]?.x && p.y === u.steps[i - 1]!.points[k]?.y));
+        const moveA = sa.start === f && !holds(units[a]!, ia);
+        const moveB = sb.start === f && !holds(units[b]!, ib);
         const share = moveA && moveB ? 0.5 : 1;
         if (moveA) for (const p of sa.points) [p.x, p.y] = [r1(p.x + ux * push * share), r1(p.y + uy * push * share)];
         if (moveB) for (const p of sb.points) [p.x, p.y] = [r1(p.x - ux * push * share), r1(p.y - uy * push * share)];
@@ -1427,7 +1430,11 @@ function projectGeoMap(
   };
   // A front's lines lie this far apart, and a routed side scatters about as far: a share of the map.
   const gapKm = (map.genislik_km ?? 1000) * 0.035;
-  const units = sides.map((u, i) => {
+  // What each step came from (its line, whether the unit holds there) and the lines its name is shown on, for the
+  // narrated order of the moves below (NarratedMoves).
+  const stepSources: StepSource[][] = [];
+  const calloutLines: number[][] = [];
+  const builtUnits = sides.map((u, i) => {
     const count = Math.max(1, Math.min(24, Math.round(u.sayi)));
     let alive = count;
     const steps = [...u.yerler]
@@ -1453,9 +1460,37 @@ function projectGeoMap(
     // The unit's name while the narrator speaks of it or it moves (the tactics are read as they happen).
     const named = [...new Set([...(u.vurgu ?? []), ...u.yerler.filter((y, yi) => yi > 0 && ((y.hareket && y.hareket !== "tut") || y.bozgun)).map((y) => y.satir)])].sort((a, b) => a - b);
     const callouts = u.ad ? named.map((l) => ({ start: lineStart(l, i), end: glowEnd(l, undefined, i) })) : [];
+    // A unit holds where it is told to hold, or given no move and the same place: its formation does not turn as the
+    // enemy moves (the narrator tells someone else's move then).
+    const sorted = [...u.yerler].sort((a, b) => a.satir - b.satir);
+    stepSources.push(sorted.map((y, si) => {
+      const prev = sorted[si - 1];
+      const still = !y.bozgun && !(y.kayip ?? 0) && !y.uzerinden && (y.hareket === "tut" || (!y.hareket && !!prev && kmBetween(formationCentre(prev), formationCentre(y)) < gapKm * 0.25));
+      return { satir: y.satir, hold: si > 0 && still };
+    }));
+    calloutLines.push(u.ad ? named : []);
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), ...(u.tur ? { kind: u.tur } : {}), ...(u.etiket ? { label: u.etiket } : {}), ...(u.ad ? { name: u.ad } : {}), ...(callouts.length ? { callouts } : {}), ...(highlights.length ? { highlights } : {}), steps };
   });
+  // The moves in the narrator's order (owner, 9 Nov 2026): holds kept still, one step per line, each unit setting off
+  // on the word that names it; its name callout goes with its move.
+  const told = narrateMoves(builtUnits, stepSources, { start: (l) => lineStart(l, 0), end: (l) => opts.lineEnd?.(l), told: (l, w) => opts.toldAt?.(l, w) }, opts.fps ?? 30, unitLossDelaysS);
+  const units = told.units.map((u, ui) => (u.callouts ? { ...u, callouts: u.callouts.map((c, k) => ({ ...c, start: told.moved.get(`${ui}|${calloutLines[ui]![k]}`) ?? c.start })) } : u));
   separateFronts(units, gapKm * 1.15 * pxPerKm);
+  // A unit's move arrow is drawn as that unit sets off (its colour, its line; of two such units the one whose new place
+  // is nearer the arrow's head), not with the line's first word.
+  const arrowStart = (o: NonNullable<SceneMap["oklar"]>[number], order: number) => {
+    const base = lineStart(o.satir, order);
+    if (o.satir === undefined || !o.renk) return base;
+    const head = o.noktalar.length ? toPx(o.noktalar[o.noktalar.length - 1]!) : undefined;
+    const hits = units.flatMap((u, ui) => {
+      const at = u.color === o.renk ? told.moved.get(`${ui}|${o.satir}`) : undefined;
+      const st = at !== undefined ? u.steps.find((x) => x.start === at) : undefined;
+      if (at === undefined || !st) return [];
+      const c = { x: st.points.reduce((a, p) => a + p.x, 0) / Math.max(1, st.points.length), y: st.points.reduce((a, p) => a + p.y, 0) / Math.max(1, st.points.length) };
+      return [{ at, d: head ? Math.hypot(c.x - head.x, c.y - head.y) : 0 }];
+    });
+    return hits.length ? hits.sort((x, y) => x.d - y.d)[0]!.at : base;
+  };
   // Siege lines drawn stage by stage, each with its length (Dyrrhachium's "20 km").
   const siegeLines = (map.kusatma_hatlari ?? []).map((s, i) => {
     const km = lineKm(s.noktalar);
@@ -1590,7 +1625,7 @@ function projectGeoMap(
       ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
     })),
     ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i), ...(c.stil === "zincir" ? { chain: true } : {}) })) } : {}),
-    arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? (o.stil === "plan" ? "#3fae3a" : "#e0283c"), ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i), ...(o.bitis_satir !== undefined ? { end: lineStart(o.bitis_satir, i) } : {}), ...(o.stil === "plan" ? { plan: true } : {}) })),
+    arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? (o.stil === "plan" ? "#3fae3a" : "#e0283c"), ...(o.etiket ? { label: o.etiket } : {}), start: arrowStart(o, i), ...(o.bitis_satir !== undefined ? { end: lineStart(o.bitis_satir, i) } : {}), ...(o.stil === "plan" ? { plan: true } : {}) })),
     ...(siegeLines.length ? { siegeLines } : {}),
     ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
     ...(opts.relief ? { relief: opts.relief } : {}),

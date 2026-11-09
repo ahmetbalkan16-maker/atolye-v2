@@ -42,6 +42,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
+import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { colourName, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
@@ -2206,6 +2207,59 @@ async function main() {
     assert.equal(labelSpot({ x: 540, y: 1488 }, { x: 185, y: 27 }, { x: 540, y: 1488 }, view, [wall], { ...o, reach: 100 }).alpha, 0);
     // Nothing in the way: the label stays where its formation put it.
     assert.deepEqual(labelSpot({ x: 540, y: 900 }, { x: 140, y: 30 }, { x: 540, y: 960 }, view, [stamp], o), { x: 540, y: 900, alpha: 1 });
+  });
+
+  await scenario("W5 close-battle moves in the narrator's order (owner, 9 Nov 2026: \"anlatırken videoda başka hareket veya gösterim olmaması lazım\"): each unit sets off on its name, the unnamed after, a hold stays still, one step per line", () => {
+    // The Cannae Short: on one line all six units set off at its first frame and a holding unit turned as the enemy moved.
+    const at = (x: number, y: number) => ({ x, y });
+    const line = (y: number, n: number, x0: number) => Array.from({ length: n }, (_, i) => at(x0 + i * 60, y));
+    const units = [
+      { side: "Romans", name: "Roman heavy infantry", kind: "kilicli", steps: [{ start: 0, points: line(300, 3, 500), alive: 3 }, { start: 90, points: line(420, 3, 500), alive: 3 }] },
+      { side: "Romans", name: "Roman cavalry", kind: "suvari", steps: [{ start: 0, points: line(300, 2, 900), alive: 2 }, { start: 90, points: line(300, 2, 200), alive: 2 }] },
+      { side: "Carthaginians", name: "Gauls and Spaniards", kind: "kilicli", steps: [{ start: 0, points: line(600, 3, 500), alive: 3 }, { start: 90, points: line(560, 3, 500), alive: 3 }] },
+      { side: "Carthaginians", name: "Carthaginian cavalry", kind: "suvari", steps: [{ start: 0, points: line(600, 2, 200), alive: 2 }, { start: 90, points: line(600, 2, 900), alive: 2 }] },
+      // Told to hold on line 1; its formation was rebuilt facing the moved enemy (turned a little).
+      { side: "Carthaginians", name: "African veterans", kind: "kilicli", steps: [{ start: 0, points: line(500, 2, 1100), alive: 2 }, { start: 90, points: line(510, 2, 1105), alive: 2 }, { start: 200, points: line(400, 2, 1100), alive: 2 }, { start: 200, points: line(380, 2, 1100), alive: 1, losses: [0.4] }] },
+    ];
+    const src = (holds: boolean[], lines: number[]) => lines.map((satir, i) => ({ satir, hold: holds[i] ?? false }));
+    const sources = [src([false, false], [0, 1]), src([false, false], [0, 1]), src([false, false], [0, 1]), src([false, false], [0, 1]), src([false, true, false, false], [0, 1, 2, 2])];
+    // Line 1 (frames 90–300): "Hannibal's center, the Gauls and Spaniards, bulges forward; the Roman heavy infantry push in."
+    const words: Record<number, { w: string; f: number }[]> = { 1: [["Hannibal's", 92], ["center", 100], ["the", 110], ["Gauls", 118], ["and", 125], ["Spaniards", 130], ["bulges", 140], ["forward", 150], ["the", 165], ["Roman", 172], ["heavy", 180], ["infantry", 188], ["push", 196], ["in", 200]].map(([w, f]) => ({ w: w as string, f: f as number })) };
+    const told = (l: number, re: RegExp) => words[l]?.find((x) => re.test(x.w.replace(/[^\p{L}\p{N}'’-]+/gu, "")))?.f;
+    const times = { start: (l: number) => [0, 90, 200][l]!, end: (l: number) => [89, 300, 400][l], told };
+    const out = narrateMoves(units, sources, times, 30, (n) => Array.from({ length: n }, (_, j) => 0.4 + j));
+    const startOf = (ui: number, si: number) => out.units[ui]!.steps[si]!.start;
+    // Named units on their words, in the order told: "Gauls" (118) before "heavy" (180).
+    assert.equal(startOf(2, 1), 118, "Gauls and Spaniards on 'Gauls'");
+    assert.equal(startOf(0, 1), 180, "the heavy infantry on 'heavy', not on 'Roman' — both Roman units carry that word");
+    // Not named (two cavalries: neither kind nor side tells which): one after another once the named ones are under way.
+    assert.deepEqual([startOf(1, 1), startOf(3, 1)], [180 + 48, 180 + 96]);
+    // The hold keeps its places exactly; its later move is still a move.
+    assert.equal(out.units[4]!.steps[1]!.points, out.units[4]!.steps[0]!.points);
+    assert.ok(!out.moved.has("4|1"), "a hold is no move");
+    // Two formations for one line are one step: the later stands, its loss counted from the line before.
+    assert.equal(out.units[4]!.steps.length, 3);
+    assert.deepEqual([out.units[4]!.steps[2]!.alive, out.units[4]!.steps[2]!.losses, out.units[4]!.steps[2]!.points[0]], [1, [0.4], at(1100, 380)]);
+    assert.equal(out.moved.get("2|1"), 118, "the arrow and callout of a move find its start");
+    // A word only one unit has is its own; one its side's units share names them together; one another side's unit
+    // carries names neither.
+    const re = unitWords([{ name: "African veterans", side: "C" }, { name: "African veterans (right)", side: "C" }, { name: "Gauls and Spaniards", side: "C" }, { name: "Roman cavalry", side: "R" }, { name: "Carthaginian cavalry", side: "C" }]);
+    assert.deepEqual([re[0]!.own, re[0]!.group?.test("African"), re[1]!.group?.test("veterans"), re[2]!.own?.test("Spaniards"), re[3]!.own?.test("Roman"), re[3]!.own?.test("cavalry") ?? false], [undefined, true, true, true, true, false]);
+    assert.equal(wordStem("Hannibal's"), "hannibal");
+    // The Cannae line itself: "The African veterans swing in. Hasdrubal's horsemen hit the Roman rear." — both African
+    // wings on "African", together; the Carthaginian horse on "horsemen"; the Roman cavalry, named by no word of its
+    // own, on "Roman" (its side's shared word), after the horse is under way.
+    const wing = (x: number) => ({ start: 0, points: [at(x, 500), at(x, 560)], alive: 2 });
+    const turned = (x: number) => ({ start: 90, points: [at(x, 400), at(x, 460)], alive: 2 });
+    const cannae = [
+      { side: "Carthaginians", name: "African veterans", kind: "kilicli", steps: [wing(300), turned(500)] },
+      { side: "Carthaginians", name: "African veterans (right)", kind: "kilicli", steps: [wing(900), turned(700)] },
+      { side: "Carthaginians", name: "Carthaginian cavalry", kind: "suvari", steps: [wing(200), turned(1000)] },
+      { side: "Romans", name: "Roman cavalry", kind: "suvari", steps: [wing(1000), turned(200)] },
+    ];
+    const said: Record<number, { w: string; f: number }[]> = { 1: [["The", 90], ["African", 96], ["veterans", 104], ["swing", 112], ["in", 118], ["Hasdrubal's", 130], ["horsemen", 140], ["hit", 150], ["the", 154], ["Roman", 158], ["rear", 166]].map(([w, f]) => ({ w: w as string, f: f as number })) };
+    const out2 = narrateMoves(cannae, cannae.map(() => src([false, false], [0, 1])), { start: (l: number) => [0, 90][l]!, end: (l: number) => [89, 300][l], told: (l: number, r: RegExp) => said[l]?.find((x) => r.test(x.w.replace(/[^\p{L}\p{N}'’-]+/gu, "")))?.f }, 30, (n) => Array.from({ length: n }, () => 0.4));
+    assert.deepEqual(out2.units.map((u) => u.steps[1]!.start), [96, 96, 144, 192]);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
