@@ -179,6 +179,29 @@ This project is developed across many sequential AI sessions under strict, check
     Every other commit/push in this repository —
     including this service's own infrastructure changes — still requires separate explicit approval
     as above.
+  - **Code lane (owner decision 2026-11-09, "ayas tamamen otomatik çalışacak, benim onay uygula diye
+    tıklama ile onay alıp yapacak"):** a human clicking **"ONAYLA VE UYGULA"** in Gelişim Merkezi on a
+    `hazir` developer build — a development-queue job built unattended by `scripts/v3/gelistirici.ts`
+    in its own worktree, for V3 (Claude Code `claude -p` or the studio's apprentice) or, with
+    `kapsam: "ayas"`, for main AYAS (Claude only) — is the one required explicit approval for that build's commit,
+    push and live publish. It is scoped to `applyAyasCodeChangeAction` →
+    `AyasCodeChangeStore.decideAyasCodeChangeApply` (owner admission subject `code-apply`, action
+    `applyAyasCodeChange`, which authorizes nothing else) and bound to the exact `jobId` + `buildHash`
+    the human reviewed (job, branch, build commit, base, every file's sha256 and the checks; any drift
+    invalidates it). It is carried out only by the observer's update executor (`CODE_APPLY`,
+    `AyasCodeChangeApplyRunner`): the build is proven from Git alone; on a moved HEAD none of its files
+    may have changed since its base and its checks run again in a separate worktree (otherwise STALE
+    and the job is rebuilt); then the guarded publication's `code-change` lane commits exactly the
+    build's files and pushes without force, never resetting after a commit, followed by the Graphify
+    closure and the automatic live publish below. A build touching V3 sources waits while a V3 order
+    runs or waits. What the lane refuses (`AyasCodeChangeLane.ayasCodeLaneRefusals`: anything outside
+    `src/`, `app/`, `scripts/`, `docs/`, `content/v3/`, `remotion-v3/src/`; the homepage;
+    `src/lib/brain/autonomy/`; operator and `.ps1`/`.mjs` scripts; the development queue's own modules;
+    `docs/ayas-execution/`; every `BrainPatchSafety` FORBIDDEN_AUTONOMOUS target, eval-pinned suites
+    included; anything needing a restart or a config write) can never be carried this way, and no
+    build may loosen those refusals. `ATOLYE_AYAS_GELISTIRME=0` stops main-AYAS jobs. Changes to the
+    lane, the queue or the executor themselves still need separate explicit approval. Details:
+    `docs/AYAS_KOD_HATTI.md`.
   - **Automatic live publish (owner decision 2026-10-19, "bir görev bitince otomatik olarak canlıya
     aktarılsın"):** a commit that is already pushed (HEAD equals its upstream on a clean tree) and
     changes application files the live snapshot lacks goes live without a further owner click. The

@@ -144,8 +144,9 @@ async function main() {
     assert.match(brainsReportText(queued), /Geliştirme kuyruğu: "An AI composer" — Kuyrukta\./);
     await updateProposal(root, idea.id, (q) => ({ ...q, durum: "hazir", is: { deneme: 1, baslangic: "2026-11-03T02:00:00Z", bitis: "2026-11-03T02:40:00Z", dal: `gelistirme/${idea.id}`, dosyalar: ["src/lib/v3/mix/MusicComposer.ts"] } }));
     const ready = await loadAtolyeBrainsView(root);
-    assert.deepEqual(ready.kuyruk.map((k) => [k.durum, k.ayrinti]), [["Hazır — uygulanmayı bekliyor", `dal gelistirme/${idea.id} · 1 dosya · testler geçti`]]);
-    assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: ready })), /Geliştirme kuyruğu:.*<b>Hazır — uygulanmayı bekliyor<\/b> — An AI composer/);
+    // Since the code lane (owner decision 2026-11-09) a ready build waits for the owner's "ONAYLA VE UYGULA".
+    assert.deepEqual(ready.kuyruk.map((k) => [k.durum, k.ayrinti]), [["Hazır — onayını bekliyor", `dal gelistirme/${idea.id} · 1 dosya · testler geçti`]]);
+    assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: ready })), /Geliştirme kuyruğu:.*<b>Hazır — onayını bekliyor<\/b> — An AI composer/);
     // An unreadable store says so; no view renders nothing.
     assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: { ...v, connected: false, error: "EACCES" } })), /Kayıtlar okunamadı: EACCES/);
     assert.equal(renderToStaticMarkup(createElement(AtolyeBrainsPanel, {})), "");
