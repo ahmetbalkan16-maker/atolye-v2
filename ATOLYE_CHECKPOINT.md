@@ -1,4 +1,4 @@
-## 9 Kasım 2026 (5) — YARIM (wip): Ana AYAS'a kod yazan model — "kod hattı" + tek tık "ONAYLA VE UYGULA"
+## 9 Kasım 2026 (5) — Ana AYAS'a kod yazan model — "kod hattı" + tek tık "ONAYLA VE UYGULA" (tamamlandı, canlıda)
 
 Owner: "son oturumdaki 3. maddeyi işleme al … bir yeri yaparken çalışan başka birşeyi bozma. ayas tamamen otomatik
 çalışacak benim onay uygula diye tıklama ile onay alıp yapacak … uygun skill varsa ayasa ekle, gerektiğinde otomatik
@@ -42,16 +42,34 @@ V3 dosyasına dokunan yapı, V3 siparişi varken bekler (`CODE_APPLY_WAITING`).
   manifest **v71 → v72** (arşiv `EVAL_MANIFEST_V71.json` bayt aynı, yalnız bu pin, hash staged blob'dan);
   `smoke-ayas-model-operations` Git-dışı depo listesine code-changes eklendi.
 
-**Sırada (sonraki oturum, bu sırayla):**
-1. İlgili smoke taraması sonucu (arka planda başlatıldı; yeniden: `node scripts/tum-smokelar.mjs --yalniz "<liste>"`) +
-   `node scripts/lint-yerel.mjs` + `npx tsx scripts/ayas-cf49-closure.ts` (temiz ağaçta CLOSED_PASS) + tsc.
-2. `smoke-ayas-model-operations`, `-update-apply`, `-guarded-publication`, `-owner-session-admission`, `smoke-v3-brains-report`,
-   `-cirak` tek tek doğrula; UI audit (`ayas-ui-audit`, `--routes '["/brain?panel=development"]'`).
-3. CLAUDE.md "Working conventions"a yeni standing exception (owner kararı 2026-11-09, `applyAyasCodeChangeAction` →
-   `AyasCodeChangeApplyRunner`, yapı kimliğine bağlı, code-change lane) + docs notu.
-4. Doğrulanınca commit/push, canlıya alma (wip → live dalı, canonical pull, Graphify, auto-live), V3 izleyici yeniden
-   başlatma gerekmez (`yapim.ts` değişmedi; `gelistirici.ts aksam` her akşam diskten başlar).
-5. İsteğe bağlı: AYAS sohbetinden "geliştirme isteği" niyeti; kontrollü evrimin başarısız vakalarından otomatik ana AYAS işi.
+**Bitiş (aynı gün, ikinci oturum):**
+- İlgili 44 suite (`tum-smokelar.mjs --yalniz`, değişen her modülü, `actions.ts`'i, yürütücüyü ve CLAUDE.md'yi okuyanlar):
+  43 PASS (`smoke-ayas-research-improvement-loop` paralelde düştü, tek başına geçti). Tek gerçek hata
+  `smoke-v3-brains-report`: hazır yapı etiketi wip'te kasıtlı olarak "Hazır — onayını bekliyor" oldu, test eski metni
+  bekliyordu → güncellendi, 4/4 PASS. tsc 0, `lint-yerel` 0/0, `smoke-ayas-graphify-integration` 47/47.
+- **CI kırmızısı bulundu ve onarıldı:** canlı dalda AYAS Safe CI 9 Kasım 04:27 UTC'den beri `ayas-cf49-closure`'da
+  düşüyordu — `1cd5255d` (`smoke-ayas-discovery-run-firewall.ts` regex'i yeni `deadlineAt` çağrısına) ve `3c993c6a`
+  (`smoke-ayas-research-scheduler.ts`'e "belirsiz tur tekrar oynatılmaz" senaryosu) pin artırmadan commit'lenmişti.
+  İkisi de testi sıkılaştırıyor, HEAD'de geçiyor (13 / 18). **EVAL v72 → v73** (`f3b20834`; arşiv
+  `EVAL_MANIFEST_V72.json` bayt aynı, yalnız bu iki pin, hash commit'lenmiş bloblardan).
+- `ayas-cf49-closure.ts` temiz ağaçta **CLOSED_PASS** (12 suite).
+- CLAUDE.md "Working conventions"a **Code lane** dar istisnası (owner kararı 2026-11-09) + owner belgesi
+  `docs/AYAS_KOD_HATTI.md` (`2bfe9e55`).
+- UI denetimi (`ayas-ui-audit`, `/brain?panel=development`): ilk koşu soğuk sunucuda giriş yarışıyla düştü (betik,
+  uygulama değil); ikincisi **gerçek bir hata** buldu — panel açılırken 8× React "two children with the same key":
+  "Beyinlerin kendi değişiklikleri" listesi metni key yapıyordu, ayar geçmişinde aynı deneme ("Kalite beyni ayarı
+  ornekler=açık: sınav %83 → %63, geri alındı") iki tarihte geri alınınca metin aynı çıkıyor (2 Kasım'dan, `d51aba07`,
+  canlıda da vardı). `AtolyeBrainsPanel.tsx` key'i sıra numarasıyla nitelendi. Sunucu çizimi yinelenen key'i
+  bildirmediği için smoke yakalayamaz; doğrulama denetimin yeniden koşusu: **sorun yok**, 32 görünüm kontrolü
+  tıklandı, 16 eylem düğmesi (ONAYLA VE UYGULA, REDDET, KUYRUĞA EKLE…) bilerek basılmadı. Panel smoke'ları
+  (brains-report, self-improvement, code-change-lane, development-center) PASS, tsc 0, lint 0/0.
+- Canlıya alma: `feature/cop-adam-v3` → `origin/wip/ayas-graphify-final-execution`, canonical `pull --ff-only`, Graphify,
+  otomatik canlı yayın. `yapim.ts` `SelfImprovement`/`DevQueue` üzerinden kod hattı modüllerini içe aktarıyor:
+  sipariş izleyicisi boştayken yeniden başlatıldı (`gelistirici.ts aksam` zaten her akşam diskten başlar).
+
+**İsteğe bağlı, sonraki iş:** AYAS sohbetinden "geliştirme isteği" niyeti; kontrollü evrimin başarısız vakalarından
+otomatik ana AYAS işi. İlk gerçek ana AYAS yapısı owner'ın istek kutusundan ya da bir öneriden gelecek; o akşam
+geliştiricinin `isler/<id>` kaydına ve kartın ONAYLA VE UYGULA'sına bakılmalı.
 
 ## 9 Kasım 2026 (4) — kalite sınavı 49 soru + göz puanı; çırak önce yazar (Claude yedek); yakın savaşta atlama yok, hamleler anlatım sırasıyla
 

@@ -119,7 +119,7 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
       <section className="bc-dev__section" aria-labelledby="atolye-gelisim">
         <h3 id="atolye-gelisim">Kendini Geliştirme <span>{view.donguler.length}</span></h3>
         {view.donguler.length ? <ul className="bc-dev__micro-items">{view.donguler.map((c) => <li key={c.tarih} className="bc-dev__micro-item"><b>{when(c.tarih)}</b> — {c.ozet}</li>)}</ul> : <p className="bc-empty">Henüz bir gelişim döngüsü çalışmadı; sipariş yokken kendiliğinden başlar.</p>}
-        {view.degisiklikler.length ? <><p><b>Beyinlerin kendi değişiklikleri (sınavla ölçülür, iyileşmeyen geri alınır):</b></p><ul>{view.degisiklikler.map((d) => <li key={d}>{d}</li>)}</ul></> : null}
+        {view.degisiklikler.length ? <><p><b>Beyinlerin kendi değişiklikleri (sınavla ölçülür, iyileşmeyen geri alınır):</b></p><ul>{view.degisiklikler.map((d, i) => <li key={`${i}:${d}`}>{d}</li>)}</ul></> : null}
       </section>
 
       <section className="bc-dev__section" aria-labelledby="atolye-oneriler">
