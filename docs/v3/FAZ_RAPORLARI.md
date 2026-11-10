@@ -620,3 +620,11 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
 - Geliştiricinin görev paketi kaynak üretimlerin KURUL.md'sinde o beyne ait "Eksikler/Uyarılar" satırlarını taşır
   (`DevQueue.measuredFaults`): genel başlıklı fikirlerin arkasındaki ölçülmüş hata (ses-44'te davulun vuruşsuz kalması)
   artık Claude'a ve çırağa görünür. Onarım beyninin önerisi (onarim-40) zaten vardı: çöken render yarı işçiyle yeniden.
+- Kalite beyninin onaylı önerisi (kalite-50, Cannae hareket ölçütü: 32. sn 0/10 "haritada dini sembol haç"): kostümün
+  dönem denetimi (dönem atlası, kostüm beyni, set hakeminin MS 400 öncesi haç/kilise sorusu) zaten vardı; harita
+  birliklerinin amblemi denetlenmiyordu. Artık `EpisodeTypes.UNIT_EMBLEM_FROM` her amblemin en erken yılını tutar
+  (`hac` 312 — Konstantin'in ordusu Milvius Köprüsü'nde, `orak_cekic` 1917); doğrulayıcı daha erken bir bölümde
+  `HARITA_AMBLEM_DONEM` hatası verir, yazar istemi bunu baştan söyler. Cannae yakın haritasında birlikler blok (kılıçlı,
+  süvari) olduğu için amblem çizilmez; haç sanılan büyük olasılıkla kılıçlıların dik kılıç işaretiydi — kalite beyninin
+  "kusur değil" listesine blokların birlik işaretleri (✕, kabzalı dik kılıç, mızrak, yay, at başı, top) ve düşen pulun
+  ✕'i eklendi; binadaki dönem dışı haç kusur olmaya devam eder.

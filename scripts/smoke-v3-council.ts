@@ -135,6 +135,10 @@ async function main() {
     assert.ok(told.includes('says: "Caesar\'s army marched south') && told.includes('"anlati": <0-10>') && told.includes("SHOW what is being said"));
     assert.ok(!qualityPrompt("49 BC").includes('"anlati"'), "without the narration, no story score is asked");
     assert.ok(qualityPrompt("49 BC").includes("portrait badge") && !qualityPrompt("49 BC").includes("DRAMATIZATION"));
+    // The Cannae measurement, 9 Nov 2026 (216 BC, 0/10): "a religious cross on the map" — the blocks' troop signs (an
+    // upright sword, an ✕) are part of the show; a side's cross emblem before 312 is refused by the validator instead.
+    assert.match(qualityPrompt("216 BC"), /Part of the show, never a fault:[^\n]*troop sign[^\n]*upright sword with its crossguard[^\n]*never a religious cross/);
+    assert.ok(qualityPrompt("216 BC").includes("a cross on a roof or tower"), "a later era's cross on a building is still a fault");
   });
 
   await scenario("D2 the chief's bare-sentence measures are kept as titles, never 'undefined'; the end card is not a quality fault", () => {

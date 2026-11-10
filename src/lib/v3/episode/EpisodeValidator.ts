@@ -25,6 +25,7 @@ import {
   SETTLEMENT_KINDS,
   SFX_IDS,
   TIMES_OF_DAY,
+  UNIT_EMBLEM_FROM,
   UNIT_EMBLEMS,
   UNIT_KINDS,
   UNIT_MOVES,
@@ -386,7 +387,11 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (!isObj(u)) return err("HARITA_BIRLIK", up, "nesne bekleniyor");
         str(u, "taraf", up, { max: 40 });
         str(u, "renk", up, { pattern: HEX });
-        oneOf(u, "amblem", up, UNIT_EMBLEMS);
+        const emblem = oneOf(u, "amblem", up, UNIT_EMBLEMS);
+        // A cross at Cannae is no history, like a tank at Constantinople.
+        const from = emblem ? UNIT_EMBLEM_FROM[emblem] : undefined;
+        const year = typeof ep.donem === "string" ? periodEndYear(ep.donem) : undefined;
+        if (from !== undefined && year !== undefined && year < from) err("HARITA_AMBLEM_DONEM", `${up}.amblem`, `${emblem} ${year} yılına uymuyor (en erken ${from}): tarafın o yıl taşıdığı bir amblem (kartal, kalkan, kilic, gunes, harf…)`);
         if (u.amblem === "harf") str(u, "harf", up, { max: 3 });
         num(u, "sayi", up, 1, 24);
         oneOf(u, "tur", up, UNIT_KINDS, true);
