@@ -16,7 +16,7 @@ import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -336,6 +336,16 @@ async function main() {
     assert.match(p, /LESSONS FROM EARLIER EPISODES \(follow them\):\n- Every named character wears different clothes\./);
     assert.match(p, /"pelerin": the colour #RRGGBB of the cloak/);
     assert.deepEqual(castLooks(romans, "caesar").length, 2);
+  });
+
+  scenario("N2 a part named by its id becomes words without the id's hash (Cannae, 9 Nov 2026: \"c72c59\" was read as a colour)", () => {
+    assert.equal(partWords("gardirop/hannibal-s-bronze-helmet-with-engraved-b-c72c59", "Hannibal"), "bronze helmet with engraved");
+    assert.equal(partWords("gardirop/maharbal-s-bronze-helmet-with-tall-black-0c7b74", "Hannibal"), "maharbal s bronze helmet with tall black", "another person's name stays");
+    assert.equal(partWords("gardirop/bicorne-hat-1a2b3c", "Napoleon Bonaparte"), "bicorne hat");
+    assert.equal(partWords("yeni:Roman legionary helmet with a red crest"), "Roman legionary helmet with a red crest", "a description keeps its words");
+    assert.equal(partWords("gardirop/laurel-a"), "laurel a", "no hash, no cut-off: as before");
+    assert.equal(partWords("gardirop/painted-facade"), "painted facade", "a plain word of six hex letters is no hash");
+    assert.ok(!/[0-9a-f]{6}/i.test(`yeni:Hannibal's ${partWords("gardirop/hannibal-s-bronze-helmet-with-engraved-b-c72c59", "Hannibal")}`));
   });
 
   // K2 (files, so outside the synchronous scenarios).

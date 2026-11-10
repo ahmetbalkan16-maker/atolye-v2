@@ -142,6 +142,20 @@ export interface SoundRequest {
   readonly impact?: true;
 }
 
+/**
+ * A designed sound, or why there is none. `take`: the take itself failed its checks (or did before), so another seed
+ * may pass; without it the designer could not work and no seed will help.
+ */
+export type SoundOutcome = { readonly file: string; readonly cached: boolean } | { readonly problems: string[]; readonly take?: true };
+
+/**
+ * Seeds an effect gets before its library recording stays (Kosovo, Waterloo, Cannae and Rubicon, Oct–Nov 2026: the
+ * period drum's one seed made the same hitless drone every run, 4.5–4.7 dB, so every production spent the designer's
+ * minutes on it and kept the library drum). A refused seed is remembered and skipped at once, so the extra seeds cost
+ * GPU time only until one passes or all are known.
+ */
+export const SFX_SEED_TRIES = 3;
+
 /** Effects made of separate hits; a steady drone in their place is refused. */
 export const PERCUSSIVE: ReadonlySet<SfxId> = new Set<SfxId>(["davul", "adim", "kilic", "yumruk", "cekic", "top_atisi"]);
 
@@ -239,6 +253,11 @@ export class SfxDesigner {
     return path.join(this.libraryDir, `${soundKey(req)}.wav`);
   }
 
+  /** Where a refused take is remembered (its seed makes the same take again: no use making it twice). */
+  refusedFor(req: SoundRequest): string {
+    return path.join(this.libraryDir, `${soundKey(req)}.reddedildi.json`);
+  }
+
   /** A file as mono floats at 8 kHz: enough to see hits and an envelope. */
   private async samples8k(file: string): Promise<Float32Array> {
     const pcm = path.join(this.paths.asciiTemp, `efekt-olcum-${path.basename(file)}.f32`);
@@ -248,16 +267,21 @@ export class SfxDesigner {
     return new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
   }
 
-  async make(req: SoundRequest): Promise<{ file: string; cached: boolean } | { problems: string[] }> {
+  async make(req: SoundRequest): Promise<SoundOutcome> {
     const file = this.fileFor(req);
     if (existsSync(file)) {
       // Kept in the library before the impact check existed: checked again, never deleted (append-only).
       if (req.impact) {
         await fs.mkdir(this.paths.asciiTemp, { recursive: true });
         const problems = impactProblems(await this.samples8k(file), 8000);
-        if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`) };
+        if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`), take: true };
       }
       return { file, cached: true };
+    }
+    const refused = this.refusedFor(req);
+    if (existsSync(refused)) {
+      const was = (JSON.parse(await fs.readFile(refused, "utf8")) as { problems?: string[] }).problems ?? [];
+      return { problems: [`bu tohum daha önce reddedildi (${was.join("; ").slice(0, 120)})`], take: true };
     }
     if (this.broken) return { problems: [this.broken] };
     await fs.mkdir(this.libraryDir, { recursive: true });
@@ -309,7 +333,8 @@ export class SfxDesigner {
     const problems = [...soundProblems(stats, req, contrast), ...(req.impact && pcm ? impactProblems(pcm, 8000) : [])];
     if (problems.length) {
       await fs.rm(tmp, { force: true });
-      return { problems };
+      await fs.writeFile(refused, `${JSON.stringify({ model: MOSS_SFX_MODEL_ID, ...req, problems, stats, created: new Date().toISOString() }, null, 2)}\n`);
+      return { problems, take: true };
     }
     if (!existsSync(file)) await fs.copyFile(tmp, file);
     await fs.rm(tmp, { force: true });
@@ -343,7 +368,7 @@ export async function designSounds(
   episode: Pick<Episode, "id" | "donem" | "sahneler">,
   timeline: Pick<EpisodeTimeline, "scenes">,
   ids: readonly SfxId[],
-  designer: Pick<SfxDesigner, "make">,
+  designer: { make(req: SoundRequest): Promise<SoundOutcome> },
 ): Promise<{ effects: Map<SfxId, string>; ambience: AmbienceBed[]; report: string[] }> {
   const era = eraOf(episode.donem);
   const effects = new Map<SfxId, string>();
@@ -352,11 +377,22 @@ export async function designSounds(
   for (const id of [...new Set(ids)]) {
     const prompt = periodSfxPrompt(id, era);
     if (!prompt) continue;
-    const got = await designer.make({ prompt, seconds: 3, seed: seedOf(`${id}#${era}`), kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}), ...(IMPACT.has(id) ? { impact: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
-    if ("file" in got) {
-      effects.set(id, got.file);
-      report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}`);
-    } else report.push(`efekt ${id}: kütüphane kaydı kaldı — ${got.problems.join("; ")}`);
+    const refused: string[] = [];
+    for (let k = 0; k < SFX_SEED_TRIES; k++) {
+      // The first seed is the one every earlier run used: a sound it made is still found in the library.
+      const seed = seedOf(k ? `${id}#${era}#${k}` : `${id}#${era}`);
+      const got: SoundOutcome = await designer.make({ prompt, seconds: 3, seed, kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}), ...(IMPACT.has(id) ? { impact: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+      if ("file" in got) {
+        effects.set(id, got.file);
+        report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}${k ? ` (${k + 1}. tohum)` : ""}`);
+        break;
+      }
+      refused.push(got.problems.join("; "));
+      if (!got.take || k === SFX_SEED_TRIES - 1) {
+        report.push(`efekt ${id}: kütüphane kaydı kaldı — ${refused.length > 1 ? `${refused.length} tohum: ${refused.join(" | ")}` : refused[0]}`);
+        break;
+      }
+    }
   }
   // A bed takes the designer about two minutes: a long episode (30–40 places) gets beds for the places on screen the
   // longest; the others carry music only.
@@ -376,7 +412,8 @@ export async function designSounds(
     const prompt = ambiencePrompt(scene, episode.donem);
     // One bed per place (and per hour and weather when the set is drawn); long scenes loop it (at most 30 s at a time).
     const key = scene.ortam ? `${scene.mekan}#${scene.ortam.zaman}#${scene.ortam.hava ?? ""}` : scene.mekan;
-    const got = await designer.make({ prompt, seconds: 20, seed: seedOf(`${episode.id}#${key}`), kind: "ortam" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+    // One seed for a bed: a refused bed is remembered, and ten places at two minutes a try would hold a long episode up.
+    const got: SoundOutcome = await designer.make({ prompt, seconds: 20, seed: seedOf(`${episode.id}#${key}`), kind: "ortam" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
     if ("file" in got) {
       ambience.push({ start: st.start, end: st.end, file: got.file });
       report.push(`ortam ${scene.id}: ${scene.mekan}${got.cached ? " (kütüphaneden)" : ""}`);

@@ -4,7 +4,8 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
@@ -14,7 +15,8 @@ import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
-import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
+import type { V3Paths } from "../src/lib/v3/V3Paths";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { voiceCredit } from "../src/lib/v3/tts/Tts";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
@@ -342,6 +344,39 @@ async function main() {
     assert.deepEqual(out.ambience.map((a) => [a.start, a.end]), [[3, 15]], "the map scene gets none, the failed Senate bed stays silent");
     assert.ok(out.report.some((l) => l.startsWith("efekt kagit: kütüphane kaydı kaldı — efektçi çalışmadı: CUDA out of memory")));
     assert.ok(out.report.some((l) => l.startsWith("ortam s3: ortam sesi yok")));
+    assert.equal(made.filter((k) => k === "efekt").length, 2, "a designer that could not work is not asked again with another seed");
+    // Kosovo, Waterloo, Cannae, Rubicon (Oct–Nov 2026): the drum's one seed made the same hitless drone every run.
+    const seeds: number[] = [];
+    const drumTake = (pass: number) => ({
+      make: async (r: SoundRequest): Promise<SoundOutcome> => {
+        if (r.kind === "ortam") return { problems: ["-"] };
+        seeds.push(r.seed);
+        return seeds.length === pass ? { file: `D:/efekt/davul-${r.seed}.wav`, cached: false } : { problems: ["vuruş yok, sürekli ses (kontrast 4.5 dB)"], take: true };
+      },
+    });
+    const second = await designSounds(ep, tl, ["davul"], drumTake(2));
+    assert.equal(second.effects.get("davul"), `D:/efekt/davul-${seeds[1]}.wav`, "the second seed's take passed");
+    assert.ok(second.report.includes("efekt davul: antik dönemi sesi (2. tohum)"), second.report.join(" | "));
+    const firstSeed = seeds[0]!;
+    seeds.length = 0;
+    const none = await designSounds(ep, tl, ["davul"], drumTake(0));
+    assert.equal(seeds.length, SFX_SEED_TRIES);
+    assert.equal(seeds[0], firstSeed, "the first seed is the one earlier runs used: what they made is still found");
+    assert.equal(new Set(seeds).size, SFX_SEED_TRIES, "every try a different take");
+    assert.ok(!none.effects.has("davul") && none.report.some((l) => l.startsWith(`efekt davul: kütüphane kaydı kaldı — ${SFX_SEED_TRIES} tohum: vuruş yok`)), none.report.join(" | "));
+    // A refused take is remembered: its seed is skipped at once, no model started.
+    const lib = mkdtempSync(path.join(os.tmpdir(), "v3-efekt-"));
+    try {
+      const designer = new SfxDesigner({ workRoot: lib, asciiTemp: lib, mossRoot: path.join(lib, "yok"), repoRoot: lib } as unknown as V3Paths);
+      const req: SoundRequest = { prompt: periodSfxPrompt("davul", "antik")!, seconds: 3, seed: firstSeed, kind: "efekt", percussive: true };
+      mkdirSync(designer.libraryDir, { recursive: true });
+      writeFileSync(designer.refusedFor(req), JSON.stringify({ problems: ["vuruş yok, sürekli ses (kontrast 4.5 dB)"] }));
+      const known = await designer.make(req);
+      assert.ok("problems" in known && known.take && known.problems[0]!.startsWith("bu tohum daha önce reddedildi (vuruş yok"), JSON.stringify(known));
+      assert.ok(designer.refusedFor(req).endsWith(`${soundKey(req)}.reddedildi.json`) && designer.fileFor(req).endsWith(`${soundKey(req)}.wav`));
+    } finally {
+      rmSync(lib, { recursive: true, force: true });
+    }
     // A long episode: 14 places, beds only for the 10 on screen the longest (each takes the designer ~2 minutes).
     const many = { ...ep, sahneler: Array.from({ length: 14 }, (_, i) => ({ ...ep.sahneler[0]!, id: `p${i}`, mekan: `Place ${i}`, harita: undefined })) } as typeof ep;
     const manyTl = { scenes: Array.from({ length: 14 }, (_, i) => ({ sceneIndex: i, start: i * 100, end: i * 100 + 10 + i })) } as unknown as Pick<EpisodeTimeline, "scenes">;

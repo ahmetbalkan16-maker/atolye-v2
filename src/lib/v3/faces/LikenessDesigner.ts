@@ -151,9 +151,28 @@ export function withNoteCloak(k: CastCostume, note: PeriodNote | undefined): Cas
   return cape ? { ...k, pelerin: cape } : k;
 }
 
+/**
+ * A part reference as plain words (Cannae, 9 Nov 2026: the sheet named "gardirop/hannibal-s-bronze-helmet-with-engraved-b-c72c59",
+ * which became the order "Hannibal's hannibal s bronze helmet with engraved b c72c59"; the chief read the id's hash as a
+ * colour, asked to drop "the c72c59 hue", the designer painted the helmet red-brown and the art director refused it
+ * 1/10 three times, so Hannibal went bareheaded). The pack, the id's hash, the letter a cut-off slug ends with and the
+ * person's own name in front ("hannibal s") are dropped.
+ */
+export function partWords(ref: string, person?: string): string {
+  const slug = ref.replace(/^yeni:/, "").replace(/^.*\//, "");
+  // A designed part's id is its cut description and a hash; the cut may leave one letter ("engraved-b-c72c59").
+  // A hash holds a digit, so a word that ends a plain id ("facade", "beaded") is not taken for one.
+  const HASH = /-(?=[a-f]*\d)[0-9a-f]{6}$/i;
+  const words = (HASH.test(slug) ? slug.replace(HASH, "").replace(/-[a-z]$/i, "") : slug).replace(/[-_]+/g, " ").trim();
+  const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const names = new Set((person ?? "").split(/\s+/).filter((w) => w.length > 1).map(fold));
+  const own = /^(\S+) s (.+)$/.exec(words);
+  return own && names.has(fold(own[1]!)) ? own[2]! : words;
+}
+
 /** One line per other named character: what they already wear, so the designer makes this person look different. */
 export function castLooks(episode: Episode, exceptId: string): string[] {
-  const name = (ref: string) => ref.replace(/^yeni:/, "").replace(/^.*\//, "").replace(/-[0-9a-f]{6}$/, "").replace(/[-_]+/g, " ");
+  const name = (ref: string) => partWords(ref);
   return episode.oyuncu_kadrosu
     .filter((o) => o.id !== exceptId && o.gorunur && o.kostum)
     .map((o) => {
@@ -459,7 +478,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const rec = applied.kostum as unknown as Record<string, unknown>;
     for (const f of SHEET_PARTS) {
       const v = rec[f];
-      if (typeof v === "string" && !v.startsWith("yeni:") && !known.has(v.includes("/") ? v : `${c.kostum_paketi}/${v}`)) rec[f] = `yeni:${wiki}'s ${v.replace(/^.*\//, "").replace(/[-_]+/g, " ")}`.slice(0, 85);
+      if (typeof v === "string" && !v.startsWith("yeni:") && !known.has(v.includes("/") ? v : `${c.kostum_paketi}/${v}`)) rec[f] = `yeni:${wiki}'s ${partWords(v, wiki)}`.slice(0, 85);
     }
     const next = withCostume(current, c.id, applied.kostum);
     const check = validateEpisode(next);
