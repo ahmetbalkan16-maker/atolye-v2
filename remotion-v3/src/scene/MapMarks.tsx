@@ -160,7 +160,7 @@ export function crossedFilter(crossed: number | undefined, frame: number, fps: n
 }
 
 /** The numbers of a count ("15,000–25,000", "1.000", "c. 80,000 men"): the one number it holds, else none. */
-function singleNumber(text: string): { match: string; value: number; sep: string } | undefined {
+export function singleNumber(text: string): { match: string; value: number; sep: string } | undefined {
   const all = [...text.matchAll(/\d[\d.,\s  ]*\d|\d/g)];
   if (all.length !== 1) return undefined;
   const raw = all[0]![0].trim();
@@ -170,7 +170,7 @@ function singleNumber(text: string): { match: string; value: number; sep: string
 }
 
 /** `text` with its one number counted to `value`, grouped the way it was written. */
-function countedText(text: string, value: number): string {
+export function countedText(text: string, value: number): string {
   const n = singleNumber(text);
   if (!n) return text;
   const digits = String(Math.round(value));

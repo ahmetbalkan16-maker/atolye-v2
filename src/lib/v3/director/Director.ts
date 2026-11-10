@@ -24,13 +24,14 @@ import type {
   V3Shake,
   V3Shot,
   V3Strip,
+  V3StrengthSide,
   V3TitleCard,
   V3Transition,
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
 import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
-import { buildGeoMap, type MapData, mapOnScreen, mapStageX, withCoast } from "../maps/MapBuilder";
+import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
@@ -684,6 +685,7 @@ export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: 
       ...(c.tur === "sema" ? { nodes: nodes.map(({ x, start: s }) => ({ label: x.ad, ...(x.ust !== undefined ? { parent: x.ust } : {}), ...(x.renk ? { color: x.renk } : {}), ...(x.karakterler?.length ? { castIds: x.karakterler } : {}), start: s })) } : {}),
       ...(c.tur === "liste" ? { items: items.map(({ x, start: s }) => ({ text: x.metin, start: s })) } : {}),
       ...(c.tur === "sayac" ? { value: c.deger ?? 0, ...(c.baslangic !== undefined ? { from: c.baslangic } : {}), ...(c.etiket ? { label: c.etiket } : {}) } : {}),
+      ...(c.tur === "guc" && c.taraflar ? { sides: c.taraflar.map((t) => ({ label: t.ad, color: t.renk, count: t.sayi, value: strengthValue(t.sayi) })) as unknown as readonly [V3StrengthSide, V3StrengthSide] } : {}),
     }];
   });
 }

@@ -10,7 +10,7 @@ import path from "node:path";
 import { openai } from "../src/lib/ai/client";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, narratedSpans, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
 import { cutSides, layoutFaults, MIN_PROBES, overlapShare } from "../src/lib/v3/council/LayoutCheck";
 import { examScore, eyeQuestion, faultsAt, type FrameQuestion, MIN_EYE_QUESTIONS, questionProblems } from "../src/lib/v3/council/QualityExam";
 import { BAND_MIN_FRAMES, frameStats, PIXEL_H, PIXEL_W, pixelFaults } from "../src/lib/v3/council/PixelCheck";
@@ -139,6 +139,16 @@ async function main() {
     // upright sword, an ✕) are part of the show; a side's cross emblem before 312 is refused by the validator instead.
     assert.match(qualityPrompt("216 BC"), /Part of the show, never a fault:[^\n]*troop sign[^\n]*upright sword with its crossguard[^\n]*never a religious cross/);
     assert.ok(qualityPrompt("216 BC").includes("a cross on a roof or tower"), "a later era's cross on a building is still a fault");
+  });
+
+  await scenario("D1b only the narrator's lines are scored as told-but-not-shown (Cannae, 9 Nov 2026: Hannibal's \"Hmm... not yet.\" came back as a proposal)", () => {
+    const ep = {
+      oyuncu_kadrosu: [{ id: "anlatici", gorunur: false }, { id: "hannibal", gorunur: true }],
+      sahneler: [{ satirlar: [{ karakter: "anlatici", metin: "Fifty thousand Romans fall. [pause]" }, { karakter: "hannibal", metin: "Hmm... not yet." }] }, { satirlar: [{ karakter: "anlatici", metin: "[sigh]" }] }],
+    };
+    const lines = [{ sceneIndex: 0, lineIndex: 0, start: 38, end: 43 }, { sceneIndex: 0, lineIndex: 1, start: 49, end: 51 }, { sceneIndex: 1, lineIndex: 0, start: 52, end: 53 }, { sceneIndex: 5, lineIndex: 0, start: 60, end: 61 }];
+    const speech = (t: string) => t.replace(/\[[^\]]*\]/g, "").trim();
+    assert.deepEqual(narratedSpans(ep, lines, speech), [{ from: 38, to: 43, text: "Fifty thousand Romans fall." }], "the character's quip, a stage direction alone and a missing line are not told");
   });
 
   await scenario("D2 the chief's bare-sentence measures are kept as titles, never 'undefined'; the end card is not a quality fault", () => {

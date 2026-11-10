@@ -235,7 +235,9 @@ export interface V3TitleCard {
  * `value`. Each node and item comes in at its own frame.
  */
 export interface V3InfoCard {
-  readonly kind: "sema" | "liste" | "sayac";
+  readonly kind: "sema" | "liste" | "sayac" | "guc";
+  /** `guc`: the two sides, as on the map's strength bar. */
+  readonly sides?: readonly [V3StrengthSide, V3StrengthSide];
   readonly start: number;
   readonly end: number;
   readonly title?: string;

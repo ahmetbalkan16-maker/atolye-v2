@@ -30,6 +30,24 @@ const DESIGNED: Readonly<Partial<Record<V3RenderPlan["shots"][number]["titleCard
 };
 
 /**
+ * What the narrator tells when (seconds), for the "does the picture show it" score. A character's own line is acted by
+ * the character speaking it (the Cannae Short, 9 Nov 2026: Hannibal's "Hmm... not yet." and "Ready to break a Roman
+ * record?" scored 2–3/10 as "told but not shown" and came back as development proposals for movement systems).
+ */
+export function narratedSpans(
+  episode: { readonly oyuncu_kadrosu: readonly { readonly id: string; readonly gorunur: boolean }[]; readonly sahneler: readonly { readonly satirlar: readonly { readonly karakter: string; readonly metin: string }[] }[] },
+  lines: readonly { readonly sceneIndex: number; readonly lineIndex: number; readonly start: number; readonly end: number }[],
+  speech: (text: string) => string,
+): { from: number; to: number; text: string }[] {
+  const narrators = new Set(episode.oyuncu_kadrosu.filter((c) => !c.gorunur).map((c) => c.id));
+  return lines.flatMap((l) => {
+    const line = episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex];
+    const text = line && narrators.has(line.karakter) ? speech(line.metin) : "";
+    return text ? [{ from: l.start, to: l.end, text }] : [];
+  });
+}
+
+/**
  * Where the plan puts the channel's own cards. Until 21 Oct 2026 the quality brain scored the closing SUBSCRIBE card
  * 0/10 as "a modern button in a historical scene" and the episode was delivered with a warning.
  */

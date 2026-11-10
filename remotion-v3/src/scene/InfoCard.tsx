@@ -6,6 +6,7 @@ import { extraState } from "../character/extras";
 import { HEAD_CY } from "../character/rig";
 import { chartLayout } from "./chartLayout";
 import { yer } from "./LayoutProbe";
+import { countedText, singleNumber } from "./MapMarks";
 
 /**
  * Info cards over the darkened picture (owner, 23 Oct 2026, after DFT Tarih's Pharsalus): the map dims and a political
@@ -148,7 +149,49 @@ function Counter({ card, frame, fps, W, H, language }: { card: V3InfoCard; frame
   );
 }
 
-/** One info card: the picture dims, the title comes in, then the chart, the list or the counter. */
+/**
+ * The two sides' armies (the Cannae Short, 9 Nov 2026: their numbers were told over two standing puppets): a row each,
+ * its name and number over a bar in the side's colour; the bars grow to their share of the larger army while the
+ * numbers count up, the second side a beat after the first.
+ */
+function Strength({ card, frame, fps, W, H }: { card: V3InfoCard; frame: number; fps: number; W: number; H: number }) {
+  const sides = card.sides;
+  if (!sides) return null;
+  const u = Math.min(W, H) / 1080;
+  const x0 = W * 0.12;
+  const full = W * 0.76;
+  const most = Math.max(1, ...sides.map((s) => s.value));
+  const barH = 64 * u;
+  return (
+    <g>
+      {sides.map((s, i) => {
+        const begin = card.start + Math.round(fps * (0.3 + i * 0.7));
+        if (frame < begin) return null;
+        const t = interpolate(frame, [begin, begin + Math.round(fps * 1.2)], [0, 1], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+        const y = H * (0.4 + i * 0.17);
+        const width = full * Math.max(0.06, s.value / most) * t;
+        const one = singleNumber(s.count);
+        const count = one ? countedText(s.count, one.value * t) : s.count;
+        const text = (value: string, x: number, anchor: "start" | "end", size: number, fill: string) => (
+          <text {...yer("kart", value)} x={x} y={y - 18 * u} textAnchor={anchor} style={{ font: `800 ${size * u}px ${TEXT_FONT}`, fontStretch: "condensed", fontVariantNumeric: "tabular-nums" }} fill={fill} stroke="rgba(10,8,14,0.85)" strokeWidth={6 * u} paintOrder="stroke fill">
+            {value}
+          </text>
+        );
+        return (
+          <g key={i} opacity={Math.min(1, t * 2)}>
+            {text(s.label.toLocaleUpperCase("en-US"), x0, "start", 54, "#ffffff")}
+            <g opacity={one ? 1 : t}>{text(count, x0 + full, "end", 64, "#fff3d6")}</g>
+            <rect x={x0 - 5 * u} y={y - 5 * u} width={full + 10 * u} height={barH + 10 * u} rx={12 * u} fill="rgba(12,10,18,0.85)" stroke={PARCHMENT} strokeWidth={2 * u} strokeOpacity={0.5} />
+            <rect x={x0} y={y} width={width} height={barH} rx={9 * u} fill={s.color} />
+            <rect x={x0} y={y} width={width} height={barH * 0.42} rx={9 * u} fill="#ffffff" opacity={0.2} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** One info card: the picture dims, the title comes in, then the chart, the list, the counter or the two armies. */
 export function InfoCardView({ card, cast, accessories, language = "en" }: { card: V3InfoCard; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; language?: "tr" | "en" }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
@@ -175,6 +218,7 @@ export function InfoCardView({ card, cast, accessories, language = "en" }: { car
       {card.kind === "sema" ? <Chart card={card} frame={frame} fps={fps} W={W} H={H} {...(cast ? { cast } : {})} {...(accessories ? { accessories } : {})} /> : null}
       {card.kind === "liste" ? <List card={card} frame={frame} fps={fps} W={W} H={H} /> : null}
       {card.kind === "sayac" ? <Counter card={card} frame={frame} fps={fps} W={W} H={H} language={language} /> : null}
+      {card.kind === "guc" ? <Strength card={card} frame={frame} fps={fps} W={W} H={H} /> : null}
     </svg>
     </>
   );

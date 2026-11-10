@@ -3,6 +3,7 @@ import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { isShorts } from "../render/Format";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
+import { addToldStrengths } from "./ToldNumbers";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
@@ -526,6 +527,13 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   for (const fix of crowded.fixes) input.log?.(`  senaryo: ${fix}`);
   if (crowded.episode !== written) {
     written = crowded.episode;
+    validation = validateEpisode(written);
+  }
+  // Armies the narrator counts off the map get their card (Cannae, 9 Nov 2026: numbers over standing puppets).
+  const counted = addToldStrengths(written, brief.dil);
+  for (const fix of counted.fixes) input.log?.(`  senaryo: ${fix}`);
+  if (counted.episode !== written) {
+    written = counted.episode;
     validation = validateEpisode(written);
   }
   // The director's pass on the battle maps (badges with the line naming them, a fallen ruler's X, routs, charge arrows).

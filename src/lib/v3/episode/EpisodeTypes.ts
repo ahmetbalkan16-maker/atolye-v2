@@ -403,17 +403,20 @@ export interface ScenePicture {
   readonly film?: boolean;
 }
 
-export const INFO_CARD_KINDS = ["sema", "liste", "sayac"] as const;
+export const INFO_CARD_KINDS = ["sema", "liste", "sayac", "guc"] as const;
 
 /**
  * An info card over the darkened picture (owner, 23 Oct 2026, after DFT Tarih): `sema` — a political chart, boxes hanging
  * from their `ust` box by arrows, with the portraits of `karakterler` under a box ("Roman Senate → Optimates / Populares");
  * `liste` — a titled list whose items come in line by line ("Caesar's advantages: 1. …"); `sayac` — a number counting up
- * from `baslangic` to `deger` with its `etiket` ("1,000,000 killed"). From line `satir` until `bitis_satir`, else a beat
- * after the last line it names.
+ * from `baslangic` to `deger` with its `etiket` ("1,000,000 killed"); `guc` — the two sides' armies, each bar growing to
+ * its number as the number counts up (the Cannae Short, 9 Nov 2026: "Rome fields eighty-six thousand men. Hannibal?
+ * Only fifty thousand." was told over two standing puppets — the strength bar exists only on maps). From line `satir`
+ * until `bitis_satir`, else a beat after the last line it names.
  */
 export interface SceneInfoCard {
   readonly tur: (typeof INFO_CARD_KINDS)[number];
+  readonly taraflar?: readonly [MapStrengthSide, MapStrengthSide];
   readonly satir: number;
   readonly bitis_satir?: number;
   readonly baslik?: string;

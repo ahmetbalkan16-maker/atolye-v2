@@ -308,6 +308,18 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         num(c, "deger", cp, 1, 1e13);
         num(c, "baslangic", cp, 0, 1e13, true);
         str(c, "etiket", cp, { max: 60 });
+      } else if (kind === "guc") {
+        // The map's strength bar as a card (the same sides' shape), for numbers told off the map.
+        const sides = Array.isArray(c.taraflar) ? c.taraflar : [];
+        if (sides.length !== 2) err("BILGI_KARTI", `${cp}.taraflar`, "tam iki taraf: [{ad, renk, sayi}, {ad, renk, sayi}]");
+        sides.forEach((t, ti) => {
+          const tp = `${cp}.taraflar[${ti}]`;
+          if (!isObj(t)) return err("BILGI_KARTI", tp, "nesne bekleniyor");
+          str(t, "ad", tp, { max: 30 });
+          str(t, "renk", tp, { pattern: HEX });
+          const n = str(t, "sayi", tp, { max: 24 });
+          if (n !== undefined && !/\d/.test(n)) err("BILGI_KARTI", `${tp}.sayi`, "rakamla bir sayı bekleniyor (\"86,000\", \"15,000–25,000\")");
+        });
       }
     });
     if (isObj(s.harita) && s.harita.merkez !== undefined) {

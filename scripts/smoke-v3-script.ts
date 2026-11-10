@@ -19,6 +19,7 @@ import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/maps/Tactics";
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
+import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { cachedDiscountUsd, cachedTokensOf, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
@@ -409,6 +410,49 @@ async function main() {
     assert.ok(openai.calls[1]!.prompt.includes("CROWDS") && openai.calls[1]!.prompt.includes('"soldiers"'), "the repair round asks for the crowd");
     assert.equal(out.episode.sahneler[1]!.kalabalik?.[0]?.ad, "Soldiers");
     assert.ok(logs.some((m) => m.includes("kalabalık eklendi")), logs.join("\n"));
+  });
+
+  await scenario("P3 armies the narrator counts off the map get their card (the Cannae Short, 9 Nov 2026: numbers over standing puppets)", async () => {
+    const cannae = "On August 2nd, 216 BC, Rome fields its biggest army ever—eighty-six thousand men. Hannibal? Only fifty thousand.";
+    assert.deepEqual(toldNumbers(cannae.split(/(?<=[.!?;])\s+/)[0]!).map((n) => [n.value, n.after]), [[86_000, "men"]], "2nd and 216 are no armies");
+    assert.deepEqual(toldNumbers("In 3000 BC 8000 men built it."), [{ value: 8000, index: 11, end: 15, after: "men built it" }], "an era is no army; 8000 is past any year");
+    assert.deepEqual(toldNumbers("Fifty thousand Romans fall.").map((n) => [n.value, n.after]), [[50_000, "Romans fall"]]);
+    assert.deepEqual(toldNumbers("In 1389 Murad led 30,000 men and a thousand archers.").map((n) => n.value), [30_000, 1_000], "a year is not counted");
+    assert.deepEqual(toldNumbers("Two hundred and fifty thousand soldiers, 2.5 million people.").map((n) => n.value), [250_000, 2_500_000]);
+    assert.deepEqual(toldNumbers("He marched 1,200 miles, paid 10,000 talents and lost 5,000 ships."), [], "distances, money and fleets are no armies");
+    assert.deepEqual(toldNumbers("Mehmed geldi; seksen altı bin asker, on bin süvari.", "tr").map((n) => n.value), [86_000, 10_000]);
+    assert.deepEqual(toldNumbers("On the hill stood the army.", "en"), [], "'on' is a number only in Turkish");
+    assert.equal(namesSide("Rome", "Romans"), true);
+    assert.equal(namesSide("Carthage", "Carthaginians"), true);
+    assert.equal(namesSide("army", "Armenians"), false, "a common word names no side");
+    assert.equal(namesSide("Then", "Thebans"), false);
+    const sides = [{ ad: "Romans", renk: "#d9d9d9", sayi: "", leaders: [] }, { ad: "Carthaginians", renk: "#4b5320", sayi: "", leaders: ["Hannibal"] }] as const;
+    assert.deepEqual(toldStrengthCard(cannae, 1, sides), { tur: "guc", satir: 1, taraflar: [{ ad: "Romans", renk: "#d9d9d9", sayi: "86,000" }, { ad: "Carthaginians", renk: "#4b5320", sayi: "50,000" }] });
+    assert.deepEqual(toldStrengthCard("Hannibal brings 50,000 men. The consuls? 86,000.", 0, sides)!.taraflar!.map((t) => [t.ad, t.sayi]), [["Carthaginians", "50,000"], ["Romans", "86,000"]], "a leader points at his side");
+    assert.deepEqual(toldStrengthCard("Rome fields 86,000 men and loses 50,000 of them.", 0, sides), { tur: "sayac", satir: 0, deger: 86_000, etiket: "men" }, "one army counted twice is no two sides");
+    assert.deepEqual(toldStrengthCard("Fifty thousand Romans fall. Rome's worst defeat.", 0, sides), { tur: "sayac", satir: 0, deger: 50_000, etiket: "Romans fall" });
+    assert.equal(toldStrengthCard("They marched 300 miles in ten days.", 0, sides), undefined);
+    // The last resort, on an episode shaped like the Short: its map's strength bar gives the sides.
+    const ep = episode();
+    const map = { merkez: [16.2, 41.3] as [number, number], genislik_km: 900, guc: [{ satir: 0, taraflar: [{ ad: "Romans", renk: "#d9d9d9", sayi: "86,000" }, { ad: "Carthaginians", renk: "#4b5320", sayi: "50,000" }] as const }] };
+    const shaped: Episode = {
+      ...ep,
+      sahneler: [
+        { ...ep.sahneler[0]!, satirlar: [ep.sahneler[0]!.satirlar[0]!, { karakter: "anlatici", metin: cannae, duygu: "notr" }] },
+        { ...ep.sahneler[1]!, harita: map, satirlar: [{ karakter: "anlatici", metin: "Varro packs 86,000 men deep.", duygu: "notr" }] },
+        { ...ep.sahneler[1]!, id: "s3-sonra", satirlar: [{ karakter: "anlatici", metin: "Fifty thousand Romans fall. Rome's worst defeat.", duygu: "uzgun" }, { karakter: "mehmed", metin: "Not yet. 10,000 more!", duygu: "kararli" }] },
+      ],
+    };
+    assert.equal(validateEpisode(shaped).ok, true, JSON.stringify(validateEpisode(shaped).errors.slice(0, 2)));
+    const counted = addToldStrengths(shaped);
+    assert.deepEqual(counted.episode.sahneler.map((s) => s.bilgi_kartlari?.map((c) => [c.tur, c.satir])), [[["guc", 1]], undefined, [["sayac", 0]]], "the map scene keeps its own bar; a character's line is not the narrator's");
+    assert.equal(validateEpisode(counted.episode).ok, true);
+    assert.ok(counted.fixes.some((f) => f.includes("güç kartı eklendi (Romans 86,000 / Carthaginians 50,000, satır 1)")) && counted.fixes.some((f) => f.includes("sayaç kartı eklendi (50,000 Romans fall")), counted.fixes.join("\n"));
+    assert.equal(addToldStrengths(counted.episode).fixes.length, 0, "a scene with a card is left alone: a second pass changes nothing");
+    const writerCard = { ...shaped, sahneler: shaped.sahneler.map((s, i) => (i === 0 ? { ...s, bilgi_kartlari: [{ tur: "sayac" as const, satir: 1, deger: 86_000, etiket: "Romans" }] } : s)) };
+    assert.equal(addToldStrengths(writerCard).episode.sahneler[0]!.bilgi_kartlari!.length, 1, "the writer's own card stays the only one");
+    // The writer is asked for it first.
+    assert.match(writingPrompt({ konu: "Cannae", donem: "216 BC", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG), /"tur": "guc", "satir": 1, "taraflar": \[\{"ad": "Romans"[\s\S]*both sides' numbers/);
   });
 
   await scenario("N2 a long video is researched deeper: more articles, three times the facts, the whole story in order", () => {

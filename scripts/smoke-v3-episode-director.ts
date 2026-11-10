@@ -1094,6 +1094,25 @@ async function main() {
     assert.equal(v({ tur: "harita", satir: 0 }).ok, false);
   });
 
+  await scenario("O17b the two armies as a card off the map (the Cannae Short, 9 Nov 2026: \"eighty-six thousand men. Hannibal? Only fifty thousand.\" over two standing puppets)", () => {
+    const lines = [0, 1].map((i) => ({ lineIndex: i, start: i * 90, end: i * 90 + 80 }));
+    const strength = { tur: "guc" as const, satir: 1, taraflar: [{ ad: "Romans", renk: "#d9d9d9", sayi: "86,000" }, { ad: "Carthaginians", renk: "#4b5320", sayi: "15,000–25,000" }] as const };
+    const [card] = infoCardsOf({ bilgi_kartlari: [strength] }, lines, 30, 1000);
+    assert.deepEqual(card!.sides, [{ label: "Romans", color: "#d9d9d9", count: "86,000", value: 86_000 }, { label: "Carthaginians", color: "#4b5320", count: "15,000–25,000", value: 20_000 }], "the map bar's numbers: a range counts as its middle");
+    assert.equal(card!.kind, "guc");
+    assert.ok(card!.start === 90 && card!.end > 170, "from its line until a beat after it");
+    const ep = sampleEpisode();
+    const v = (c: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [c] }] } as never);
+    const one = { ...strength, satir: 0 };
+    assert.equal(v(one).ok, true, JSON.stringify(v(one).errors.slice(0, 2)));
+    assert.equal(v({ ...one, taraflar: [one.taraflar[0]] }).ok, false, "exactly two sides");
+    assert.equal(v({ ...one, taraflar: [one.taraflar[0], { ...one.taraflar[1], renk: "green" }] }).ok, false, "a side's colour is #RRGGBB");
+    assert.equal(v({ ...one, taraflar: [one.taraflar[0], { ...one.taraflar[1], sayi: "many" }] }).ok, false, "a side's number in digits");
+    const withCard: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [one] }] };
+    const plan = buildRenderPlan({ episode: withCard, timeline: buildTimeline(withCard, [ep.sahneler[0]!.satirlar.map(() => fakeAudio(2))]), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1080, height: 1920, showCaptions: false });
+    assert.equal(plan.shots.find((s) => s.id === ep.sahneler[0]!.id)!.infoCards![0]!.sides![1].value, 20_000, "on the shot, also in a vertical Short");
+  });
+
   await scenario("O18 close-map tactics after DFT Tarih's Pharsalus: blocks by kind with strength labels, a front three lines deep away from the enemy, plan arrows that go, the named unit framed, a rout that scatters, siege lines with their length", () => {
     // Three lines deep: the front line first and fullest, each rear line further from the enemy (east here), staggered.
     const front: [number, number][] = [[22, 40], [22, 40.2]];

@@ -49,7 +49,7 @@ import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/Bra
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
-import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
@@ -1335,8 +1335,8 @@ async function main() {
     // scripts/v3/kalite-sinavi.ts measures and teaches (owner, 26 Oct 2026).
     // A long video is sampled across its whole length (6 s apart filled only its first two minutes): up to 48 frames.
     const qualityFrames = Math.max(18, Math.min(48, Math.round(durationS / 25)));
-    // What is said when: each frame is also judged on whether it shows what is being told.
-    const said = timeline.lines.map((l) => ({ from: l.start, to: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech })).filter((s) => s.text);
+    // What the narrator tells when: each frame is also judged on whether it shows what is being told.
+    const said = narratedSpans(episode, timeline.lines, (t) => splitDirections(t).speech);
     // The render's own measures (owner, 2 Nov 2026; the exam's faults were 4 of 7 geometry, 2 of 7 pixels): boxes cut by
     // the frame or printed over each other, from what the render wrote, and dark bands and flashes, from every frame.
     // With both, the vision model is asked only what needs an eye (a puppet drawn wrong) and whether the told shows.

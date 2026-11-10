@@ -3,6 +3,7 @@ import { validateEpisode } from "../episode/EpisodeValidator";
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { normalizeDraft } from "./DraftNormalizer";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
+import { addToldStrengths } from "./ToldNumbers";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
@@ -339,7 +340,10 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
   // A group the narrator tells that no chapter round put on the stage gets its crowd.
   const crowded = addToldCrowds(livened.episode);
   for (const fix of crowded.fixes) log(`  senaryo: ${fix}`);
-  const directed = directBattleMaps(crowded.episode);
+  // Armies counted off the map get their card (Cannae, 9 Nov 2026).
+  const counted = addToldStrengths(crowded.episode, d.brief.dil);
+  for (const fix of counted.fixes) log(`  senaryo: ${fix}`);
+  const directed = directBattleMaps(counted.episode);
   for (const fix of directed.fixes) log(`  ${fix}`);
   return { episode: directed.episode, repairs, lengthRounds, writerUsed, factChecks, continuity };
 }
