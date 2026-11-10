@@ -3,7 +3,9 @@ import path from "node:path";
 import { brainsReportText, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
 import { listLinkRequests, listSearchRequests, placeLinkRequest, placeSearchRequest } from "@/lib/ayas/research/AyasLinkRequests";
 import { loadKnowledge, recallKnowledge } from "@/lib/ayas/research/AyasSharedKnowledge";
+import { ayasScopeEnabled } from "@/lib/v3/council/DevQueue";
 import { placeStudyRequest } from "@/lib/v3/council/ReferenceStore";
+import { MAX_OPEN_REQUESTS, requestDevelopment } from "@/lib/v3/council/SelfImprovement";
 import { listOrders, orderProgress, ordersSummary, placeOrder, type ProductionOrder, publishLine, saveOrder } from "@/lib/v3/orders/ProductionOrders";
 import { approvePublish, awaitingApproval } from "@/lib/v3/publish/PublishApproval";
 import { slotText, videoKind } from "@/lib/v3/publish/PublishCalendar";
@@ -28,7 +30,44 @@ export type AyasVideoIntent =
   /** "text to video hakkında ne öğrendin": the shared knowledge, with its sources. */
   | { readonly kind: "knowledge"; readonly soru: string }
   /** "internette Wan 2.2'yi araştır" (owner, 5 Nov 2026): a topic search the idle loop runs into the shared knowledge. */
-  | { readonly kind: "search"; readonly sorgu: string };
+  | { readonly kind: "search"; readonly sorgu: string }
+  /**
+   * "Geliştirme isteği: …", "kendine … ekle" (owner decision 2026-11-10, the code lane's optional follow-up): the same
+   * main-AYAS job as Gelişim Merkezi's "AYAS'tan geliştirme iste" box (SelfImprovement.requestDevelopment).
+   */
+  | { readonly kind: "develop"; readonly metin: string };
+
+// An explicit request form only, so talk about developing something ("bu videoyu nasıl geliştirebilirim") stays a
+// conversation: a request word and a colon, or "kendine / AYAS'a … ekle" with the imperative at the end.
+const DEVELOP_COLON_TR = /^(?:ayas\W+)?(?:(?:yeni\s+(?:bir\s+)?)?geliştirme\s+(?:isteği|isteğim|talebi|talebim)|kendini\s+geliştir|kendine\s+(?:şunu\s+)?ekle|ayas['’]?a\s+(?:şunu\s+)?ekle)\s*[:\-–]\s*([\s\S]+)$/u;
+const DEVELOP_ADD_TR = /^(?:ayas\W+)?(?:kendine|ayas['’]?a)\s+([\s\S]{3,600}?)\s+(?:ekle|ekler misin|ekleyebilir misin|eklesene|kazandır|kazandırır mısın)$/u;
+const DEVELOP_EN = /^(?:please\s+)?(?:development request|feature request|develop yourself|add to yourself)\s*[:\-–]\s*([\s\S]+)$/u;
+
+/** The owner's development request in their own words and casing, else undefined (no request form). */
+export function developmentRequestOf(text: string): string | undefined {
+  const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
+  // Each form is matched on its own language's lower case ("I" is "ı" in Turkish), and the words cut from the original.
+  for (const [re, lower] of [[DEVELOP_COLON_TR, t.toLocaleLowerCase("tr")], [DEVELOP_ADD_TR, t.toLocaleLowerCase("tr")], [DEVELOP_EN, t.toLowerCase()]] as const) {
+    const m = re.exec(lower);
+    if (!m?.[1]) continue;
+    const start = lower.length === t.length ? lower.lastIndexOf(m[1]) : -1;
+    return (start >= 0 ? t.slice(start, start + m[1].length) : m[1]).trim();
+  }
+  return undefined;
+}
+
+/** AYAS's answer to a development request: the job is queued for the evening developer; nothing changes before the owner's click. */
+export async function answerDevelopmentRequest(workRoot: string, metin: string, env: Readonly<Record<string, string | undefined>> = process.env): Promise<string> {
+  try {
+    const p = await requestDevelopment(workRoot, metin.slice(0, 4_000));
+    return `Geliştirme isteğini kuyruğa aldım: "${p.baslik}". Akşam 16:30'dan sonra geliştirici (Claude Code) ayrı bir çalışma kopyasında yazıp test edecek. Hazır olunca Gelişim Merkezi'nde değişen dosyaları ve testleri görüp "ONAYLA VE UYGULA" ile uygularsın; sen onaylamadan hiçbir şey değişmez. Ana sayfaya, güvenlik ve yayın düzenine dokunan değişiklikler yapılmaz; yapılamazsa nedeni Gelişim Merkezi'nde görünür.${ayasScopeEnabled(env) ? "" : " Not: ana AYAS geliştirmesi şu an kapalı (ATOLYE_AYAS_GELISTIRME=0); açılana kadar sırada bekler."}`;
+  } catch (e) {
+    const code = (e as Error).message;
+    if (code === "V3_REQUEST_TOO_SHORT") return "İsteği biraz daha açık yazar mısın? En az bir cümle: ne olsun, nerede (ör. \"Geliştirme isteği: Gelişim Merkezi'nde işlerin tarihini göster\").";
+    if (code === "V3_REQUEST_LIMIT") return `Kuyrukta zaten ${MAX_OPEN_REQUESTS} açık geliştirme isteğin var; biri bitince yenisini alırım. Gelişim Merkezi'nde durumlarını görebilirsin.`;
+    return `Geliştirme isteğini kuyruğa yazamadım (${code.slice(0, 120)}). Gelişim Merkezi'ndeki "AYAS'tan geliştirme iste" kutusunu deneyebilirsin.`;
+  }
+}
 
 // A YouTube link with a learning verb anywhere around it (owner approval, 2 Nov 2026: "you give a link").
 const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/gu;
@@ -122,6 +161,9 @@ export function periodOf(konu: string): string {
 }
 
 export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
+  // An explicit development request names its own subject, whatever words or links it carries.
+  const request = developmentRequestOf(text);
+  if (request !== undefined) return { kind: "develop", metin: request };
   const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
   const lower = t.toLocaleLowerCase("tr");
   // YouTube links are studied (owner, 2 Nov 2026: "when I send AYAS a link, the brains study it by themselves"), every
@@ -219,6 +261,7 @@ export async function approveFromChat(workRoot: string, intent: Extract<AyasVide
 /** AYAS's answer: the order is placed (or the orders are reported, or a video approved); nothing is produced in the server. */
 export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot, repoRoot = resolveV3Paths().repoRoot): Promise<string> {
   if (intent.kind === "status") return ordersReport(workRoot);
+  if (intent.kind === "develop") return answerDevelopmentRequest(workRoot, intent.metin);
   if (intent.kind === "publish") return approveFromChat(workRoot, intent);
   if (intent.kind === "brains") return brainsReportText(await loadAtolyeBrainsView(workRoot));
   if (intent.kind === "learn") {

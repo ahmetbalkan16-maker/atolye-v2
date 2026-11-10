@@ -17,7 +17,8 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
+import { ayasScopeEnabled, developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
+import { openEvolutionJobs } from "../../src/lib/v3/council/EvolutionJobs";
 import { listStudyRequests } from "../../src/lib/v3/council/ReferenceStore";
 import { listLinkRequests, listSearchRequests } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles, listProposals } from "../../src/lib/v3/council/SelfImprovement";
@@ -122,6 +123,9 @@ async function eveningDevelopment(paths: V3Paths): Promise<void> {
   const env = { ...loadEnvFile(path.join(paths.repoRoot, ".env.v3.local")), ...process.env };
   if (!developerWindow(env).acik) return;
   if ((await listOrders(paths.workRoot)).some((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor")) return;
+  // A controlled-evolution gap without a strategy becomes a main-AYAS job (owner decision 2026-11-10), before the queue
+  // is looked at, so an empty queue still gets it the same evening.
+  if (ayasScopeEnabled(env)) for (const p of await openEvolutionJobs(paths.workRoot, paths.repoRoot).catch(() => [])) console.log(`kontrollü evrimden iş açıldı: ${p.baslik}`);
   if (!nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal))) return;
   lastEvening = Date.now();
   const dir = improvementDir(paths.workRoot);

@@ -9,6 +9,13 @@ yapacak … bir yeri yaparken çalışan başka birşeyi bozma". Gelişim Merkez
 - **V3 beyin önerisi:** bir beyin öneri yazar, sen **ONAYLA**'ya basarsın, öneri geliştirme kuyruğuna girer.
 - **Senin isteğin:** "AYAS'tan geliştirme iste" kutusuna yazdığın iş doğrudan onaylı bir ana AYAS işi olarak
   kuyruğa girer (`kapsam: "ayas"`). Aynı anda en fazla 5 açık istek olabilir.
+- **Sohbetten istek (10 Kasım 2026):** AYAS sohbetine "Geliştirme isteği: …", "Kendini geliştir: …" ya da
+  "Kendine … ekle" yazarsan aynı iş açılır ve AYAS bunu söyler. Yalnız bu açık kalıplar istek sayılır; "bu videoyu
+  nasıl geliştirebilirim" gibi konuşmalar sohbette kalır (`AyasVideoOrder.developmentRequestOf`).
+- **Kontrollü evrimden (10 Kasım 2026):** kontrollü evrim benchmark'ında geçmeyen ve owner onaylı stratejisi
+  olmayan bir vaka grubu (NEEDS_EXPERIMENT_DESIGN) akşam kontrolünde kendiliğinden ana AYAS işi olur
+  (`v3/council/EvolutionJobs`). Aynı açık için iş açıkken ya da kapandıktan sonraki 7 gün içinde yenisi açılmaz;
+  aynı anda en fazla 3 böyle iş bekler. Uygulama yine yalnız senin ONAYLA VE UYGULA tıkınla olur.
 - Ana AYAS işleri `ATOLYE_AYAS_GELISTIRME=0` ile durdurulur. V3 işleri bundan etkilenmez.
 
 ## Geliştirici ne yapar

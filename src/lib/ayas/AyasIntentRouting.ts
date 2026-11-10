@@ -2,7 +2,7 @@ import { detectAyasReportIntent, type AyasReportIntent } from "@/lib/brain/selfh
 import { detectAyasResearchStatusIntent, type AyasResearchStatusIntent } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { isAyasDevelopmentStatusQuery } from "./model/AyasComplexityRouter";
 import { detectAyasLiveInfoIntent, type AyasLiveInfoIntent, type AyasLiveInfoTurn } from "./liveinfo/AyasLiveInfoIntent";
-import { detectAyasVideoIntent, type AyasVideoIntent } from "./AyasVideoOrder";
+import { detectAyasVideoIntent, developmentRequestOf, type AyasVideoIntent } from "./AyasVideoOrder";
 
 const GUIDED_REPAIR_TOKENS = new Set([
   "hata",
@@ -72,6 +72,10 @@ export type AyasPreReasoningIntent =
  * follow-up such as "Peki yarın?".
  */
 export function resolveAyasPreReasoningIntent(text: string, history: readonly AyasLiveInfoTurn[] = []): AyasPreReasoningIntent {
+  // An explicit development request ("Geliştirme isteği: …", owner decision 2026-11-10) goes first: its own words often
+  // carry "kendini", "öneri", "onay" or "hata", which the status, report and repair intents below would take.
+  const request = developmentRequestOf(text);
+  if (request !== undefined) return { kind: "video", video: { kind: "develop", metin: request } };
   if (isAyasDevelopmentStatusQuery(text)) return { kind: "development-status" };
   // Atölye's brains ("kurul raporu ver") and a video to study name their own subject, so they go before the self-healing
   // report center's general "rapor ver"; every other video intent keeps its place below.
