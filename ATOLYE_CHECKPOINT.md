@@ -2,8 +2,8 @@
 
 Owner: "son oturumdaki 3. maddeyi işleme al … bir yeri yaparken çalışan başka birşeyi bozma. ayas tamamen otomatik
 çalışacak benim onay uygula diye tıklama ile onay alıp yapacak … uygun skill varsa ayasa ekle, gerektiğinde otomatik
-kullanacak". Tasarım A uygulandı (V3 geliştirme hattı ana AYAS'a açıldı). Owner kullanım sınırı yüzünden güvenli
-noktada durduruldu; **canlıya alınmadı**, yalnız `feature/cop-adam-v3`'e wip commit.
+kullanacak". Tasarım A uygulandı (V3 geliştirme hattı ana AYAS'a açıldı). İlk oturum owner kullanım sınırı
+yüzünden güvenli noktada durduruldu (yalnız `feature/cop-adam-v3`'e wip commit); bitiş ve canlıya alma aşağıda.
 
 **Akış:** iş kuyruğa girer (V3 beyin önerisi ONAYLA ile, ya da owner'ın Gelişim Merkezi'ndeki "AYAS'tan geliştirme
 iste" kutusu — doğrudan onaylı, `kapsam: "ayas"`) → akşam 16:30–07 geliştirici (`claude -p`, abonelik, ek maliyet yok)
@@ -63,9 +63,23 @@ V3 dosyasına dokunan yapı, V3 siparişi varken bekler (`CODE_APPLY_WAITING`).
   bildirmediği için smoke yakalayamaz; doğrulama denetimin yeniden koşusu: **sorun yok**, 32 görünüm kontrolü
   tıklandı, 16 eylem düğmesi (ONAYLA VE UYGULA, REDDET, KUYRUĞA EKLE…) bilerek basılmadı. Panel smoke'ları
   (brains-report, self-improvement, code-change-lane, development-center) PASS, tsc 0, lint 0/0.
-- Canlıya alma: `feature/cop-adam-v3` → `origin/wip/ayas-graphify-final-execution`, canonical `pull --ff-only`, Graphify,
-  otomatik canlı yayın. `yapim.ts` `SelfImprovement`/`DevQueue` üzerinden kod hattı modüllerini içe aktarıyor:
-  sipariş izleyicisi boştayken yeniden başlatıldı (`gelistirici.ts aksam` zaten her akşam diskten başlar).
+- Canlıya alma: `feature/cop-adam-v3` → `origin/wip/ayas-graphify-final-execution` (ff, zorlama yok), canonical
+  `pull --ff-only`, Graphify, otomatik canlı yayın. Oturum burada owner kullanım sınırına takıldı; kapanış ertesi
+  sabah (10 Kasım) doğrulandı:
+  - Otomatik canlı yayın `43b018f4` **PUBLISHED** (9 Kasım 14:40–14:42 UTC, `ayas-live-43b018f4`, dış erişim healthy;
+    geri dönüş için `ayas-live-ec98c62c` duruyor). 10 Kasım 06:52'de oturum açılışından sonra aynı snapshot yeniden
+    ayağa kalktı; erişim denetçisi origin/tünel/dış sağlık **healthy**.
+  - AYAS Safe CI `43b018f4` **success** (9 Kasım 04:27'den beri süren kırmızı seri kapandı).
+  - Graphify canonical ve V3 worktree'de SOURCE_HEAD = LAST_ANALYZED_HEAD = GRAPH_BUILT_FROM = `43b018f4`, complement
+    15/15, GRAPH_CURRENT.
+  - **Düzeltme:** sipariş izleyicisi 9 Kasım'da yeniden *başlatılmamıştı* (log'da pid 2900'den sonra başlama satırı
+    yok). 10 Kasım 06:42 oturum açılışında başlangıç kısayolu izleyiciyi açtı ama süreç `tsx` yüklenirken
+    `ENOENT lstat …\node_modules\tsx\dist\esm` ile düştü (klasör yerinde; 22 başlatmada ilk kez, açılıştaki eşzamanlı
+    disk yükünde geçici yarış gibi). Bekleyen sipariş yoktu, eski kilit pid'i ölüydü; izleyici 06:47'de aynı
+    `atolye-v3-yapim-hidden.vbs` ile başlatıldı (pid 34304, kod hattı modülleriyle), gelişim döngüsü başladı.
+    Tekrar ederse başlatıcıya yeniden deneme eklemek düşünülebilir; şimdilik değiştirilmedi.
+  - Geliştirme kuyruğu: ana AYAS işi yok; V3 `20261109T095728-kalite-50` **hazır**, owner'ın ONAYLA VE UYGULA kararını
+    bekliyor; birkaç iş Claude kullanım sınırı yüzünden kuyrukta.
 
 **İsteğe bağlı, sonraki iş:** AYAS sohbetinden "geliştirme isteği" niyeti; kontrollü evrimin başarısız vakalarından
 otomatik ana AYAS işi. İlk gerçek ana AYAS yapısı owner'ın istek kutusundan ya da bir öneriden gelecek; o akşam
