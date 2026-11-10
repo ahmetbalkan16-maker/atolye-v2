@@ -1,3 +1,47 @@
+## 10 Kasım 2026 — bekleyen kararlar onaylandı; geliştirme kuyruğu işlendi; sohbetten geliştirme isteği; kontrollü evrimden otomatik iş
+
+Owner: "önceki oturumda olan benim kararımı bekleyenleri onaylıyorum gelişim merkezinde bulunan atölye beyinlerin
+geliştirme kuyruğunda olanlarıda işleme al uygun skill kullanabilirsin". Önceki oturumun dört bekleyen maddesi ve
+kuyruktaki 8 iş (hepsi Kanne Short'u ile ölçüm render'ından) işlendi. Skill'ler: `v3-gelistirici`, `ayas-gelistirici`.
+
+**1. `kalite-50` hazır yapısı uygulandı** (`f21c89df`, `gelistirici.ts uygula`): haç amblemi 312'den, orak-çekiç 1917'den
+önce reddedilir (`UNIT_EMBLEM_FROM`, `HARITA_AMBLEM_DONEM`); kalite beyni bloktaki birlik işaretlerini (✕, dik kılıç…)
+kusur saymaz. Birleşmeden sonra tsc 0, episode-director 63, council 16, script 32, self-improvement 11, brains-report 4.
+
+**2. Kuyruk (8 iş) ölçülmüş köklerinden işlendi ve kanıt notlarıyla kapandı:**
+- kostum-47 → `f3413867`: kütüphanede olmayan parça siparişe kimliğiyle yazılıyordu ("…engraved b c72c59"); şef karmayı
+  renk sandı, kask kırmızı-kahverengi boyandı, 3 turda 1/10, Hannibal kasksız kaldı. `LikenessDesigner.partWords`.
+- ses-46, ses-51 → `f3413867`: dönem davulu her üretimde aynı tohumla aynı vuruşsuz vızıltı (Kosova, Waterloo, Kanne,
+  Rubicon; 4.5–4.7 dB). Reddedilen kayıt `<anahtar>.reddedildi.json` ile hatırlanır, efekt 3 tohum dener
+  (`SFX_SEED_TRIES`; ilki eski tohum). Ortam yatağı tek tohum.
+- kurgu-53, kurgu-45, kurgu-49 → `1c11e4f6`: haritasız sahnede anlatılan ordu sayıları görünmüyordu. Yeni bilgi kartı
+  `guc` (iki çubuk sayısına uzar, sayı sayar; remotion `InfoCard.Strength`), yazar istemi ve son çare
+  `script/ToldNumbers.addToldStrengths` (rakam/sözcük, yıl-çağ-mesafe-para-gemi değil, aynı ordunun kaybı iki taraf
+  değil, sahne başına bir kart; tek sayı → `sayac`). Kanne kopyasında dikey Short kareleriyle bakıldı (Romans 86,000 /
+  Carthaginians 50,000). Kalite beyni "anlatılan görünmüyor"u artık yalnız anlatıcı satırında puanlar
+  (`QualityBrain.narratedSpans`) — "Hmm... not yet." şakası kurgu önerisine dönüşüyordu. Claude'un 9 Kas kurgu-53
+  yapısı smoke çalıştıramadığı için atılmıştı (geliştiricinin `Bash(npx tsx scripts/smoke-v3-:*)` izni tam dosya adını
+  tutmuyor — açık iş, kuyruk modülü olduğu için owner onayı ister).
+- kurgu-48, kalite-52: zaten vardı / kalite-50 ile çözüldü (notlarda).
+
+**3. İzleyici başlatıcısı yeniden dener** (`e8cf5fec`, owner onayı): `atolye-v3-yapim-hidden.vbs` ilk 2 dakikada hata
+koduyla biten izleyiciyi 60 sn arayla en çok 3 kez daha başlatır, log'a yazar; uzun çalışmış ya da temiz biten
+(ikinci kopya) yeniden başlatılmaz. Kopyada `cmd /c exit 3` / `exit 0` ile denendi.
+
+**4. Kod hattının isteğe bağlı devamı** (`fa7dc632`):
+- Sohbetten geliştirme isteği: "Geliştirme isteği: …", "Kendini geliştir: …", "Kendine … ekle", "Feature request: …"
+  → `requestDevelopment` (istek kutusuyla aynı iş). Durum/rapor/onarım niyetlerinden önce gelir; konuşma istek değildir.
+- Kontrollü evrim: `last-cycle.json`'daki LOCAL_EVALUATOR + NEEDS_EXPERIMENT_DESIGN açığı, izleyicinin akşam
+  kontrolünde (kuyruk boşken de) ana AYAS işi olur (`v3/council/EvolutionJobs`, `yapim.ts`). Açık başına bir iş, 7 gün
+  yeniden açılmaz, en çok 3, 48 saatten eski/okunamayan durum hiçbir şey açmaz. Bugün cognitive-quality 55/55 → iş yok.
+
+**Doğrulama:** tüm smoke-v3 suite'leri (18 + yeni evolution-jobs), smoke-ayas-development-request 4, cognitive-quality
+55/55, intent-routing 37, live-info 18, named-development-routing 25, video-order 9, web-research 17, code-change-lane
+12, action-firewall-closure PASS; tsc 0, remotion tsc 0, lint-yerel 0/0.
+
+**Sırada:** Hannibal uzun videosu (owner "bu hafta"); geliştiricinin smoke izin kalıbı (owner onayıyla); Zanzibar saray
+simgesine yerleşim kutusu.
+
 ## 9 Kasım 2026 (5) — Ana AYAS'a kod yazan model — "kod hattı" + tek tık "ONAYLA VE UYGULA" (tamamlandı, canlıda)
 
 Owner: "son oturumdaki 3. maddeyi işleme al … bir yeri yaparken çalışan başka birşeyi bozma. ayas tamamen otomatik
