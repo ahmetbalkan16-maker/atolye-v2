@@ -72,6 +72,16 @@ export function windowCentre(aims: readonly WindowAim[], frame: number, fps: num
   return at(frame);
 }
 
+/**
+ * A shot sliding in ("kaydir") at `t` (0..1, eased): moved right by `dx` and grown by `scale` about `originX` (stage px),
+ * just enough to keep the frame filled. In a Short the slide is measured on the window (`win`), not on the stage: 35% of
+ * the stage is more than the whole window, so for the transition's third of a second the window showed another part of
+ * the map (Taranto Short, 11 Nov 2026: the quality brain measured the sea going from 49% of the frame to 2% and back).
+ */
+export function slideIn(t: number, stageW: number, win?: { readonly x: number; readonly width: number }): { dx: number; scale: number; originX: number } {
+  return { dx: (1 - t) * (win?.width ?? stageW) * 0.35, scale: 1 + (1 - t) * 0.4, originX: win ? win.x + win.width : stageW };
+}
+
 /** A character's half width on the screen (body and open arms) from its head's radius. */
 export const BODY_PER_HEAD = 1.3;
 

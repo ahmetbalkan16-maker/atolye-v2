@@ -16,7 +16,7 @@ import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } f
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
-import { type AimX, beatAim, beatAt, BODY_PER_HEAD, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "./verticalWindow";
+import { type AimX, beatAim, beatAt, BODY_PER_HEAD, MAP_BEAT_ID, mapBeats, pairAim, slideIn, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "./verticalWindow";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -184,8 +184,9 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   if (frame < tf) {
     const t = easeInOut(frame / tf);
     // Slides in from the right, grown about its right edge just enough to keep the frame filled (Kosovo 1389: the plain
-    // slide left a dark band down the left edge between two close maps).
-    if (shot.transitionIn === "kaydir") wrapStyle = { transform: `translateX(${(1 - t) * W * 0.35}px) scale(${1 + (1 - t) * 0.4})`, transformOrigin: "100% 50%", filter: `blur(${(1 - t) * 18}px)` };
+    // slide left a dark band down the left edge between two close maps). A Short's slide stays inside its window.
+    const slide = slideIn(t, W, vertical ? { x: winX, width: winW } : undefined);
+    if (shot.transitionIn === "kaydir") wrapStyle = { transform: `translateX(${slide.dx}px) scale(${slide.scale})`, transformOrigin: `${slide.originX}px 50%`, filter: `blur(${(1 - t) * 18}px)` };
     if (shot.transitionIn === "murekkep") wrapStyle = { clipPath: `circle(${t * 120}% at 50% 55%)` };
     if (shot.transitionIn === "beyaz") flash = 1 - t;
   }
