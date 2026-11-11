@@ -332,7 +332,7 @@ export function rewritePrompt(episode: Episode, edits: readonly DirectorEdit[], 
     const after = sc.satirlar[e.satir + 1];
     return [`- ${e.sahne}#${e.satir} — ${line.karakter} (${line.duygu}): "${line.metin}"${line.balon ? ` | bubble: "${line.balon}"` : ""}\n  before: ${before ? `${before.karakter}: "${before.metin}"` : "(scene start)"} | after: ${after ? `${after.karakter}: "${after.metin}"` : "(scene end)"}\n  AYAS: ${e.talimat}`];
   });
-  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries, and add no new fact (when AYAS asks for context, use only what the other lines already say); keep it at most 240 characters and ${opts.short ? "NO LONGER than its old line — this is a YouTube Short at its time limit; a funny line stays funny" : "within about ±40% of its old length"}; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
+  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries, and add no new fact (when AYAS asks for context, use only what the other lines already say); keep it at most 240 characters and ${opts.short ? "NO LONGER than its old line — this is a YouTube Short at its time limit; a funny line stays funny" : "within about ±40% of its old length"}; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. "metin" holds only the spoken words — never the speaker's name or a "NAME:" label. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
 ${rows.join("\n")}
 Return ONLY JSON, "sahne" and "satir" as given above: {"satirlar": [{"sahne": "${edits.find((e) => e.tur === "satir")?.sahne ?? exampleScene(episode)}", "satir": 3, "metin": "...", "balon": "..."}]}`;
 }
@@ -387,6 +387,25 @@ export function newFacts(episode: Episode, oldLine: string, newLine: string): st
   return [...new Set(out)];
 }
 
+/**
+ * A rewritten line without a leading speaker label. The Taranto Short's second retouch round (11 Nov 2026) got
+ * "SWORDFISH PILOT : Flying slow biplanes at night into flak?…" from the writer, and the voice read the label aloud.
+ * Only a label naming a cast member (its id, full name, or the name's first or last word, any case) is cut, so a
+ * line that opens "Rule one: never fly at night" stays as it is.
+ */
+export function withoutSpeakerLabel(episode: Episode, metin: string): string {
+  const m = /^\s*([^:.!?"]{1,60}?)\s*:\s*(\S[\s\S]*)$/u.exec(metin);
+  if (!m) return metin;
+  const fold = (s: string) => s.toLocaleLowerCase("en-US").normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const names = new Set(
+    episode.oyuncu_kadrosu.flatMap((c) => {
+      const words = c.ad.trim().split(/\s+/);
+      return [c.id, c.ad, words[0] ?? "", words[words.length - 1] ?? ""].map(fold).filter(Boolean);
+    }),
+  );
+  return names.has(fold(m[1]!)) ? m[2]!.trim() : metin;
+}
+
 /** The writer's rewrites that can be used: an ordered line, a new non-empty text of a sane length; a bubble only where one was. */
 export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string, opts: { readonly short?: boolean } = {}): LineRewrite[] {
   const asked = new Set(edits.flatMap((e) => (e.tur === "satir" ? [lineKey(e.sahne, e.satir)] : [])));
@@ -398,7 +417,8 @@ export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], 
     if (!sc || !asked.has(key) || out.has(key)) continue;
     const line = sc.satirlar[Number(r.satir)]!;
     // A stage direction "(stands tall)" only where the old line had one (the Caesar dry run's writer added one).
-    const metin = (line.metin.includes("(") ? clip(r.metin, 240) : clip(r.metin, 240).replace(/\s*\([^)]*\)\s*/g, " ").trim());
+    const said = withoutSpeakerLabel(episode, clip(r.metin, 240));
+    const metin = line.metin.includes("(") ? said : said.replace(/\s*\([^)]*\)\s*/g, " ").trim();
     const longest = opts.short ? Math.max(line.metin.length * SHORT_REWRITE_GROWTH, line.metin.length + SHORT_REWRITE_SLACK) : Math.max(line.metin.length * 1.8, line.metin.length + 80);
     if (!metin || metin === line.metin || metin.length > longest || metin.length < Math.min(12, line.metin.length)) continue;
     // No new numbers, dates or names (the writer's facts are not checked against the sources line by line).

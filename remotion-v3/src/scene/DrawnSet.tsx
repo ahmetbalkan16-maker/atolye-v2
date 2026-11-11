@@ -543,6 +543,7 @@ function ShipLantern({ x, y, len, swing, frame, i, lit }: { x: number; y: number
  * sail of the period, rigging, the far rail, a planked deck with barrels and rope; lanterns when the scene is lit.
  */
 function ShipDeck({ spec, p, W, H, frame }: { spec: V3DrawnSet; p: Palette; W: number; H: number; frame: number }) {
+  if (spec.uslup === "modern") return <SteelDeck spec={spec} p={p} W={W} H={H} frame={frame} />;
   const r = rng(spec.tohum + 3);
   const d = (col: string) => mix(col, p.dimTo, p.dim);
   const [cloth, stripe] = SAIL_CLOTH[spec.uslup] ?? (["#efe3c8", "#9e2a2a"] as const);
@@ -627,6 +628,105 @@ function ShipDeck({ spec, p, W, H, frame }: { spec: V3DrawnSet; p: Palette; W: n
       <rect x={W * DECK_LAMPS[1].x - 9} y={H * DECK_HOOK_Y} width={18} height={stageY(0.6, H) - H * DECK_HOOK_Y} fill={d("#6b4226")} {...outline(3)} />
       {DECK_LAMPS.map((l, i) => (
         <ShipLantern key={`l${i}`} x={l.x * W + (i ? 0 : 17)} y={H * DECK_HOOK_Y} len={(l.y - DECK_HOOK_Y) * H} swing={sway(i)} frame={frame} i={i} lit={lit} />
+      ))}
+    </g>
+  );
+}
+
+/**
+ * A steel warship's deck for the modern age: the Taranto Short (11 Nov 2026) put its 1940 sailor and Swordfish pilot
+ * on a wooden deck under a big sail, and the Gallipoli video's 1915 ships came out as sailing ships too. Here a grey
+ * bridge with a funnel and a radio mast stands behind the actors, a gun turret at the side, a steel guard rail with
+ * a grey hull side, and a far steamer on the horizon; the teak deck, a rope coil and the lanterns stay.
+ */
+function SteelDeck({ spec, p, W, H, frame }: { spec: V3DrawnSet; p: Palette; W: number; H: number; frame: number }) {
+  const r = rng(spec.tohum + 3);
+  const d = (col: string) => mix(col, p.dimTo, p.dim);
+  const railTop = H * 0.6;
+  const railBase = stageY(1.15, H);
+  const horizon = H * 0.43;
+  const roll = shipRoll(frame);
+  const coastLeft = r() < 0.5;
+  const coast = r() < 0.65;
+  const lit = (spec.isik !== undefined && spec.isik !== "yok") || spec.zaman === "gece";
+  const sway = (i: number) => 4 * Math.sin(frame * 0.032 + 0.6 + i);
+  const steel = d("#8b939c");
+  const steelDark = d("#5f666e");
+  const bridge = { x0: W * 0.22, x1: W * 0.52, top: H * 0.2 };
+  const funnelX = W * 0.6;
+  const smoke = (i: number) => ({ x: funnelX + 30 + i * 70 + frame * 0.6 * (i + 1) % 140, y: H * 0.06 - i * 40 - ((frame * 0.4 * (i + 1)) % 60), r: 40 + i * 18 });
+  return (
+    <g>
+      {/* Beyond the ship: the sky, a far coast, the sea to the horizon, rolling a little. */}
+      <g transform={`translate(0 ${roll.bob}) rotate(${roll.deg} ${W / 2} ${railTop})`}>
+        <Sky p={p} spec={spec} W={W} H={H} frame={frame} seed={spec.tohum} />
+        {coast ? <path d={coastLeft ? `M${-W * 0.2} ${horizon + 4} L${-W * 0.2} ${horizon - 70} Q${W * 0.08} ${horizon - 120} ${W * 0.22} ${horizon - 40} Q${W * 0.3} ${horizon - 10} ${W * 0.36} ${horizon + 4} Z` : `M${W * 1.2} ${horizon + 4} L${W * 1.2} ${horizon - 80} Q${W * 0.95} ${horizon - 130} ${W * 0.8} ${horizon - 44} Q${W * 0.72} ${horizon - 12} ${W * 0.64} ${horizon + 4} Z`} fill={p.far} {...outline(4)} /> : null}
+        <Water d={`M${-W * 0.2} ${horizon} L${W * 1.2} ${horizon} L${W * 1.2} ${railBase} L${-W * 0.2} ${railBase} Z`} p={p} frame={frame} y0={horizon} y1={railBase} x0={-W * 0.2} x1={W * 1.2} flow={-0.8} id="celik-guverte" />
+        {/* A far grey steamer on the horizon, drifting: hull, superstructure, one funnel. */}
+        <g transform={`translate(${W * (0.15 + ((r() + frame * 0.0004) % 0.75))} ${horizon + 6}) scale(0.5)`}>
+          <path d="M-90 0 L90 0 L72 22 L-80 22 Z" fill={steelDark} {...outline(4)} />
+          <rect x={-34} y={-30} width={60} height={30} fill={steel} {...outline(4)} />
+          <rect x={4} y={-58} width={16} height={28} fill={steelDark} {...outline(4)} />
+        </g>
+      </g>
+      {/* Funnel smoke drifting astern. */}
+      {[0, 1, 2].map((i) => {
+        const s = smoke(i);
+        return <circle key={`sm${i}`} cx={s.x} cy={s.y} r={s.r} fill={d("#6d6d6d")} opacity={0.55 - i * 0.12} />;
+      })}
+      {/* The radio mast with its yard and aerial wires, behind the bridge. */}
+      <rect x={W * 0.37 - 9} y={-H * 0.05} width={18} height={bridge.top + H * 0.05} fill={steelDark} {...outline(4)} />
+      <rect x={W * 0.37 - 90} y={H * 0.04} width={180} height={12} rx={4} fill={steelDark} {...outline(3)} />
+      <path d={`M${W * 0.37 - 90} ${H * 0.05} L${W * 0.12} ${railTop - 10} M${W * 0.37 + 90} ${H * 0.05} L${funnelX} ${H * 0.12}`} stroke={d("#3a3f45")} strokeWidth={3} fill="none" />
+      {/* The funnel, with a dark cap band. */}
+      <path d={`M${funnelX - 55} ${railTop} L${funnelX - 45} ${H * 0.12} L${funnelX + 45} ${H * 0.12} L${funnelX + 55} ${railTop} Z`} fill={steel} {...outline(5)} />
+      <rect x={funnelX - 47} y={H * 0.12} width={94} height={28} fill={d("#2b2f33")} {...outline(4)} />
+      {/* The bridge: two decks of grey steel with a row of square windows each. */}
+      <rect x={bridge.x0} y={bridge.top} width={bridge.x1 - bridge.x0} height={railTop - bridge.top} fill={steel} {...outline(5)} />
+      <rect x={bridge.x0 - 24} y={bridge.top + (railTop - bridge.top) * 0.42} width={bridge.x1 - bridge.x0 + 48} height={18} fill={steelDark} {...outline(4)} />
+      {[0.12, 0.6].map((k) =>
+        Array.from({ length: 6 }, (_, i) => (
+          <rect key={`w${k}${i}`} x={bridge.x0 + 26 + i * ((bridge.x1 - bridge.x0 - 52) / 6)} y={bridge.top + (railTop - bridge.top) * k} width={(bridge.x1 - bridge.x0 - 52) / 6 - 18} height={30} fill={lit ? "#f3d27a" : d("#2f3a46")} {...outline(3)} />
+        )),
+      )}
+      {/* A gun turret at the side, its two barrels over the rail. */}
+      <g transform={`translate(${W * 0.84} ${railTop})`}>
+        <rect x={-150} y={-40} width={300} height={22} rx={6} fill={steelDark} {...outline(4)} />
+        <rect x={-170} y={-24} width={18} height={18} fill={steelDark} {...outline(3)} />
+        <path d="M-110 0 L-90 -110 L110 -110 L130 0 Z" fill={steel} {...outline(5)} />
+        <rect x={-20} y={-96} width={260} height={18} rx={8} fill={steelDark} {...outline(4)} transform="rotate(-8 -20 -96)" />
+        <rect x={-20} y={-62} width={260} height={18} rx={8} fill={steelDark} {...outline(4)} transform="rotate(-8 -20 -62)" />
+      </g>
+      {/* The hull side up to the deck edge, and a steel guard rail: stanchions and two wires. */}
+      <rect x={-W * 0.1} y={railTop} width={W * 1.2} height={railBase - railTop} fill={d("#6f7780")} {...outline(5)} />
+      <rect x={-W * 0.1} y={railTop + (railBase - railTop) * 0.55} width={W * 1.2} height={10} fill={d("#4c535a")} />
+      {Array.from({ length: 15 }, (_, i) => (
+        <rect key={`po${i}`} x={-W * 0.1 + i * (W / 12) - 5} y={railTop - 70} width={10} height={70} fill={d("#4c535a")} {...outline(2)} />
+      ))}
+      {[railTop - 66, railTop - 34].map((y) => (
+        <rect key={`wi${y}`} x={-W * 0.1} y={y} width={W * 1.2} height={6} fill={d("#4c535a")} />
+      ))}
+      <Planks y0={railBase} W={W} H={H} fill={d("#b98d5e")} seam={d("#7f5a36")} seed={spec.tohum + 7} />
+      {/* On the deck: two ventilator cowls and a coil of rope. */}
+      {[0.06, 0.13].map((x, i) => (
+        <g key={`v${x}`} transform={`translate(${W * x} ${stageY(0.7 + i * 0.1, H)}) scale(${0.95 - i * 0.15})`}>
+          <rect x={-22} y={-120} width={44} height={120} fill={steel} {...outline(4)} />
+          <ellipse cx={-8} cy={-130} rx={46} ry={38} fill={steel} {...outline(4)} />
+          <ellipse cx={-22} cy={-130} rx={26} ry={24} fill={d("#2b2f33")} />
+        </g>
+      ))}
+      <g transform={`translate(${W * 0.62} ${stageY(0.75, H)})`}>
+        {[54, 40, 26].map((rr) => (
+          <g key={rr}>
+            <ellipse cx={0} cy={-12} rx={rr} ry={rr * 0.36} fill="none" stroke={INK} strokeWidth={14} />
+            <ellipse cx={0} cy={-12} rx={rr} ry={rr * 0.36} fill="none" stroke={d("#c9a66b")} strokeWidth={8} />
+          </g>
+        ))}
+      </g>
+      {/* Lanterns on the bridge front and the stern post (the shared light spots expect them there). */}
+      <rect x={W * DECK_LAMPS[1].x - 9} y={H * DECK_HOOK_Y} width={18} height={stageY(0.6, H) - H * DECK_HOOK_Y} fill={steelDark} {...outline(3)} />
+      {DECK_LAMPS.map((l, i) => (
+        <ShipLantern key={`l${i}`} x={l.x * W} y={H * DECK_HOOK_Y} len={(l.y - DECK_HOOK_Y) * H} swing={sway(i)} frame={frame} i={i} lit={lit} />
       ))}
     </g>
   );

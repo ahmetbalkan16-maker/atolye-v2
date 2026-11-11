@@ -1,3 +1,34 @@
+## 11 Kasım 2026 (6) — Taranto Short teslim edildi (tur 1); incelendi: konuşmacı etiketi, yelkenli gemiler düzeltildi
+
+Owner: "video durumuna bak … incele videoyu nasıl olmuş, müdahale edebileceğin bir şey varsa hallet". Skill: `v3-gelistirici`.
+
+**Durum:** sipariş `20261111T054156-the-taranto-raid-night-of-11-12-november` UYARIYLA teslim (4 eksik), 111.9 sn dikey,
+$0.42 / $1, harita %53 / çöp adam %20 / dönem görseli %27. Kurul 7/10 her üç turda; tur 1 teslim edildi (Campioni benzerliği
+8/10, s8 seti geçti). YouTube'a henüz yüklenmedi — owner izleyip karar verecek.
+
+**Bulgu 1 (tur 2 rötuşu):** AYAS'ın yeniden yazdırdığı pilot satırı `"SWORDFISH PILOT : Flying slow biplanes…"` olarak
+geldi; etiket seslendirmeye gitti (6.8 sn). Kurul tur 2'yi tur 1'den iyi bulmadığı için teslim edilen videoda YOK.
+Üretimi durdurma (taskkill) otomatik modda reddedildi; gerek kalmadı. Kod: `DirectorCouncil.withoutSpeakerLabel` —
+kadrodan birinin id/adı/ilk-son kelimesi olan baştaki "AD:" etiketi kesilir ("Rule one: …" kalır); rötuş istemine
+"metin yalnız söylenen sözler" kuralı. `smoke-v3-director-council` D senaryosu.
+
+**Bulgu 2 (dönem):** 1940 gemileri yelkenli çizildi — uçak gemisi güvertesinde koca yelken + arma (kod çizimi
+`ShipDeck` her üslupta yelkenli çiziyordu), "tasarlanan an" resimlerinde yanan yelkenli ve direkli/armalı zırhlı
+(hakem 10/10 dönem verdi). Çanakkale'deki "yelkenli Nusret" ile aynı kök. Kod: `remotion-v3/src/scene/DrawnSet.tsx`
+`SteelDeck` (`uslup: "modern"`: gri köprü üstü, baca + duman, telsiz direği, top kulesi, çelik korkuluk, uzakta
+buharlı; fenerler aynı yerde) — `sahne-onizleme.ts` ile yatay + dikey doğrulandı. `BackgroundDesigner`:
+`MODERN_SHIPS_FROM = 1900`'den itibaren `periodNegatives` yelkenli/arma yasaklar; `periodShipLook` gemi geçen anın
+ikinci istemine "gri çelik savaş gemileri, baca, taret; yelken yok" ekler. `smoke-v3-backgrounds` senaryosu.
+
+**Beyinlere aktarılan:** kalite beynine 4 kare (`kalite-sinavi.ts ogret`): yelkenli güverte 45 sn, yanan yelkenli
+54 sn, direkli zırhlı 75 sn, "Japon amiralleri" kara ordusu üniformalı 101 sn (deniz subayları lacivert/beyaz giyerdi).
+
+**Açık:** Japon deniz/kara üniforması ayrımı tasarlanan an istemine işlenmedi (yalnız kalite dersi). Renoir 1881
+Napoli tablosu "filo Napoli'ye çekildi" için zayıf ama yanlış değil.
+
+**Test:** tsc 0, remotion tsc 0, lint 0/0; `smoke-v3-director-council` 9, `smoke-v3-backgrounds` 23,
+`smoke-v3-episode-director` 67 PASS. Yeni senaryolar düzeltme olmadan kırılıyor (doğrulandı).
+
 ## 11 Kasım 2026 (5) — Taranto Short izleniyor: uydurma kişi yakalandı, düzeltildi, beyinlere aktarıldı
 
 Owner: "sende izle, çıkan hataları gideriyor mu beyinler bak; yetersiz olduğu yerde devreye gir, hallet ve beyinlere

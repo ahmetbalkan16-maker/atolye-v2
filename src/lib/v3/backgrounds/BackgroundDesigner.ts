@@ -45,7 +45,25 @@ export function periodNegatives(donem: string): string[] {
   const out: string[] = [];
   if (year < 400) out.push("church, bell tower, steeple, cross, gothic cathedral, medieval town, castle, castle keep, turrets, conical tower roofs, medieval fortress");
   if (year < 630) out.push("minaret, mosque, onion dome");
+  // The Taranto Short (11 Nov 2026) got a burning square-rigger and a masted, yard-hung battleship for 1940, the
+  // Gallipoli video a sailing-ship Nusret for 1915 — and the judge passed them 10/10 for the period.
+  if (year >= MODERN_SHIPS_FROM) out.push("sailing ship, tall ship, sails, square-rigged, masts with yards, rigging, galleon, wooden warship");
   return out;
+}
+
+/** From this year on a period's warships are steel steamers: no sails, no rigging. */
+export const MODERN_SHIPS_FROM = 1900;
+
+const SHIP_WORDS = /\b(ships?|fleets?|navy|naval|battleships?|cruisers?|destroyers?|carriers?|warships?|harbou?rs?|torpedo(?:es)?|vessels?|boats?|submarines?|minelayers?)\b/i;
+
+/**
+ * How the ships of a moment look, for the second encoder: SDXL paints any "warship" of a history painting as a
+ * sailing ship. Only for a moment that names ships, from MODERN_SHIPS_FROM on.
+ */
+export function periodShipLook(text: string, donem: string): string | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined || year < MODERN_SHIPS_FROM || !SHIP_WORDS.test(text)) return undefined;
+  return `The ships of ${donem} are grey steel warships and steamers with funnels, smoke and gun turrets — no sails, no rigging, no wooden hulls.`;
 }
 
 /**
@@ -141,7 +159,7 @@ export function momentText(an: string | undefined, en: string, narration: string
 export function momentDesign(text: string, episode: Pick<Episode, "donem">): SetDesign {
   return {
     prompt: `${text}, ${MOMENT_STYLE}`,
-    prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}`,
+    prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}${periodShipLook(text, episode.donem) ? ` ${periodShipLook(text, episode.donem)}` : ""}`,
     negative: [MOMENT_NEGATIVE, ...periodNegatives(episode.donem)].join(", "),
   };
 }

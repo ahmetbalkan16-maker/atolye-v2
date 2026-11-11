@@ -29,6 +29,7 @@ import {
   parseDecision,
   parseReply,
   parseRewrites,
+  withoutSpeakerLabel,
   droppedRewrites,
   newFacts,
   rewritePrompt,
@@ -164,6 +165,15 @@ async function main() {
     assert.equal(loose[0]!.balon, "Pick one!");
     assert.equal(bubbleFor("One two three four five six seven eight nine ten.", ""), "One two three four five six seven eight…");
     assert.equal(rw[0]!.eski, "Right behind you, sir! Mostly.");
+    // The Taranto Short's second round (11 Nov 2026): the writer put "SWORDFISH PILOT :" in front and the voice read it.
+    const one: DirectorEdit[] = [{ tur: "satir", sahne: STAGE, satir: 5, talimat: "x", neden: "" }];
+    const labelled = (metin: string) => parseRewrites(episode, one, JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin }] }))[0]?.metin;
+    assert.equal(labelled("13TH LEGIONARY : Right behind you, sir! Roughly."), "Right behind you, sir! Roughly.");
+    assert.equal(labelled("legionary: Right behind you, sir! Roughly."), "Right behind you, sir! Roughly.");
+    assert.equal(labelled("Legionary: Right behind you, sir! Roughly."), "Right behind you, sir! Roughly.");
+    assert.equal(withoutSpeakerLabel(episode, "Rule one: never cross a river."), "Rule one: never cross a river.", "a label naming no one stays");
+    assert.equal(withoutSpeakerLabel(episode, "Caesar says: wait. Pompey: no."), "Caesar says: wait. Pompey: no.");
+    assert.match(rewritePrompt(episode, one, "en"), /never the speaker's name/);
     const effective = effectiveEdits(edits, rw);
     assert.equal(effective.some((e) => e.tur === "satir" && e.satir === 2), false);
     assert.equal(editsStep(effective), "ses");
