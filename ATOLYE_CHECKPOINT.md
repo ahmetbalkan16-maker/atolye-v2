@@ -1,3 +1,29 @@
+## 11 Kasım 2026 (5) — Taranto Short izleniyor: uydurma kişi yakalandı, düzeltildi, beyinlere aktarıldı
+
+Owner: "sende izle, çıkan hataları gideriyor mu beyinler bak; yetersiz olduğu yerde devreye gir, hallet ve beyinlere
+aktar, bir dahakine onlar da düzeltebilsin". Skill: `v3-gelistirici`.
+
+**Bulgu (senaryo):** yazar "Admiral Luigi de Pignati" (rol: Taranto üs komutanı, `portre.wiki` "Luigi de Pignati")
+uydurdu — Wikipedia'da böyle bir sayfa yok; İtalyan muharebe filosunun komutanı Inigo Campioni. Pilot "Lt. Bill Jenkins"
+da uydurma (kaynak bankası gerçek lideri, Kenneth "Hooch" Williamson'ı adıyla veriyor). Tarih doğrulaması yalnız bir
+iddiaya baktı (Cavour "batar", dayanaksız) ve ikisini geçirdi; kostüm adımı uydurma amirale portre aradı ("adayı
+bulunamadı") ve kostüm çizmeye başladı. Sayılar kaynakla uyumlu (101 uçaksavar, 193 makineli, 60 balon, ağların 1/3'ü,
+39 ft, 13.000+ mermi, 2 uçak).
+
+**Müdahale:** üretim gardırop adımında durduruldu (owner'ın 6 Kasım "a" kararı). `episode-siparisli.json` +
+`episode.json`: Pignati → "Admiral Inigo Campioni" (`portre.wiki` "Inigo Campioni", rol "Italian battle fleet
+commander"), Jenkins → "Swordfish Pilot". Önceki gardırop denemesi `onceki-deneme-2/`. Uydurma ada çizilen kostüm parçası
+`_kutuphane/kostum/gardirop/_geri-cekilen/` + NEDEN.md (silinmedi). Sipariş gardıroptan devam ettirildi.
+
+**Beyinlere aktarılan (kod):** `src/lib/v3/research/CastCheck.inventedPeople` — `portre.wiki` makalesi yoksa ya da başka
+birini anlatıyorsa, ya da uydurma karaktere rütbe + tam ad verilmişse sorun; `atolye-v3.ts` senaryodan sonra (Wikipedia
+önbellekli) çalıştırır ve `V3_SCRIPT_HISTORY` ile tarih kapısına verir → `tarih-hatalari.json` → onarım beyni gerekçeli
+yeni taslak. Wikipedia erişilemezse karar vermez. Yazar istemine kadro kuralı ("NEVER invent a real-sounding person").
+**Hafıza:** `kurgu` (yazarın dersleri) ve `arastirma` (kurulun araştırma eleştirmeni) dersleri yazıldı, recall doğrulandı.
+
+**Test:** gerçek Taranto senaryosunda gerçek Wikipedia ile: 2 sorun (Pignati, Jenkins), düzeltilmiş kadro 0. Yeni smoke
+senaryosu (`smoke-v3-script` 35). tsc 0, lint 0/0, 19 `smoke-v3-*` + firewall PASS.
+
 ## 11 Kasım 2026 (4) — Shorts'ta gerçek dönem görselleri (Gelibolu videosundaki gibi); Taranto yeniden başlatıldı
 
 Owner: "önceki 3 dakikalık kısa videoda gerçek fotoğraflar da kullanılıyordu, en son Çanakkale savaşında kullanılmış ve

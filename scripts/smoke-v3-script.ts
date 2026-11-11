@@ -25,6 +25,7 @@ import { cachedDiscountUsd, cachedTokensOf, V3Budget, V3BudgetError, videoCapUsd
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
+import { inventedPeople } from "../src/lib/v3/research/CastCheck";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -900,6 +901,30 @@ async function main() {
     const m2 = out.sahneler[0]!.harita;
     const kmLon2 = 111.32 * Math.cos((m2.merkez[1] * Math.PI) / 180);
     assert.ok(Math.abs(4.45 - m2.merkez[0]) * kmLon2 <= m2.genislik_km / 2 && Math.abs(50.66 - m2.merkez[1]) * 110.57 <= (m2.genislik_km * 9) / 16 / 2, `still inside after the tactics: ${JSON.stringify(m2)}`);
+  });
+
+  await scenario("Taranto (11 Nov 2026): an invented admiral with a made-up article and a ranked, full-named invented pilot stop the script; the real cast passes", async () => {
+    const articles: Record<string, { title: string; text: string }> = {
+      "Andrew Cunningham, 1st Viscount Cunningham of Hyndhope": { title: "Andrew Cunningham, 1st Viscount Cunningham of Hyndhope", text: "Admiral of the Fleet Andrew Browne Cunningham ..." },
+      "Inigo Campioni": { title: "Inigo Campioni", text: "Inigo Campioni was an Italian admiral ..." },
+      "Horatio Nelson": { title: "Horatio Nelson, 1st Viscount Nelson", text: "Vice-Admiral Horatio Nelson ..." },
+    };
+    const lookup = async (t: string) => articles[t] ?? ("missing" as const);
+    const cast = (list: { id: string; ad: string; wiki?: string }[]) => ({ oyuncu_kadrosu: [{ id: "anlatici", ad: "Narrator", gorunur: false }, ...list.map((c) => ({ id: c.id, ad: c.ad, gorunur: true, ...(c.wiki ? { portre: { wiki: c.wiki } } : {}) }))] }) as never;
+    const faulty = await inventedPeople(cast([
+      { id: "cunningham", ad: "Admiral Andrew Cunningham", wiki: "Andrew Cunningham, 1st Viscount Cunningham of Hyndhope" },
+      { id: "pignati", ad: "Admiral Luigi de Pignati", wiki: "Luigi de Pignati" },
+      { id: "pilot", ad: "Lt. Bill Jenkins" },
+      { id: "sailor", ad: "Giuseppe" },
+    ]), lookup);
+    assert.equal(faulty.length, 2, faulty.join("\n"));
+    assert.ok(faulty[0]!.includes("Luigi de Pignati") && faulty[0]!.includes("not a real person"));
+    assert.ok(faulty[1]!.includes("Lt. Bill Jenkins") && faulty[1]!.includes("rank and a full name"));
+    // Roles, nationalities and first names are no people; a real one's article must be about them.
+    assert.deepEqual(await inventedPeople(cast([{ id: "a", ad: "Admiral Inigo Campioni", wiki: "Inigo Campioni" }, { id: "b", ad: "Swordfish Pilot" }, { id: "c", ad: "Italian Admiral" }, { id: "d", ad: "Cilician Pirate Chief" }, { id: "e", ad: "Captain Giuseppe" }]), lookup), []);
+    assert.ok((await inventedPeople(cast([{ id: "a", ad: "Admiral Inigo Campioni", wiki: "Horatio Nelson" }]), lookup))[0]!.includes("someone else"));
+    // An offline Wikipedia decides nothing.
+    assert.deepEqual(await inventedPeople(cast([{ id: "p", ad: "Admiral Luigi de Pignati", wiki: "Luigi de Pignati" }]), async () => "error" as const), []);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

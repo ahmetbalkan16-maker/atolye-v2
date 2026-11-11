@@ -310,6 +310,10 @@ CAST / KADRO
   hair, beard, headwear and clothes as they were in this episode's period (like OverSimplified's Henry VIII after
   Holbein). Still give them a full "kostum" as your best guess; the team corrects it. Leave "portre" out for invented
   or anonymous characters (a legionary, a messenger) and crowds.
+- NEVER invent a real-sounding person: a commander, admiral, pilot or minister you cannot name from the sources is an
+  unnamed role ("Italian Admiral", "Swordfish Pilot"), and an invented character gets a role or a first name only,
+  never a rank and a full name. Every "portre" article is checked; a made-up one stops the script (the Taranto Short's
+  "Admiral Luigi de Pignati" — the fleet's real commander was Inigo Campioni).
 - Everyone looks different: no two visible characters share the same headwear-or-hair AND garment colours. A
   character without headwear gets "sac" ({"stil": kisa|dalgali|yan_ayrik|uzun|topuz|orgu|kel|kivircik|kakul|geriye|
   seyrek, "renk": "#RRGGBB"}). Crowds may share one look.

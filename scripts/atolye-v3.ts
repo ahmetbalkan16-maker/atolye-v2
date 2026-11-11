@@ -77,7 +77,8 @@ import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, short
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
-import { researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
+import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
+import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
 import { EXTRA_CAP_MAX_USD, V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -815,7 +816,21 @@ async function main() {
         const historyErrors = existsSync(f("tarih-hatalari.json")) ? (await readJson<{ hatalar: string[] }>(f("tarih-hatalari.json"))).hatalar : [];
         for (const h of historyErrors) dersler.push(`An earlier draft of THIS script got this history wrong — tell it right, with the deed or words given to the person history gives them to: ${h}`);
         const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}), ...(donemKiyafetleri ? { donemKiyafetleri } : {}) };
-        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
+        // Invented people (owner, 11 Nov 2026, the Taranto Short's "Admiral Luigi de Pignati"): a character called real
+        // must have their Wikipedia article, an invented one no rank and full name — else the history gate's redraft.
+        const wikiCache = path.join(paths.workRoot, "_onbellek", "wikipedia");
+        const lookup: ArticleLookup = async (title) => {
+          try {
+            return (await fetchArticle(wikiCache, title)) ?? "missing";
+          } catch {
+            return "error";
+          }
+        };
+        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).then(async (o) => {
+          const people = await inventedPeople(o.episode, lookup);
+          if (people.length) throw new ScriptError("V3_SCRIPT_HISTORY", `uydurma kişi, üretim gardıroptan önce durdu — ${people.join(" | ")}`, JSON.stringify(o.episode, null, 2), people);
+          return o;
+        }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           if (e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && e.reasons?.length) {
             await writeJson(f("tarih-hatalari.json"), { hatalar: [...historyErrors, ...e.reasons].slice(-8) });

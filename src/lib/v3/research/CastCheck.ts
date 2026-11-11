@@ -1,0 +1,65 @@
+import type { Episode } from "../episode/EpisodeTypes";
+import { normalizeForMatch } from "./SourceResearch";
+
+/**
+ * Invented people in a script about real history (owner, 11 Nov 2026, the Taranto Short: "beyinler yetersiz olduğu
+ * yerde devreye gir, hallet ve beyinlere aktar"). The writer gave the Italian side "Admiral Luigi de Pignati" — no such
+ * person, `portre.wiki` named an article that does not exist — and a "Lt. Bill Jenkins" pilot, while the sources named
+ * the real leader (Kenneth Williamson) and the fleet's commander was Inigo Campioni. The fact check looked at one claim
+ * and passed both. Two checks, both from the cast alone:
+ * - a character called real (`portre.wiki`) whose Wikipedia article is missing, or is about someone else;
+ * - an invented character (no `portre`) given a rank and a personal surname, which a viewer takes for a real officer.
+ * Either stops the script at the history gate (V3_SCRIPT_HISTORY) and the next draft is told why.
+ */
+
+/** What a Wikipedia title resolves to: its article, "missing", or "error" (offline, rate-limited — never a verdict). */
+export type ArticleLookup = (title: string) => Promise<{ readonly title: string; readonly text: string } | "missing" | "error">;
+
+/** Ranks and titles a person's name may carry (English and Turkish). */
+const TITLE = /^(?:adm(?:iral)?|vice[- ]?admiral|rear[- ]?admiral|amiral|gen(?:eral)?|lt|lieut(?:enant)?|capt(?:ain)?|cdr|commander|col(?:onel)?|maj(?:or)?|sgt|sergeant|cpl|corporal|pvt|private|ensign|commodore|marshal|field|sir|lord|lady|pasha|paşa|bey|consul|senator|tribune|centurion|yüzbaşı|teğmen|binbaşı|albay|kaptan|reis)\.?$/iu;
+
+/** Words that make a name a role, not a person: kinds of people and nationalities (an "Italian Admiral" is fine). */
+const ROLE = /^(?:pilot|sailor|soldier|gunner|crewman|officer|guard|sentry|lookout|messenger|scout|spy|observer|chief|pirate|legionary|knight|archer|rider|cavalryman|envoy|ambassador|priest|monk|merchant|farmer|villager|citizen|navy|army|fleet|squadron|air|arm|base|harbour|harbor|the|of|[a-zçğıöşü]+(?:an|ish|ese|ic))$/iu;
+
+/** The words of a cast name with its titles taken off. */
+function nameWords(ad: string): { titled: boolean; words: string[] } {
+  const all = ad.split(/\s+/).filter(Boolean);
+  let titled = false;
+  const words = all.filter((w) => (TITLE.test(w) ? ((titled = true), false) : true));
+  return { titled, words };
+}
+
+/** The surname a real person's article must name: the last name word that is not a particle. */
+function surnameOf(ad: string): string | undefined {
+  const words = nameWords(ad).words.filter((w) => /^\p{Lu}/u.test(w));
+  return words.at(-1);
+}
+
+/**
+ * The cast's invented-person problems, as reasons for the next draft (English, the writer's language). A lookup that
+ * fails ("error") decides nothing: an offline Wikipedia never stops a production.
+ */
+export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, lookup: ArticleLookup): Promise<string[]> {
+  const out: string[] = [];
+  for (const c of episode.oyuncu_kadrosu) {
+    if (!c.gorunur) continue;
+    const wiki = c.portre?.wiki?.trim();
+    if (wiki) {
+      const found = await lookup(wiki);
+      if (found === "error") continue;
+      const surname = surnameOf(c.ad);
+      if (found === "missing") {
+        out.push(`"${c.ad}" is not a real person: there is no Wikipedia article "${wiki}". Give the lines to the real person the sources name for this role (look them up), or make the character an unnamed role ("an Italian admiral", no name and no "portre") — never invent a name for a real officer or ruler.`);
+      } else if (surname && !normalizeForMatch(`${found.title} ${found.text.slice(0, 1500)}`).includes(normalizeForMatch(surname))) {
+        out.push(`"${c.ad}" does not match the article given as their "portre" ("${found.title}" is about someone else): give the exact article of this real person, or make the character an unnamed role.`);
+      }
+      continue;
+    }
+    const { titled, words } = nameWords(c.ad);
+    const personal = words.filter((w) => /^\p{Lu}/u.test(w) && !ROLE.test(w));
+    if (titled && personal.length >= 2) {
+      out.push(`"${c.ad}" is an invented character with a rank and a full name, which viewers take for a real officer of this event: call them by their role ("Swordfish pilot", "Italian gunner") or a first name only, or use the real person the sources name (with "portre").`);
+    }
+  }
+  return out;
+}
