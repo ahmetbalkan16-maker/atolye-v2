@@ -23,19 +23,19 @@ async function main() {
   });
 
   const empty = renderFindings([], "complete", "healthy");
-  assert.ok(empty.includes("Total: 0"));
-  assert.ok(empty.includes("No production health findings were reported."));
+  assert.ok(empty.includes("Total: 0"), "assert.ok(empty.includes(\"Total: 0\"))");
+  assert.ok(empty.includes("No production health findings were reported."), "assert.ok(empty.includes(\"No production health findings were reported.\"))");
 
   const infoFinding = finding("info", "usage_data_partial", "usage");
   const success = renderFindings([infoFinding], "complete", "healthy");
-  assert.ok(success.includes("Total: 1"));
-  assert.ok(success.includes("usage_data_partial"));
-  assert.ok(success.includes("Description for usage_data_partial"));
+  assert.ok(success.includes("Total: 1"), "assert.ok(success.includes(\"Total: 1\"))");
+  assert.ok(success.includes("usage_data_partial"), "assert.ok(success.includes(\"usage_data_partial\"))");
+  assert.ok(success.includes("Description for usage_data_partial"), "assert.ok(success.includes(\"Description for usage_data_partial\"))");
 
   const warningFinding = finding("warning", "failed_stage", "stage");
   const warning = renderFindings([warningFinding], "partial", "warning");
-  assert.ok(warning.includes("text-yellow-400"));
-  assert.ok(warning.includes("warning"));
+  assert.ok(warning.includes("text-yellow-400"), "assert.ok(warning.includes(\"text-yellow-400\"))");
+  assert.ok(warning.includes("warning"), "assert.ok(warning.includes(\"warning\"))");
 
   const criticalFinding = finding(
     "critical",
@@ -43,16 +43,16 @@ async function main() {
     "stage",
   );
   const critical = renderFindings([criticalFinding], "unreliable", "critical");
-  assert.ok(critical.includes("text-red-400"));
-  assert.ok(critical.includes("critical"));
+  assert.ok(critical.includes("text-red-400"), "assert.ok(critical.includes(\"text-red-400\"))");
+  assert.ok(critical.includes("critical"), "assert.ok(critical.includes(\"critical\"))");
 
   const unknown = renderFindings(
     [warningFinding],
     "unreliable",
     "unknown",
   );
-  assert.ok(unknown.includes("currently unknown"));
-  assert.ok(unknown.includes("unreliable"));
+  assert.ok(unknown.includes("currently unknown"), "assert.ok(unknown.includes(\"currently unknown\"))");
+  assert.ok(unknown.includes("unreliable"), "assert.ok(unknown.includes(\"unreliable\"))");
 
   const orderedFindings = [
     finding("critical", "completed_stage_missing_output", "stage", "youtube"),
@@ -62,17 +62,17 @@ async function main() {
   const ordered = renderFindings(orderedFindings, "partial", "critical");
   assert.ok(
     ordered.indexOf("completed_stage_missing_output") <
-      ordered.indexOf("failed_stage"),
+      ordered.indexOf("failed_stage"), "assert.ok(\n    ordered.indexOf(\"completed_stage_missing_output\") <\n      ordered.indexOf(\"failed_stage\"),\n  )",
   );
-  assert.ok(ordered.indexOf("failed_stage") < ordered.indexOf("usage_data_partial"));
+  assert.ok(ordered.indexOf("failed_stage") < ordered.indexOf("usage_data_partial"), "assert.ok(ordered.indexOf(\"failed_stage\") < ordered.indexOf(\"usage_data_partial\"))");
 
   const affected = renderFindings(
     [finding("warning", "failed_stage", "stage", "assembly")],
     "partial",
     "warning",
   );
-  assert.ok(affected.includes("Affected stages"));
-  assert.ok(affected.includes("assembly"));
+  assert.ok(affected.includes("Affected stages"), "assert.ok(affected.includes(\"Affected stages\"))");
+  assert.ok(affected.includes("assembly"), "assert.ok(affected.includes(\"assembly\"))");
 
   const longMessage = `${"Very long production health explanation ".repeat(20)}\nSecond line.`;
   const longFinding = finding("warning", "source_partial", "source");
@@ -82,8 +82,8 @@ async function main() {
     "partial",
     "warning",
   );
-  assert.ok(longDescription.includes("whitespace-pre-wrap"));
-  assert.ok(longDescription.includes("Second line."));
+  assert.ok(longDescription.includes("whitespace-pre-wrap"), "assert.ok(longDescription.includes(\"whitespace-pre-wrap\"))");
+  assert.ok(longDescription.includes("Second line."), "assert.ok(longDescription.includes(\"Second line.\"))");
 
   let attempts = 0;
   const retryReport = reportWithFindings(baseReport, [criticalFinding]);
@@ -93,25 +93,25 @@ async function main() {
       ? reportWithFindings(baseReport, [warningFinding])
       : retryReport;
   });
-  assert.equal(retryState.kind, "success");
+  assert.equal(retryState.kind, "success", "assert.equal(retryState.kind, \"success\")");
   const afterRetryState = await loadProductionHealthUiState(slug, async () => {
     attempts += 1;
     return retryReport;
   });
   const afterRetry = renderPanel(afterRetryState);
-  assert.equal(attempts, 2);
-  assert.ok(afterRetry.includes("completed_stage_missing_output"));
+  assert.equal(attempts, 2, "assert.equal(attempts, 2)");
+  assert.ok(afterRetry.includes("completed_stage_missing_output"), "assert.ok(afterRetry.includes(\"completed_stage_missing_output\"))");
 
   const malformedState = await loadProductionHealthUiState(slug, async () => {
     throw new ProductionHealthApiConsumerError("malformed_response");
   });
   const malformed = renderPanel(malformedState);
-  assert.ok(malformed.includes("Production health response was invalid."));
-  assert.ok(!malformed.includes("Health findings"));
+  assert.ok(malformed.includes("Production health response was invalid."), "assert.ok(malformed.includes(\"Production health response was invalid.\"))");
+  assert.ok(!malformed.includes("Health findings"), "assert.ok(!malformed.includes(\"Health findings\"))");
 
   assert.equal(
     renderFindings(orderedFindings, "partial", "critical"),
-    renderFindings(orderedFindings, "partial", "critical"),
+    renderFindings(orderedFindings, "partial", "critical"), "assert.equal(\n    renderFindings(orderedFindings, \"partial\", \"critical\"),\n    renderFindings(orderedFindings, \"partial\", \"critical\"),\n  )",
   );
 
   console.log(
