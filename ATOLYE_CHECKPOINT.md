@@ -1,3 +1,54 @@
+## 11 Kasım 2026 — Çanakkale videosu incelendi, beyinlere aktarıldı; 10 Kasım kapanışı doğrulandı
+
+Owner: "dün yeni bir video yaptım onu kontrol et … yardımcı beyinlere neler aktarılmış neler aktarılmamış bak ve gerekli
+herşeyi aktar. ondan öncede bir göreve devam ediyordun yarım kalmıştı onu kontrol et". Skill: `v3-gelistirici`.
+
+**Yarım kalan 10 Kasım kapanışı:** oturum haftalık kullanım sınırına canonical Graphify'ı beklerken takılmıştı.
+Doğrulandı: `e940de06` otomatik canlı yayın **PUBLISHED** (10 Kas 04:53 UTC, `ayas-live-e940de06`); sonra owner'ın
+onayladığı bağımlılık güncellemeleri ve AYAS iyileştirmeleri canlı dalı `373b8fd1`'e taşıdı; canonical Graphify
+GRAPH_CURRENT `373b8fd1`, worktree yapısal CURRENT. Sipariş izleyicisi 10 Kasım'da yeniden başlatılmamıştı (Çanakkale
+eski izleyiciyle, ama diskteki yeni üretici koduyla üretildi); 11 Kasım 06:47 oturum açılışında yeni başlatıcıyla
+başladı (pid 34440).
+
+**Video:** `20261110T072840-mustafa-kemal-ataturk-canakkale-savasi` (3 dk, en, mizahi, AYAS'tan). 163 sn, $0.57,
+10883 sn; tarih kapısı ilk taslağı durdurdu (Liman'ın uydurma "You want the hills?" şakası), ikinci taslak geçti;
+tur 0 teslim (kurul 7, Mustafa Kemal benzerlik 6/10), tur 1 daha iyi değildi. Kare kare bakıldı; bulunanlar:
+- Mustafa Kemal bıyıksız ve başında kalpak yerine sivri kahverengi miğfer (başlık "The Mustache" diyor). Yazar doğru
+  sipariş etmişti (gri kalpak + siyah bıyık); benzerlik tarihçisinin notu "1915'te bıyıksız, 37 yaşında" (34'tü)
+  ikisini de sildirdi. Liman von Sanders'ın şapkası gri kubbe miğfer; Pour le Mérite mavi kuşak.
+- Kadro incelemesi tarihçisi 1915 komutanına zırh ve zağanos miğferi, Mehmetçik'e yeniçeri giysisi önerdi; doğru
+  kabalağı "Ottoman WWI steel helmet"e çevirdi, parça tarihçisi ona M1916 Stahlhelm istedi (parça 3 turda düştü).
+  Kök: 9 Kasım Cannae'den gelen "komutan zırh giyer" kuralı çağ sınırı olmadan yazılmıştı.
+- 1915 haritasında Doğu Trakya, İstanbul'un Avrupa yakası ve Gelibolu Bulgaristan renginde: historical-basemaps
+  1914 dosyasının hatası (tüm 1914–1919 haritalarını etkiler).
+- Tarih doğrulaması doğru bilgiyi yanlışa çevirdi: "Ben size taarruzu değil ölmeyi emrediyorum" 25 Nisan'dan
+  "Later, at Chunuk Bair"e (Ağustos) taşındı; teslim edilen videoda bu hâl var.
+- Nusret için çizilen "anın resmi" üç direkli yelkenli; yakın savaş haritasında iki ordu tek sıra çapraz kolon;
+  dış kapanış setinde Fransız üniformalı askerler; rozetler "ANZAC"/"OTTOMAN 19TH DIVISION" etiketlerinin üstünde.
+- Görsel adımı 6734 sn (normali 110–800 sn): Wikimedia 429 bekleyişleri (önizlemeler ~60 sn arayla indi).
+- Davul: MOSS 3 tohumda da vuruşsuz (tasarlandığı gibi kütüphane kaydı kaldı; kod hatası değil).
+
+**Üretimin kendisinin aktardığı:** kostüm (2 düşen parça, Kemal rötuş dersi, genel önlem), onarım (tarih durdurması),
+şef/ses (kod okumuyor), kişi kütüphanesi (Kemal v1+v2, Liman, Hamilton), kuyruk (5 öneri: 4'ü birleşti,
+arastirma-54 11 Kas 06:59 geliştiricide "zaten var" diye kapandı; geliştirici yine smoke çalıştıramadı).
+
+**Bu oturumda aktarılan:**
+- Kalite beyni `ogret` 6 kare (`canakkale-28/57/90/114/130/155`): Gelibolu etiketi rozet altında (Wi-Fi "simgesi"
+  balon şakasıydı), yelkenli Nusret, tek sıra ordu, kalpak/kask, Bulgar renginde Trakya, Fransız askerli set.
+- Kostüm beyni 7 ders: Mustafa Kemal 1915 (bıyık, siyah kalpak, biçimi), kalpak biçimi, siperlikli şapka biçimi,
+  1915 Osmanlı askeri (kabalak; çelik miğfer/zırh/yeniçeri yok), "yıl kuralı ve portre üstündür", Liman 1915,
+  Hamilton 1915 (62 yaşında, kır). Araştırma beyni 1 ders (emir 25 Nisan, 57. Alay). Çağırma kontrol edildi.
+- Kişi kütüphanesi: Liman ve Hamilton 8/10 tasarımları olduğu gibi yeniden kullanılacaktı → silinmeden
+  `kisiler/_geri-cekilen/` (NEDEN.md ile); sonraki videoda derslerle yeniden tasarlanırlar.
+- Kod `9bcf0d7e`: dersler parça tarihçisine, şefe, kadro incelemesine ve benzerlik tarihçisine de gider
+  (`WardrobeBrain.lessonBlock`, `periodNotePrompt(..., lessons)`); zırh kuralı yalnız 17. yüzyıla kadar, sonrası o
+  yılın üniforması; `ATLAS_ERRATA` (1914 Doğu Trakya → Osmanlı) + `assignUnits` delikleri sayar (`inStateLand`).
+  Harita önizlemesiyle doğrulandı. Smoke-v3 19/19, episode-director 67, likeness 26, tsc 0, lint 0/0.
+
+**Açık (owner kararı):** tarih doğrulamasının kaynaksız tarih/yer "düzeltmesi" (ölçüm gerekir); Wikimedia
+User-Agent'ında iletişim bilgisi yok (429'ları azaltabilir, kişisel bilgi owner'ın kararı); rozet–ordu etiketi
+çakışması; yakın savaş haritasında birlik dizilişi; Çanakkale videosunun düzeltilmiş yeniden üretimi.
+
 ## 10 Kasım 2026 — bekleyen kararlar onaylandı; geliştirme kuyruğu işlendi; sohbetten geliştirme isteği; kontrollü evrimden otomatik iş
 
 Owner: "önceki oturumda olan benim kararımı bekleyenleri onaylıyorum gelişim merkezinde bulunan atölye beyinlerin
