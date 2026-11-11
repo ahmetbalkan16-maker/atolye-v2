@@ -21,6 +21,12 @@ birini anlatıyorsa, ya da uydurma karaktere rütbe + tam ad verilmişse sorun; 
 yeni taslak. Wikipedia erişilemezse karar vermez. Yazar istemine kadro kuralı ("NEVER invent a real-sounding person").
 **Hafıza:** `kurgu` (yazarın dersleri) ve `arastirma` (kurulun araştırma eleştirmeni) dersleri yazıldı, recall doğrulandı.
 
+**Gardırop bulgusu (`LikenessDesigner.partOwner`):** Cunningham'nin nişan şeridi 3 ücretli turda reddedilip kostümden
+çıkarıldı. Kök: parça tarifi Wikipedia başlığının tamamıyla başlıyordu ("Andrew Cunningham, 1st Viscount Cunningham of
+Hyndhope's row of WWII British") ve 80 karakter sınırında "medal ribbons" düştü; ne ücretsiz göğüs ailesi (kusak+nisan)
+eşleşti ne de tasarımcı nesneyi bildi. Artık önek kısa ad (başlığın ilk virgül/parantez öncesi). Bu üretimde nişansız
+kaldı (küçük eksik, durdurulmadı). `smoke-v3-likeness` senaryosu.
+
 **Test:** gerçek Taranto senaryosunda gerçek Wikipedia ile: 2 sorun (Pignati, Jenkins), düzeltilmiş kadro 0. Yeni smoke
 senaryosu (`smoke-v3-script` 35). tsc 0, lint 0/0, 19 `smoke-v3-*` + firewall PASS.
 

@@ -16,7 +16,7 @@ import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -126,6 +126,10 @@ async function main() {
     assert.ok(validateEpisode(next).ok, JSON.stringify(validateEpisode(next).errors));
     assert.deepEqual(likenessOrders(r.kostum).map((o) => o.slot).sort(), ["hand", "head"]);
     assert.match(sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Julius Caesar", undefined, "File:Bust.jpg"), /as they looked THEN/);
+    // Taranto (11 Nov 2026): a long article title left no room for the part — orders start with the short name.
+    const long = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Andrew Cunningham, 1st Viscount Cunningham of Hyndhope", undefined, undefined);
+    assert.ok(long.includes("yeni:Andrew Cunningham's <description>") && !long.includes("Hyndhope's"), long.slice(-600));
+    assert.deepEqual(["Andrew Cunningham, 1st Viscount Cunningham of Hyndhope", "Napoleon (emperor)", "Julius Caesar"].map(partOwner), ["Andrew Cunningham", "Napoleon", "Julius Caesar"]);
   });
 
   scenario("D: an unreadable sheet keeps the script's costume and says so", () => {

@@ -198,7 +198,18 @@ export const PORTRAIT_OVER_NOTE = "Where the portrait and the note disagree abou
  */
 export const OLD_COMPLEXION = "in an old description of a European, a \"brown\", \"tanned\", \"swarthy\", \"sallow\" or \"yellowish\" complexion means light skin weathered by sun, war or illness — a slightly warmer light tone such as #efd0b0, never a dark skin";
 
+/**
+ * The name a new part's order starts with: the article title before its first comma or bracket. The Taranto Short's
+ * "Andrew Cunningham, 1st Viscount Cunningham of Hyndhope's row of WWII British" (11 Nov 2026) lost "medal ribbons"
+ * to the 80-character order limit; three paid rounds drew an unknown object and the part was dropped, while the
+ * free chest family would have drawn it at once.
+ */
+export function partOwner(wiki: string): string {
+  return wiki.split(/[,(]/)[0]!.trim() || wiki;
+}
+
 export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[], lessons: readonly string[] = [], history: readonly string[] = []): string {
+  const owner = partOwner(wiki);
   const retouch = fixes?.length ? `\nA PREVIOUS CARTOON OF ${wiki} WAS SET NEXT TO THE PORTRAIT AND FELL SHORT. The art director's differences: ${fixes.join("; ")}. Fix exactly these (order new parts where needed); keep what was right.\n` : "";
   const historyBlock = history.length
     ? `\nEARLIER DESIGNS OF ${wiki} FOR ${episode.donem}, SCORED NEXT TO THE PORTRAIT (best first):\n${history.map((h) => `- ${h}`).join("\n")}\nStart from the best-scored design and change only what its notes name. Never undo a feature a better-scored design had: a note that contradicts an earlier design's notes is the judge's noise, not an instruction.\n`
@@ -218,17 +229,17 @@ ${othersBlock}${lessonBlock}${historyBlock}${retouch}
 Choose:
 - "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person — judged from who they were and the historian's notes, never from the paint of an old fresco, icon, miniature or varnished painting, which age darkens and browns; ${OLD_COMPLEXION}); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
-- "sac_parca": "yeni:${wiki}'s <haircut>" only when their haircut is distinctive and no parametric style fits; else null.
-- "bas": the headwear they wore in ${episode.donem} ("yeni:${wiki}'s <description>"), the script's item to keep, or null for a bare head.
-- "sakal", "biyik": beard and moustache ("yeni:${wiki}'s <description>"), or null if clean-shaven in ${episode.donem}.
+- "sac_parca": "yeni:${owner}'s <haircut>" only when their haircut is distinctive and no parametric style fits; else null.
+- "bas": the headwear they wore in ${episode.donem} ("yeni:${owner}'s <description>"), the script's item to keep, or null for a bare head.
+- "sakal", "biyik": beard and moustache ("yeni:${owner}'s <description>"), or null if clean-shaven in ${episode.donem}.
 - "giysi": kaftan | cubbe (robe) | zirh (armour) | onluk (apron) | bizans | yeniceri | sade (plain tunic) | tunik | toga | ceket (long coat, 1600s on) | uniforma | takim (modern suit) | elbise (long dress).
 - "renkler": {"ana": main, "ikincil": second, "ic": undergarment, "sus": trim}, each #RRGGBB, true to the portrait and the period.
 - "yaka": "kurk" (fur collar and fur front bands) or "yok".
 - "pelerin": the colour #RRGGBB of the cloak or cape they wore over the shoulders in ${episode.donem} (a Roman general's paludamentum, a royal mantle), or null when they wore none.
-- "gogus": what they wore on the chest (chain of office, order sash, medals, pendant): "yeni:${wiki}'s <description>", or null.
-- "el_on": an object they held ("yeni:${wiki}'s <description>"), the script's item to keep, or null.
+- "gogus": what they wore on the chest (chain of office, order sash, medals, pendant): "yeni:${owner}'s <description>", or null.
+- "el_on": an object they held ("yeni:${owner}'s <description>"), the script's item to keep, or null.
 - "tarif": one sentence: what makes this cartoon recognisably ${wiki} in ${episode.donem}.
-Every "yeni:" description starts with "${wiki}'s " and is at most 70 characters, concrete (shape, colour, decoration). Order only what they really wore.
+Every "yeni:" description starts with "${owner}'s " and is at most 70 characters, concrete (shape, colour, decoration). Order only what they really wore.
 Return ONLY JSON with exactly these keys.`;
 }
 
@@ -486,7 +497,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const rec = applied.kostum as unknown as Record<string, unknown>;
     for (const f of SHEET_PARTS) {
       const v = rec[f];
-      if (typeof v === "string" && !v.startsWith("yeni:") && !known.has(v.includes("/") ? v : `${c.kostum_paketi}/${v}`)) rec[f] = `yeni:${wiki}'s ${partWords(v, wiki)}`.slice(0, 85);
+      if (typeof v === "string" && !v.startsWith("yeni:") && !known.has(v.includes("/") ? v : `${c.kostum_paketi}/${v}`)) rec[f] = `yeni:${partOwner(wiki)}'s ${partWords(v, wiki)}`.slice(0, 85);
     }
     const next = withCostume(current, c.id, applied.kostum);
     const check = validateEpisode(next);
