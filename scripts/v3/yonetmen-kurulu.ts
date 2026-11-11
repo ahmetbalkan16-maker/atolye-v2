@@ -3,7 +3,7 @@
  * humourist, quality) score the cut and argue, AYAS decides its fixes from the fixed menu — and nothing is applied.
  * For checking the council on any delivered video; the production holds the same council by itself after every cut.
  *
- *   npx tsx scripts/v3/yonetmen-kurulu.ts --cikti <bölüm klasörü> [--saglayici openai|ollama]
+ *   npx tsx scripts/v3/yonetmen-kurulu.ts --cikti <bölüm klasörü> [--saglayici openai|ollama] [--dil tr|en]
  *
  * Reads episode.json, ses.json, senkron.json, QC.md and yapim-raporu.json of the folder; writes
  * yonetmen-kurulu-deneme.json there. Spend: the council's own cap (10 cents for a Short, 30 for a long video).
@@ -16,6 +16,7 @@ import { councilCapUsd, holdCouncil, sessionDebate } from "../../src/lib/v3/coun
 import { recall } from "../../src/lib/v3/council/ExperienceMemory";
 import { cutMeasures, detectCuts, gapLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine } from "../../src/lib/v3/council/ReferenceStudy";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
+import { listOrders } from "../../src/lib/v3/orders/ProductionOrders";
 import { isShorts } from "../../src/lib/v3/render/Format";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -44,7 +45,13 @@ async function main() {
   const lines = timeline.lines.map((l) => ({ start: l.start, end: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech, turn: false }));
   const turns = timeline.lines.filter((l, i) => i > 0 && l.speaker !== timeline.lines[i - 1]!.speaker).length;
   const ours = { sureSn: durationS, ...speechMeasures(lines, durationS, turns), ...cutMeasures(video ? await detectCuts(paths.ffmpeg, video) : [], durationS) };
-  const targets = referenceTargets(await listReferences(paths.workRoot), kindOf(episode.hedef_sure_sn));
+  // The episode's language: `--dil`, else the order that made this folder. Only a known one sets a words-per-minute
+  // target (from references in that language); the council keeps its old guess from Turkish letters, which an English
+  // episode naming "Atatürk" fools — a guess is not good enough for a pace target.
+  const argDil = arg("--dil");
+  const known = argDil === "tr" || argDil === "en" ? argDil : (await listOrders(paths.workRoot).catch(() => [])).find(({ order }) => order.cikti && path.resolve(order.cikti) === path.resolve(dir))?.order.dil;
+  const dil = known ?? (/[çğıöşü]/i.test(episode.sahneler.flatMap((s) => s.satirlar.map((l) => l.metin)).join(" ")) ? "tr" : "en");
+  const targets = referenceTargets(await listReferences(paths.workRoot), kindOf(episode.hedef_sure_sn), known ?? "");
   console.log(`tempo: ${measuresLine(ours)}${targets ? `\nhedef: ${targetsLine(targets)}` : ""}`);
   const qc = existsSync(f("QC.md")) ? (await fs.readFile(f("QC.md"), "utf8")).split(/\r?\n/).filter((r) => r.startsWith("- [ ]")).map((r) => r.slice(6)) : [];
   const findings = existsSync(f("yapim-raporu.json")) ? ((await read<{ bulgular?: Finding[] }>("yapim-raporu.json")).bulgular ?? []) : [];
@@ -54,7 +61,7 @@ async function main() {
     critic: models.critic,
     director: models.director,
     episode,
-    dil: /[çğıöşü]/i.test(episode.sahneler.flatMap((s) => s.satirlar.map((l) => l.metin)).join(" ")) ? "tr" : "en",
+    dil,
     round: 0,
     canRevise: true,
     context: {

@@ -35,8 +35,32 @@ export interface ExamCommit {
 /** Graded files a writing exam may ask for (the larger a change, the less a test-led rewrite says). */
 export const EXAM_MAX_CODE_FILES = 4;
 
-/** The commits fit for an exam, newest first, that it has not sat yet. */
-export async function examCandidates(repoRoot: string, workRoot: string, limit = 400): Promise<ExamCommit[]> {
+/**
+ * Graded files a writing exam asks for for now (owner, 11 Nov 2026: "tamam bunları yaptır"): on commits that changed
+ * 2–4 code files the apprentice touched only one of them and failed, so it learns single-file work first.
+ * `ATOLYE_V3_CIRAK_SINAV_DOSYA` widens it later (examCodeFiles), never past EXAM_MAX_CODE_FILES. Jobs are not limited.
+ */
+export const EXAM_CODE_FILES = 1;
+
+/** The graded files an exam commit may have: `ATOLYE_V3_CIRAK_SINAV_DOSYA` (1..EXAM_MAX_CODE_FILES), else EXAM_CODE_FILES. */
+export function examCodeFiles(env: Readonly<Record<string, string | undefined>> = process.env): number {
+  const n = Math.floor(Number(env.ATOLYE_V3_CIRAK_SINAV_DOSYA));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, EXAM_MAX_CODE_FILES) : EXAM_CODE_FILES;
+}
+
+/**
+ * One writing exam's cap in dollars (owner, 11 Nov 2026: "tamam bunları yaptır"): $0.40 until then, but 5 of the 8
+ * failed exams of the last 10 were cut by it a few cents before round 6. The day's cap is unchanged.
+ */
+export const EXAM_CAP_USD = 0.55;
+
+/** One writing exam's cap: `ATOLYE_V3_CIRAK_SINAV_USD`, else EXAM_CAP_USD. */
+export function examCapUsd(env: Readonly<Record<string, string | undefined>> = process.env): number {
+  return Number(env.ATOLYE_V3_CIRAK_SINAV_USD) || EXAM_CAP_USD;
+}
+
+/** The commits fit for an exam, newest first, that it has not sat yet (at most `maxFiles` graded files each). */
+export async function examCandidates(repoRoot: string, workRoot: string, limit = 400, maxFiles = examCodeFiles()): Promise<ExamCommit[]> {
   const sat = new Set((await listWriteExams(workRoot)).map((x) => x.id));
   const out: ExamCommit[] = [];
   for (const c of (await v3Commits(repoRoot, limit)).reverse()) {
@@ -47,7 +71,7 @@ export async function examCandidates(repoRoot: string, workRoot: string, limit =
     // Only what the apprentice may write: anything else in the commit (AYAS, the app, packages) rules it out.
     const outside = forbiddenChanges(files.filter((f) => !/\.md$/i.test(f)));
     const gorev = commitTask(c.konu);
-    if (kod.length >= 1 && kod.length <= EXAM_MAX_CODE_FILES && testler.length >= 1 && testler.length <= 2 && !outside.length && gorev) out.push({ sha: c.sha, tarih: c.tarih, gorev, kod, testler });
+    if (kod.length >= 1 && kod.length <= Math.min(maxFiles, EXAM_MAX_CODE_FILES) && testler.length >= 1 && testler.length <= 2 && !outside.length && gorev) out.push({ sha: c.sha, tarih: c.tarih, gorev, kod, testler });
   }
   return out;
 }

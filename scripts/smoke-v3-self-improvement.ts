@@ -15,6 +15,8 @@ import {
   activeAdditions,
   CYCLE_EVERY_H,
   settingTriedWithin,
+  EXAMPLES_TRIAL_EVERY_DAYS,
+  examplesTrialDue,
   STEADY_TRIAL_EVERY_DAYS,
   steadyVerdict,
   STUDIES_PER_CYCLE,
@@ -223,6 +225,10 @@ async function main() {
     assert.equal(settingTriedWithin(t, "kalite", "sabit", STEADY_TRIAL_EVERY_DAYS, T0 + 3 * 24 * H), true);
     assert.equal(settingTriedWithin(t, "kalite", "sabit", STEADY_TRIAL_EVERY_DAYS, T0 + 8 * 24 * H), false);
     assert.equal(settingTriedWithin(t, "kalite", "ornekler", STEADY_TRIAL_EVERY_DAYS, T0), false);
+    // The examples setting: due when never tried; a trial that lost is not measured again every cycle, only a month on.
+    assert.equal(examplesTrialDue(t, T0), true);
+    const lost = settleSetting(t, "kalite", "ornekler", true, 90, 63, new Date(T0), false);
+    assert.deepEqual([examplesTrialDue(lost, T0 + 2 * 24 * H), examplesTrialDue(lost, T0 + (EXAMPLES_TRIAL_EVERY_DAYS + 1) * 24 * H)], [false, true]);
     // A later trial that fails while it is on turns it off.
     assert.equal(settleSetting(t, "kalite", "sabit", false, 81, 77, new Date(T0 + 8 * 24 * H), true).ayarlar.kalite?.sabit, false);
     // The environment decides first; else the brain's choice.

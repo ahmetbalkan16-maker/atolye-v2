@@ -290,6 +290,11 @@ export interface ReferenceTargets {
   /** How many references the medians come from. */
   readonly kaynak: number;
   readonly kelimeDk?: number;
+  /**
+   * How many references of the episode's language `kelimeDk` comes from, when it was matched by language
+   * (referenceTargets with `dil`); absent when it comes from all `kaynak` references.
+   */
+  readonly kelimeKaynak?: number;
   readonly sozDegisimiDk?: number;
   readonly ilkSozSn?: number;
   readonly kesmeDk?: number;
@@ -303,8 +308,27 @@ const median = (xs: readonly number[]): number | undefined => {
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 };
 
-/** The medians of the studied references of a kind (all references when none is of that kind). */
-export function referenceTargets(records: readonly ReferenceRecord[], tur: VideoKind): ReferenceTargets | undefined {
+/**
+ * The fewest references of the episode's language a words-per-minute target may rest on; with fewer there is no such
+ * target at all — no target is better than another language's (see referenceTargets).
+ */
+export const MIN_PACE_REFERENCES = 3;
+
+/** A caption language's base ("en-US" → "en", "TR" → "tr"); "" when unknown. */
+export const baseLanguage = (dil: string | undefined): string => (dil ?? "").trim().split("-")[0]!.toLowerCase();
+
+/**
+ * The medians of the studied references of a kind (all references when none is of that kind).
+ *
+ * `dil`, the episode's language: words per minute are then compared only with references in the same language. A
+ * Turkish line says the same with fewer, longer words: measured on the 67 studied references on 11 Nov 2026, English
+ * ones speak a median 135 words/min (Shorts, n=5) and 158 (long, n=23), Turkish ones 93 (Shorts, n=3) and 101 (long,
+ * n=19). The median over all of them (107 Shorts / 118 long) told our English videos, at 136 and 151 — right on the
+ * English norm — to speak sparser after every production. The references of that kind count first, then of any kind;
+ * fewer than MIN_PACE_REFERENCES (or an empty `dil`, a language not known) gives no `kelimeDk`. The other measures do not
+ * depend on the language and stay from all references of the kind; without `dil` everything is as before.
+ */
+export function referenceTargets(records: readonly ReferenceRecord[], tur: VideoKind, dil?: string): ReferenceTargets | undefined {
   const same = records.filter((r) => kindOf(r.olcum.sureSn) === tur);
   const use = same.length ? same : records;
   if (!use.length) return undefined;
@@ -314,13 +338,22 @@ export function referenceTargets(records: readonly ReferenceRecord[], tur: Video
     const v = pick(k);
     if (v !== undefined) out[k] = round(v, k === "konusmaPayi" ? 2 : 1);
   }
+  if (dil !== undefined) {
+    delete out.kelimeDk;
+    const lang = baseLanguage(dil);
+    const spoken = lang ? records.filter((r) => baseLanguage(r.dil) === lang && r.olcum.kelimeDk !== undefined) : [];
+    const sameKind = spoken.filter((r) => kindOf(r.olcum.sureSn) === tur);
+    const pace = sameKind.length >= MIN_PACE_REFERENCES ? sameKind : spoken.length >= MIN_PACE_REFERENCES ? spoken : [];
+    const v = median(pace.map((r) => r.olcum.kelimeDk!));
+    if (v !== undefined) Object.assign(out, { kelimeDk: round(v, 1), kelimeKaynak: pace.length });
+  }
   return { tur, kaynak: use.length, ...out };
 }
 
 /** The targets as one line for the writer's prompt (English, like its other lessons). */
 export function targetsLine(t: ReferenceTargets): string {
   const parts = [
-    t.kelimeDk !== undefined ? `about ${Math.round(t.kelimeDk)} spoken words per minute` : "",
+    t.kelimeDk !== undefined ? `about ${Math.round(t.kelimeDk)} spoken words per minute${t.kelimeKaynak !== undefined ? ` (from the ${t.kelimeKaynak} in the episode's language)` : ""}` : "",
     t.sozDegisimiDk !== undefined ? `a new speaker about every ${Math.round(60 / Math.max(t.sozDegisimiDk, 0.1))} s` : "",
     t.ilkSozSn !== undefined ? `first words within ${Math.max(1, Math.round(t.ilkSozSn))} s` : "",
     t.kesmeDk !== undefined ? `a picture change about every ${Math.round(60 / Math.max(t.kesmeDk, 0.1))} s` : "",

@@ -25,6 +25,7 @@ import {
   listStudyRequests,
   MAX_STUDY_LESSONS_PER_BRAIN,
   measureGaps,
+  MIN_PACE_REFERENCES,
   parseFrameNote,
   parseJson3,
   parseStudy,
@@ -167,6 +168,38 @@ async function main() {
     assert.match(l.metin, /100 words\/min against the references' 140/);
     assert.match(l.metin, /tell more per scene/);
     assert.equal(gapLesson({ olcu: "kesmeDk", biz: 1, hedef: 5, fark: -0.8 }).beyin, "kalite");
+  });
+
+  await scenario("F2 words per minute only against references in the episode's language (11 Nov 2026)", () => {
+    const rec = (id: string, dil: string, sureSn: number, kelimeDk: number): ReferenceRecord => ({ id, url: "", baslik: id, kanal: "", dil, tarih: "", neden: "", olcum: { sureSn, kelimeDk, kesmeDk: 10, ortCekimSn: 6, ilkSozSn: 1 }, kareler: [], ozet: "", dersler: [], eksik: [] });
+    // Shorts: English ones speak more words than Turkish ones; two have no known language.
+    const shorts = [rec("e1", "en-US", 60, 130), rec("e2", "en", 60, 135), rec("e3", "EN", 60, 140), rec("t1", "tr", 60, 90), rec("t2", "tr", 60, 93), rec("t3", "tr", 60, 95), rec("x1", "", 60, 80), rec("x2", "", 60, 85)];
+    const longs = [rec("E1", "en", 900, 160), rec("E2", "en-GB", 900, 158), rec("T1", "tr", 900, 100), rec("T2", "tr", 900, 101), rec("T3", "tr", 900, 99)];
+    const refs = [...shorts, ...longs];
+    // Without a language: as before, the median of all Shorts.
+    const blind = referenceTargets(refs, "short")!;
+    assert.equal(blind.kelimeDk, 94);
+    assert.equal(blind.kelimeKaynak, undefined);
+    const en = referenceTargets(refs, "short", "en")!;
+    assert.deepEqual([en.kelimeDk, en.kelimeKaynak, en.kaynak, en.kesmeDk], [135, 3, 8, 10]);
+    assert.equal(referenceTargets(refs, "short", "tr-TR")!.kelimeDk, 93);
+    assert.match(targetsLine(en), /about 135 spoken words per minute \(from the 3 in the episode's language\)/);
+    // Too few English long videos: the English references of any kind stand in; Turkish has three of its own.
+    assert.deepEqual([referenceTargets(refs, "uzun", "en")!.kelimeDk, referenceTargets(refs, "uzun", "en")!.kelimeKaynak], [140, 5]);
+    assert.equal(referenceTargets(refs, "uzun", "tr")!.kelimeDk, 100);
+    // An unknown language, or fewer than MIN_PACE_REFERENCES of it: no words-per-minute target, the others remain.
+    for (const t of [referenceTargets(refs, "short", "de")!, referenceTargets(refs, "short", "")!, referenceTargets([...shorts.slice(3), ...longs.slice(0, 2)], "short", "en")!]) {
+      assert.equal(t.kelimeDk, undefined);
+      assert.equal(t.kesmeDk, 10);
+      assert.doesNotMatch(targetsLine(t), /words per minute/);
+      assert.match(targetsLine(t), /a picture change about every 6 s/);
+    }
+    assert.equal(MIN_PACE_REFERENCES, 3);
+    // Our English Short at the English pace: no "speak sparser" lesson — against all languages there was one.
+    const ours = { sureSn: 170, kelimeDk: 136, kesmeDk: 10, ortCekimSn: 6, ilkSozSn: 1 };
+    assert.deepEqual(measureGaps(ours, blind).map((g) => g.olcu), ["kelimeDk"]);
+    assert.deepEqual(measureGaps(ours, en), []);
+    assert.deepEqual(measureGaps(ours, referenceTargets(refs, "short", "de")!), []);
   });
 
   await scenario("G links and search picks: YouTube only, same kind, not ours, not studied, most watched", () => {

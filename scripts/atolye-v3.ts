@@ -52,7 +52,7 @@ import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listRefe
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, cutFaults, deliverAfterFailedRound, faultsDecided, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -787,7 +787,8 @@ async function main() {
         const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
         // The script brain's experience: what the QC and the chief found in earlier episodes, and the pace the studied
         // reference videos of this kind keep (ReferenceStudy; owner approval, 2 Nov 2026).
-        const targets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(seconds(arg("--sure") ?? "90")));
+        // Words per minute only from references in the script's language (a Turkish line needs fewer, longer words).
+        const targets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(seconds(arg("--sure") ?? "90")), dil);
         // Each source keeps its share, so the many lessons of studied videos never push the productions' own out:
         // the owner's rules and 4 production lessons, 3 reference lessons, 2 of the humourist's (the writer writes the jokes).
         const dersler = [
@@ -1276,7 +1277,13 @@ async function main() {
     // A Short opens on a character's line or move within HOOK_S (owner, 2 Nov 2026); a long video's first words within 10 s.
     const opening = openingHook(plan);
     const openingWho = opening ? (episode.oyuncu_kadrosu.find((c) => c.id === opening.castId)?.ad ?? opening.castId) : "";
-    const row = (ok: boolean, text: string) => `- [${ok ? "x" : " "}] ${text}`;
+    // The open checks of the cut itself, for the retouch brain's choice between rounds (RetouchBrain.cutFaults): a row
+    // passed `cut = false` restates the likeness or set shortfall, or is a standing note no retouch round changes.
+    let openCutChecks = 0;
+    const row = (ok: boolean, text: string, cut = true) => {
+      if (!ok && cut) openCutChecks++;
+      return `- [${ok ? "x" : " "}] ${text}`;
+    };
     // The channel goals (content/v3/kanal-hedefleri.json, owner 5 Nov 2026): a Short's first three seconds and its scene
     // plan are checked here; the audience numbers are only stated in QC.md, to be measured after publishing.
     const goals = (() => { try { return loadChannelGoals(paths.contentRoot); } catch (e) { log(`  kanal hedefleri okunamadı: ${(e as Error).message.slice(0, 120)}`); return undefined; } })();
@@ -1310,12 +1317,12 @@ async function main() {
         `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı; tasarlanan an resmi ${shownPictures.filter((g) => g.tasarim).length}, arşiv filmi ${shownPictures.filter((g) => g.video).length}, sahne ara görseli ${visuals.reduce((a, v) => a + (v.gorseller?.length ?? 0), 0)}`,
       ),
       row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "aile").length} aileden (ücretsiz), ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
-      row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= LIKENESS_OK), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),
-      row(!!youtube?.kapak && !youtube.kapak.esikAlti, `Kapak: ${youtube?.kapak ? `${youtube.kapak.varyantlar.length} çeşit, en iyisi ${youtube.kapak.secim ? verdictLine(youtube.kapak.secim) : "puansız"}${youtube.kapak.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}` : "yok"}; YouTube paketi: ${youtube ? `${youtube.paket.basliklar.length} başlık, ${chs.length} bölüm, ${youtube.paket.etiketler.length} etiket` : "yok"}`),
-      row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
+      row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= LIKENESS_OK), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`, false),
+      row(!!youtube?.kapak && !youtube.kapak.esikAlti, `Kapak: ${youtube?.kapak ? `${youtube.kapak.varyantlar.length} çeşit, en iyisi ${youtube.kapak.secim ? verdictLine(youtube.kapak.secim) : "puansız"}${youtube.kapak.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}` : "yok"}; YouTube paketi: ${youtube ? `${youtube.paket.basliklar.length} başlık, ${chs.length} bölüm, ${youtube.paket.etiketler.length} etiket` : "yok"}`, false),
+      row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`, false),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
-      row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
+      row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`, false),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(target / 2)} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
@@ -1378,7 +1385,7 @@ async function main() {
       return { sureSn: durationS, ...speechMeasures(lines, durationS, turns), ...cutMeasures(await detectCuts(paths.ffmpeg, f(final)), durationS) };
     })().catch((e: Error) => (log(`  tempo ölçülemedi: ${e.message.slice(0, 120)}`), undefined));
     if (ours) await writeJson(f("olcum.json"), ours);
-    const paceTargets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(target));
+    const paceTargets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(target), dil);
     if (ours) log(`tempo: ${measuresLine(ours)}${paceTargets ? ` · ${targetsLine(paceTargets)}` : ""}`);
 
     // The director's council (owner approval, 2 Nov 2026): script writer, historian, humourist and quality score the cut
@@ -1445,7 +1452,8 @@ async function main() {
     for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const scored = { likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) };
-    thisRound = roundScore(rotusTuru, scored, session?.puan);
+    // The measured faults of this cut, the second key between rounds: its open QC checks with the layout and pixel faults.
+    thisRound = roundScore(rotusTuru, scored, session?.puan, cutFaults(openCutChecks, layoutCount, pixelCount));
     const earlierRounds = rotusTuru > 0 ? await keptRounds(work, final, rotusTuru) : [];
     // What this round's redesigns did to each likeness goes to the costume brain's memory, better or worse.
     if (retouch?.kisiler.length) for (const l of likenessLessons(retouch, thisRound, episode.donem, (id) => likenesses.find((x) => x.castId === id)?.tarif)) await remember(paths.workRoot, { bolum: episode.konu, beyin: "kostum", tur: "ders", ...l }).catch(() => undefined);
@@ -1455,8 +1463,11 @@ async function main() {
     if (plateau.size) log(`↺ rötuş beyni: ${[...plateau].join(", ")} — tasarımlar portreye yaklaşmıyor; yeniden tasarım turu açılmıyor`);
     // A round no better than the best before it stops the retouch: the best round is delivered below.
     const improved = roundImproved(earlierRounds, thisRound);
+    // When the bars tied, the measured faults name why this round did or did not earn another one.
+    const byFaults = earlierRounds.length ? faultsDecided([...earlierRounds, thisRound]) : undefined;
+    if (improved && byFaults) log(`↺ rötuş beyni: tur ${rotusTuru} en iyi tur (${byFaults})`);
     if (!improved) {
-      const why = `tur ${rotusTuru} en iyi turu geçmedi (${roundLine(thisRound)}; en iyisi ${roundLine(bestRound([...earlierRounds, thisRound])!)}); yeni rötuş turu açılmıyor, en iyi tur teslim edilecek`;
+      const why = `tur ${rotusTuru} en iyi turu geçmedi (${roundLine(thisRound)}; en iyisi ${roundLine(bestRound([...earlierRounds, thisRound])!)}${byFaults ? `; ${byFaults}` : ""}); yeni rötuş turu açılmıyor, en iyi tur teslim edilecek`;
       log(`↺ rötuş beyni: ${why}`);
       council.debate("sef", "rötuş kararı", [{ rol: "Rötuş beyni", metin: why }]);
     }
@@ -1497,7 +1508,8 @@ async function main() {
       const section = `\n## Rötuş turları\n\n${rounds.map((r) => `- ${roundLine(r)}${r.tur === best.tur ? " — **teslim edilen**" : ""}`).join("\n")}\n- Teslim: tur ${best.tur} (${roundVideo(final, best.tur)})${best.tur !== rotusTuru ? `; son tur ${rotusTuru} daha iyi puan almadı` : ""}\n`;
       await fs.appendFile(f("QC.md"), section);
       await fs.appendFile(f("KURUL.md"), section);
-      log(`rötuş: ${rounds.map(roundLine).join(" · ")} → tur ${best.tur} teslim edildi`);
+      const decided = faultsDecided(rounds);
+      log(`rötuş: ${rounds.map(roundLine).join(" · ")} → tur ${best.tur} teslim edildi${decided ? ` (${decided})` : ""}`);
     }
   });
 

@@ -35,7 +35,7 @@ import {
   rewritePrompt,
   sessionDebate,
 } from "../src/lib/v3/council/DirectorCouncil";
-import { bestRound, keepRound, restoreRound, retouchDebate, type RoundScore, roundLine, withDirector } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, cutFaults, faultsDecided, keepRound, restoreRound, retouchDebate, roundImproved, type RoundScore, roundLine, roundScore, roundShortfall, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 
@@ -293,6 +293,59 @@ async function main() {
     assert.equal(bestRound([r(0), r(1)])!.tur, 0);
     assert.match(roundLine(r(1, 7.5)), /kurul 7.5\/10/);
     assert.doesNotMatch(roundLine(r(1)), /kurul/);
+  });
+
+  await scenario("G2 when the bars and the council tie, the cut with fewer measured faults wins; a round without the count compares as before", () => {
+    // Gallipoli, 10 Nov 2026: Mustafa Kemal 6/10 in both rounds, council 7 and 7; open cut checks 2 → 3, layout 2, pixel 0.
+    const g = (tur: number, kusurlar?: number): RoundScore => ({ tur, kisiler: [{ castId: "mustafa-kemal", puan: 6 }], setler: [], kurul: 7, ...(kusurlar !== undefined ? { kusurlar } : {}) });
+    assert.equal(cutFaults(2, 2, 0), 4);
+    assert.equal(cutFaults(3, 2, undefined), undefined, "a pixel check that did not run gives no count");
+    assert.equal(cutFaults(1, undefined, 0), undefined);
+    const scored = roundScore(1, { likenesses: [{ castId: "mustafa-kemal", kisi: "Mustafa Kemal Atatürk", kaynak: "tasarim", benzerlik: 6 }], sets: [] }, 7, cutFaults(3, 2, 0));
+    assert.deepEqual(scored, g(1, 5));
+    assert.equal("kusurlar" in roundScore(1, { likenesses: [], sets: [] }, 7), false, "no count, no key (old puan.json files stay as they were)");
+    // Fewer faults in the retouch: it wins and earns the next round.
+    assert.equal(bestRound([g(0, 5), g(1, 4)])!.tur, 1);
+    assert.equal(roundImproved([g(0, 5)], g(1, 4)), true);
+    assert.equal(faultsDecided([g(0, 5), g(1, 4)]), "ölçülen kusur: tur 1 4, tur 0 5");
+    // More faults (Gallipoli's 4 → 5): the earlier round stays and no further round is earned.
+    assert.equal(bestRound([g(0, 4), g(1, 5)])!.tur, 0);
+    assert.equal(roundImproved([g(0, 4)], g(1, 5)), false);
+    assert.equal(faultsDecided([g(0, 4), g(1, 5)]), "ölçülen kusur: tur 0 4, tur 1 5");
+    assert.equal(roundImproved([g(0, 4)], { ...g(1, 5), kurul: 7.5 }), false, "a better council mean does not earn a round with more faults");
+    // The bars still come first: fewer faults never beat a round less under the bars.
+    assert.equal(bestRound([{ ...g(0, 9), kisiler: [{ castId: "mustafa-kemal", puan: 8 }] }, g(1, 0)])!.tur, 0);
+    assert.equal(faultsDecided([{ ...g(0, 9), kisiler: [{ castId: "mustafa-kemal", puan: 8 }] }, g(1, 0)]), undefined, "the bars decided, not the faults");
+    // The council's mean comes after the faults: a better mean does not undo fewer faults.
+    assert.equal(bestRound([g(0, 3), { ...g(1, 5), kurul: 8 }])!.tur, 0);
+    // A round without the count (kept before 11 Nov 2026) skips the key: council, then the earlier round, as before.
+    assert.equal(bestRound([g(0), g(1, 2)])!.tur, 0);
+    assert.equal(bestRound([g(0), { ...g(1, 9), kurul: 7.5 }])!.tur, 1);
+    assert.equal(faultsDecided([g(0), g(1, 2)]), undefined);
+    // Taken in round order, whatever order the rounds are listed in (a skipped key makes a sort depend on it).
+    assert.equal(bestRound([g(2, 3), g(1), g(0, 5)])!.tur, 2);
+    assert.equal(bestRound([g(0, 5), g(1), g(2, 3)])!.tur, 2);
+    assert.match(roundLine(g(1, 5)), /^tur 1: mustafa-kemal 6\/10 \(eşik altı 2 puan\), 5 ölçülen kusur, kurul 7\/10$/);
+    assert.doesNotMatch(roundLine(g(1)), /kusur/);
+  });
+
+  await scenario("G3 a person scored under the bar and not scored in a later round carries their last score into the comparison", () => {
+    // Two people under the bar, one stuck: the other's redesign reruns the wardrobe and the stuck one is reused from the
+    // people library (kaynak "kutuphane", no new check), so round 1's own list holds only the redesigned person.
+    const r0: RoundScore = { tur: 0, kisiler: [{ castId: "rawson", puan: 6 }, { castId: "khalid", puan: 7 }], setler: [], kurul: 7 };
+    const r1: RoundScore = { tur: 1, kisiler: [{ castId: "khalid", puan: 7 }], setler: [], kurul: 7 };
+    assert.deepEqual([roundShortfall(r0), roundShortfall(r1)], [3, 1], "the round's own list: the shortfall fell with nothing redrawn better");
+    assert.equal(bestRound([r0, r1])!.tur, 0, "rawson's 6 carries into round 1: a tie, the earlier round stays");
+    assert.equal(roundImproved([r0], r1), false);
+    assert.deepEqual(bestRound([r0, r1]), r0, "the round comes back as it was scored");
+    // A real improvement still counts: khalid redrawn to 8, rawson carried at 6.
+    assert.equal(roundImproved([r0], { ...r1, kisiler: [{ castId: "khalid", puan: 8 }] }), true);
+    // Rounds without carried people compare exactly as before (Taranto: andrew-cunningham 9 → library, 0 either way).
+    const t0: RoundScore = { tur: 0, kisiler: [{ castId: "andrew-cunningham", puan: 9 }, { castId: "luigi-de-pignati", puan: 7 }], setler: [{ sahne: "s8-epilogue", puan: 4, gecti: false }], kurul: 7 };
+    const t1: RoundScore = { tur: 1, kisiler: [{ castId: "luigi-de-pignati", puan: 8 }], setler: [{ sahne: "s8-epilogue", puan: 10, gecti: true }], kurul: 7 };
+    const t2: RoundScore = { ...t1, tur: 2 };
+    assert.equal(bestRound([t0, t1, t2])!.tur, 1);
+    assert.deepEqual(bestRound([t0, t1, t2]), t1);
   });
 
   await scenario("H a kept round keeps its script; restoring an older round never deletes the current script", async () => {

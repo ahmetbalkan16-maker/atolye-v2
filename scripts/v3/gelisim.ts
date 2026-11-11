@@ -23,7 +23,7 @@ import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
 import { researchTopic, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
 import { brainBudget, brainVision, steadyJudge, writerBudget } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
-import { apprenticePolicy, examCandidates, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
+import { apprenticePolicy, examCandidates, examCapUsd, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
 import { listGrades, listWriteExams, readiness, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
@@ -32,7 +32,7 @@ import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v
 import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
 import { mergeParaphrasedProposals } from "../../src/lib/v3/council/ProposalMerge";
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, studyAttempts, type StudyRequest, studyRequestsDue, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
-import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
+import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, EXAMPLES_TRIAL_EVERY_DAYS, examplesTrialDue, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { unloadOllama } from "../../src/lib/v3/util/Gpu";
@@ -53,7 +53,7 @@ const CYCLE_CAP_USD = 0.1;
  */
 const DEV_CAP_USD = 0.15;
 /** One writing exam at most, and the exams of one day together (`ATOLYE_V3_CIRAK_SINAV_USD`, `ATOLYE_V3_CIRAK_GUNLUK_USD`). */
-const EXAM_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_SINAV_USD) || 0.4;
+const EXAM_CAP_USD = examCapUsd();
 const EXAM_DAY_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_GUNLUK_USD) || 1;
 /** Writing exams one cycle may sit, the day's cap still the limit (`ATOLYE_V3_CIRAK_SINAV_DONGU`). */
 const EXAMS_PER_CYCLE = Number(process.env.ATOLYE_V3_CIRAK_SINAV_DONGU) || 3;
@@ -256,7 +256,8 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
       const file = path.join(o.cikti!, "olcum.json");
       if (compared.has(o.id) || !existsSync(file)) continue;
       const ours = await readJson<VideoMeasures>(file);
-      const targets = referenceTargets(refs, kindOf(ours.sureSn));
+      // Words per minute against references in the order's language; an order without one gets no such comparison.
+      const targets = referenceTargets(refs, kindOf(ours.sureSn), o.dil ?? "");
       if (!targets) continue;
       const gaps = measureGaps(ours, targets);
       const source = `karsilastirma ${o.id}`;
@@ -428,8 +429,14 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
   const runsLine = (xs: readonly number[]) => xs.map((x) => `%${x}`).join("/");
   const parts: string[] = [];
   const flipArgs = await examplesFlag(paths, !baseExamples);
-  const flipped = await qualityExam(paths, flipArgs, "ayar-ornek");
   let tuning = await readTuning(paths.workRoot);
+  // A setting measured lately is not measured again (it lost four times in nine days, an exam each time).
+  const flipDue = examplesTrialDue(tuning);
+  const flipped = flipDue ? await qualityExam(paths, flipArgs, "ayar-ornek") : undefined;
+  if (!flipDue) {
+    const last = [...tuning.ayarGecmisi].reverse().find((h) => h.beyin === "kalite" && h.anahtar === "ornekler");
+    parts.push(`örnek kare ayarı son ${EXAMPLES_TRIAL_EVERY_DAYS} gün içinde ölçüldü${last ? ` (%${last.once} → %${last.sonra}, ${last.kalici ? "kalıcı yapıldı" : "geri alındı"})` : ""}: bu döngüde yeniden denenmedi`);
+  }
   if (flipped?.dengeli !== undefined) {
     const runs = await measure(flipArgs, "ayar-ornek", flipped.dengeli);
     const g = confirmedGain(baseRuns, runs);

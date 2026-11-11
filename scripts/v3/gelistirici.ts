@@ -18,7 +18,7 @@
  *   npx tsx scripts/v3/gelistirici.ts kapat --id <öneri id> --not "…"  (already done elsewhere)
  */
 import { brainBudget, writerBudget } from "../../src/lib/v3/council/BrainModels";
-import { apprenticeAgent, apprenticePolicy, examCandidates, writeExam } from "../../src/lib/v3/council/DevApprentice";
+import { apprenticeAgent, apprenticePolicy, examCandidates, examCapUsd, writeExam } from "../../src/lib/v3/council/DevApprentice";
 import { codeExperienceLines, listCodeExperience, listGrades, listWriteExams, loadDevBrainView, readiness, say, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { applyBuild, developerLock } from "../../src/lib/v3/council/Developer";
 import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
@@ -39,7 +39,7 @@ const arg = (name: string) => {
 /** The developer brain's model calls per run (search words, a guess on gpt-4.1, a lesson). */
 const BRAIN_CAP_USD = 0.15;
 /** One writing exam's cap (as the idle loop's; `ATOLYE_V3_CIRAK_SINAV_USD`). */
-const EXAM_CAP_USD = Number(process.env.ATOLYE_V3_CIRAK_SINAV_USD) || 0.4;
+const EXAM_CAP_USD = examCapUsd();
 
 const LABEL: Readonly<Record<string, string>> = { onaylandi: "kuyrukta", yapiliyor: "geliştiriliyor", hazir: "hazır", yapilamadi: "yapılamadı", yapildi: "yapıldı" };
 

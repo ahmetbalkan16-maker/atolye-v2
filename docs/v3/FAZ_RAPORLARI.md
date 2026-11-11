@@ -587,7 +587,8 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
 - Kendi kodu: `council/DevWriter.ts` (OKU ile dosya okur, düz metin ARA/YERİNE düzenleme blokları, her turda tsc +
   testler, hata geri beslenir, ≤ 6 tur), `council/DevApprentice.ts` (yazma sınavı: geçmiş bir commit'in ebeveyninde,
   o commit'in yeni smoke senaryoları şartname; geçti/kaldı/sayılmadı; kalırsa gerçek koddan ders). `ogren` görevi
-  döngü başına bir sınav yapar ($0,40/sınav, $1/gün). Son 10 sayılan sınavda ≥ 6 ve ≥ %50 geçince Claude'un kullanım
+  döngü başına bir sınav yapar ($0,40/sınav, 11 Kasım 2026'dan beri $0,55; $1/gün; o günden beri yalnız tek kod
+  dosyası değiştiren commit'lerden, `ATOLYE_V3_CIRAK_SINAV_DOSYA` genişletir). Son 10 sayılan sınavda ≥ 6 ve ≥ %50 geçince Claude'un kullanım
   sınırı dolduğunda onaylı işi kendisi yazar (`scripts/v3/cirak-yaz.ts`, `ATOLYE_V3_CIRAK_YAZAR`); yine her kontrolden
   geçmeyen iş tutulmaz, push/canlı yok.
 - Skill'ler: `.claude/skills/v3-gelistirici/SKILL.md` (izlenen); `council/DevSkills.ts` işe uyan skill'leri çırağın

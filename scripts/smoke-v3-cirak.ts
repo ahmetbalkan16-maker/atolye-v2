@@ -15,7 +15,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import os from "node:os";
 import path from "node:path";
 import { loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
-import { addedTestCode, apprenticePolicy, examCandidates, testImports, writeExam } from "../src/lib/v3/council/DevApprentice";
+import { addedTestCode, apprenticePolicy, EXAM_CAP_USD, EXAM_CODE_FILES, EXAM_MAX_CODE_FILES, examCandidates, examCapUsd, examCodeFiles, testImports, writeExam } from "../src/lib/v3/council/DevApprentice";
 import { listLessons, listWriteExams, loadDevBrainView, recordWriteExam, type WriteExam, WRITE_MIN_EXAMS, writeReadiness } from "../src/lib/v3/council/DevBrain";
 import { dropWorktree, linkShared } from "../src/lib/v3/council/Developer";
 import { runDevJob } from "../src/lib/v3/council/DevResearch";
@@ -275,8 +275,21 @@ async function main() {
     write("scripts/smoke-v3-calc.ts", smoke("add, double", "assert.equal(double(3), 6);\nassert.equal(add(2, 2), 4);\n"));
     await g(["add", "-A"]);
     await g(["commit", "-q", "-m", "fix(v3): toplama belgesi"]);
+    // A commit of two code files (owner, 11 Nov 2026: the apprentice learns single-file work first).
+    write("src/lib/v3/mix/Half.ts", "/** Half a number. */\nexport const half = (n: number) => n / 2;\n");
+    write("src/lib/v3/mix/Calc.ts", `${calc(DOUBLE).replace("/** Sums. */", "/** Sums two numbers. */")}export { half } from "./Half";\n`);
+    write("scripts/smoke-v3-half.ts", `import assert from "node:assert/strict";\nimport { half } from "../src/lib/v3/mix/Calc";\nassert.equal(half(4), 2);\nconsole.log("PASS");\n`);
+    await g(["add", "-A"]);
+    await g(["commit", "-q", "-m", "feat(v3): yarısı"]);
     const cands = await examCandidates(repo, work);
-    assert.deepEqual(cands.map((c) => [c.gorev, c.kod, c.testler]), [["toplama belgesi", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]], ["bir sayının iki katı", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]], ["toplama", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]]], "the init commit touched no V3 file");
+    assert.deepEqual(cands.map((c) => [c.gorev, c.kod, c.testler]), [["toplama belgesi", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]], ["bir sayının iki katı", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]], ["toplama", ["src/lib/v3/mix/Calc.ts"], ["scripts/smoke-v3-calc.ts"]]], "the init commit touched no V3 file; the two-file commit is no exam for now");
+    assert.equal(EXAM_CODE_FILES, 1);
+    assert.deepEqual([examCodeFiles({}), examCodeFiles({ ATOLYE_V3_CIRAK_SINAV_DOSYA: "2" }), examCodeFiles({ ATOLYE_V3_CIRAK_SINAV_DOSYA: "9" }), examCodeFiles({ ATOLYE_V3_CIRAK_SINAV_DOSYA: "0" }), examCodeFiles({ ATOLYE_V3_CIRAK_SINAV_DOSYA: "x" })], [1, 2, EXAM_MAX_CODE_FILES, 1, 1]);
+    const wide = await examCandidates(repo, work, 400, examCodeFiles({ ATOLYE_V3_CIRAK_SINAV_DOSYA: "2" }));
+    assert.deepEqual(wide.map((c) => [c.gorev, c.kod]).slice(0, 1), [["yarısı", ["src/lib/v3/mix/Calc.ts", "src/lib/v3/mix/Half.ts"]]], "the owner widens it later");
+    assert.equal(wide.length, 4);
+    // One exam's cap (owner, 11 Nov 2026: $0.40 cut 5 of 8 failed exams a few cents before round 6).
+    assert.deepEqual([EXAM_CAP_USD, examCapUsd({}), examCapUsd({ ATOLYE_V3_CIRAK_SINAV_USD: "0.3" })], [0.55, 0.55, 0.3]);
     const doubleExam = cands.find((c) => c.sha === sha)!;
     const spec = await addedTestCode(repo, sha, ["scripts/smoke-v3-calc.ts"]);
     assert.match(spec, /\+assert\.equal\(double\(3\), 6\);/);

@@ -384,6 +384,19 @@ export function steadyVerdict(base: readonly number[], steady: readonly number[]
 export function settingTriedWithin(t: BrainTuning, beyin: BrainId, key: string, days: number, now = Date.now()): boolean {
   return t.ayarGecmisi.some((h) => h.beyin === beyin && h.anahtar === key && now - Date.parse(h.tarih) < days * 86_400_000);
 }
+
+/**
+ * How often the quality brain's "show example frames" setting is tried again. Until 11 Nov 2026 every tuning cycle
+ * flipped it and measured a whole exam: four trials in nine days, each %63 against a base of %69–90, each taken back —
+ * an exam's worth of GPU a cycle for an answer already known. A month on, the model or the exam may have changed.
+ */
+export const EXAMPLES_TRIAL_EVERY_DAYS = 30;
+
+/** Whether the examples setting is due for a trial (never tried, or not within EXAMPLES_TRIAL_EVERY_DAYS). */
+export function examplesTrialDue(t: BrainTuning, now = Date.now()): boolean {
+  return !settingTriedWithin(t, "kalite", "ornekler", EXAMPLES_TRIAL_EVERY_DAYS, now);
+}
+
 /** At most this many kept prompt additions per brain (the oldest goes when a new one is kept). */
 export const MAX_ADDITIONS = 5;
 /** An addition or setting is kept only when it raises the exam's balanced accuracy by at least this many points. */

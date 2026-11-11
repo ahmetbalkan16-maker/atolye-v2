@@ -78,15 +78,39 @@ export interface RoundScore {
   readonly setler: readonly { readonly sahne: string; readonly puan: number; readonly gecti: boolean }[];
   /** The director's council mean for this cut (1..10), when the council sat. */
   readonly kurul?: number;
+  /**
+   * The measured faults of this cut (cutFaults): its open QC checks plus the render's layout and pixel faults. Missing
+   * on rounds scored before 11 Nov 2026 and on a round whose layout or pixel check could not run.
+   */
+  readonly kusurlar?: number;
+}
+
+/**
+ * The measured faults of a cut, the retouch brain's second key between rounds (11 Nov 2026: over the last seven videos
+ * the council's mean was 7 in every round but two — Taranto 7, 7, 7; Gallipoli 7, 7; Cannae 7, 7; Zanzibar 7, 6.8 — so
+ * the delivered round was decided by "the earlier wins", while the open QC checks moved: Taranto 5 → 2 → 2, Gallipoli
+ * 3 → 4, Cannae 4 → 3). Counted: every open QC check of the cut (`openChecks`; the caller leaves out the rows that
+ * restate the likeness and set shortfall — already the first key — and the standing ones no retouch round can change:
+ * the script step's fact check, which a retouch never reruns, and the cover, which is not the cut) and every box the
+ * render's layout check and every defect its pixel check found. Not counted: the vision model's frame verdicts and its
+ * "told but not shown" notes — an opinion, like the council's mean (Gallipoli's sampled frames went from 2 faulty to 0
+ * between two cuts whose layout faults stayed 2). Undefined when the layout or the pixel check did not run, so a round
+ * is never favoured for a check that failed. Counted so, the kept rounds were Taranto 5 → 4 → 4, Gallipoli 4 → 5,
+ * Cannae 3 → 2 and Zanzibar 2 → 2: none of them would have been delivered differently (the bars or the earlier round
+ * already decided), but Gallipoli's retouch round was worse by this count too.
+ */
+export function cutFaults(openChecks: number, layout: number | undefined, pixel: number | undefined): number | undefined {
+  return layout === undefined || pixel === undefined ? undefined : openChecks + layout + pixel;
 }
 
 /** A round's scores, from the same measures the retouch decision reads (and the council's mean, when it sat). */
-export function roundScore(tur: number, input: Omit<RetouchInput, "round">, kurul?: number): RoundScore {
+export function roundScore(tur: number, input: Omit<RetouchInput, "round">, kurul?: number, kusurlar?: number): RoundScore {
   return {
     tur,
     kisiler: input.likenesses.filter((l) => l.kaynak === "tasarim" && l.benzerlik !== undefined).map((l) => ({ castId: l.castId, puan: l.benzerlik! })),
     setler: input.sets.flatMap((s) => (s.secim ? [{ sahne: s.sahne, puan: Math.min(s.secim.puan, s.secim.donem ?? s.secim.puan), gecti: !s.esikAlti }] : [])),
     ...(kurul !== undefined && kurul > 0 ? { kurul } : {}),
+    ...(kusurlar !== undefined ? { kusurlar } : {}),
   };
 }
 
@@ -95,12 +119,58 @@ export function roundShortfall(s: RoundScore): number {
   return s.kisiler.reduce((a, k) => a + Math.max(0, LIKENESS_OK - k.puan), 0) + s.setler.reduce((a, x) => a + (x.gecti ? 0 : Math.max(1, MIN_FIT_SCORE - x.puan)), 0);
 }
 
+/** Fewer measured faults first; 0 (the key skipped) when either round lacks the count. */
+const faultOrder = (a: RoundScore, b: RoundScore) => (a.kusurlar !== undefined && b.kusurlar !== undefined ? a.kusurlar - b.kusurlar : 0);
+
+/** Below 0 when round `a` is the better one to deliver. */
+const roundOrder = (a: RoundScore, b: RoundScore) => roundShortfall(a) - roundShortfall(b) || faultOrder(a, b) || (b.kurul ?? 0) - (a.kurul ?? 0) || a.tur - b.tur;
+
 /**
- * The round to deliver: the least under the bars, then the council's higher mean (AYAS's revision of lines, acts and
- * sets is judged by the same council); a retouch replaces an earlier round only when it scored better.
+ * The rounds as they are compared, in round order: a person scored in an earlier round and not scored in a later one
+ * carries their last score into it. `kisiler` holds only the people this round's wardrobe step designed and checked,
+ * so a person drops out when the side-by-side check could not run (its records keep no score), when the redesign's
+ * sheet could not be read ("degismedi"), or when a stuck likeness is reused from the people library (kaynak
+ * "kutuphane") while another person's redesign reruns the wardrobe — and that round's shortfall fell with nothing
+ * redrawn better. Checked on 11 Nov 2026 against the kept rounds: the people missing from a later round (Taranto's
+ * andrew-cunningham 9/10, Gallipoli's liman-von-sanders and hamilton 8/10) were all at the bar and reused from the
+ * library, so no delivered round changes; the carried score keeps the three paths above from deciding one.
+ */
+export function comparableRounds(scores: readonly RoundScore[]): RoundScore[] {
+  const last = new Map<string, number>();
+  return [...scores]
+    .sort((a, b) => a.tur - b.tur)
+    .map((s) => {
+      const carried = [...last].filter(([castId]) => !s.kisiler.some((k) => k.castId === castId)).map(([castId, puan]) => ({ castId, puan }));
+      for (const k of s.kisiler) last.set(k.castId, k.puan);
+      return carried.length ? { ...s, kisiler: [...s.kisiler, ...carried] } : s;
+    });
+}
+
+/**
+ * The round to deliver: the least under the bars (comparableRounds), then the fewer measured faults (cutFaults,
+ * 11 Nov 2026: the council's mean was a tie in nearly every round), then the council's higher mean (AYAS's revision of
+ * lines, acts and sets is judged by the same council); a retouch replaces an earlier round only when it scored better.
+ * Rounds are taken in their order and each must beat the best so far: a round without the fault count (kept before it
+ * existed) skips that key, and the skipped key would make a sort's order depend on how the rounds were listed. The
+ * round is returned as it was scored (without carried people).
  */
 export function bestRound(scores: readonly RoundScore[]): RoundScore | undefined {
-  return [...scores].sort((a, b) => roundShortfall(a) - roundShortfall(b) || (b.kurul ?? 0) - (a.kurul ?? 0) || a.tur - b.tur)[0];
+  const best = comparableRounds(scores).reduce<RoundScore | undefined>((b, s) => (!b || roundOrder(s, b) < 0 ? s : b), undefined);
+  return best && scores.find((s) => s.tur === best.tur);
+}
+
+/**
+ * Why the delivered round beat a round that was as far under the bars, when the measured faults decided it (Turkish,
+ * for the retouch brain's log): "ölçülen kusur: tur 1 2, tur 0 4". Undefined when the faults did not decide.
+ */
+export function faultsDecided(scores: readonly RoundScore[]): string | undefined {
+  const rounds = comparableRounds(scores);
+  const best = bestRound(scores);
+  const fewest = best?.kusurlar;
+  if (!best || fewest === undefined) return undefined;
+  const shortfall = roundShortfall(rounds.find((s) => s.tur === best.tur)!);
+  const beaten = rounds.filter((s) => s.tur !== best.tur && roundShortfall(s) === shortfall && s.kusurlar !== undefined && s.kusurlar > fewest);
+  return beaten.length ? `ölçülen kusur: ${[best, ...beaten].map((s) => `tur ${s.tur} ${s.kusurlar}`).join(", ")}` : undefined;
 }
 
 /**
@@ -130,7 +200,7 @@ export function likenessLessons(plan: Pick<RetouchPlan, "kisiler">, current: Rou
 /** One round in a line (Turkish, for QC.md and KURUL.md). */
 export function roundLine(s: RoundScore): string {
   const parts = [...s.kisiler.map((k) => `${k.castId} ${k.puan}/10`), ...s.setler.filter((x) => !x.gecti).map((x) => `${x.sahne} seti ${x.puan}/10`)];
-  return `tur ${s.tur}: ${parts.join(", ") || "ölçülen kişi/set yok"} (eşik altı ${roundShortfall(s)} puan)${s.kurul !== undefined ? `, kurul ${s.kurul}/10` : ""}`;
+  return `tur ${s.tur}: ${parts.join(", ") || "ölçülen kişi/set yok"} (eşik altı ${roundShortfall(s)} puan)${s.kusurlar !== undefined ? `, ${s.kusurlar} ölçülen kusur` : ""}${s.kurul !== undefined ? `, kurul ${s.kurul}/10` : ""}`;
 }
 
 /**
