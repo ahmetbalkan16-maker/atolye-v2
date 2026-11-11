@@ -519,6 +519,65 @@ export function spaceBadges<B extends { readonly label: string; readonly start: 
 }
 
 /**
+ * A standing badge never rests on an army marker (Gallipoli, 10 Nov 2026: the writer put Hamilton's badge on the ANZAC
+ * marker and Mustafa Kemal's on the 19th Division's, both at the army's own place — "ANZAC" was 100% under Hamilton's
+ * scroll and "OTTOMAN 19TH DIVISION" 38% under Kemal's, and the retouch round could not move them; owner, 11 Nov 2026:
+ * "bir daha yapmasın"). The commander stands beside the army instead — left, right or above its name, where the badge
+ * meets the fewest other armies and badges, away from the nearest other army first. World px; sizes as MapView draws
+ * them at the camera's zoom when the badge comes up (the marker: a token 84 px wide under its name, ~125 px tall; the
+ * badge: hudLayout.badgeExtent). A travelling badge keeps its route.
+ */
+export function badgesBesideArmies<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(
+  badges: readonly B[],
+  armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[] }[],
+  camera: V3GeoMap["camera"],
+  height: number,
+): B[] {
+  if (!armies.length) return [...badges];
+  const zoomAt = (frame: number) => (camera?.length ? ([...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]!).zoom : 1);
+  // The marker's name breaks into two lines past ~14 letters (MapView.labelLines), at ~20 px a letter.
+  const armyHalf = (label: string) => Math.max(42, (label.length > 14 ? Math.ceil(label.length / 2) + 2 : label.length) * 10.5 + 14);
+  const badgeHalf = (label: string) => Math.max(49, (label.length * 11.5 + 34) / 2 + 12);
+  const ARMY_UP = 130;
+  const BADGE_UP = 131;
+  type R = { x0: number; x1: number; y0: number; y1: number };
+  const meets = (a: R, b: R) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const out = badges.map((b) => ({ ...b, path: b.path.map((p) => ({ x: p.x, y: p.y })) }));
+  for (const b of out) {
+    if (b.path.length !== 1) continue;
+    const p = b.path[0]!;
+    const k = height / 1080 / zoomAt(b.start);
+    // Every army on the map while the badge is: where it stands and where its march ends.
+    const marks = armies.flatMap((a) => (a.start < (b.end ?? Infinity) ? [{ x: a.x, y: a.y }, ...(a.path?.length ? [a.path[a.path.length - 1]!] : [])].map((q) => ({ ...q, half: armyHalf(a.label) * k, label: a.label })) : []));
+    const armyBox = (m: (typeof marks)[number]): R => ({ x0: m.x - m.half, x1: m.x + m.half, y0: m.y - ARMY_UP * k, y1: m.y });
+    const half = badgeHalf(b.label) * k;
+    const boxAt = (q: { x: number; y: number }): R => ({ x0: q.x - half, x1: q.x + half, y0: q.y - BADGE_UP * k, y1: q.y });
+    const others = out.filter((o) => o !== b && o.path.length && o.start < (b.end ?? Infinity) && b.start < (o.end ?? Infinity)).map((o) => boxAt(o.path[o.path.length - 1]!));
+    // The army it stands on is the nearest of those it meets (two armies close together may both be under it).
+    const hits = marks.filter((m) => meets(boxAt(p), armyBox(m))).sort((a, c) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(c.x - p.x, c.y - p.y));
+    const on = hits[0];
+    if (!on) continue;
+    const gap = 12 * k;
+    // Beside its own army first, then beside each other army it meets, then twice as far out.
+    const tries = [...hits, ...hits].flatMap((m, j) => {
+      const far = j >= hits.length ? 2 : 1;
+      return [
+        { x: m.x + far * (m.half + half + gap), y: p.y, rank: j },
+        { x: m.x - far * (m.half + half + gap), y: p.y, rank: j },
+        { x: p.x, y: m.y - far * (ARMY_UP * k + gap), rank: j + 0.5 },
+      ];
+    });
+    // Away from the nearest other army first (the commander on his own side's outer flank).
+    const rival = marks.filter((m) => m.label !== on.label).sort((a, c) => Math.hypot(a.x - on.x, a.y - on.y) - Math.hypot(c.x - on.x, c.y - on.y))[0];
+    const away = (q: { x: number; y: number }) => (rival ? -Math.hypot(q.x - rival.x, q.y - rival.y) : 0);
+    const cost = (q: { x: number; y: number; rank: number }) => marks.filter((m) => meets(boxAt(q), armyBox(m))).length * 100 + others.filter((o) => meets(boxAt(q), o)).length * 100 + q.rank + away(q) / 1e6;
+    const best = tries.map((q) => ({ q, c: cost(q) })).sort((a, c) => a.c - c.c)[0]!;
+    b.path = [{ x: r1(best.q.x), y: r1(best.q.y) }];
+  }
+  return out as unknown as B[];
+}
+
+/**
  * Two sides never stand on one line (the Kosovo 1389 trial: the writer put the Serbian and Ottoman fronts at the same
  * latitude, and the blocks of both armies made one jumbled row). On every line where two sides' formations are closer
  * than `minPx` (world px, their middles), they are pushed apart, half each — or the whole way for the side whose
@@ -1076,6 +1135,57 @@ export function formationPoints(f: UnitFormation & { readonly hatlar?: number },
   return (onLand ? [...out.filter((p) => onLand(p)), ...out.filter((p) => !onLand(p))] : out).slice(0, n);
 }
 
+/** A front within this angle of the line to the enemy points at it end-on (a column, not a front). */
+const END_ON_DEG = 35;
+
+/**
+ * A front faces its enemy (Gallipoli, 10 Nov 2026: the writer drew the 19th Division and the ANZACs on one diagonal, end
+ * to end, and the close battle map showed the two armies as one single-file column; owner, 11 Nov 2026: "bir daha
+ * yapmasın"). A front whose line points at the enemy's middle (within END_ON_DEG) is turned round its own middle until
+ * it lies across the way to the enemy; its length and middle stay. A front on top of the enemy (the clash, the middles
+ * closer than a fifth of its length) lies along the enemy's own front when one is given (`enemyFront`: the charge's
+ * line met the ANZACs' crosswise, an X of tokens), else is left as written, as is one oblique enough to read as a front.
+ * [lon, lat].
+ */
+export function faceEnemy(cephe: readonly (readonly [number, number])[], enemy: readonly [number, number], enemyFront?: readonly (readonly [number, number])[]): [number, number][] {
+  const line = cephe.map((p) => [p[0], p[1]] as [number, number]);
+  if (line.length < 2) return line;
+  const c = formationCentre({ cephe: line });
+  const kx = Math.cos((c[1] * Math.PI) / 180);
+  // In km-like units, so a degree of longitude counts for what it is at this latitude.
+  const a = line[0]!;
+  const b = line[line.length - 1]!;
+  const fx = (b[0] - a[0]) * kx;
+  const fy = b[1] - a[1];
+  const ex = (enemy[0] - c[0]) * kx;
+  const ey = enemy[1] - c[1];
+  const flen = Math.hypot(fx, fy);
+  const elen = Math.hypot(ex, ey);
+  if (!flen) return line;
+  let want: number;
+  if (elen < flen / 5) {
+    const ef = enemyFront && enemyFront.length >= 2 ? [enemyFront[0]!, enemyFront[enemyFront.length - 1]!] : undefined;
+    const gx = ef ? (ef[1][0] - ef[0][0]) * kx : 0;
+    const gy = ef ? ef[1][1] - ef[0][1] : 0;
+    if (!ef || !Math.hypot(gx, gy) || Math.abs(fx * gx + fy * gy) / (flen * Math.hypot(gx, gy)) >= Math.cos((END_ON_DEG * Math.PI) / 180)) return line;
+    want = Math.atan2(gy, gx);
+  } else {
+    const cos = Math.abs(fx * ex + fy * ey) / (flen * elen);
+    if (cos < Math.cos((END_ON_DEG * Math.PI) / 180)) return line;
+    want = Math.atan2(ey, ex) + Math.PI / 2;
+  }
+  // Turn (counter-clockwise, east = x, north = y) by the smaller angle that brings the front to the wanted direction.
+  const turn = want - Math.atan2(fy, fx);
+  const t = Math.atan2(Math.sin(turn), Math.cos(turn));
+  const r = Math.abs(t) > Math.PI / 2 ? t - Math.sign(t) * Math.PI : t;
+  const [s, co] = [Math.sin(r), Math.cos(r)];
+  return line.map((p) => {
+    const dx = (p[0] - c[0]) * kx;
+    const dy = p[1] - c[1];
+    return [c[0] + (dx * co - dy * s) / kx, c[1] + (dx * s + dy * co)] as [number, number];
+  });
+}
+
 /** A formation's middle ([lon, lat]). */
 export function formationCentre(f: UnitFormation): [number, number] {
   if ("kume" in f) return [f.kume[0], f.kume[1]];
@@ -1428,6 +1538,14 @@ function projectGeoMap(
     const cs = sides.flatMap((o) => (o.taraf === sides[ui]!.taraf || !latest(o, line) ? [] : [formationCentre(latest(o, line)!)]));
     return cs.length ? [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length] : undefined;
   };
+  // The one enemy front on a line, as written, when it is the one attacking there and this side is not: the side charged
+  // lies along the charging line (faceEnemy). Both ways at once, each turned to the other's written line and they swapped.
+  const attacking = (y: { readonly hareket?: string } | undefined) => y?.hareket === "hucum" || y?.hareket === "ilerle";
+  const enemyFrontAt = (ui: number, line: number): readonly (readonly [number, number])[] | undefined => {
+    const fs = sides.flatMap((o) => (o.taraf === sides[ui]!.taraf || !latest(o, line) ? [] : [latest(o, line)!]));
+    const own = latest(sides[ui]!, line);
+    return fs.length === 1 && "cephe" in fs[0]! && attacking(fs[0]) && fs[0]!.satir === line && !attacking(own) ? fs[0]!.cephe : undefined;
+  };
   // A front's lines lie this far apart, and a routed side scatters about as far: a share of the map.
   const gapKm = (map.genislik_km ?? 1000) * 0.035;
   // What each step came from (its line, whether the unit holds there) and the lines its name is shown on, for the
@@ -1442,7 +1560,10 @@ function projectGeoMap(
       .map((y, si) => {
         const before = alive;
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
-        const placed = formationPoints(y, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined, { gapKm, ...(enemyAt(i, y.satir) ? { enemy: enemyAt(i, y.satir)! } : {}) });
+        // A front written end-on to the enemy turns to face it (faceEnemy; a flanking sweep keeps its own route).
+        const enemy = enemyAt(i, y.satir);
+        const facing = "cephe" in y && enemy && !y.uzerinden ? { ...y, cephe: faceEnemy(y.cephe, enemy, enemyFrontAt(i, y.satir)) } : y;
+        const placed = formationPoints(facing, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined, { gapKm, ...(enemy ? { enemy } : {}) });
         // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
         return {
           start: lineStart(y.satir, i),
@@ -1545,8 +1666,17 @@ function projectGeoMap(
   // A writer's badge standing on the close map moves a little off what it hides (Belgrade's fourth trial: Mehmed's badge
   // stood on his own retreating tokens): up to three steps of ~55 px round its place, each step costing a little, so it
   // stays beside the place it points at. A travelling badge keeps its route.
+  // The writer's army markers as drawn (a token under its name, marching its route).
+  const armyMarks = (map.ordular ?? []).map((a, i) => ({
+    ...toPx(a.konum),
+    label: a.ad,
+    color: a.renk,
+    start: lineStart(a.satir, i),
+    ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
+  }));
   const tokensFrom = (from: number): Mark[] => units.flatMap((u) => u.steps.filter((st, si) => (u.steps[si + 1]?.start ?? Infinity) > from).flatMap((st) => st.points.map((q) => ({ q, w: 1 }))));
-  const placed = spaceBadges(close
+  // Off the army markers on every map (a 70 km map is "close" too: Gallipoli's badges hid both armies' names there).
+  const placed = spaceBadges(badgesBesideArmies(close
     ? badges.map((b) => {
         const p0 = b.path[0];
         if (!p0 || b.path.length !== 1) return b;
@@ -1558,7 +1688,7 @@ function projectGeoMap(
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
       })
-    : badges, camera, height);
+    : badges, armyMarks, camera, height), camera, height);
   const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
   for (const [i, s] of (opts.sideBadges ?? []).entries()) {
     const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);
@@ -1617,13 +1747,7 @@ function projectGeoMap(
     rivers: linesPath(v, data.rivers),
     territories,
     cities: (map.sehirler ?? []).map((c) => ({ ...toPx(c.konum), label: c.ad })),
-    armies: (map.ordular ?? []).map((a, i) => ({
-      ...toPx(a.konum),
-      label: a.ad,
-      color: a.renk,
-      start: lineStart(a.satir, i),
-      ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
-    })),
+    armies: armyMarks,
     ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i), ...(c.stil === "zincir" ? { chain: true } : {}) })) } : {}),
     arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? (o.stil === "plan" ? "#3fae3a" : "#e0283c"), ...(o.etiket ? { label: o.etiket } : {}), start: arrowStart(o, i), ...(o.bitis_satir !== undefined ? { end: lineStart(o.bitis_satir, i) } : {}), ...(o.stil === "plan" ? { plan: true } : {}) })),
     ...(siegeLines.length ? { siegeLines } : {}),

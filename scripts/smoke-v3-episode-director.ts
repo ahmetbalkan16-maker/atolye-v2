@@ -22,7 +22,7 @@ import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/rende
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
@@ -1301,6 +1301,43 @@ async function main() {
     assert.equal(badges[0]!.path[0]!.x, 500, "the one already there stays");
     assert.ok(badges[1]!.path[1]!.x - 500 >= 140 && badges[1]!.path[0]!.x === 900, JSON.stringify(badges[1]));
     assert.deepEqual(spaceBadges([{ label: "A", start: 0, end: 40, path: [{ x: 0, y: 0 }] }, { label: "B", start: 50, path: [{ x: 0, y: 0 }] }], undefined, 1080)[1]!.path[0], { x: 0, y: 0 }, "not on the map at the same time");
+    // Gallipoli (10 Nov 2026): each commander's badge at his army's own place hid "ANZAC" and "OTTOMAN 19TH DIVISION";
+    // the badges now stand beside the markers, each on its own army's outer side, on no marker at all.
+    const armies = [{ x: 500, y: 600, label: "ANZAC", start: 30 }, { x: 600, y: 520, label: "Ottoman 19th Division", start: 60 }];
+    const onArmies = badgesBesideArmies([{ label: "Sir Ian Hamilton", start: 30, path: [{ x: 500, y: 600 }] }, { label: "Mustafa Kemal", start: 60, path: [{ x: 600, y: 520 }] }, { label: "Far Away", start: 0, path: [{ x: 1500, y: 200 }] }, { label: "Marching", start: 0, path: [{ x: 1500, y: 900 }, { x: 1700, y: 900 }] }], armies, undefined, 1080);
+    const armyBox = (a: (typeof armies)[number]) => ({ x0: a.x - Math.max(42, (a.label.length > 14 ? Math.ceil(a.label.length / 2) + 2 : a.label.length) * 10.5 + 14), x1: a.x + Math.max(42, (a.label.length > 14 ? Math.ceil(a.label.length / 2) + 2 : a.label.length) * 10.5 + 14), y0: a.y - 130, y1: a.y });
+    const badgeBox = (b: { label: string; path: readonly { x: number; y: number }[] }) => ({ x0: b.path[0]!.x - ((b.label.length * 11.5 + 34) / 2 + 12), x1: b.path[0]!.x + ((b.label.length * 11.5 + 34) / 2 + 12), y0: b.path[0]!.y - 131, y1: b.path[0]!.y });
+    const hit = (a: { x0: number; x1: number; y0: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    for (const b of onArmies.slice(0, 2)) for (const a of armies) assert.ok(!hit(badgeBox(b), armyBox(a)), `${b.label} on ${a.label}: ${JSON.stringify(b.path)}`);
+    assert.ok(!hit(badgeBox(onArmies[0]!), badgeBox(onArmies[1]!)), "the two commanders apart");
+    assert.ok(onArmies[0]!.path[0]!.x < 500 && onArmies[1]!.path[0]!.x > 600, "each on his own army's outer side");
+    assert.deepEqual(onArmies[2]!.path, [{ x: 1500, y: 200 }], "a badge on no marker stays");
+    assert.deepEqual(onArmies[3]!.path, [{ x: 1500, y: 900 }, { x: 1700, y: 900 }], "a travelling badge keeps its route");
+    assert.deepEqual(badgesBesideArmies([{ label: "Early", start: 0, end: 20, path: [{ x: 500, y: 600 }] }], armies, undefined, 1080)[0]!.path, [{ x: 500, y: 600 }], "gone before the army comes");
+    // Zoomed in twice, the badge is half as big on the world: it moves half as far.
+    const near = badgesBesideArmies([{ label: "Sir Ian Hamilton", start: 30, path: [{ x: 500, y: 600 }] }], [armies[0]!], [{ frame: 0, x: 500, y: 600, zoom: 2 }], 1080)[0]!.path[0]!;
+    assert.ok(Math.abs(500 - near.x) < Math.abs(500 - onArmies[0]!.path[0]!.x) && Math.abs(500 - near.x) > 50, JSON.stringify(near));
+    // Gallipoli's close map (10 Nov 2026): both fronts written on one diagonal, end to end — one single-file column. Each
+    // turns round its middle to lie across the way to the enemy; length and middle kept.
+    const kmOf = (p: readonly [number, number], q: readonly [number, number]) => Math.hypot((p[0] - q[0]) * Math.cos((40.28 * Math.PI) / 180), p[1] - q[1]);
+    const ottoman: [number, number][] = [[26.28, 40.28], [26.29, 40.29]];
+    const anzac: [number, number][] = [[26.27, 40.27], [26.28, 40.28]];
+    const mid = (l: readonly (readonly [number, number])[]) => [(l[0]![0] + l[1]![0]) / 2, (l[0]![1] + l[1]![1]) / 2] as [number, number];
+    const turned = faceEnemy(ottoman, mid(anzac));
+    assert.ok(kmOf(mid(turned), mid(ottoman)) < 1e-9 && Math.abs(kmOf(turned[0]!, turned[1]!) / kmOf(ottoman[0]!, ottoman[1]!) - 1) < 1e-3, "middle and length kept");
+    const dirOf = (l: readonly (readonly [number, number])[]) => [(l[1]![0] - l[0]![0]) * Math.cos((40.28 * Math.PI) / 180), l[1]![1] - l[0]![1]] as const;
+    const toEnemy = [(mid(anzac)[0] - mid(ottoman)[0]) * Math.cos((40.28 * Math.PI) / 180), mid(anzac)[1] - mid(ottoman)[1]] as const;
+    const across = (f: readonly [number, number] | readonly number[], e: readonly number[]) => Math.abs(f[0]! * e[0]! + f[1]! * e[1]!) / (Math.hypot(f[0]!, f[1]!) * Math.hypot(e[0]!, e[1]!));
+    assert.ok(across(dirOf(turned), toEnemy) < 0.01, `across the way to the enemy: ${JSON.stringify(turned)}`);
+    assert.ok(across(dirOf(faceEnemy(anzac, mid(ottoman))), dirOf(turned)) > 0.9999, "the two fronts face each other, parallel");
+    // A front already across, or oblique enough to read as one (60°), stays as written.
+    const oblique: [number, number][] = [[26.28, 40.28], [26.2675, 40.2845]];
+    assert.deepEqual(faceEnemy(oblique, [26.27, 40.27]), oblique);
+    // The clash: on top of the enemy, it lies along the charging front when one is given, else stays.
+    const charge: [number, number][] = [[26.27005, 40.2804], [26.28307, 40.27271]];
+    assert.deepEqual(faceEnemy(anzac, mid(charge)), anzac, "no enemy front given");
+    assert.ok(across(dirOf(faceEnemy(anzac, mid(charge), charge)), dirOf(charge)) > 0.9999, "along the charge's line");
+    assert.deepEqual(faceEnemy([[26.28, 40.28]], [26.27, 40.27]), [[26.28, 40.28]], "a one-point front has no direction");
     // Inland: a box in a big square of land asks no coast; one at the land's edge does.
     const land = [[[[10, 30], [40, 30], [40, 55], [10, 55], [10, 30]]]] as never;
     assert.equal(inland({ west: 20.9, east: 21.2, south: 42.6, north: 42.8 }, land), true);
