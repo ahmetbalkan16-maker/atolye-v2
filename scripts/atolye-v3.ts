@@ -903,7 +903,12 @@ async function main() {
         // First the historian reviews the whole cast's costumes (it may order new parts); then the real people are
         // drawn after their portraits as they looked in the episode's period (their parts are ordered too); every named
         // character is made distinct; then the parts are made.
-        if (brain) episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain);
+        if (brain) {
+          // The costume brain's lessons on this period and cast (the Gallipoli review of 10 Nov 2026 had none and dressed
+          // a 1915 commander in armour).
+          const castLessons = (await recall(paths.workRoot, "kostum", { konu: `${episode.konu} ${episode.donem} ${episode.oyuncu_kadrosu.map((c) => `${c.ad} ${c.rol}`).join(" ")}`, tur: "ders", limit: 4 }).catch(() => [])).map((l) => l.metin);
+          episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain, castLessons);
+        }
         const designer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
         const critic: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" };
         const redo = new Map((retouch?.kisiler ?? []).map((k) => [k.castId, k.farklar] as const));

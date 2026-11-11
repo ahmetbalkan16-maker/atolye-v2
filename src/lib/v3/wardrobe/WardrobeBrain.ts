@@ -58,13 +58,22 @@ export interface HistorianNote {
   readonly sorunlar: readonly string[];
 }
 
+/**
+ * The costume brain's lessons as the historian and the chief read them: they win over the model's own memory. Until
+ * 11 Nov 2026 only the illustrator saw them; in the Gallipoli video (1915) the historian asked for the German M1916
+ * Stahlhelm on an Ottoman soldier and a brown kalpak where the portrait shows black, and the chief sent both back.
+ */
+export function lessonBlock(lessons: readonly string[] | undefined): string {
+  return lessons?.length ? `\nTHE COSTUME TEAM'S LESSONS FROM EARLIER VIDEOS (checked against portraits and sources; they win over your own memory, never ask for what they rule out):\n${lessons.map((l) => `- ${l}`).join("\n")}` : "";
+}
+
 /** The historian looks at what the art director saw on the puppet and at the real piece, and names the errors. */
-export async function historianOnPart(order: PartOrder, donem: string, seen: string, ref: PartReference | undefined, deps: BrainDeps): Promise<HistorianNote> {
+export async function historianOnPart(order: PartOrder, donem: string, seen: string, ref: PartReference | undefined, deps: BrainDeps, lessons?: readonly string[]): Promise<HistorianNote> {
   const prompt = `You are the historian on the costume team of an animated history show (cartoon style is fine; history must be right).
 PART ORDERED: ${order.tarif}
 PERIOD: ${donem}
 WHAT THE DRAWING SHOWS (the art director's description): ${seen}
-${ref ? `REAL EXAMPLE OF THE PART: ${ref.description}` : "No real example was found."}
+${ref ? `REAL EXAMPLE OF THE PART: ${ref.description}` : "No real example was found."}${lessonBlock(lessons)}
 List only real historical errors of shape, colour or decoration a well-read viewer would notice (not style). "onem": "yok" if none, "kucuk" for details, "buyuk" if it reads as the wrong period or object.
 Return ONLY JSON: {"onem": "yok|kucuk|buyuk", "sorunlar": ["…"]}`;
   const out = await deps.budget.generate("kostum-tarihci", deps.critic, prompt, { maxTokens: 300 });
@@ -79,12 +88,12 @@ export interface ChiefCall {
 }
 
 /** The chief weighs the art director and the historian and decides; "revize" carries one instruction for the designer. */
-export async function chiefOnPart(order: PartOrder, round: number, lastRound: boolean, artScore: number, historian: HistorianNote, deps: BrainDeps): Promise<ChiefCall> {
+export async function chiefOnPart(order: PartOrder, round: number, lastRound: boolean, artScore: number, historian: HistorianNote, deps: BrainDeps, lessons?: readonly string[]): Promise<ChiefCall> {
   if (historian.onem === "yok") return { karar: "kabul", talimat: "" };
   if (lastRound) return { karar: "kabul", talimat: `son turda kabul; tarihçinin notları: ${historian.sorunlar.join("; ")}` };
   const prompt = `You run the costume team (on behalf of AYAS, the studio manager). Round ${round} of "${order.tarif}".
-Art director score: ${artScore}/10. Historian (${historian.onem}): ${historian.sorunlar.join("; ") || "-"}.
-Accept it, or send it back with ONE clear instruction to the illustrator (what to change in the drawing). Revise only for errors a viewer would notice.
+Art director score: ${artScore}/10. Historian (${historian.onem}): ${historian.sorunlar.join("; ") || "-"}.${lessonBlock(lessons)}
+Accept it, or send it back with ONE clear instruction to the illustrator (what to change in the drawing). Revise only for errors a viewer would notice; a historian's note that goes against a lesson is ignored.
 Return ONLY JSON: {"karar": "kabul|revize", "talimat": "…"}`;
   const out = await deps.budget.generate("kostum-sef", deps.critic, prompt, { maxTokens: 200 });
   const v = readJsonAnswer<{ karar?: string; talimat?: string }>(out.result.content);
@@ -125,13 +134,16 @@ function colourLines(people: readonly { kim: string; kostum?: { renkler?: Readon
  * against the period and the role (garment, colours, parts), proposes corrected costumes, the chief keeps the
  * corrections that are right. A correction is applied only if the episode stays valid.
  */
-export async function reviewCostumes(episode: Episode, catalog: readonly PackCatalogEntry[], deps: BrainDeps): Promise<Episode> {
+export async function reviewCostumes(episode: Episode, catalog: readonly PackCatalogEntry[], deps: BrainDeps, lessons?: readonly string[]): Promise<Episode> {
   const people = episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.kostum).map((c) => ({ kim: c.id, ad: c.ad, rol: c.rol, kostum: c.kostum }));
   const crowds = episode.sahneler.flatMap((s) => (s.kalabalik ?? []).map((g, i) => ({ kim: `${s.id}/kalabalik/${i}`, ad: g.ad, rol: "crowd", kostum: g.kostum })));
   const items = catalog.map((p) => `${p.pack}: ${Object.values(p.items).flat().map((id) => (p.notes?.[id!] ? `${id} (${p.notes[id!]})` : id)).join(", ")}`).join("\n");
+  // The armour rule came from Cannae (9 Nov 2026) and was read for every age: in the Gallipoli video (1915, 10 Nov 2026)
+  // the historian asked armour and a 15th-century zağanos helmet for Mustafa Kemal, a Janissary dress for an Ottoman
+  // private, and swapped his correct cloth kabalak for a steel helmet the Ottoman army did not have in 1915.
   const prompt = `You are the historian of an animated history show's costume team. Episode: "${episode.konu}" (${episode.donem}).
 Check each costume against the period, the place and the person's rank: body garment, colours, headwear, beard, held objects.
-The garment for what the person does in the episode: a commander or magistrate on campaign or in battle wears armour, not civic or court dress (a Roman consul leading an army wears a cuirass and a general's red sash, never his toga — the Cannae Short, 9 Nov 2026, put Varro in a toga on the battlefield).
+The garment for what the person does in the episode: in the ages of armour (antiquity to the 17th century) a commander or magistrate on campaign or in battle wears armour, not civic or court dress (a Roman consul leading an army wears a cuirass and a general's red sash, never his toga — the Cannae Short, 9 Nov 2026, put Varro in a toga on the battlefield). From the 18th century on, officers and soldiers wear their army's uniform of that very year ("uniforma") — never armour, a Janissary dress or a medieval helmet, and no equipment their army adopted only after ${episode.donem}.${lessonBlock(lessons)}
 Headwear only for those who wore it in that role and period (soldiers' helmets, rulers' crowns, a turban, a working cap); many went bareheaded — Roman senators and citizens in town, for example: then remove "bas" and give "sac" ({"stil", "renk"}) instead.
 Colours as that rank could wear them: costly dyes marked rank (in Rome and Byzantium purple was for emperors, magistrates and the senators' stripe, never a common soldier; legionaries wore red or undyed wool). Correct a colour with another hex code.
 Garments available: kaftan, cubbe, zirh, onluk, bizans, yeniceri, sade, tunik, toga, ceket, uniforma, takim, elbise.

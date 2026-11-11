@@ -104,6 +104,12 @@ async function main() {
     const p = periodNotePrompt(ep.oyuncu_kadrosu[1]!, ep, "Julius Caesar", ["He combed his thin hair forward."]);
     assert.match(p, /IN 49 BC/);
     assert.match(p, /combed his thin hair/);
+    assert.ok(!/LESSONS/.test(p), "no lessons: no block");
+    // Gallipoli, 10 Nov 2026: the note called Mustafa Kemal "clean-shaven" in 1915; the lesson that corrects it reaches the historian.
+    const taught = periodNotePrompt(ep.oyuncu_kadrosu[1]!, ep, "Julius Caesar", [], ["In 49 BC he was balding and combed his hair forward."]);
+    assert.match(taught, /THE COSTUME TEAM'S LESSONS[\s\S]*balding and combed his hair forward/);
+    assert.match(taught, /they win over your own memory/);
+    assert.match(taught, /never a guess/);
   });
 
   scenario("C: likeness sheet → costume: face, detailed eyes, orders cut to 80 chars, null removes", () => {

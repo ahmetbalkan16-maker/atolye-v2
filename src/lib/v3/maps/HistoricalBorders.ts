@@ -43,6 +43,101 @@ export function isPolity(name: string): boolean {
   return !NOT_A_STATE.test(name);
 }
 
+/** A known error of the pinned atlas: in snapshot `yil` the land of the `from` states inside `region` belongs to `to`. */
+export interface AtlasErratum {
+  readonly yil: number;
+  /** Lower-case polity names, as `loadSnapshot` keys them. */
+  readonly to: string;
+  readonly from: readonly string[];
+  /** A convex outline (lon, lat) around the land that changes hands; only `from` land inside it moves. */
+  readonly region: readonly (readonly [number, number])[];
+  readonly why: string;
+}
+
+/**
+ * Errors of the pinned commit, corrected whenever a snapshot loads. The 1914 file draws Eastern Thrace — Edirne,
+ * Kırklareli, Tekirdağ, Constantinople's European side and the Gallipoli peninsula — inside Bulgaria; from the Treaty of
+ * Constantinople (Sept 1913) to 1918 it was Ottoman. The Gallipoli video of 10 Nov 2026 showed the Ottoman capital and
+ * the battlefield in Bulgaria's colour and no brain saw it. The region's west side runs near the Maritsa from its mouth
+ * at Enez to north of Edirne, then to the Black Sea at the Rezovo; a province is coloured by its centre, so a few km off
+ * the river change nothing.
+ */
+export const ATLAS_ERRATA: readonly AtlasErratum[] = [
+  {
+    yil: 1914,
+    to: "ottoman empire",
+    from: ["bulgaria"],
+    region: [
+      [26.0, 40.0],
+      [26.03, 40.6],
+      [26.35, 41.75],
+      [27.05, 42.1],
+      [28.1, 42.02],
+      [29.4, 41.4],
+      [29.4, 40.0],
+    ],
+    why: "Eastern Thrace was Ottoman from Sept 1913 to 1918, not Bulgarian",
+  },
+];
+
+/** Twice the signed area of a ring (positive when counter-clockwise in lon/lat). */
+function signedArea2(ring: readonly (readonly [number, number])[]): number {
+  let a = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j]![0] - ring[i]![0]) * (ring[j]![1] + ring[i]![1]);
+  return a;
+}
+
+/** The part of `ring` inside the convex outline `clip` (Sutherland–Hodgman); fewer than 3 points when they do not meet. */
+export function clipToConvex(ring: readonly (readonly [number, number])[], clip: readonly (readonly [number, number])[]): [number, number][] {
+  const sign = signedArea2(clip) >= 0 ? 1 : -1;
+  let out: [number, number][] = ring.map(([x, y]) => [x, y]);
+  for (let i = 0; i < clip.length && out.length; i++) {
+    const [ax, ay] = clip[i]!;
+    const [bx, by] = clip[(i + 1) % clip.length]!;
+    const side = ([x, y]: readonly [number, number]) => sign * ((bx - ax) * (y - ay) - (by - ay) * (x - ax));
+    const input = out;
+    out = [];
+    for (let k = 0; k < input.length; k++) {
+      const p = input[k]!;
+      const q = input[(k + 1) % input.length]!;
+      const sp = side(p);
+      const sq = side(q);
+      if (sp >= 0) out.push(p);
+      if ((sp >= 0) !== (sq >= 0)) {
+        const t = sp / (sp - sq);
+        out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A snapshot with the errata of its year applied: the moved land is added to `to` as its own polygon and cut out of
+ * the `from` state as a hole (so a province there is no longer counted twice and the hole lies inside the outline).
+ */
+export function applyAtlasErrata(map: ReadonlyMap<string, readonly Polygon[]>, year: number, errata: readonly AtlasErratum[] = ATLAS_ERRATA): Map<string, Polygon[]> {
+  const out = new Map<string, Polygon[]>([...map].map(([k, v]) => [k, [...v]]));
+  for (const e of errata.filter((x) => x.yil === year)) {
+    const moved: Polygon[] = [];
+    for (const name of e.from) {
+      const polys = out.get(name);
+      if (!polys) continue;
+      out.set(
+        name,
+        polys.map((p) => {
+          const piece = p[0] ? clipToConvex(p[0], e.region) : [];
+          if (piece.length < 3 || Math.abs(signedArea2(piece)) < 1e-9) return p;
+          moved.push([piece]);
+          return [...p, piece];
+        }),
+      );
+    }
+    if (moved.length) out.set(e.to, [...(out.get(e.to) ?? []), ...moved]);
+  }
+  return out;
+}
+
 const loaded = new Map<number, Map<string, Polygon[]>>();
 
 interface GeoJson {
@@ -71,8 +166,9 @@ export async function loadSnapshot(dir: string, year: number): Promise<Map<strin
     const key = name.toLowerCase();
     map.set(key, [...(map.get(key) ?? []), ...polys]);
   }
-  loaded.set(year, map);
-  return map;
+  const fixed = applyAtlasErrata(map, year);
+  loaded.set(year, fixed);
+  return fixed;
 }
 
 /**

@@ -22,7 +22,7 @@ import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/rende
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
@@ -30,9 +30,9 @@ import { directBattleMaps, mapProblems, shareProblems, toldKilled } from "../src
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
-import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
+import { applyAtlasErrata, ATLAS_ERRATA, atlasYear, clipToConvex, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
-import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
+import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
@@ -46,7 +46,7 @@ import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
 import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
-import { colourName, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
+import { chiefOnPart, colourName, historianOnPart, lessonBlock, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
@@ -1662,6 +1662,51 @@ async function main() {
     assert.equal(validateEpisode(reviewed).ok, true);
   });
 
+  await scenario("P3c the costume review knows the age of uniforms and reads the costume lessons (Gallipoli, 10 Nov 2026: armour and a zağanos helmet for a 1915 commander)", async () => {
+    const prompts: string[] = [];
+    const model: AIProvider = {
+      generate: async (p: string) => {
+        prompts.push(p);
+        return { content: JSON.stringify({ sorunlar: [], duzeltmeler: [] }), finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const deps = { cacheDir: "", judge: model, budget: new V3Budget({ providers: { ollama: model } }), critic: { provider: "ollama" as const }, council: new CouncilLog(), log: () => {} };
+    const ep = { ...sampleEpisode(), donem: "1915" };
+    await reviewCostumes(ep, [], deps, ["Ottoman soldiers in 1915 wore the cloth kabalak; no steel helmet."]);
+    assert.match(prompts[0]!, /in the ages of armour \(antiquity to the 17th century\)/);
+    assert.match(prompts[0]!, /From the 18th century on, officers and soldiers wear their army's uniform of that very year/);
+    assert.match(prompts[0]!, /adopted only after 1915/);
+    assert.match(prompts[0]!, /LESSONS FROM EARLIER VIDEOS[\s\S]*cloth kabalak; no steel helmet/);
+    assert.match(prompts[0]!, /never his toga/, "the Cannae rule stays for the ages of armour");
+    await reviewCostumes(ep, [], deps);
+    assert.ok(!/LESSONS FROM EARLIER VIDEOS/.test(prompts[1]!), "no lessons: no empty block");
+  });
+
+  await scenario("P3d the part historian and the chief read the costume lessons the illustrator gets (Gallipoli: M1916 Stahlhelm asked for 1915, the portrait's black kalpak sent back as brown)", async () => {
+    const prompts: string[] = [];
+    let answer = JSON.stringify({ onem: "buyuk", sorunlar: ["should be a German M1916 Stahlhelm"] });
+    const model: AIProvider = {
+      generate: async (p: string) => {
+        prompts.push(p);
+        return { content: answer, finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const deps = { cacheDir: "", judge: model, budget: new V3Budget({ providers: { ollama: model } }), critic: { provider: "ollama" as const }, council: new CouncilLog(), log: () => {} };
+    const order = { slot: "head" as const, tarif: "Ottoman WWI kabalak cloth helmet" };
+    const lessons = ["No steel helmet in 1915 (the M1916 Stahlhelm came 1916-18)."];
+    const h = await historianOnPart(order, "1915", "a rounded khaki cloth helmet", undefined, deps, lessons);
+    assert.equal(h.onem, "buyuk");
+    assert.match(prompts[0]!, /LESSONS FROM EARLIER VIDEOS[\s\S]*M1916 Stahlhelm came 1916-18/);
+    assert.match(prompts[0]!, /they win over your own memory/);
+    answer = JSON.stringify({ karar: "kabul", talimat: "" });
+    await chiefOnPart(order, 1, false, 9, h, deps, lessons);
+    assert.match(prompts[1]!, /M1916 Stahlhelm came 1916-18/);
+    assert.match(prompts[1]!, /a historian's note that goes against a lesson is ignored/);
+    await historianOnPart(order, "1915", "x", undefined, deps);
+    assert.ok(!/LESSONS FROM EARLIER VIDEOS/.test(prompts[2]!), "without lessons the prompt is as before");
+    assert.equal(lessonBlock([]), "");
+  });
+
   await scenario("P3b a pack name's typo and a bare library part (Cannae Short, 9 Nov 2026: \"gardirob\", the render stopped on its pack.json)", () => {
     const catalog = [{ pack: "ottoman-1453", title: "o", items: { head: ["padisah-kavugu"] } }, { pack: "gardirop", title: "g", items: { head: ["roman-legionary-helmet-with-a-red-crest-b64362"] } }];
     const ep = sampleEpisode();
@@ -1752,6 +1797,30 @@ async function main() {
     assert.equal(before.shots[0]!.performers.length > 0 && before.shots[1]!.performers.length, 0);
     // The scene where someone speaks keeps its own acting.
     assert.ok(!plan.shots[0]!.performers.some((p) => p.gestures.some((g) => g.gesture === "el_salla")));
+  });
+
+  await scenario("O6b the 1914 atlas gave Eastern Thrace to Bulgaria (Gallipoli video, 10 Nov 2026): the erratum moves it to the Ottomans", () => {
+    // Shapes like the pinned file's: Bulgaria reaching to the Bosphorus and Gallipoli, the Ottoman Empire in Asia only.
+    const bulgaria = [[[[22.3, 41.3], [25.0, 40.8], [26.0, 40.6], [26.2, 40.05], [27.3, 40.7], [29.1, 41.2], [28.0, 42.05], [27.9, 43.5], [22.3, 44.2], [22.3, 41.3]]]] as never;
+    const ottoman = [[[[26.2, 36.0], [45.0, 36.0], [45.0, 41.5], [29.2, 41.1], [26.3, 39.9], [26.2, 36.0]]]] as never;
+    const snap = new Map<string, Polygon[]>([["bulgaria", bulgaria], ["ottoman empire", ottoman], ["greece", []]]);
+    const fixed = applyAtlasErrata(snap, 1914);
+    const owner = (lon: number, lat: number) => [...fixed].filter(([, p]) => inStateLand(lon, lat, p)).map(([n]) => n);
+    for (const [name, lon, lat] of [["Edirne", 26.56, 41.21], ["Kırklareli", 27.42, 41.68], ["Tekirdağ", 27.39, 41.1], ["İstanbul", 28.57, 41.2]] as const) assert.deepEqual(owner(lon, lat), ["ottoman empire"], name);
+    for (const [name, lon, lat] of [["Burgas", 27.3, 42.5], ["Yambol", 26.6, 42.25], ["Haskovo", 25.83, 41.89], ["Western Thrace", 25.15, 41.19]] as const) assert.deepEqual(owner(lon, lat), ["bulgaria"], name);
+    assert.equal(fixed.get("bulgaria")![0]!.length, 2, "the moved land is a hole in Bulgaria's outline");
+    assert.equal(fixed.get("ottoman empire")!.length, 2, "and a polygon of its own for the Ottomans");
+    assert.equal(snap.get("bulgaria")![0]!.length, 1, "the loaded snapshot itself is left as it was");
+    assert.deepEqual([...applyAtlasErrata(snap, 1920)].map(([n, p]) => [n, p.length]), [...snap].map(([n, p]) => [n, p.length]), "another year is not touched");
+    assert.ok(ATLAS_ERRATA.every((e) => e.to === e.to.toLowerCase() && e.from.every((f) => f === f.toLowerCase())), "names as loadSnapshot keys them");
+    // Provinces: one group holding both states gives Edirne to the Ottomans alone (it went to both before the hole counted).
+    const unit = (name: string, lon: number, lat: number) => ({ name, rings: [], box: { west: lon - 0.1, east: lon + 0.1, south: lat - 0.1, north: lat + 0.1 }, centre: [lon, lat] as const });
+    const got = assignUnits([unit("Edirne", 26.56, 41.21), unit("Yambol", 26.6, 42.25)], [[], [], [{ key: 0, polys: fixed.get("ottoman empire")! }, { key: 1, polys: fixed.get("bulgaria")! }]], { west: 20, east: 46, south: 35, north: 45 });
+    assert.deepEqual([got.get(0)?.map((u) => u.name), got.get(1)?.map((u) => u.name)], [["Edirne"], ["Yambol"]]);
+    // The clip itself: a square cut by a convex triangle keeps only the inside.
+    const piece = clipToConvex([[0, 0], [4, 0], [4, 4], [0, 4]], [[2, -1], [6, 3], [2, 7]]);
+    assert.ok(piece.length >= 3 && piece.every(([x]) => x >= 2 - 1e-9), JSON.stringify(piece));
+    assert.equal(clipToConvex([[0, 0], [1, 0], [1, 1]], [[5, 5], [6, 5], [6, 6]]).length, 0, "apart: nothing");
   });
 
   await scenario("O6 the first AYAS order's map: an atlas year the atlas lacks moves to the nearest snapshot with the state; a route too short to see brings the camera in", async () => {

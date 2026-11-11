@@ -102,7 +102,15 @@ export function inOutline(lon: number, lat: number, polys: readonly (readonly Ri
 }
 
 /**
- * Which provinces make each state: a province goes to the first group whose outline holds its centre (groups in
+ * Whether a lon/lat point lies in a state's land: inside an outer ring and in none of that polygon's holes. A corrected
+ * atlas cuts land that changed hands out as a hole (HistoricalBorders.ATLAS_ERRATA: 1914 Thrace out of Bulgaria).
+ */
+export function inStateLand(lon: number, lat: number, polys: readonly (readonly Ring[])[]): boolean {
+  return polys.some((p) => p[0] !== undefined && inRing(lon, lat, p[0]) && !p.slice(1).some((h) => inRing(lon, lat, h)));
+}
+
+/**
+ * Which provinces make each state: a province goes to the first group whose land holds its centre (groups in
  * order — the script's own regions, then the named atlas states, then the rest); within the first group every state
  * holding it gets it (one region told twice as it changes hands). Provinces outside the world are skipped.
  */
@@ -111,7 +119,7 @@ export function assignUnits(units: readonly AdminUnit[], groups: readonly (reado
   for (const u of unitsIn(units, world)) {
     const [lon, lat] = u.centre;
     for (const group of groups) {
-      const holders = group.filter((s) => inOutline(lon, lat, s.polys));
+      const holders = group.filter((s) => inStateLand(lon, lat, s.polys));
       if (!holders.length) continue;
       for (const s of holders) out.set(s.key, [...(out.get(s.key) ?? []), u]);
       break;

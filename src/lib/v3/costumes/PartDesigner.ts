@@ -580,9 +580,9 @@ export async function designParts(input: {
         // The brain's second opinion: the historian names the errors, the chief accepts or sends it back once more.
         let chiefSays: { karar: "kabul" | "revize"; talimat: string } = { karar: "kabul", talimat: "" };
         if (v && passes(v) && input.brain) {
-          const historian = await historianOnPart(d.p.order, input.donem, `${v.gosterilen}; ${v.sorun}`, d.p.ref, input.brain);
+          const historian = await historianOnPart(d.p.order, input.donem, `${v.gosterilen}; ${v.sorun}`, d.p.ref, input.brain, d.p.lessons);
           d.p.talk.push({ rol: "Tarihçi", metin: historian.onem === "yok" ? "dönem hatası görmedi" : `(${historian.onem}) ${historian.sorunlar.join("; ")}` });
-          chiefSays = await chiefOnPart(d.p.order, round, round === MAX_ROUNDS, v.puan, historian, input.brain);
+          chiefSays = await chiefOnPart(d.p.order, round, round === MAX_ROUNDS, v.puan, historian, input.brain, d.p.lessons);
           d.p.talk.push({ rol: "Şef", metin: chiefSays.karar === "kabul" ? `kabul${chiefSays.talimat ? ` (${chiefSays.talimat})` : ""}` : `revize: ${chiefSays.talimat}` });
         }
         if (v && passes(v) && chiefSays.karar === "revize") {

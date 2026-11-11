@@ -94,12 +94,18 @@ export function appearanceSentences(text: string, max = 14): string[] {
   return sentences.filter((s) => s.length >= 30 && s.length <= 400 && LOOK_WORDS.test(s)).slice(0, max);
 }
 
-export function periodNotePrompt(c: CastEntry, episode: Episode, wiki: string, sentences: readonly string[]): string {
+/**
+ * The historian's note on how a person looked in the episode's year. `lessons`: the costume brain's lessons about this
+ * person (checked against portraits). Until 11 Nov 2026 the note was written without them: for the Gallipoli video it
+ * called Mustafa Kemal "clean-shaven" in 1915 (he wore a moustache; his writer had ordered one), aged 37 (he was 34),
+ * and the designer drew him without it — likeness 6/10 in both rounds.
+ */
+export function periodNotePrompt(c: CastEntry, episode: Episode, wiki: string, sentences: readonly string[], lessons: readonly string[] = []): string {
   return `You are the historian on the costume team of an animated history show. Before the illustrator draws ${wiki}, say how this person looked and dressed IN ${episode.donem}, during the events of the episode ("${episode.konu}") — not at another time of their life.
 ROLE IN THE EPISODE: ${c.rol}
 FROM THEIR WIKIPEDIA ARTICLE (sentences about appearance and dress; may be empty):
-${sentences.map((s) => `- ${s}`).join("\n") || "- (none found)"}
-Use these sentences and well-established history; do not invent details. When the famous portraits show them at a different age than in ${episode.donem}, say what differs (younger or older, beard or none, weight, hair).
+${sentences.map((s) => `- ${s}`).join("\n") || "- (none found)"}${lessons.length ? `\nTHE COSTUME TEAM'S LESSONS (checked against portraits and sources on earlier videos; they win over your own memory):\n${lessons.map((l) => `- ${l}`).join("\n")}` : ""}
+Use these sentences and well-established history; do not invent details. When the famous portraits show them at a different age than in ${episode.donem}, say what differs (younger or older, beard or none, weight, hair) — only what you know, never a guess.
 Return ONLY JSON: {"yas": <their age in ${episode.donem} as a number, or null>, "gorunus": "<face, build, hair and beard in ${episode.donem}, at most 45 words>", "giyim": "<what they wore then, with colours and headwear, at most 45 words>", "simge": "<an object they carried then (sword, sceptre, scroll), or empty>", "fark": "<how the famous portraits differ from how they looked in ${episode.donem}, or empty>"}`;
 }
 
@@ -455,7 +461,9 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const article = await fetchArticle(deps.wikiCache, wiki).catch(() => undefined);
     const sentences = article ? appearanceSentences(article.text) : [];
     talk.push({ rol: "Araştırmacı", metin: article ? `"${article.title}" makalesinde görünüş/giyim üzerine ${sentences.length} cümle` : `"${wiki}" makalesi okunamadı` });
-    const noteOut = await deps.budget.generate("benzerlik-tarihci", deps.critic, periodNotePrompt(c, episode, wiki, sentences), { maxTokens: 450 }).catch((e: Error) => (log(`  benzerlik: ${c.ad} tarihçi notu alınamadı (${e.message.slice(0, 100)})`), undefined));
+    // What the costume brain learned about this person before (a wrong "clean-shaven" or age is not repeated).
+    const personLessons = (await recall(paths.workRoot, "kostum", { konu: `${wiki} ${episode.donem} benzerlik`, tur: "ders", limit: 3 }).catch(() => [])).map((l) => l.metin);
+    const noteOut = await deps.budget.generate("benzerlik-tarihci", deps.critic, periodNotePrompt(c, episode, wiki, sentences, personLessons), { maxTokens: 450 }).catch((e: Error) => (log(`  benzerlik: ${c.ad} tarihçi notu alınamadı (${e.message.slice(0, 100)})`), undefined));
     const note = noteOut ? readPeriodNote(noteOut.result.content) : undefined;
     talk.push({ rol: "Tarihçi", metin: note ? `${episode.donem}: ${note.yas !== undefined ? `${note.yas} yaşında; ` : ""}${note.gorunus} | giyim: ${note.giyim}${note.fark ? ` | portrelerden farkı: ${note.fark}` : ""}` : "not yazılamadı" });
     const portrait = found ?? (searched ? undefined : await search());
