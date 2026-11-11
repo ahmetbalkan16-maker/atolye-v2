@@ -11,7 +11,7 @@ import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader"
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { articleSource, factPrompt, readTopic, researchDepth, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
-import { applyFactCheck, callsByName, changesPerson, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
@@ -175,7 +175,7 @@ async function main() {
     delete broken.sahneler[0].mekan;
     const check = JSON.stringify({
       iddialar: [
-        { sahne: "s1-kanca", satir: 1, karar: "yanlis", gerekce: "yaz sonu", yeni_metin: "Hisar 1452 Ağustosunda tamamlandı." },
+        { sahne: "s1-kanca", satir: 1, karar: "yanlis", gerekce: "yaz sonu", yeni_metin: "Hisar 1452 Ağustosunda tamamlandı.", dayanak: "Rumeli Hisarı Ağustos 1452'de tamamlandı" },
         { sahne: "s2-divan", satir: 2, karar: "tartismali", yeni_metin: "Rivayete göre kule ustaları kırk gün çalıştı." },
         { sahne: "s1-kanca", satir: 0, karar: "kaynaksiz", kaynak_onerisi: "Runciman 1965" },
         { sahne: "s9", satir: 0, karar: "yanlis", yeni_metin: "x" },
@@ -184,9 +184,9 @@ async function main() {
     });
     // A 14 s brief (a Short: its words aim at 85% of it) fits the fixture's 21 words, so no revision round runs here
     // (see L and M for those).
-    const openai = new FakeProvider([JSON.stringify(broken), validJson(), check]);
+    const openai = new FakeProvider([JSON.stringify(broken), validJson(), check, JSON.stringify({ iliski: "celisir", neden: "x" })]);
     const budget = new V3Budget({ providers: { openai } });
-    const out = await writeScript({ brief: { konu: "Rumeli Hisarı", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
+    const out = await writeScript({ brief: { konu: "Rumeli Hisarı Ağustos 1452'de tamamlandı", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
     assert.equal(out.repairs, 1);
     assert.equal(out.lengthRounds, 0);
     assert.ok(openai.calls[1]!.prompt.includes("mekan"), "onarım istemi hatayı söylemeli");
@@ -195,7 +195,7 @@ async function main() {
     assert.equal(out.episode.sahneler[1]!.satirlar[2]!.rivayet, true);
     assert.equal(out.factCheck.uygulanan, 2);
     assert.deepEqual(out.factCheck.iddialar.map((c) => c.sonuc), ["duzeltildi", "rivayet_eklendi", "rapor", "bulunamadi"]);
-    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,onarim-1,dogrulama");
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,onarim-1,dogrulama,dogrulama-dayanak");
     assert.ok(budget.spentUsd > 0 && budget.spentUsd < 1);
   });
 
@@ -273,14 +273,17 @@ async function main() {
   });
 
   await scenario("H4 a wrong line the corrections cannot fix stops the script before any costume; a second look may fix it", async () => {
-    const tooLong = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", gerekce: "hisar Ağustos'ta değil", yeni_metin: "a".repeat(300) }] });
-    const openai = new FakeProvider([validJson(), tooLong, tooLong]);
+    // The order states the fact the corrections rest on (a correction without a `dayanak` is not applied, see H5).
+    const told = "Rumeli Hisarı 1452 yazında dört ayda tamamlandı";
+    const tooLong = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", gerekce: "hisar Ağustos'ta değil", yeni_metin: "a".repeat(300), dayanak: told }] });
+    const contradicts = JSON.stringify({ iliski: "celisir", neden: "x" });
+    const openai = new FakeProvider([validJson(), tooLong, contradicts, tooLong, contradicts]);
     const budget = new V3Budget({ providers: { openai } });
-    await assert.rejects(writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && /tarih hatası düzeltilemedi/.test(e.message) && /s1-kanca #1/.test(e.message) && e.reasons?.length === 1);
-    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-2");
-    const fixedSecond = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", yeni_metin: "Hisar 1452 yazında tamamlandı." }] });
-    const again = new FakeProvider([validJson(), tooLong, fixedSecond]);
-    const out = await writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget: new V3Budget({ providers: { openai: again } }) });
+    await assert.rejects(writeScript({ brief: { ...gateBrief, konu: told }, catalog: CATALOG, ...gateModels, budget }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && /tarih hatası düzeltilemedi/.test(e.message) && /s1-kanca #1/.test(e.message) && e.reasons?.length === 1);
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-dayanak,dogrulama-2,dogrulama-dayanak");
+    const fixedSecond = JSON.stringify({ iddialar: [{ sahne: "s1-kanca", satir: 1, karar: "yanlis", yeni_metin: "Hisar 1452 yazında tamamlandı.", dayanak: `"${told}."` }] });
+    const again = new FakeProvider([validJson(), tooLong, contradicts, fixedSecond, contradicts]);
+    const out = await writeScript({ brief: { ...gateBrief, konu: told }, catalog: CATALOG, ...gateModels, budget: new V3Budget({ providers: { openai: again } }) });
     assert.equal(out.episode.sahneler[0]!.satirlar[1]!.metin, "Hisar 1452 yazında tamamlandı.");
     assert.deepEqual(out.factCheck.iddialar.map((c) => c.sonuc), ["rapor", "duzeltildi"]);
     // A character's line told wrong stops at once, with who said what, for the next draft's writer.
@@ -289,6 +292,54 @@ async function main() {
     await assert.rejects(writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget: b3 }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_HISTORY" && e.reasons?.[0] === "s2-divan #1 (Çandarlı Halil: \"Sultanım, Bizans buna kızar.\"): savaşa karşı çıkan Halil'di; burada savaşı istiyor");
     assert.equal(b3.ledger.map((e) => e.step).join(","), "senaryo,dogrulama", "no second look patches an exchange");
     assert.deepEqual(unresolvedErrors([{ sahne: "s9", satir: 0, karar: "yanlis", sonuc: "bulunamadi" }]), [], "the checker's slip of index never stops a video");
+  });
+
+  await scenario("H5 a correction only from the checker's memory is not applied (Gallipoli, 10 Nov 2026: 'I order you to die' moved to August); one a verified fact backs is", async () => {
+    const bank = { kaynaklar: [], olgular: [{ metin: "Rumeli Hisarı was completed in the summer of 1452, in four months.", kaynak: "wikipedia-rumelihisari" }], alintilar: [{ metin: "x", kaynak: "wikipedia-rumelihisari", alinti: "The fortress was completed on 31 August 1452." }] };
+    const memory = { sahne: "s1-kanca", satir: 1, karar: "yanlis" as const, gerekce: "it was said later, in August", yeni_metin: "Later, in August, the hisar is done." };
+    const original = episode().sahneler[0]!.satirlar[1]!.metin;
+    const res = applyFactCheck(episode(), [memory], { support: { bank, order: "Rumeli Hisarı" } });
+    assert.equal(res.applied, 0);
+    assert.equal(res.claims[0]!.sonuc, "dayanaksiz");
+    assert.equal(res.episode.sahneler[0]!.satirlar[1]!.metin, original, "the written line stays");
+    assert.deepEqual(unresolvedErrors(res.claims), [], "an unsupported claim is reported, never a stop");
+    // A dayanak that is not in the bank (the checker's own sentence) or is only a few words is not a support.
+    assert.equal(applyFactCheck(episode(), [{ ...memory, dayanak: "The order was given in August 1915 at Chunuk Bair." }], { support: { bank } }).claims[0]!.sonuc, "dayanaksiz");
+    assert.equal(applyFactCheck(episode(), [{ ...memory, dayanak: "in four months" }], { support: { bank } }).claims[0]!.sonuc, "dayanaksiz");
+    // Copied from a fact (with the "[source-id]" it was shown), from a research quote, or from the order: applied.
+    for (const dayanak of ["- [wikipedia-rumelihisari] Rumeli Hisarı was completed in the summer of 1452, in four months.", "completed on 31 August 1452", "“Rumeli Hisarı 1452 yazında dört ayda tamamlandı”"]) {
+      const ok = applyFactCheck(episode(), [{ ...memory, dayanak }], { support: { bank, order: "Rumeli Hisarı 1452 yazında dört ayda tamamlandı. Kısa bir video." } });
+      assert.equal(ok.claims[0]!.sonuc, "duzeltildi", dayanak);
+      assert.equal(ok.episode.sahneler[0]!.satirlar[1]!.metin, memory.yeni_metin);
+    }
+    assert.equal(correctionSupported(undefined, { bank }), false);
+    // Order-fidelity claims rest on the order itself; callers without support (old ones, the council) keep the old way.
+    assert.equal(applyFactCheck(episode(), [{ ...memory, denetim: "siparis" }], { support: { bank } }).claims[0]!.sonuc, "duzeltildi");
+    assert.equal(applyFactCheck(episode(), [memory]).claims[0]!.sonuc, "duzeltildi");
+    // In the script step: the unsupported correction is kept out and the video goes on.
+    const openai = new FakeProvider([validJson(), JSON.stringify({ iddialar: [memory] })]);
+    const budget = new V3Budget({ providers: { openai } });
+    const out = await writeScript({ brief: { ...gateBrief, konu: "Rumeli Hisarı" }, catalog: CATALOG, ...gateModels, budget });
+    assert.equal(out.episode.sahneler[0]!.satirlar[1]!.metin, original);
+    assert.deepEqual(out.factCheck.iddialar.map((c) => c.sonuc), ["dayanaksiz"]);
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama", "no second look for an unsupported claim");
+    assert.ok(factCheckPrompt("{}", "en").includes('"dayanak"'));
+    // A real fact that says nothing on the line (Zanzibar, measured 11 Nov 2026: "the Glasgow was sunk" given to erase
+    // "it fires back") is asked once more; only "celisir" lets the rewrite in, an unreadable answer does not.
+    const real = { ...memory, dayanak: "Rumeli Hisarı was completed in the summer of 1452, in four months." };
+    const ask = (answer: string) => {
+      const fake = new FakeProvider([answer]);
+      return { fake, run: confirmSupport(episode(), [real, memory], { bank }, { budget: new V3Budget({ providers: { openai: fake } }), checker: gateModels.checker }) };
+    };
+    for (const [answer, iliski, sonuc] of [[JSON.stringify({ iliski: "sessiz", neden: "the fact does not say" }), "sessiz", "dayanaksiz"], ["???", "okunamadi", "dayanaksiz"], [JSON.stringify({ iliski: "celisir" }), "celisir", "duzeltildi"]] as const) {
+      const { fake, run } = ask(answer);
+      const confirmed = await run;
+      assert.equal(fake.calls.length, 1, "only the claim with a real fact is asked");
+      assert.ok(fake.calls[0]!.prompt.includes(original) && fake.calls[0]!.prompt.includes(real.dayanak));
+      assert.equal(confirmed[0]!.dayanak_iliskisi, iliski);
+      assert.equal(confirmed[1]!.dayanak_iliskisi, undefined);
+      assert.equal(applyFactCheck(episode(), confirmed, { support: { bank } }).claims[0]!.sonuc, sonuc);
+    }
   });
 
   await scenario("I prompts carry the contract's values, the catalog and the language's own rules", () => {

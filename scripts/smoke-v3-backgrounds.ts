@@ -14,7 +14,7 @@ import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
-import { cleanObjectName, type CommonsCandidate, politeFetch, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cleanObjectName, type CommonsCandidate, politeFetch, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -399,6 +399,31 @@ async function main() {
     }
     const later = hits.find((h) => h.u.includes("/y.jpg"))!;
     assert.ok(later.t - hits[0]!.t >= 1_900, `the second caller waited out the limit: ${later.t - hits[0]!.t} ms`);
+  });
+
+  await scenario("W the contact goes to Wikimedia only, from the local setting (owner, 11 Nov 2026: 'onaylıyorum'; Gallipoli's 429 waits)", async () => {
+    const env = { ATOLYE_V3_WIKIMEDIA_CONTACT: "owner@example.org" };
+    assert.equal(userAgentFor("https://upload.wikimedia.org/a.jpg", env), "AtolyeV3/0.1 (personal documentary studio; owner@example.org)");
+    assert.ok(userAgentFor("https://en.wikipedia.org/w/api.php", env).includes("owner@example.org"));
+    assert.ok(userAgentFor("https://www.wikidata.org/wiki/Q1", env).includes("owner@example.org"));
+    for (const other of ["https://nominatim.openstreetmap.org/search", "https://api.artic.edu/x", "https://evilwikipedia.org/x", "https://wikipedia.org.example.com/x", "not a url"]) assert.equal(userAgentFor(other, env), USER_AGENT, other);
+    assert.equal(userAgentFor("https://upload.wikimedia.org/a.jpg", {}), USER_AGENT, "no setting, no contact");
+    assert.equal(userAgentFor("https://upload.wikimedia.org/a.jpg", { ATOLYE_V3_WIKIMEDIA_CONTACT: "a@b.c); x\r\nInjected: 1" }), "AtolyeV3/0.1 (personal documentary studio; a@b.c x Injected: 1)", "nothing breaks out of the header");
+    // politeFetch sends it.
+    const real = globalThis.fetch;
+    const prev = process.env.ATOLYE_V3_WIKIMEDIA_CONTACT;
+    const sent: string[] = [];
+    process.env.ATOLYE_V3_WIKIMEDIA_CONTACT = "owner@example.org";
+    globalThis.fetch = (async (_u: string | URL | Request, init?: RequestInit) => (sent.push(String((init?.headers as Record<string, string>)["User-Agent"])), new Response("ok", { status: 200 }))) as typeof fetch;
+    try {
+      await politeFetch("https://commons.wikimedia.org/w/api.php?x=1");
+      await politeFetch("https://collectionapi.metmuseum.org/x");
+    } finally {
+      globalThis.fetch = real;
+      if (prev === undefined) delete process.env.ATOLYE_V3_WIKIMEDIA_CONTACT;
+      else process.env.ATOLYE_V3_WIKIMEDIA_CONTACT = prev;
+    }
+    assert.deepEqual(sent, ["AtolyeV3/0.1 (personal documentary studio; owner@example.org)", USER_AGENT]);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

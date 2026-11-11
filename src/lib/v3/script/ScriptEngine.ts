@@ -2,12 +2,13 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { isShorts } from "../render/Format";
+import { normalizeForMatch } from "../research/SourceResearch";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { addToldStrengths } from "./ToldNumbers";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
-import { factCheckPrompt, lengthPrompt, orderFidelityPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
+import { factCheckPrompt, lengthPrompt, orderFidelityPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, supportCheckPrompt, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
 /**
@@ -44,10 +45,18 @@ export interface FactClaim {
   /** Which check found it: the editor's fact check (default) or the order-fidelity check (`siparis`). */
   readonly denetim?: "siparis";
   /**
-   * What happened to the claim: the line was rewritten, or why it was not (`bozuyor`: the episode would not validate;
-   * `sahne`: a character's line — the scene must be written again, see `applyFactCheck`).
+   * The verified fact or the order's sentence a "yanlis" line contradicts, as the checker copied it — what makes a
+   * correction more than the checker's memory (see `correctionSupported`).
    */
-  readonly sonuc?: "duzeltildi" | "rivayet_eklendi" | "rapor" | "bulunamadi" | "gecersiz_metin" | "bozuyor" | "sahne";
+  readonly dayanak?: string;
+  /** How the `dayanak` relates to the written line, as `confirmSupport` asked it; only `celisir` lets a rewrite in. */
+  readonly dayanak_iliskisi?: "celisir" | "sessiz" | "ekler" | "uyumlu" | "okunamadi";
+  /**
+   * What happened to the claim: the line was rewritten, or why it was not (`bozuyor`: the episode would not validate;
+   * `sahne`: a character's line — the scene must be written again, see `applyFactCheck`; `dayanaksiz`: no verified
+   * fact or order sentence backs the correction, so the written line stays and the claim is reported).
+   */
+  readonly sonuc?: "duzeltildi" | "rivayet_eklendi" | "rapor" | "bulunamadi" | "gecersiz_metin" | "bozuyor" | "sahne" | "dayanaksiz";
 }
 
 export interface FactCheckReport {
@@ -215,9 +224,34 @@ function readFactCheck(text: string): { iddialar: FactClaim[]; genel_not?: strin
       ...(typeof o.yeni_metin === "string" ? { yeni_metin: o.yeni_metin.trim() } : {}),
       ...(typeof o.kaynak_onerisi === "string" && o.kaynak_onerisi.trim() ? { kaynak_onerisi: o.kaynak_onerisi.trim() } : {}),
       ...(typeof o.karakter === "string" && o.karakter.trim() ? { karakter: o.karakter.trim() } : {}),
+      ...(typeof o.dayanak === "string" && o.dayanak.trim() ? { dayanak: o.dayanak.trim() } : {}),
     }];
   });
   return { iddialar, ...(typeof v.genel_not === "string" && v.genel_not.trim() ? { genel_not: v.genel_not.trim() } : {}) };
+}
+
+/** What a correction may rest on: the verified facts (and their quotes) and the owner's order. */
+export interface CorrectionSupport {
+  readonly bank?: SourceBank & { readonly alintilar?: readonly { readonly alinti: string }[] };
+  readonly order?: string;
+}
+
+/** Shortest copied text that counts as a support (a few words would match anything). */
+const SUPPORT_MIN_CHARS = 20;
+
+/**
+ * Whether a "yanlis" claim's `dayanak` really is a verified fact or a sentence of the order: the copied text is found
+ * in one of them, or one whole fact is found in it (the checker often adds the "[source-id]" it was shown). Measured on
+ * 11 Nov 2026 over the 14 kept fact checks: of the 4 corrections applied, the 2 a bank fact backed were right (Rubicon,
+ * pirates' throats cut) and the 2 none backed turned a right line wrong (Gallipoli "I order you to die" moved from 25
+ * April to August; Zanzibar's royal yacht "did not return fire") — owner, 11 Nov 2026: "ölçerek düzelt".
+ */
+export function correctionSupported(dayanak: string | undefined, support: CorrectionSupport): boolean {
+  const clean = (s: string) => normalizeForMatch(s).replace(/^[-•*\s]*(\[[^\]]*\]\s*)?/u, "").replace(/^["'\s]+|["'\s.…]+$/gu, "");
+  const quote = dayanak ? clean(dayanak) : "";
+  if (quote.length < SUPPORT_MIN_CHARS) return false;
+  const texts = [...(support.bank?.olgular ?? []).map((o) => o.metin), ...(support.bank?.alintilar ?? []).map((a) => a.alinti), ...(support.order ? [support.order] : [])].map(clean).filter((t) => t.length >= SUPPORT_MIN_CHARS);
+  return texts.some((t) => t.includes(quote) || quote.includes(t));
 }
 
 /** Name words of a text: capitalised words not opening a sentence ("Hasdrubal's" → "Hasdrubal"). */
@@ -315,9 +349,11 @@ export async function checkFacts(episode: Episode, dil: ScriptLanguage, bank: So
  * and `rivayet`; an unsupported one is only reported (a suggested source cannot be verified here). A correction may
  * give the line to another cast member (`karakter`, or a "Maharbal: …" the checker wrote into the text); a line with a
  * speech bubble gets the new words in it (the old bubble would have floated the wrong history). Each correction is kept
- * only if a valid episode stays valid — until 9 Nov 2026 one bad correction threw all of them away.
+ * only if a valid episode stays valid — until 9 Nov 2026 one bad correction threw all of them away. With `support`
+ * (the production's bank and order) the editor's "yanlis" rewrite is applied only when its `dayanak` is one of them
+ * (`correctionSupported`); the order-fidelity check's claims rest on the order itself.
  */
-export function applyFactCheck(episode: Episode, claims: readonly FactClaim[]): { episode: Episode; claims: FactClaim[]; applied: number } {
+export function applyFactCheck(episode: Episode, claims: readonly FactClaim[], opts: { readonly support?: CorrectionSupport } = {}): { episode: Episode; claims: FactClaim[]; applied: number } {
   type Line = Record<string, unknown> & { karakter?: string; metin?: string; balon?: string };
   let copy = JSON.parse(JSON.stringify(episode)) as { oyuncu_kadrosu?: { id: string; ad: string; gorunur?: boolean }[]; sahneler: { id: string; satirlar: Line[] }[] };
   const cast = copy.oyuncu_kadrosu ?? [];
@@ -334,6 +370,7 @@ export function applyFactCheck(episode: Episode, claims: readonly FactClaim[]): 
     // a line is not patched; the history gate has the script written again (V3_SCRIPT_HISTORY).
     const told = copy.sahneler.find((s) => s.id === claim.sahne)!.satirlar[claim.satir]!;
     if (claim.karar === "yanlis" && told.kurgu === true && told.karakter !== "anlatici") return { ...claim, sonuc: "sahne" };
+    if (opts.support && claim.karar === "yanlis" && claim.denetim !== "siparis" && (!correctionSupported(claim.dayanak, opts.support) || (claim.dayanak_iliskisi !== undefined && claim.dayanak_iliskisi !== "celisir"))) return { ...claim, sonuc: "dayanaksiz" };
     let text = (claim.yeni_metin ?? "").trim().replace(/^["“]([\s\S]*)["”]$/u, "$1").trim();
     let speaker = claim.karakter ? castBy(claim.karakter) : undefined;
     const prefixed = /^([^:"“]{2,40}):\s*([\s\S]+)$/u.exec(text);
@@ -374,10 +411,42 @@ export function applyFactCheck(episode: Episode, claims: readonly FactClaim[]): 
 
 /**
  * A wrong line the corrections could not put right — the production must not go on with it. A claim about a line the
- * episode does not have (`bulunamadi`: the checker's own slip of scene or index) is reported, never a reason to stop.
+ * episode does not have (`bulunamadi`: the checker's own slip of scene or index) is reported, never a reason to stop;
+ * so is one no fact backs (`dayanaksiz`: measured, those were the checker's memory turning right lines wrong).
  */
 export function unresolvedErrors(claims: readonly FactClaim[]): FactClaim[] {
   return claims.filter((c) => c.karar === "yanlis" && (c.sonuc === "gecersiz_metin" || c.sonuc === "bozuyor" || c.sonuc === "rapor" || c.sonuc === "sahne"));
+}
+
+const RELATIONS = ["celisir", "sessiz", "ekler", "uyumlu"] as const;
+
+/**
+ * Asks, for each rewrite `applyFactCheck` would apply on a real bank fact, whether that fact rules the written line
+ * out (ScriptPrompts.supportCheckPrompt) and records the answer in `dayanak_iliskisi`. Measured on 11 Nov 2026 with
+ * gpt-4.1, three runs each: 27/27 right over nine cases (four held out of the prompt), where the editor alone gave a
+ * true fact that says nothing on the line ("the Glasgow was sunk") to erase "it fires back", two runs of two. An answer
+ * that cannot be read counts as no contradiction: an unsupported rewrite was the measured harm, a reported line is not.
+ */
+export async function confirmSupport(episode: Episode, claims: readonly FactClaim[], support: CorrectionSupport, input: Pick<ScriptEngineInput, "budget" | "checker">): Promise<FactClaim[]> {
+  const out: FactClaim[] = [];
+  for (const claim of claims) {
+    const line = episode.sahneler.find((s) => s.id === claim.sahne)?.satirlar[claim.satir];
+    const asks = claim.karar === "yanlis" && claim.denetim !== "siparis" && line && !(line.kurgu === true && line.karakter !== "anlatici") && claim.yeni_metin && correctionSupported(claim.dayanak, support);
+    if (!asks) {
+      out.push(claim);
+      continue;
+    }
+    const answer = await input.budget.generate("dogrulama-dayanak", input.checker, supportCheckPrompt(line.metin, claim.yeni_metin!, claim.dayanak!), { maxTokens: 200 }).catch(() => undefined);
+    const parsed = answer ? parse(answer.result.content) : undefined;
+    const iliski = parsed?.ok && typeof parsed.value === "object" && parsed.value !== null ? (parsed.value as { iliski?: unknown }).iliski : undefined;
+    out.push({ ...claim, dayanak_iliskisi: RELATIONS.includes(iliski as (typeof RELATIONS)[number]) ? (iliski as (typeof RELATIONS)[number]) : "okunamadi" });
+  }
+  return out;
+}
+
+/** What the production's corrections may rest on: its source bank (with the research quotes) and the order. */
+function supportOf(brief: ScriptBrief): CorrectionSupport {
+  return { ...(brief.kaynakBankasi ? { bank: brief.kaynakBankasi as CorrectionSupport["bank"] } : {}), order: brief.konu };
 }
 
 /** The gate's stop: the wrong lines with their reasons, for the log, AYAS and the next draft. */
@@ -413,9 +482,9 @@ async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome
   const validation = validateEpisode(written);
   if (!validation.ok) throw new ScriptError("V3_SCRIPT_INVALID", `birleşen bölümler: ${validation.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);
   const reports = draft.factChecks.map((text) => readFactCheck(text));
-  const claims = reports.flatMap((r) => r?.iddialar ?? []);
+  const claims = await confirmSupport(written, reports.flatMap((r) => r?.iddialar ?? []), supportOf(input.brief), input);
   const notes = reports.map((r) => r?.genel_not).filter((n): n is string => Boolean(n));
-  const fixed = applyFactCheck(written, claims);
+  const fixed = applyFactCheck(written, claims, { support: supportOf(input.brief) });
   const fixedValidation = validateEpisode(fixed.episode);
   const keep = fixedValidation.ok;
   // The same history gate as a Short's (order compared fact by fact; a wrong line still standing stops here).
@@ -557,10 +626,11 @@ export async function checkScriptHistory(written: Episode, brief: ScriptBrief, i
   const editor = await input.budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
   const report = readFactCheck(editor.result.content);
   if (!report) return undefined;
-  const fixed = applyFactCheck(written, report.iddialar);
+  const claims = await confirmSupport(written, report.iddialar, supportOf(brief), input);
+  const fixed = applyFactCheck(written, claims, { support: supportOf(brief) });
   // A correction must never break a valid episode; if one would, the written text stays and the claims are reported.
   const keep = validateEpisode(fixed.episode).ok;
-  const checked = await historyGate({ episode: keep ? fixed.episode : written, claims: keep ? fixed.claims : report.iddialar.map((c) => ({ ...c, sonuc: "rapor" as const })), applied: keep ? fixed.applied : 0 }, brief, input);
+  const checked = await historyGate({ episode: keep ? fixed.episode : written, claims: keep ? fixed.claims : claims.map((c) => ({ ...c, sonuc: "rapor" as const })), applied: keep ? fixed.applied : 0 }, brief, input);
   return {
     episode: checked.episode,
     factCheck: { durum: "tamam", iddialar: checked.claims, ...(report.genel_not ? { genel_not: report.genel_not } : {}), uygulanan: checked.applied },
@@ -602,8 +672,8 @@ async function historyGate(
   // A wrong line still standing: the editor reads the corrected script once more; what it still calls wrong must go.
   const second = await input.budget.generate("dogrulama-2", input.checker, factCheckPrompt(JSON.stringify(episode), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
   const report = readFactCheck(second.result.content);
-  const fixed = report ? applyFactCheck(episode, report.iddialar) : undefined;
+  const fixed = report ? applyFactCheck(episode, await confirmSupport(episode, report.iddialar, supportOf(brief), input), { support: supportOf(brief) }) : undefined;
   const left = fixed ? unresolvedErrors(fixed.claims) : unresolvedErrors(claims);
   if (left.length) throw historyStop(left, fixed?.episode ?? episode);
-  return { episode: fixed!.episode, claims: [...claims.map((c) => (c.karar === "yanlis" && c.sonuc !== "duzeltildi" ? { ...c, sonuc: "rapor" as const } : c)), ...fixed!.claims], applied: applied + fixed!.applied };
+  return { episode: fixed!.episode, claims: [...claims.map((c) => (c.karar === "yanlis" && c.sonuc !== "duzeltildi" && c.sonuc !== "dayanaksiz" ? { ...c, sonuc: "rapor" as const } : c)), ...fixed!.claims], applied: applied + fixed!.applied };
 }

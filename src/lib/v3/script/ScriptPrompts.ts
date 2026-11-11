@@ -685,6 +685,24 @@ Return ONLY this JSON:
  * flagged "only when they contradict the period") and spent its answer on army sizes — once "correcting" Polybius'
  * 86,000 to 70,000. The owner had the video stopped ("evet durdur ve bu durdurmayı sonraki videolar için sisteme ekle").
  */
+/**
+ * One correction's fact asked whether it really rules the written line out. The editor's `dayanak` is a real bank fact
+ * but not always a contradiction: measured on 11 Nov 2026, "The British sank the royal yacht HHS Glasgow" was given,
+ * twice of two, to rewrite the true "the Glasgow fires back" as "did not return fire". Answered by ScriptEngine.
+ */
+export function supportCheckPrompt(line: string, correction: string, fact: string): string {
+  return `A history editor wants to rewrite a line of a documentary because of a verified fact. Decide only whether the fact proves the line wrong.
+LINE: ${line}
+PROPOSED REWRITE: ${correction}
+VERIFIED FACT: ${fact}
+Say how the fact relates to what the line states:
+- "celisir": the fact states the opposite of something the line says (another person, another order of events, another date, place or number) — both cannot be true;
+- "sessiz": the fact does not mention what the line says, even if the rewrite drops it (a fact that a ship was sunk says nothing on whether it fired first);
+- "ekler": the fact adds a detail the line leaves out, without ruling the line out;
+- "uyumlu": the fact agrees with the line.
+Return ONLY JSON: {"iliski":"celisir|sessiz|ekler|uyumlu","neden":"one short sentence"}`;
+}
+
 export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank, order?: string): string {
   const lang = dil === "tr" ? "Turkish" : "American English";
   const truth = bank
@@ -701,13 +719,14 @@ Look hardest at the errors that matter most, in this order:
 4. Numbers, dates and places: a figure inside the range the main ancient or modern sources give is "dogru" — never replace one source's figure with another's; only a figure no source gives is "yanlis".
 For each problem line decide: "tartismali" (disputed / traditional account), "yanlis" (wrong) or "kaynaksiz" (plausible but its cited source does not support it or none is cited).
 - yanlis: give "yeni_metin", the corrected line in the same language, length and style; a joke stays a joke where it can. When history gives the words to another character, also give "karakter": that character's id from oyuncu_kadrosu (the line as they say it).
+- yanlis: also give "dayanak": the VERIFIED FACT or the sentence of THE OWNER'S ORDER the line contradicts, copied exactly. A correction without one is not applied — your memory of a date, place or detail is not proof (one moved a famous order to the wrong month). A date, place, number or detail nothing listed contradicts is "kaynaksiz" (say why in "gerekce"); a swapped person or deed (rule 1) stays "yanlis".
 - tartismali: give "yeni_metin" with a hedge ("${dil === "tr" ? "rivayete göre" : "legend has it"}" or similar) added.
 - kaynaksiz: give "kaynak_onerisi" only for a work you are certain exists; otherwise leave it out.
 - Character lines with "kurgu": true are invented wording: their exact words need no source, but rules 1–3 apply to them.
 - Costumes and settings: a visible real person dressed as they would not be in that scene (a civilian toga on the battlefield, armour of another age) and other anachronisms of costume or setting go in "genel_not".
 List ONLY problem lines (never correct ones). "sahne" is the scene id, "satir" the 0-based line index.
 Return ONLY this JSON:
-{"iddialar":[{"sahne":"s1-kanca","satir":0,"karar":"yanlis","gerekce":"…","yeni_metin":"…","karakter":"<only when another character says it>","kaynak_onerisi":"…"}],"genel_not":"…"}
+{"iddialar":[{"sahne":"s1-kanca","satir":0,"karar":"yanlis","gerekce":"…","yeni_metin":"…","karakter":"<only when another character says it>","dayanak":"<the verified fact or order sentence, copied>","kaynak_onerisi":"…"}],"genel_not":"…"}
 
 EPISODE:
 ${episodeJson}`;

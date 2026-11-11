@@ -10,6 +10,23 @@ import { type CreditRecord, judgeLicense } from "./LicenseFilter";
 const API = "https://commons.wikimedia.org/w/api.php";
 export const USER_AGENT = "AtolyeV3/0.1 (personal documentary studio; local tool)";
 
+/**
+ * The User-Agent for one request. Wikimedia's User-Agent policy asks a client for a way to reach its operator, and
+ * clients without one are throttled first (Gallipoli, 10 Nov 2026: the visual step took 6734 s, most of it 429
+ * waits). The owner approved sending a contact on 11 Nov 2026 ("onaylıyorum"); it is read from
+ * ATOLYE_V3_WIKIMEDIA_CONTACT (the git-ignored .env.v3.local, never the repo) and goes only to Wikimedia's own hosts.
+ */
+export function userAgentFor(url: string, env: Readonly<Record<string, string | undefined>> = process.env): string {
+  const contact = env.ATOLYE_V3_WIKIMEDIA_CONTACT?.replace(/[()\r\n;]+/g, " ").replace(/\s+/g, " ").trim();
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return USER_AGENT;
+  }
+  return contact && /(^|\.)(wikimedia|wikipedia|wikidata)\.org$/.test(host) ? `AtolyeV3/0.1 (personal documentary studio; ${contact})` : USER_AGENT;
+}
+
 export interface CommonsCandidate {
   readonly title: string;
   /** Where it was found: a Wikipedia article about the subject, a Commons search, or a museum collection. */
@@ -75,7 +92,7 @@ export async function politeFetch(url: string, tries = 5): Promise<Response> {
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     }
     // The Art Institute of Chicago answers its image server only with its own header (403 without it, 21 Oct 2026).
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, ...(/(^|\.)artic\.edu$/.test(new URL(url).hostname) ? { "AIC-User-Agent": USER_AGENT } : {}) } });
+    const res = await fetch(url, { headers: { "User-Agent": userAgentFor(url), ...(/(^|\.)artic\.edu$/.test(new URL(url).hostname) ? { "AIC-User-Agent": USER_AGENT } : {}) } });
     if ((res.status !== 429 && res.status !== 503) || i >= tries - 1) return res;
     const after = Number(res.headers.get("retry-after"));
     const pause = Number.isFinite(after) && after > 0 ? Math.min(after, 60) * 1000 : 2000 * 2 ** i;
