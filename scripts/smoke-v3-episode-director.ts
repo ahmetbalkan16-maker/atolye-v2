@@ -35,7 +35,7 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
-import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
+import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, slideIn, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
 import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes, labelSpot } from "../remotion-v3/src/scene/hudLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
@@ -2175,6 +2175,20 @@ async function main() {
     assert.equal(pairAim(800, 125, [{ x: 800 - 0.85 * winW }], winW), lo, "too far for both: the speaker stays whole at the window's edge");
     for (let d = 200; d < 1000; d += 5) assert.ok(Math.abs(pairAim(800, 125, [{ x: 800 + d + 5 }], winW) - pairAim(800, 125, [{ x: 800 + d }], winW)) < 12, `jump at ${d}`);
     assert.equal(pairAim(800, 125, [], winW), 800);
+    // A shot sliding in: on the 16:9 frame as before; in a Short the window keeps showing its own part of the stage and
+    // stays filled (the Taranto Short's window showed another part of the map: sea 49% → 2% for the slide).
+    const slide169 = slideIn(0, 1920);
+    assert.ok(Math.abs(slide169.dx - 672) < 1e-9 && Math.abs(slide169.scale - 1.4) < 1e-9 && slide169.originX === 1920, JSON.stringify(slide169));
+    assert.deepEqual(slideIn(1, 1920, { x: 700, width: winW }), { dx: 0, scale: 1, originX: 700 + winW });
+    assert.ok(Math.abs(slideIn(0, 1920, { x: 700, width: winW }).dx - 0.35 * winW) < 1e-9, "a Short slides by its window, not by the stage");
+    for (const x of [0, 700, 1920 - winW]) {
+      for (let t = 0; t <= 1; t += 0.1) {
+        const s = slideIn(t, 1920, { x, width: winW });
+        // The stage x seen at a window edge: back through the slide and the growth about its origin.
+        const seen = (p: number) => s.originX + (p - s.dx - s.originX) / s.scale;
+        assert.ok(seen(x) >= x - 1e-9 && seen(x + winW) <= x + winW + 1e-9, `window at ${x}, t ${t.toFixed(1)}: ${seen(x)}–${seen(x + winW)}`);
+      }
+    }
     // ...with whom they talk, fixed for the line (Caesar between his friend and the pirate flipped mid-line); and the
     // narration's actor in turn (the chaser here).
     const talk = windowAims([{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }], 30);
