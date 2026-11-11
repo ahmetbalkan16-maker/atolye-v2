@@ -347,7 +347,7 @@ async function main() {
     for (const needle of ["yumruk_kaldir", "murekkep", "top_atisi", "paket ottoman-1453", "padisah-kavugu", "rivayete göre", `${wordBudget({ konu: "", donem: "", hedefSureSn: 90, ton: "mizahi", dil: "tr" })} konuşulan kelime`]) {
       assert.ok(tr.includes(needle), `tr istemde yok: ${needle}`);
     }
-    const en = writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 90, ton: "epik", dil: "en" }, CATALOG);
+    const en = writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 240, ton: "epik", dil: "en" }, CATALOG);
     assert.ok(en.includes("American English") && en.includes("legend has it") && !en.includes("ANLATIM KURALLARI"));
     assert.ok(factCheckPrompt("{}", "en").includes("legend has it"));
     // A Short (60 s or less, owner 2 Nov 2026): hook in 2 s, one moment, no subscribe line, a loop; longer has none of it.
@@ -358,7 +358,11 @@ async function main() {
     assert.ok(short.includes("SHARES OF A SHORT") && short.includes("about 70% of the running time on the map") && short.includes("3–5 scenes") && short.includes("as their\n  badges"), short.slice(0, 400));
     assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 45, ton: "mizahi", dil: "tr" }, CATALOG).includes("SHORT PAYLARI"));
     assert.ok(!en.includes("SHARES OF A SHORT"));
-    assert.ok(!en.includes("YOUTUBE SHORT"), "a 90 s video is a normal one");
+    assert.ok(!en.includes("YOUTUBE SHORT"), "a 4-minute video is a normal one");
+    // Owner, 11 Nov 2026: a Short runs up to 3 minutes; its scene count grows with the length, still one event.
+    const long = writingPrompt({ konu: "Taranto", donem: "1940", hedefSureSn: 180, ton: "epik", dil: "en" }, CATALOG);
+    assert.ok(long.includes("YOUTUBE SHORT") && long.includes("7–12 scenes") && long.includes("3–5 visible characters") && long.includes("still one event") && !long.includes("3–5 scenes"), long.slice(0, 400));
+    assert.ok(!short.includes("still one event") && short.includes("3 visible characters"));
   });
 
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {

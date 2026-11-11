@@ -205,7 +205,7 @@ async function main() {
     assert.deepEqual(plan.layoutProbe, { every: 15, dir: `yerlesim-${ep.id.replace(/[^0-9a-zA-Z_-]+/g, "-")}` });
     assert.equal(plan.stage, undefined, "a normal video's frame is its stage");
     // A Short (owner, 2 Nov 2026): the same shots on the 16:9 stage, a 1080×1920 frame, no subscribe card.
-    assert.deepEqual([isShorts(60), isShorts(61)], [true, false]);
+    assert.deepEqual([isShorts(60), isShorts(180), isShorts(181)], [true, true, false]);
     const short = buildRenderPlan({ episode: ep, timeline: tl, cast, accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, ...STAGE_SIZE, output: SHORTS_SIZE, endCard: false, showCaptions: false });
     assert.deepEqual([short.width, short.height, short.stage], [1080, 1920, { width: 1920, height: 1080 }]);
     // ...laid out for its window (owner review, 3 Nov 2026): the cast side by side, no camera closer than a pair fits.
@@ -1988,7 +1988,7 @@ async function main() {
     assert.equal(validateEpisode(drafted.value).ok, true);
 
     // A Short's ordered length is a ceiling (51 s of a 60 s Short passes), a long video's a target.
-    assert.deepEqual([lengthOk(51, 60), lengthOk(60, 60), lengthOk(60.5, 60), lengthOk(25, 60), lengthOk(115, 120), lengthOk(105, 120)], [true, true, false, false, true, false]);
+    assert.deepEqual([lengthOk(51, 60), lengthOk(60, 60), lengthOk(60.5, 60), lengthOk(25, 60), lengthOk(115, 120), lengthOk(105, 120), lengthOk(170, 180), lengthOk(181, 180), lengthOk(80, 180), lengthOk(290, 300), lengthOk(265, 300)], [true, true, false, false, true, true, true, false, false, true, false]);
 
     // Who opens: the narrator (the Short's lesson for the script brain) or a visible character.
     const characterFirst: Episode = { ...ep, sahneler: [{ ...base, satirlar: base.satirlar.slice(1) }] };

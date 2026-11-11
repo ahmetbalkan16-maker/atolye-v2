@@ -1,7 +1,7 @@
 /**
  * Crowns & Doodles — video goals and the post-publish learning loop (owner, 5 Nov 2026).
  *
- *   npx tsx scripts/v3/kanal.ts hedefler [--sure 30,45,60]   goals from content/v3/kanal-hedefleri.json, per length
+ *   npx tsx scripts/v3/kanal.ts hedefler [--sure 60,120,180]   goals from content/v3/kanal-hedefleri.json, per length
  *   npx tsx scripts/v3/kanal.ts ornek > olcum.json           an empty measurement to fill from YouTube Studio
  *   npx tsx scripts/v3/kanal.ts kaydet --dosya olcum.json    record it, judge it against the goals, teach the brains
  *   npx tsx scripts/v3/kanal.ts rapor                        every measured video, the next Short's targets, the pilot
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     console.log(`${goals.kanal.ad} (${goals.kanal.dil}) — kaynak: ${goals.baslangic.kaynak}`);
     console.log(`Başlangıç (video ${goals.baslangic.video.videoId}, ${goals.baslangic.video.sureSn} sn): izlemeyi seçenler ${pct(goals.baslangic.video.izlemeyiSecenler)}, ort. ${goals.baslangic.video.ortIzlemeSn} sn`);
     console.log(`Short hedefi (${s.durum}): izlemeyi seçenler ${pct(s.izlemeyiSecenler.min)}–${pct(s.izlemeyiSecenler.max)}, ort. izlenme videonun ${pct(s.ortIzlenmeOrani.min)}–${pct(s.ortIzlenmeOrani.max)}'i`);
-    for (const sure of (arg("--sure") ?? "30,45,60").split(",").map(Number).filter((n) => n > 0)) {
+    for (const sure of (arg("--sure") ?? "60,120,180").split(",").map(Number).filter((n) => n > 0)) {
       const t = viewTargetSeconds(goals, sure);
       console.log(`  ${sure} sn: ort. izlenme hedefi ${t ? `${t.min}–${t.max} sn` : "tanımlı değil"}; bölümler ${sure <= 60 ? shortBeats(goals, sure).map((b) => `${b.id} ${b.basSn}–${b.bitSn}`).join(", ") : "(uzun video)"}`);
     }

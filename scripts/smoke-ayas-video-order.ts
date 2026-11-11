@@ -94,7 +94,10 @@ async function main() {
     assert.deepEqual(len("Rubicon hakkında 3 dakikalık bir video hazırla"), ["Rubicon", "3dk"], "assert.deepEqual(len(\"Rubicon hakkında 3 dakikalık bir video hazırla\"), [\"Rubicon\", \"3dk\"])");
     assert.deepEqual(len("Rubicon hakkında 90 saniyelik video yap"), ["Rubicon", "90sn"], "assert.deepEqual(len(\"Rubicon hakkında 90 saniyelik video yap\"), [\"Rubicon\", \"90sn\"])");
     assert.deepEqual(len("Rubicon hakkında 2 dk'lık kısa bir video yap"), ["Rubicon", "2dk"], "assert.deepEqual(len(\"Rubicon hakkında 2 dk'lık kısa bir video yap\"), [\"Rubicon\", \"2dk\"])");
-    assert.deepEqual(len("make a short video about the Fall of Rome"), ["the Fall of Rome", SHORT_ORDER_LENGTH], "assert.deepEqual(len(\"make a short video about the Fall of Rome\"), [\"the Fall of Rome\", SHORT_ORDER_LENGTH])");
+    // Owner, 11 Nov 2026: a Short is 3 minutes, a "shorts videosu" order included.
+    assert.deepEqual(len("Taranto Baskını hakkında shorts videosu yap"), ["Taranto Baskını", "3dk"], "a shorts order is a 3-minute Short");
+    assert.deepEqual(len("Taranto Baskını hakkında 3 dakikalık shorts videosu yap"), ["Taranto Baskını", "3dk"], "a 3-minute shorts order");
+    assert.deepEqual(len("make a short video about the Fall of Rome"), ["the Fall of Rome", SHORT_ORDER_LENGTH],"assert.deepEqual(len(\"make a short video about the Fall of Rome\"), [\"the Fall of Rome\", SHORT_ORDER_LENGTH])");
     assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"], "assert.deepEqual(len(\"make a 3-minute video about the Fall of Rome\"), [\"the Fall of Rome\", \"3dk\"])");
     assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined], "assert.deepEqual(len(\"Yüz Yıl Savaşı hakkında video yap\"), [\"Yüz Yıl Savaşı\", undefined])");
     assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"], "assert.deepEqual(len(\"1453 İstanbul'un fethi hakkında 5 dakikalık video yap\"), [\"1453 İstanbul'un fethi\", \"5dk\"])");

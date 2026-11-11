@@ -1,5 +1,6 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { SHORTS_MAX_S } from "../render/Format";
 import { type BrainId, readJsonAnswer } from "./Council";
 
 /**
@@ -277,9 +278,12 @@ export async function listReferences(workRoot: string): Promise<ReferenceRecord[
   return out;
 }
 
-/** Shorts and long videos are paced differently: targets come from references of the same kind. */
+/**
+ * Shorts and long videos are paced differently: targets come from references of the same kind. A Short runs up to
+ * SHORTS_MAX_S (3 minutes since 11 Nov 2026; YouTube allows the same); a few seconds over it are measuring slack.
+ */
 export type VideoKind = "short" | "uzun";
-export const kindOf = (durationS: number): VideoKind => (durationS <= 75 ? "short" : "uzun");
+export const kindOf = (durationS: number): VideoKind => (durationS <= SHORTS_MAX_S + 5 ? "short" : "uzun");
 
 export interface ReferenceTargets {
   readonly tur: VideoKind;

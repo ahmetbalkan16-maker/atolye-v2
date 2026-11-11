@@ -109,7 +109,7 @@ export function searchTopicOf(text: string): string | undefined {
 const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
 const LENGTH_TR = "\\d{1,4}\\s*(?:dakikalık|saniyelik|dk['’]?lık|sn['’]?lik)";
-const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
+const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|shorts?|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
 const ORDER_TR_COLON = new RegExp(`^${VIDEO}\\s+${MAKE}\\s*[:\\-–]\\s*(.{3,160})$`, "u");
 const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:(?:short|new|\d{1,4}[- ]?(?:minute|min|second|sec)s?)\s+){0,2}(?:video|episode)\s+(?:about|on)\s+(.{3,160})$/u;
 // A video/order word in any inflection and a progress question anywhere after it ("videom ne durumda", "Sezar videosu
@@ -126,7 +126,10 @@ const PUBLISH_APPROVE_TR = /^(?:(.{0,80}?)\s+)?(?:video\p{L}*\s+)?(?:yüklemeyi|
 const PUBLISH_EN = /^(?:please\s+)?(?:upload|publish)\s+(?:the\s+)?(.{0,80}?)\s*(?:video|short)(?:\s+now)?$/u;
 const NOW_WORD = /(?<!\p{L})(?:hemen|şimdi|now)(?!\p{L})/u;
 
-/** A "kısa"/"short" video without a number: a short-form episode (under the long-form line, the $1 cap). */
+/**
+ * A "kısa"/"short"/"shorts" video without a number: a 3-minute vertical Short (owner, 11 Nov 2026: Shorts run 3
+ * minutes, no more 60 s; under the long-form line, the $1 cap).
+ */
 export const SHORT_ORDER_LENGTH = "3dk";
 
 /** Long episodes run 20–30 minutes (owner, 23 Oct 2026: "maksimum 30 dakika, minimum 20 dakika", no 45 for now). */
@@ -151,7 +154,7 @@ export function lengthOf(words: string): string | undefined {
     const n = Math.max(20, Number(sec[1]));
     return `${n < SHORT_TRIAL_MAX_MIN * 60 ? n : Math.min(LONG_ORDER_MAX_MIN * 60, Math.max(LONG_ORDER_MIN_MIN * 60, n))}sn`;
   }
-  return /(?:^|\s)(?:kısa|short)\s/u.test(` ${words} `) ? SHORT_ORDER_LENGTH : undefined;
+  return /(?:^|\s)(?:kısa|shorts?)\s/u.test(` ${words} `) ? SHORT_ORDER_LENGTH : undefined;
 }
 
 /** Period words in the topic ("MÖ 49", "1452", "1919–1922", "16. yüzyıl"), else left to the script's research. */

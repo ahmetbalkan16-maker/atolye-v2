@@ -145,6 +145,8 @@ async function main() {
     const rec = (id: string, sureSn: number, kelimeDk: number, kesmeDk: number, sozDegisimiDk?: number): ReferenceRecord => ({ id, url: "", baslik: id, kanal: "", dil: "en", tarih: "", neden: "", olcum: { sureSn, kelimeDk, kesmeDk, ortCekimSn: 60 / kesmeDk, ilkSozSn: 0.5, ...(sozDegisimiDk !== undefined ? { sozDegisimiDk } : {}) }, kareler: [], ozet: "", dersler: [], eksik: [] });
     const refs = [rec("a", 900, 100, 4, 8), rec("b", 1200, 160, 6), rec("c", 1500, 140, 5, 10), rec("s", 50, 200, 20)];
     assert.equal(kindOf(60), "short");
+    assert.equal(kindOf(180), "short", "a 3-minute Short (owner, 11 Nov 2026)");
+    assert.equal(kindOf(240), "uzun");
     assert.equal(kindOf(600), "uzun");
     const t = referenceTargets(refs, "uzun")!;
     assert.equal(t.kaynak, 3);

@@ -1,3 +1,29 @@
+## 11 Kasım 2026 (3) — Shorts 60 sn → 3 dakika (dikey, $1 tavan); Taranto Baskını Short siparişi
+
+Owner: "shorts videosu 60 saniyedi bunu 3 dakikaya çıkartmak istiyorum. yine dikey ölçü olacak ama video süresi 3 dakika
+yine tavan 1 dolar olacak … 60 saniye kullanmak istemiyorum artık" ve "bu dediğim video yeni 3 dakikalık shorts videosu
+olacak" (Taranto Baskını – 11 Kasım 1940). Skill: `v3-gelistirici`.
+
+**Yapılan:**
+- `src/lib/v3/render/Format.ts`: `SHORTS_MAX_S` 60 → 180. 180 sn'ye kadar her video dikey 1080×1920 Short; `lengthOk`
+  tavanı aşmayan, yarısından kısa olmayan süreyi kabul eder (3 dk Short: 90–180 sn). YouTube takvimi
+  (`PublishCalendar.videoKind`), kanal hedefleri (`ChannelGoals`), yazar/kurgu/kurul Short kuralları bu sabiti izler.
+- $1 tavanı zaten 300 sn'ye kadar geçerli (`V3Budget.videoCapUsd`), kurul payı 10 sent — değişmedi.
+- `ScriptPrompts.shortsShape`: Short'un sahne sayısı süreyle büyür (60 sn 3–5, 180 sn 7–12 sahne; 90 sn üstü 3–5
+  görünür karakter). 90 sn üstünde "tek an" kuralı korunur, o anın hazırlığı ve sonucu da anlatılır (başka olay yok).
+- `AyasVideoOrder`: "shorts videosu yap" siparişi tanınır ve sayı yoksa 3 dk olur (`SHORT_ORDER_LENGTH` zaten "3dk").
+- `ReferenceStore.kindOf`: referans videolarda Short sınırı `SHORTS_MAX_S + 5` (önce 75 sn).
+- `scripts/v3/gelisim.ts` kendi Short araması hedefi 60 → `SHORTS_MAX_S`; `kanal.ts hedefler` varsayılanı 60,120,180.
+- **Sonuç:** daha önce yatay olan 90 sn ve 3 dk deneme videoları artık dikey Short olur (owner'ın yeni kuralı).
+
+**Test:** `npx tsc --noEmit` 0; `node scripts/lint-yerel.mjs` 0 hata/0 uyarı; 19 `smoke-v3-*` suite'inin hepsi PASS,
+`smoke-ayas-video-order` (yeni: "shorts videosu" → 3dk), `smoke-ayas-action-firewall-closure` PASS. Testlerdeki
+60/61 sınırları 180/181'e, "3dk = uzun" fikstürü "20dk"ya taşındı.
+
+**Sıradaki:** Taranto Baskını (11 Kasım 1940) 3 dk dikey Short siparişi — kod canlıya ve canonical repoya geçince
+verilir; izleyici (`yapim.ts izle`, canonical) yeni kodla üretir. İlk 3 dakikalık Short gerçek test: sahne sayısı,
+harita payı (~%70) ve $1 tavanı izlenmeli.
+
 ## 11 Kasım 2026 (2) — owner kararları: ölçülü tarih düzeltmesi, Wikimedia iletişimi, rozet/cephe düzeni; Canva sorusu
 
 Owner: "1. evet yükledim. 2. ölçerek düzelt. 3. onaylıyorum. 4. evet al ve düzelt bir daha yapmasın" ve "canva …

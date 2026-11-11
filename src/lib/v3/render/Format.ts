@@ -1,11 +1,13 @@
 /**
- * The video's shape by its length (owner decision, 2 Nov 2026): 60 seconds or less is a vertical YouTube Short
+ * The video's shape by its length (owner decision, 2 Nov 2026; raised to 3 minutes 11 Nov 2026: "shorts videosu 60
+ * saniyedi bunu 3 dakikaya çıkartmak istiyorum … 60 saniye kullanmak istemiyorum artık"): 180 seconds or less is a
+ * vertical YouTube Short
  * (1080×1920), anything longer a normal 16:9 video. A Short keeps the same drawn world — sets, puppets and living maps
  * are laid out on the 16:9 stage as always — and a vertical window over the stage follows who speaks (ShotView); titles,
  * cards and speech are laid out on the vertical screen. No burned-in subtitles in either (owner, 2 Nov 2026: "koymasan
  * daha iyi").
  */
-export const SHORTS_MAX_S = 60;
+export const SHORTS_MAX_S = 180;
 
 export const isShorts = (targetS: number): boolean => targetS <= SHORTS_MAX_S;
 

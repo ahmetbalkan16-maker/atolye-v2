@@ -37,6 +37,7 @@ import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/Produc
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { unloadOllama } from "../../src/lib/v3/util/Gpu";
 import { healthDirs, healthLine, type PcHealth, waitForPcHealth } from "../../src/lib/v3/util/PcHealth";
+import { SHORTS_MAX_S } from "../../src/lib/v3/render/Format";
 import { runProcess } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
 
@@ -320,7 +321,7 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
         const s = nextSearch(searches, history);
         if (!s) break;
         query = s.sorgu;
-        target = s.tur === "short" ? 60 : 900;
+        target = s.tur === "short" ? SHORTS_MAX_S : 900;
         neden = `kendi araması: ${query}`;
         history[query] = new Date().toISOString();
         await writeAtomic(historyFile, history);

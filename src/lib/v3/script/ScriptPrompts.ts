@@ -177,8 +177,22 @@ const SHORT_SHARES: Readonly<Record<ScriptLanguage, string>> = {
 };
 
 /**
+ * How many scenes and visible characters a Short gets. A 60 s Short was 3–5 scenes with three characters; the owner's
+ * 3-minute Shorts (11 Nov 2026) would stretch that to 40–60 s scenes, so the count grows with the length and keeps
+ * the long rules' pace of a new picture every 15–25 s.
+ */
+export function shortsShape(targetS: number): { readonly min: number; readonly max: number; readonly karakter: string } {
+  return {
+    min: Math.max(3, Math.round(targetS / 25)),
+    max: Math.max(5, Math.round(targetS / 15)),
+    karakter: targetS > 90 ? "3–5" : "3",
+  };
+}
+
+/**
  * A Short's recipe (owner, 2 Nov 2026): a hook in the first 2 seconds, one moment, ~150 words, no cover or subscribe
- * line, the last line leading back into the first. It overrides the long rules where they differ.
+ * line, the last line leading back into the first. It overrides the long rules where they differ. Since 11 Nov 2026 a
+ * Short runs up to 3 minutes: the moment then gets its build-up and outcome (still one event, never a whole war).
  */
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `
@@ -187,8 +201,8 @@ YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da 
 - İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
   ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
-- Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.
-${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- 3–5 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
+- Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.${b.hedefSureSn > 90 ? " Süre uzun olduğu için o anın hazırlığını, kendisini ve sonucunu anlat — yine tek olay, başka olaya geçme." : ""}
+${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} sahne, yaklaşık ${words} konuşulan kelime. ${shortsShape(b.hedefSureSn).karakter} görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
 - Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
   anlatıcı satırı onları "oyun" ile oynatır (kovalama, yakalama, gülme) — anlatıcı başkalarının yaptığını anlatırken baş
   karakter boş bir sette tek başına durmaz. Final anı da böyle oynanır. Harita sahnesinde bunu haritadaki rozetleri,
@@ -202,8 +216,8 @@ YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, 
 - The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
   "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
-- Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.
-${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- 3–5 scenes, about ${words} spoken words. Three visible characters; at most two of them speak in a scene, standing side by side and seen together.
+- Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.${b.hedefSureSn > 90 ? " With this length, tell that moment's build-up, the moment itself and its outcome — still one event, never a second one." : ""}
+${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} scenes, about ${words} spoken words. ${shortsShape(b.hedefSureSn).karakter} visible characters; at most two of them speak in a scene, standing side by side and seen together.
 - SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"
   and the narrator line acts them out with "oyun" (a chase, a capture, a laugh) — never the lead alone on an empty set
   while the narration tells what others did. The payoff moment is acted the same way. In a map scene they act as their

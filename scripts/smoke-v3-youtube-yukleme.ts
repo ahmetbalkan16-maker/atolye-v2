@@ -41,7 +41,7 @@ const paket: YoutubePackage = {
 const aciklama = "Battle of Kosovo: When Leaders Die in Battle\n\nTwo leaders fell in one clash.\n\nChapters:\n0:00 Dawn\n0:17 March\n0:38 Council\n\nSources:\n• Wikipedia\n\nThis video contains dramatization.\n\n#BattleOfKosovo\n";
 
 function order(id: string, o: Partial<ProductionOrder> = {}): ProductionOrder {
-  return { id, konu: "Kosova Savaşı 1389", donem: "1389", sure: "3dk", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "2026-11-01T10:00:00.000Z", durum: "teslim", bitis: "2026-11-01T18:00:00.000Z", video: `x/${id}/final.mp4`, ...o };
+  return { id, konu: "Kosova Savaşı 1389", donem: "1389", sure: "20dk", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "2026-11-01T10:00:00.000Z", durum: "teslim", bitis: "2026-11-01T18:00:00.000Z", video: `x/${id}/final.mp4`, ...o };
 }
 
 /** A work root with orders and their episode folders (youtube.json, aciklama.txt, a video of `bytes`, a thumbnail). */
@@ -132,7 +132,7 @@ async function main() {
   });
 
   await scenario("C the weekly calendar: Shorts Tue + Sat, the long video Thu, 15:00 New York (EST and EDT), two hours ahead", () => {
-    assert.deepEqual(["60sn", "45sn", "1dk", "3dk", "20dk", "1dk 30"].map(videoKind), ["short", "short", "short", "uzun", "uzun", "uzun"]);
+    assert.deepEqual(["60sn", "45sn", "1dk", "3dk", "20dk", "1dk 30", "181sn", "4dk"].map(videoKind), ["short", "short", "short", "short", "uzun", "short", "uzun", "uzun"]);
     const monday = new Date("2026-11-02T12:00:00Z");
     assert.equal(nextSlot("short", [], monday), "2026-11-03T20:00:00.000Z");
     assert.equal(nextSlot("uzun", [], monday), "2026-11-05T20:00:00.000Z");

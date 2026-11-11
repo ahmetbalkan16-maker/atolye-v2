@@ -124,7 +124,7 @@ async function main() {
   });
 
   await scenario("F Turkish word budget is the measured rate of finished video (1.8 words/s)", () => {
-    assert.equal(wordBudget({ konu: "x", donem: "1452", hedefSureSn: 90, ton: "mizahi", dil: "tr" }), 162);
+    assert.equal(wordBudget({ konu: "x", donem: "1452", hedefSureSn: 300, ton: "mizahi", dil: "tr" }), 540);
   });
 
   await scenario("G period rule: a photo of the place as it stands today never wins, however well it shows the subject", async () => {
