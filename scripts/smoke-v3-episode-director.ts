@@ -26,7 +26,7 @@ import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deep
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
-import { directBattleMaps, mapProblems, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
+import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -1015,6 +1015,18 @@ async function main() {
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }, true).some((p) => p.includes("map scenes take 33% of this Short") && p.includes("SHARES OF A SHORT")));
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true), [], "a hook, the map, a payoff");
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 58), sized(stage, 2)] }, true)[0]!.includes("keep the hook and the payoff"));
+    // Real period pictures in a 3-minute Short (owner, 11 Nov 2026, after the Gallipoli video): every map scene marks
+    // its picture line; unmarked ones are asked for, then marked on their first narrator line as a last resort.
+    const bare = { ...map, ara_goruntu_satir: undefined };
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 30), sized(bare, 120), sized(stage, 30)] }, true).some((p) => p.includes(`"${map.id}"`) && p.includes("REAL PERIOD PICTURES")));
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 30), sized(map, 120), sized(stage, 30)] }, true), []);
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(bare, 35), sized(stage, 7)] }, true), [], "a minute-long Short has no time for a picture on each map");
+    const quipFirst = { ...bare, satirlar: [{ karakter: speaker, metin: "Ready?", duygu: "mutlu" as const }, narrate("The army marches north.")] };
+    const marked = markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 180);
+    assert.equal(marked.episode.sahneler[0]!.ara_goruntu_satir, 1, "the narrator's line, never the character's");
+    assert.equal(marked.fixes.length, 1);
+    assert.equal(markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 600).fixes.length, 0, "a long video keeps its one map in three");
+    assert.equal(markMapPictures({ ...episode, sahneler: [{ ...quipFirst, satirlar: [quipFirst.satirlar[0]!] }, stage] }, 180).fixes.length, 0, "no narrator line, nothing marked");
     // Validation: the marked line must be one of the scene's.
     assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 2)));
     assert.equal(validateEpisode({ ...episode, sahneler: [{ ...map, ara_goruntu_satir: 3 }, stage] }).ok, false);

@@ -1,3 +1,28 @@
+## 11 Kasım 2026 (4) — Shorts'ta gerçek dönem görselleri (Gelibolu videosundaki gibi); Taranto yeniden başlatıldı
+
+Owner: "önceki 3 dakikalık kısa videoda gerçek fotoğraflar da kullanılıyordu, en son Çanakkale savaşında kullanılmış ve
+video daha güzel çıkmıştı; bu shorts videolarında da kullanılsın". Skill: `v3-gelistirici`.
+
+**Ölçüm:** Çanakkale (3 dk, yatay) ekranda harita %40 / çöp adam %38 / dönem görseli %22; 4 harita sahnesinin 4'ü
+`ara_goruntu_satir` işaretlemiş. Short'lar: Cannae 0/2, Waterloo 1/2 işaretli, Cannae'de görsel %0 (2 sahnede bulunduğu
+hâlde — dikey karede oynanan anlatıcı satırına tablo gelmez, 3 Kasım owner kuralı, korunuyor). İşaretsiz harita sahnesi
+`atolye-v3.ts` görsel adımında hiç aranmıyor (`if (!mapLine) continue`) — farkın kökü bu.
+
+**Yapılan:**
+- `ScriptPrompts.SHORT_PICTURES` (tr/en): Short'ta sürenin ~%20'si gerçek dönem fotoğrafı/tablosu; HER harita sahnesi
+  bir ANLATICI satırını `ara_goruntu_satir` ile işaretler, 1–3 `gorseller` (20. yy'da `film: true`); karakter satırının
+  üstüne resim gelmez.
+- `MapRules.shareProblems` (Short, ≥ `SHORT_PICTURES_FROM_S` = 90 sn): işaretsiz harita sahnesi onarım turunda istenir;
+  `markMapPictures` son çare: işaretsiz harita sahnesinin ilk anlatıcı satırı işaretlenir (ScriptEngine, kalabalıktan sonra).
+- `Director.SHORTS_PICTURE_SHARE_TARGET` ekranda harita 40–80 / çöp adam 15–45 / görsel 10–30 (QC satırı "~%50/~%30/~%20").
+- `content/v3/owner-kurallari.json`: kalite beynine "Short dönem görseli" kuralı (kalite 8 → 9; kurgu 12'de, sınır dolu).
+
+**Test:** tsc 0; lint 0/0; 19 `smoke-v3-*` + `smoke-ayas-video-order` + firewall PASS. Yeni senaryolar: işaretsiz harita
+(180 sn Short) istenir, 52 sn Short'tan istenmez; `markMapPictures` anlatıcı satırını seçer, uzun videoda/anlatıcısız
+sahnede dokunmaz; yazar istemi 180 sn'de "REAL PERIOD PICTURES" taşır, uzun videoda taşımaz.
+
+**Taranto:** ilk sipariş senaryo adımında (eski kurallarla) durduruldu, bu değişiklikle baştan başlatıldı.
+
 ## 11 Kasım 2026 (3) — Shorts 60 sn → 3 dakika (dikey, $1 tavan); Taranto Baskını Short siparişi
 
 Owner: "shorts videosu 60 saniyedi bunu 3 dakikaya çıkartmak istiyorum. yine dikey ölçü olacak ama video süresi 3 dakika

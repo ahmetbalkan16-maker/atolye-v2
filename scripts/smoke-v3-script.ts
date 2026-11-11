@@ -363,6 +363,9 @@ async function main() {
     const long = writingPrompt({ konu: "Taranto", donem: "1940", hedefSureSn: 180, ton: "epik", dil: "en" }, CATALOG);
     assert.ok(long.includes("YOUTUBE SHORT") && long.includes("7–12 scenes") && long.includes("3–5 visible characters") && long.includes("still one event") && !long.includes("3–5 scenes"), long.slice(0, 400));
     assert.ok(!short.includes("still one event") && short.includes("3 visible characters"));
+    // Owner, 11 Nov 2026: real period pictures in the Shorts, as in the Gallipoli video — every map scene marks its line.
+    assert.ok(long.includes("REAL PERIOD PICTURES") && long.includes("EVERY map scene marks one NARRATOR line") && !en.includes("REAL PERIOD PICTURES"), long.slice(0, 300));
+    assert.ok(writingPrompt({ konu: "Taranto", donem: "1940", hedefSureSn: 180, ton: "mizahi", dil: "tr" }, CATALOG).includes("GERÇEK DÖNEM GÖRSELLERİ"));
   });
 
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {

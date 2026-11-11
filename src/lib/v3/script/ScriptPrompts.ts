@@ -158,6 +158,25 @@ STORYTELLING RULES
 };
 
 /**
+ * Real period pictures in a Short (owner, 11 Nov 2026: "önceki 3 dakikalık kısa videoda gerçek fotoğraflar da
+ * kullanılıyordu … video daha güzel çıkmıştı, bu shorts videolarında da kullanılsın"). The Gallipoli video showed them
+ * 22% of its running time because every map scene marked its picture line; the Shorts before marked none or one, and an
+ * unmarked map scene is never searched. Cut in over narrator lines, never over a character's own line.
+ */
+const SHORT_PICTURES: Readonly<Record<ScriptLanguage, string>> = {
+  tr: `- GERÇEK DÖNEM GÖRSELLERİ (Gelibolu videosundaki gibi): sürenin yaklaşık %20'sinde ekranda o anın gerçek fotoğrafı,
+  tablosu ya da gravürü. HER harita sahnesi "ara_goruntu_satir" ile bir ANLATICI satırını işaretler ve
+  "arka_plan_sorgusu" o anın resmini arar; anlatıcının 1–3 önemli satırına da "gorseller" ekle (20. yüzyılda "film": true,
+  önce arşiv filmi aranır). Resim hiçbir zaman bir karakterin kendi satırının üstüne gelmez.
+`,
+  en: `- REAL PERIOD PICTURES (like the Gallipoli video): about 20% of the running time shows the moment's real photograph,
+  painting or engraving. EVERY map scene marks one NARRATOR line with "ara_goruntu_satir" and its "arka_plan_sorgusu"
+  searches for that moment's picture; give 1–3 more key narrator lines "gorseller" ("film": true in the 20th century,
+  archive film is looked for first). A picture never covers a character's own line.
+`,
+};
+
+/**
  * A Short's shares (owner, 3 Nov 2026, after DFT Tarih's Shorts — MapRules.SHORT_MAP_SHARE): the moment told on the map
  * between a character hook and a character payoff. Not asked of one under half a minute.
  */
@@ -167,13 +186,13 @@ const SHORT_SHARES: Readonly<Record<ScriptLanguage, string>> = {
   ne zaman), sonra olayın geçtiği yakın harita ("genislik_km" ≤ 120): gemiler yol alır, pullar yaklaşır ve teker teker
   düşer, oklar satırla vurur; oradaki bir karakter tek cümlesini rozetinden söyler (o harita sahnesinde kendi satırı).
   Sonuç ya da son espri kısa bir karakter sahnesinde (ya da yakın haritada) oynanır.
-`,
+${SHORT_PICTURES.tr}`,
   en: `- SHARES OF A SHORT (the most-watched history Shorts are map stories): about 70% of the running time on the map, about
   30% with the stick figures. After the character hook scene (6–10 s) tell the moment on the map — a few seconds of the
   wider map for where and when, then the close map where it happens ("genislik_km" ≤ 120): ships sail, tokens close in
   and fall one by one, arrows strike with the lines; a character there says a one-liner from their badge (their own
   line in that map scene). Play the payoff or the last quip in a short character scene (or on the close map).
-`,
+${SHORT_PICTURES.en}`,
 };
 
 /**

@@ -1,5 +1,6 @@
 import { CLOSE_MAP_MAX_KM, type Episode, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import { periodEndYear } from "../episode/Period";
+import { isShorts } from "../render/Format";
 import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
@@ -181,6 +182,12 @@ export const SHORT_MAP_SHARE = { min: 0.55, aim: 0.7, max: 0.85 } as const;
 export const SHORT_SHARES_FROM_S = 30;
 
 /**
+ * From this length every map scene of a Short marks its picture line (owner, 11 Nov 2026: the real photographs of the
+ * Gallipoli video, wanted in the 3-minute Shorts). A shorter Short has no time for a picture on each map.
+ */
+export const SHORT_PICTURES_FROM_S = 90;
+
+/**
  * The owner's shares for a long video (23 Oct 2026, after DFT Tarih): ~75–80% map, ~15% stick figures, 6–10% period
  * pictures. Asked of each chapter of a long episode (two minutes or so): too much of it on the stage, or a mostly-map
  * chapter with no picture moment marked. A Short (`shorts`) is asked its own share (SHORT_MAP_SHARE).
@@ -197,6 +204,9 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
     const aim = Math.round(SHORT_MAP_SHARE.aim * 100);
     if (share < SHORT_MAP_SHARE.min) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): after the character hook, tell the moment on the map — a few seconds of the wider map for where it happens, then the close map where it happens (ships sail, tokens close in and fall, arrows strike, line by line; a character's quip from their badge) — and keep one short character scene for the payoff — SHARES OF A SHORT`];
     if (share > SHORT_MAP_SHARE.max) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): keep the hook and the payoff as character scenes — the stick figures carry about ${100 - aim}% of a Short — SHARES OF A SHORT`];
+    // Real period pictures (owner, 11 Nov 2026, after the Gallipoli video): an unmarked map scene is never searched.
+    const unmarked = total >= SHORT_PICTURES_FROM_S ? map.filter((s) => s.ara_goruntu_satir === undefined) : [];
+    if (unmarked.length) return [`map scene${unmarked.length > 1 ? "s" : ""} ${unmarked.map((s) => `"${s.id}"`).join(", ")} mark${unmarked.length > 1 ? "" : "s"} no "ara_goruntu_satir": every map scene of a Short marks one narrator line whose moment gets its real period picture (and its "arka_plan_sorgusu" searches for it) — REAL PERIOD PICTURES`];
     return [];
   }
   if (total < 90) return [];
@@ -204,6 +214,26 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
   if (onStage / total > 0.35) out.push(`character scenes take ${Math.round((onStage / total) * 100)}% of this part (aim ~15%): tell more of it on the map — the march, the camp, the battle line by line on the close map — and keep one short character scene for the council, the quarrel or the reaction — SHARES OF A LONG VIDEO`);
   if (map.length && !map.some((s) => s.ara_goruntu_satir !== undefined)) out.push(`no map scene marks "ara_goruntu_satir": give one map scene the line whose moment gets its period picture (and its "arka_plan_sorgusu" for that picture) — PERIOD IMAGES`);
   return out;
+}
+
+/**
+ * The last resort for a Short's map scene the writer left unmarked after its rounds (owner, 11 Nov 2026: real period
+ * pictures in the Shorts, as in the Gallipoli video): its first narrator line — not a character's, whose line a picture
+ * never covers — becomes the picture line, and the scene's own "arka_plan_sorgusu" searches for it. A scene with no
+ * narrator line, or one with no search, stays as it is. Logged as a fix.
+ */
+export function markMapPictures(episode: Episode, targetS: number): { episode: Episode; fixes: string[] } {
+  if (!isShorts(targetS) || targetS < SHORT_PICTURES_FROM_S) return { episode, fixes: [] };
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+  const fixes: string[] = [];
+  const sahneler = episode.sahneler.map((s) => {
+    if (!s.harita?.merkez || s.ara_goruntu_satir !== undefined || !s.arka_plan_sorgusu?.en?.trim()) return s;
+    const satir = s.satirlar.findIndex((l) => !visible.has(l.karakter));
+    if (satir < 0) return s;
+    fixes.push(`${s.id}: harita sahnesi dönem görseli satırı işaretlememişti; ${satir}. satır (anlatıcı) işaretlendi`);
+    return { ...s, ara_goruntu_satir: satir };
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
 /**
