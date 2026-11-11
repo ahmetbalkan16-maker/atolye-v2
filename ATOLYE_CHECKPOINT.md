@@ -1,3 +1,38 @@
+## 11 Kasım 2026 (2) — owner kararları: ölçülü tarih düzeltmesi, Wikimedia iletişimi, rozet/cephe düzeni; Canva sorusu
+
+Owner: "1. evet yükledim. 2. ölçerek düzelt. 3. onaylıyorum. 4. evet al ve düzelt bir daha yapmasın" ve "canva …
+sisteme bağlasak video yapılırken yardımcı beyinler onu kullanabilir mi?". Skill: `v3-gelistirici`.
+
+**1. Çanakkale videosu** owner tarafından yüklendi; düzeltilmiş yeniden üretim gerekmiyor.
+
+**2. Tarih doğrulaması (`4dd4836d`) — önce ölçüldü:** kayıtlı 14 doğrulamada uygulanan 4 "yanlış" düzeltmesinden
+kaynak bankasındaki bir olgunun desteklediği 2'si doğru (Rubicon sırası, korsanların boğazı), desteksiz 2'si doğru
+satırı bozmuş (Gelibolu "ölmeyi emrediyorum" Ağustos'a; Zanzibar yatı "ateş etmedi"). Kural: denetçi her `yanlis` için
+`dayanak` verir (doğrulanmış olgu ya da sipariş cümlesi, birebir; `correctionSupported`); yoksa satır kalır, iddia
+`dayanaksiz` raporlanır (durdurma yok). Gerçek ama ilgisiz olgu için kısa ikinci soru (`supportCheckPrompt`,
+`confirmSupport`, adım `dogrulama-dayanak`): yalnız `celisir` geçirir. gpt-4.1 ölçümü: 9 vaka × 3 = 27/27 (4'ü istemde
+yok); uçtan uca 4 vaka × 2 = 8/8 (Çanakkale ve Zanzibar korunur, Rubicon düzeltilir, korsan "ekler" → dokunulmaz).
+Ölçüm maliyeti ~$0.25. Bilinen ödünleşim: Çanakkale'de "Liman, Kemal'i tümene atar" iddiası (muhtemelen haklı) artık
+bankada dayanağı olmadığı için yalnız raporlanıyor. Sipariş denetimi ve kurgu replik "sahne" durdurması değişmedi.
+
+**3. Wikimedia User-Agent (`4dd4836d`):** `userAgentFor` — `ATOLYE_V3_WIKIMEDIA_CONTACT` (git dışı `.env.v3.local`)
+yalnız wikimedia/wikipedia/wikidata hostlarına gider; Nominatim/OHM/müzelere gitmez; başlık enjeksiyonu temizlenir.
+**Açık:** değer henüz yazılmadı — gizlilik eklentisi e-posta adresini dosyaya yazmamı engelledi; owner kendi yazacak
+(canonical ve worktree `.env.v3.local`). Boşken davranış eskisi gibi.
+
+**4. Rozet ve cephe düzeni (`7ec1ef0b`):** `badgesBesideArmies` — yazarın rozeti ordu işaretinin üstündeyse komutan
+ordusunun yanında durur (70 km harita da "yakın" sayıldığından iki yolda). `faceEnemy` — düşmana ucunu dönen cephe
+merkezinde döner ve düşmana karşı uzanır; çarpışmada saldırıya uğrayan taraf saldıranın hattına paralel yatar.
+Çanakkale s4-landings ve s5-battle `harita-onizleme` kareleriyle doğrulandı. Kalite beyninin yerleşim denetimi bu
+çakışmayı zaten yakalıyordu ([kod]), rötuş düzeltemiyordu.
+
+Test: smoke-v3-script 34, backgrounds 23, episode-director 67, tüm smoke-v3-* 19/19 PASS; tsc 0; lint 0/0.
+
+**Canva (soru, iş yok):** Canva Connect API (REST, OAuth) — tasarım oluşturma, varlık yükleme, dışa aktarma (PNG/JPG/
+PDF/MP4 1080p/4K), Pro planda autofill (marka şablonuna metin/görsel doldurma). Dışa aktarma kullanıcı başına 75/5 dk,
+500/gün. Önerilen kullanım: küçük resim/kapak ve kanal görselleri (şablon + autofill), Remotion üretim hattının yerine
+değil. Owner kararı bekleniyor (Canva geliştirici entegrasyonu + OAuth gerekir).
+
 ## 11 Kasım 2026 — Çanakkale videosu incelendi, beyinlere aktarıldı; 10 Kasım kapanışı doğrulandı
 
 Owner: "dün yeni bir video yaptım onu kontrol et … yardımcı beyinlere neler aktarılmış neler aktarılmamış bak ve gerekli
