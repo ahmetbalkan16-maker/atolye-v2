@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { resolveAccessGate } from "@/lib/auth/accessGate";
+import { resolveAccessGate, safeRedirectPath } from "@/lib/auth/accessGate";
 
 export const metadata: Metadata = {
   title: "AYAS — Erişim",
@@ -16,9 +16,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const gate = resolveAccessGate(process.env);
   const nextParam = typeof params.next === "string" ? params.next : "/brain";
-  const safeNext = nextParam.startsWith("/") && !nextParam.startsWith("//")
-    ? nextParam
-    : "/brain";
+  const safeNext = safeRedirectPath(nextParam) ?? "/brain";
   const hasError = params.error === "1";
 
   return (

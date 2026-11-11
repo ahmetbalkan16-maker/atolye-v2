@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  admitLoginAttempt,
   AYAS_SESSION_COOKIE,
   AYAS_SESSION_TTL_SECONDS,
   clearAttempts,
@@ -7,7 +8,13 @@ import {
   isPlausibleAccessKey,
   isRequestOverHttps,
   issueSession,
+  LOGIN_BRAKE_OPTIONS,
+  loginClientBucket,
+  newLoginBrakeState,
+  pruneAttempts,
   resolveAccessGate,
+  safeRedirectPath,
+  settleLoginAttempt,
   timingSafeEqual,
   type AttemptLimiterState,
 } from "@/lib/auth/accessGate";
@@ -17,12 +24,16 @@ import {
  *
  * Accepts JSON (`{ "key": "..." }`) or an HTML form (`key=...`). A form post
  * gets a 303 redirect to `?next=` (or `/brain`); a JSON post gets `{ ok }`.
- * Per-IP fixed-window rate limiting blunts online guessing.
+ * Online guessing is bounded by a per-client fixed window plus a worldwide brake
+ * on failed attempts (11 Nov 2026 security review): past either, attempts are
+ * checked one per slot after a short wait instead of being locked out.
  */
 
 const attempts = new Map<string, AttemptLimiterState>();
+const brake = newLoginBrakeState();
 const ATTEMPT_LIMIT = 8;
 const ATTEMPT_WINDOW_SECONDS = 10 * 60;
+const MAX_BUCKETS = 1000;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const gate = resolveAccessGate(process.env);
@@ -33,22 +44,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const bucket = clientBucket(request);
+  // The body is read first so that admission, the passcode check and the
+  // failure count below run without an await between them (only the slow
+  // lane's wait): a burst of parallel guesses cannot all pass before the first
+  // failure is counted.
+  const { key, isForm, next } = await readCredential(request);
+
+  const bucket = loginClientBucket(request.headers.get("x-forwarded-for"));
+  pruneAttempts(attempts, MAX_BUCKETS);
   const decision = evaluateAttempt(
     attempts,
     bucket,
     { limit: ATTEMPT_LIMIT, windowSeconds: ATTEMPT_WINDOW_SECONDS },
   );
-  if (!decision.allowed) {
+  const admission = admitLoginAttempt(brake, !decision.allowed, LOGIN_BRAKE_OPTIONS);
+  if (admission.kind === "refuse") {
     return NextResponse.json(
       { error: "too_many_attempts" },
-      { status: 429, headers: { "Retry-After": String(decision.retryAfterSeconds) } },
+      { status: 429, headers: { "Retry-After": String(admission.retryAfterSeconds) } },
     );
   }
+  if (admission.kind === "wait") {
+    await new Promise((resolve) => setTimeout(resolve, admission.waitMs));
+  }
 
-  const { key, isForm, next } = await readCredential(request);
   const ok =
     isPlausibleAccessKey(key) && timingSafeEqual(key, gate.key as string);
+  settleLoginAttempt(brake, ok, LOGIN_BRAKE_OPTIONS);
 
   if (!ok) {
     return respond(request, isForm, next, {
@@ -69,7 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const response = respond(request, isForm, next, {
     status: 200,
     json: { ok: true },
-    redirectTo: safeNext(next) ?? "/brain",
+    redirectTo: safeRedirectPath(next) ?? "/brain",
   });
   response.cookies.set({
     name: AYAS_SESSION_COOKIE,
@@ -137,15 +159,4 @@ function respond(
     return new NextResponse(null, { status: 303, headers: { location: options.redirectTo } });
   }
   return NextResponse.json(options.json, { status: options.status });
-}
-
-function safeNext(next: string | null): string | null {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
-  return next;
-}
-
-function clientBucket(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || "local";
-  return `login:${ip}`;
 }

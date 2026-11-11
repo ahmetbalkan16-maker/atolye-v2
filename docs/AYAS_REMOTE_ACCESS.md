@@ -98,8 +98,12 @@ Do **not** open port 3000, and do **not** allow `Any` remote address.
 
 ### Next.js binding
 
-`next start` is left on its default; the reverse proxy connects to
-`127.0.0.1:3000` on the same host, so the HTTP port never needs to face the LAN.
+The live app is started by `scripts/ayas-access-daemon.ps1` as
+`next start <snapshot> -p 3000 -H 127.0.0.1` (owner decision 2026-11-11): it listens on
+IPv4 loopback only, and the named tunnel / reverse proxy connect to `127.0.0.1:3000` on
+the same host, so the HTTP port never faces the LAN. Plain `next start` without `-H`
+listens on every address (`0.0.0.0` and `[::]`); `-H localhost` would bind `::1` only on
+this PC (Node resolves `localhost` to `::1` first) and the tunnel would be refused.
 If you must run Next without a proxy for a quick test, bind it explicitly to the
 LAN IP (`next start -H 192.168.2.74`) — but then the mic / PWA will not work
 (no secure context) and the session cookie will not be `Secure`.

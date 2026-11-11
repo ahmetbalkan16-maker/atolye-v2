@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   AYAS_SESSION_COOKIE,
+  isLoopbackDevRequest,
   isProtectedPath,
   isSameOriginRequest,
   resolveAccessGate,
@@ -12,8 +13,9 @@ import {
  *
  * - `enforced`  → protected paths need a valid `ayas_session` cookie; state-
  *   changing requests also need a same-origin `Origin`/`Referer` (CSRF backstop).
- * - `disabled-dev` → no `AYAS_ACCESS_KEY` set and not production: pass through,
- *   but stamp a header so the state is visible.
+ * - `disabled-dev` → no `AYAS_ACCESS_KEY` set and not production: pass through
+ *   for requests made on this machine (stamped with a header so the state is
+ *   visible); any other request gets 403.
  * - `misconfigured` → production with no / too-short key: fail closed (503) on
  *   protected paths rather than serve an open studio.
  *
@@ -29,6 +31,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const gate = resolveAccessGate(process.env);
 
   if (gate.mode === "disabled-dev") {
+    // An open gate serves only this machine (11 Nov 2026 security review;
+    // limits in `isLoopbackDevRequest`). `enforced` / `misconfigured` never
+    // reach this check.
+    if (
+      !isLoopbackDevRequest({
+        host: request.headers.get("host"),
+        forwardedFor: request.headers.get("x-forwarded-for"),
+        cfConnectingIp: request.headers.get("cf-connecting-ip"),
+      })
+    ) {
+      return devRemoteRefusal(pathname, request);
+    }
     const response = NextResponse.next();
     response.headers.set("x-ayas-access-gate", "disabled-dev");
     return response;
@@ -65,6 +79,25 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   return jsonOrRedirect(request, pathname, 401, { error: "authentication_required" });
+}
+
+const DEV_REMOTE_REFUSAL =
+  "AYAS bu bilgisayarda erişim anahtarı olmadan (geliştirme modu) çalışıyor; bu modda yalnız bu bilgisayardan " +
+  "(localhost) açılabilir. Başka bir cihazdan açmak için .env.local dosyasına en az 12 karakterlik " +
+  "AYAS_ACCESS_KEY yazıp sunucuyu yeniden başlatın.";
+
+function devRemoteRefusal(pathname: string, request: NextRequest): NextResponse {
+  const wantsJson =
+    pathname.startsWith("/api/") ||
+    (request.headers.get("accept") ?? "").includes("application/json");
+  const response = wantsJson
+    ? NextResponse.json({ error: "access_gate_dev_local_only", detail: DEV_REMOTE_REFUSAL }, { status: 403 })
+    : new NextResponse(DEV_REMOTE_REFUSAL, {
+        status: 403,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
+  response.headers.set("x-ayas-access-gate", "disabled-dev");
+  return response;
 }
 
 function jsonOrRedirect(

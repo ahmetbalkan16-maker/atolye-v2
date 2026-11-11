@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type AyasCodeBuild, type AyasCodeScope, ayasCodeBuildHash, ayasCodeContentSha256, ayasCodeJobTrailer } from "../../brain/autonomy/AyasCodeChangeLane";
-import { runProcess } from "../util/Proc";
+import { checkEnv, runProcess } from "../util/Proc";
 import { BRAIN_NAMES } from "./Council";
 import { AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
@@ -251,7 +251,7 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const tabandaDusen: string[] = [];
     const changedSet = new Set(dosyalar.map((f) => f.replace(/\\/g, "/")));
     for (const c of checks) {
-      const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, timeoutMs: CHECK_TIMEOUT_MS });
+      const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, env: checkEnv(), timeoutMs: CHECK_TIMEOUT_MS });
       outputs.push(`$ ${c.slice(1).join(" ")}\n${r.stdout.slice(-2000)}${r.stderr.slice(-1000)}`);
       if (r.code !== 0) {
         // A main-AYAS build runs suites it did not write: one that fails on the untouched base too (this machine's
@@ -307,7 +307,7 @@ async function failsOnBase(repoRoot: string, dir: string, taban: string, c: read
     await linkShared(repoRoot, dir);
     base.dir = dir;
   }
-  const r = await runProcess(c[0]!, c.slice(1), { cwd: base.dir, timeoutMs: CHECK_TIMEOUT_MS });
+  const r = await runProcess(c[0]!, c.slice(1), { cwd: base.dir, env: checkEnv(), timeoutMs: CHECK_TIMEOUT_MS });
   return r.code !== 0;
 }
 

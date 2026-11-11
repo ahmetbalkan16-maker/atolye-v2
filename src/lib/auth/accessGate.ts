@@ -290,6 +290,166 @@ export function clearAttempts(
   store.delete(bucketKey);
 }
 
+/**
+ * The login limiter's client key: the LAST `X-Forwarded-For` entry (11 Nov 2026 security review). Next keeps a
+ * client-sent value and fills the socket address only when the header is absent; Cloudflare appends the address it
+ * saw. So the first entry is whatever the client wrote (a new value per request meant unlimited guesses), while the
+ * last one is Cloudflare's for tunnel traffic, Caddy's for the Caddy path and the socket's for a plain request. A LAN
+ * client on :3000 can still forge it — which is why the header-independent brake below exists; this key only decides
+ * who is slowed first. Capped in length so a forged header cannot bloat the map.
+ */
+export function loginClientBucket(forwardedFor: string | null): string {
+  const entries = (forwardedFor ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+  return `login:${(entries[entries.length - 1] ?? "local").slice(0, 64)}`;
+}
+
+/**
+ * Bounded memory for the per-client buckets (11 Nov 2026 security review: the map grew by one entry per forged
+ * header). Does nothing below the cap; at the cap it drops expired buckets, then the oldest, down to 90 %.
+ */
+export function pruneAttempts(
+  store: Map<string, AttemptLimiterState>,
+  maxEntries: number,
+  now: number = Date.now(),
+): void {
+  if (store.size < maxEntries) return;
+  for (const [key, state] of store) if (state.resetAt <= now) store.delete(key);
+  const target = Math.floor(maxEntries * 0.9);
+  for (const key of store.keys()) {
+    if (store.size <= target) break;
+    store.delete(key);
+  }
+}
+
+/** The worldwide state of the login brake (process-local, like the per-client buckets). */
+export interface LoginBrakeState {
+  /** Failed attempts in the current window. */
+  failures: number;
+  windowResetAt: number;
+  /** While in the future, every attempt goes through the slow lane. */
+  brakeUntil: number;
+  /** When the slow lane's next check slot begins. */
+  laneFreeAt: number;
+}
+
+export interface LoginBrakeOptions {
+  /** More failures than this in one window engage the brake. */
+  readonly failureLimit: number;
+  readonly windowSeconds: number;
+  /** The slow lane checks one attempt per slot. */
+  readonly slotMs: number;
+  /** An attempt that would wait longer than this is refused with Retry-After. */
+  readonly maxWaitMs: number;
+}
+
+/**
+ * 20 failures per 10 minutes worldwide, then one check every 3 s (at most 20 guesses a minute, whatever the headers)
+ * and never more than 30 s of waiting for the owner's correct passcode while nobody is saturating the lane.
+ */
+export const LOGIN_BRAKE_OPTIONS: LoginBrakeOptions = {
+  failureLimit: 20,
+  windowSeconds: 10 * 60,
+  slotMs: 3_000,
+  maxWaitMs: 30_000,
+};
+
+export function newLoginBrakeState(): LoginBrakeState {
+  return { failures: 0, windowResetAt: 0, brakeUntil: 0, laneFreeAt: 0 };
+}
+
+export type LoginAdmission =
+  | { readonly kind: "now" }
+  | { readonly kind: "wait"; readonly waitMs: number }
+  | { readonly kind: "refuse"; readonly retryAfterSeconds: number };
+
+/**
+ * Whether one login attempt is checked at once, after a wait in the slow lane, or refused (11 Nov 2026 security
+ * review; owner, same day: logging in is already slow, the phone connection must not be cut). With the brake off and
+ * the client's own bucket within its limit the answer is "now" and nothing else happens — the owner's normal login
+ * gets no delay. Otherwise the attempt takes the next 3-second slot of one worldwide lane: slowed, never locked out,
+ * so nobody can keep the owner out for longer than the lane's 30 s (a 10-minute 429 on a forgeable key could). Only
+ * when the lane is full is it refused. Must be followed synchronously (after the wait) by the passcode check and
+ * `settleLoginAttempt`, so a burst of parallel requests cannot all pass before the first failure is counted.
+ */
+export function admitLoginAttempt(
+  state: LoginBrakeState,
+  clientOverLimit: boolean,
+  options: LoginBrakeOptions = LOGIN_BRAKE_OPTIONS,
+  now: number = Date.now(),
+): LoginAdmission {
+  if (!clientOverLimit && state.brakeUntil <= now) return { kind: "now" };
+  const start = Math.max(now, state.laneFreeAt);
+  const waitMs = start - now + options.slotMs;
+  if (waitMs > options.maxWaitMs) {
+    return { kind: "refuse", retryAfterSeconds: Math.max(1, Math.ceil((waitMs - options.maxWaitMs) / 1000)) };
+  }
+  state.laneFreeAt = start + options.slotMs;
+  return { kind: "wait", waitMs };
+}
+
+/**
+ * Records a checked attempt. Only a failure counts: more than `failureLimit` in a window engages the brake, and each
+ * further failure keeps it on for another window. A success changes nothing here — it must not reset an attacker's
+ * count.
+ */
+export function settleLoginAttempt(
+  state: LoginBrakeState,
+  ok: boolean,
+  options: LoginBrakeOptions = LOGIN_BRAKE_OPTIONS,
+  now: number = Date.now(),
+): void {
+  if (ok) return;
+  const windowMs = options.windowSeconds * 1000;
+  if (state.windowResetAt <= now) {
+    state.failures = 0;
+    state.windowResetAt = now + windowMs;
+  }
+  state.failures += 1;
+  if (state.failures > options.failureLimit || state.brakeUntil > now) state.brakeUntil = now + windowMs;
+}
+
+/* ------------------------------------------------------- redirect target --- */
+
+/**
+ * A same-site path to send the browser to after login, or `null` (11 Nov 2026 security review: only `//` was
+ * refused, and browsers read `/\evil.example` as `//evil.example`). A single `/` followed by anything but `/` or `\`
+ * (or `/` alone), with no backslash and no control character anywhere.
+ */
+export function safeRedirectPath(next: string | null | undefined): string | null {
+  if (typeof next !== "string") return null;
+  if (next !== "/" && !/^\/[^/\\]/.test(next)) return null;
+  if (/[\\\u0000-\u001f\u007f]/.test(next)) return null;
+  return next;
+}
+
+/* ------------------------------------------------------ dev-mode locality --- */
+
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const LOOPBACK_ADDRESS = /^(?:127(?:\.\d{1,3}){3}|::1|::ffff:127(?:\.\d{1,3}){3})$/i;
+
+/**
+ * Whether a request may be served by an open `disabled-dev` gate (no AYAS_ACCESS_KEY outside production): only when
+ * it was made on this machine (11 Nov 2026 security review: `next dev` listens on every interface, so a checkout
+ * without .env.local took anonymous chat orders from the LAN). The Host must name loopback — a LAN client addresses
+ * the PC by its IP or name, a DNS-rebinding page by its own domain — and every `X-Forwarded-For` entry, which Next
+ * fills with the socket address when the client sends none, must be loopback; a request through Cloudflare
+ * (`cf-connecting-ip`) is refused. Residual risk: a LAN client that deliberately forges Host AND X-Forwarded-For still
+ * passes — the middleware cannot see the socket. Only a key (or `next dev -H 127.0.0.1`) closes that.
+ */
+export function isLoopbackDevRequest(input: {
+  host: string | null;
+  forwardedFor: string | null;
+  cfConnectingIp: string | null;
+}): boolean {
+  if (input.cfConnectingIp) return false;
+  const host = (input.host ?? "").trim().toLowerCase();
+  const match = /^(\[[^\]]*\]|[^:[\]]+)(?::(\d{1,5}))?$/.exec(host);
+  if (!match || !LOOPBACK_HOSTNAMES.has(match[1]!)) return false;
+  if (input.forwardedFor === null) return true;
+  const entries = input.forwardedFor.split(",").map((entry) => entry.trim());
+  return entries.every((entry) => LOOPBACK_ADDRESS.test(entry));
+}
+
 /* --------------------------------------------------------------- crypto ----- */
 
 async function hmacSha256(body: string, key: string): Promise<Uint8Array> {

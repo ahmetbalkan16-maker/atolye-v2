@@ -17,6 +17,11 @@ try {
 if ($IntervalSeconds -lt 30 -or $Port -lt 1 -or $Port -gt 65535) { throw "AYAS_ACCESS_ARGUMENT_INVALID" }
 $script:RepoRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')
 $script:Port = $Port
+# Owner decision 2026-11-11 ("3000'i yalniz bu makineye kapat", on condition the phone link is not cut): the app
+# listens on IPv4 loopback only, never on the shared office LAN. Every consumer dials 127.0.0.1 - the named tunnel
+# (config.yml: http://127.0.0.1:3000), Test-LocalHealth and the publisher's health check. Not 'localhost': Node
+# resolves it to ::1 first on this PC, so the app would listen on ::1 only and the tunnel would be refused.
+$script:ListenHost = '127.0.0.1'
 $script:CloudflaredExe = [IO.Path]::GetFullPath($CloudflaredExe)
 $script:TunnelConfig = if ([string]::IsNullOrWhiteSpace($TunnelConfig)) {
   Join-Path $env:USERPROFILE ".cloudflared\config.yml"
@@ -150,6 +155,8 @@ function Test-ExpectedOrigin($Process) {
   $applicationRoot = Get-ApplicationRoot
   $expectedScript = [regex]::Escape($applicationRoot) + '\\node_modules\\(?:\.bin\\+(?:\.\.\\+)+)?next\\dist\\bin\\next'
   $directoryArgument = if ($script:PublishedApplicationRoot) { '\s+"?' + [regex]::Escape($applicationRoot) + '"?' } else { '' }
+  # Matches both '-p <port>' (an app started before 2026-11-11, still running across the handover) and
+  # '-p <port> -H 127.0.0.1': a healthy app is never restarted only to change its bind.
   return $command -match ('(?i)"?' + $expectedScript + '"?\s+start' + $directoryArgument + '\s+-p\s+' + $script:Port + '(?:\s|$)')
 }
 function Test-ExpectedTunnel($Process) {
@@ -196,7 +203,8 @@ function Resolve-AccessSnapshot([object[]]$Listeners, [object[]]$AllProcesses) {
   $tunnel = 'down'; $tunnelPid = $null
   if ($expectedTunnels.Count -gt 1 -or $ambiguousTunnels.Count -gt 0) { $tunnel = 'ambiguous' }
   elseif ($expectedTunnels.Count -eq 1) { $tunnel = 'healthy'; $tunnelPid = [int]$expectedTunnels[0].ProcessId }
-  [pscustomobject]@{ origin = $origin; listenerPid = $listenerPid; wrapperPid = $wrapperPid; tunnel = $tunnel; tunnelPid = $tunnelPid; expectedAppCount = $expectedApps.Count; expectedAppPid = $expectedAppPid; expectedTunnelCount = $expectedTunnels.Count }
+  $lanListening = @($listeners | Where-Object { $_.LocalAddress -and @('127.0.0.1','::1') -notcontains [string]$_.LocalAddress }).Count -gt 0
+  [pscustomobject]@{ origin = $origin; listenerPid = $listenerPid; wrapperPid = $wrapperPid; tunnel = $tunnel; tunnelPid = $tunnelPid; expectedAppCount = $expectedApps.Count; expectedAppPid = $expectedAppPid; expectedTunnelCount = $expectedTunnels.Count; lanListening = $lanListening }
 }
 function Test-AccessGateResponse([int]$StatusCode, [string]$GateHeader, [string]$Location, [string]$Path) {
   $expectedNext = if ($Path -eq '/') { '%2F' } else { '%2Fbrain' }
@@ -292,7 +300,7 @@ function Start-Origin {
   $nextCli = Join-Path $applicationRoot 'node_modules\next\dist\bin\next'
   $nextArguments = @(('"' + $nextCli + '"'),'start')
   if ($script:PublishedApplicationRoot) { $nextArguments += ('"' + $applicationRoot + '"') }
-  $nextArguments += @('-p',[string]$script:Port)
+  $nextArguments += @('-p',[string]$script:Port,'-H',$script:ListenHost)
   $wrapper = Start-OwnedProcess $script:NodeExe $nextArguments $script:AppLog $script:AppErrLog $script:RepoRoot
   Write-AtomicText $script:AppWrapperPidFile ([string]$wrapper.Id)
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
@@ -334,7 +342,9 @@ function Write-PhoneStatus($Snapshot, [bool]$LocalHealthy, [bool]$PublicHealthy)
   $tunnelOnline = $Snapshot.tunnel -eq 'healthy'
   $status = [ordered]@{
     appServer = if ($originOnline) { 'online' } elseif ($Snapshot.origin -eq 'down') { 'offline' } else { 'starting' }
-    lanAccess = if ($originOnline) { 'online' } else { 'unknown' }
+    # Closed by design since 2026-11-11 (loopback bind above): online only while an app started before then still
+    # listens beyond loopback. The phone comes in through the tunnel either way.
+    lanAccess = if (-not $originOnline) { 'unknown' } elseif ($Snapshot.lanListening) { 'online' } else { 'offline' }
     tunnel = if ($tunnelOnline) { 'online' } elseif ($Snapshot.tunnel -eq 'down') { 'offline' } else { 'starting' }
     ayasBackend = if (-not $originOnline) { 'offline' } elseif ($tunnelOnline -and $PublicHealthy) { 'online' } else { 'degraded' }
     tunnelUrl = if ($tunnelOnline) { $script:NamedTunnelUrl } else { $null }

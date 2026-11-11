@@ -1,7 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
-import { runProcess } from "../util/Proc";
+import { checkEnv, runProcess } from "../util/Proc";
 import { type CodeExperience, codeExperienceLines, declarationSpans, isV3Smoke, parseDiff } from "./DevBrain";
 import { forbiddenChanges } from "./DevQueue";
 
@@ -415,7 +415,8 @@ export function writerChecks(dir: string, changed: readonly string[], suites: re
 
 export async function runChecks(dir: string, cmds: readonly (readonly string[])[], timeoutMs = 6 * 60_000): Promise<{ ok: boolean; cikti: string }> {
   for (const c of cmds) {
-    const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, timeoutMs });
+    // The apprentice's checks run the code it just wrote: no secrets in their environment (11 Nov 2026 security review).
+    const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, env: checkEnv(), timeoutMs });
     if (r.code !== 0) return { ok: false, cikti: `$ ${c.slice(1).join(" ")} (çıkış ${r.code})\n${tail(`${r.stdout}\n${r.stderr}`.trim(), FEEDBACK_CHARS)}` };
   }
   return { ok: true, cikti: `${cmds.length} kontrol geçti` };

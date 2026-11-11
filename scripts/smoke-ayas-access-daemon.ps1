@@ -44,6 +44,33 @@ try {
   Scenario 'both-down order' { Eq (Get-AccessPlan down down $false) origin-then-tunnel }
   Scenario 'unhealthy expected origin fails closed' { Eq (Get-AccessPlan healthy healthy $false) fail-closed }
   Scenario 'expected origin identity' { Yes (Test-ExpectedOrigin $expectedNode) }
+  # Owner decision 2026-11-11: the app listens on loopback only; the one still running from before keeps its identity.
+  Scenario 'loopback-bound app and an app started before the loopback bind are both ours' {
+    Eq $script:ListenHost '127.0.0.1'
+    $bound=$expectedNode.PSObject.Copy(); $bound.CommandLine=$expectedNode.CommandLine + ' -H 127.0.0.1'
+    Yes (Test-ExpectedOrigin $bound)
+    $savedPublished=$script:PublishedApplicationRoot
+    $script:PublishedApplicationRoot=Join-Path $temp 'Atolye\ayas-live-0123abcd'
+    try {
+      $cli='"C:\Program Files\nodejs\node.exe" "' + (Join-Path $script:PublishedApplicationRoot 'node_modules\next\dist\bin\next') + '" start "' + $script:PublishedApplicationRoot + '" -p 3000'
+      $live=$expectedNode.PSObject.Copy(); $live.CommandLine=$cli + ' '
+      Yes (Test-ExpectedOrigin $live)
+      $live.CommandLine=$cli + ' -H 127.0.0.1 '
+      Yes (Test-ExpectedOrigin $live)
+      $live.CommandLine=$cli.Replace('-p 3000','-p 30001') + ' -H 127.0.0.1'
+      No (Test-ExpectedOrigin $live)
+    } finally { $script:PublishedApplicationRoot=$savedPublished }
+  }
+  Scenario 'LAN status follows the real listener address' {
+    $any=[pscustomobject]@{LocalAddress='0.0.0.0';LocalPort=3000;OwningProcess=444}
+    $loop=[pscustomobject]@{LocalAddress='127.0.0.1';LocalPort=3000;OwningProcess=444}
+    $s=Resolve-AccessSnapshot @($any) @($appChain+$expectedTunnel); Eq $s.origin healthy; Yes $s.lanListening
+    Write-PhoneStatus $s $true $true; Eq (Get-Content -Raw -LiteralPath $script:PhoneStatusFile|ConvertFrom-Json).lanAccess online
+    $s=Resolve-AccessSnapshot @($loop) @($appChain+$expectedTunnel); Eq $s.origin healthy; No $s.lanListening
+    Write-PhoneStatus $s $true $true; Eq (Get-Content -Raw -LiteralPath $script:PhoneStatusFile|ConvertFrom-Json).lanAccess offline
+    $s=Resolve-AccessSnapshot @() @($expectedTunnel)
+    Write-PhoneStatus $s $false $false; Eq (Get-Content -Raw -LiteralPath $script:PhoneStatusFile|ConvertFrom-Json).lanAccess unknown
+  }
   Scenario 'sibling repository cannot claim AYAS origin identity' {
     $other=$expectedNode.PSObject.Copy()
     $other.CommandLine=$other.CommandLine.Replace($root, "${root}-other")
@@ -312,6 +339,7 @@ try {
       Yes (Start-Origin).ok; Eq $script:startupLaunches 1; Eq $script:lastStartupExe $script:NodeExe; Eq $script:routeCacheClears 1
       Eq $script:lastStartupArgs[0] ('"' + (Join-Path $script:RepoRoot 'node_modules\next\dist\bin\next') + '"')
       Eq $script:lastStartupArgs[1] start; No ($script:lastStartupArgs -contains 'build')
+      Eq ($script:lastStartupArgs[-4..-1] -join ' ') ('-p ' + $script:Port + ' -H 127.0.0.1')
     }
     Scenario 'ambiguous origin refuses even a qualified runtime' {
       $script:startupSnapshot=[pscustomobject]@{origin='ambiguous';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true
@@ -505,10 +533,11 @@ param([switch]$Continuous, [int]$IntervalSeconds)
     $content=@'
 const http = require('node:http');
 const port = Number(process.argv[process.argv.indexOf('-p') + 1]);
+const host = process.argv.indexOf('-H') > 0 ? process.argv[process.argv.indexOf('-H') + 1] : '0.0.0.0';
 http.createServer((req, res) => {
   res.writeHead(307, {'x-ayas-access-gate':'enforced',location:'/login?next='+encodeURIComponent(req.url)});
   res.end();
-}).listen(port, '127.0.0.1');
+}).listen(port, host);
 '@
     [IO.File]::WriteAllText($fakeCli, $content, (New-Object Text.UTF8Encoding($false)))
     $allocator=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,0)
@@ -522,6 +551,9 @@ http.createServer((req, res) => {
     try {
       $outcome=Start-Origin; Yes $outcome.ok
       $snapshot=Get-AccessSnapshot; Eq $snapshot.listenerPid $outcome.wrapperPid; Eq $snapshot.origin healthy
+      # Like next start, the fixture listens where -H points (everywhere without it): loopback only, never the LAN.
+      $addresses=@(Get-NetTCPConnection -State Listen -LocalPort $script:Port -ErrorAction Stop | Select-Object -ExpandProperty LocalAddress -Unique)
+      Eq ($addresses -join ',') '127.0.0.1'; No $snapshot.lanListening
       Eq (Start-Origin).stage origin-race
       foreach ($processId in $protectedListener) { Yes (Get-Process -Id $processId -ErrorAction SilentlyContinue) }
     } finally {

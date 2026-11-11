@@ -8,6 +8,14 @@ klasörüyle). Çalışma dizini ve veri kökü kanonik repo olarak kalır. Eri�
 başlatır. Bu yüzden kanonik repodaki commit'lenmemiş geliştirme canlıyı değiştirmez. 19 Ekim
 2026'dan beri push'lanmış bir commit canlıya kendiliğinden geçer (aşağıda "Otomatik yayın").
 
+Uygulama yalnız bu makineden erişilir (owner kararı, 11 Kasım 2026): denetçi onu
+`next start <kopya> -p 3000 -H 127.0.0.1` ile başlatır, ofis ağından `http://<pc-ip>:3000` açılmaz.
+Tünel (`config.yml`: `http://127.0.0.1:3000`) ve sağlık kontrolleri 127.0.0.1'e bağlanır; PC'nin
+tarayıcısı `http://127.0.0.1:3000` ya da `http://localhost:3000` ile açar. `-H localhost` kullanılmaz:
+Node bu makinede `localhost`'u önce `::1`'e çözer, uygulama yalnız IPv6'da dinler ve tünel bağlanamaz.
+Daha önce başlamış (`-H`'siz) uygulama denetçi tarafından yine tanınır ve yeniden başlatılmaz; yeni bağ
+ilk yeniden başlatmada (yayın, `-Restart`, açılış) geçerli olur.
+
 ## Otomatik yayın (owner kararı, 19 Ekim 2026)
 
 Owner: "Bir görev bitince otomatik olarak canlıya aktarılsın." Görev bitti = commit `origin`'e
