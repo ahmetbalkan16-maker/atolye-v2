@@ -99,23 +99,169 @@ export function findAyasPackageUsers(repoRoot: string, packageName: string, file
   return [...new Set([...configs, ...users])].sort();
 }
 
-/** The /brain view loads often; the import scan is reused until package-lock.json changes, for at most 10 minutes. */
+/*
+ * Which files import each tracked root npm package, for the development briefs.
+ *
+ * Owner-approved performance change (2026-11-11, "tamam a yı yap madem"): the scan reads every source file under src/,
+ * app/ and scripts/ (2,052 files, 26 MB) with synchronous fs on the server's only thread, and `/` and `/brain` build this
+ * radar before sending a byte. Measured that day: 50.0 s on a cold disk (0.5 s warm), while every other request stalled;
+ * its 10-minute memory cache started empty in every new process (the app restarts on every live publish and boot, 11
+ * starts that day). The result is now also kept in data/brain/autonomy/update-radar-package-users.json (Git-ignored,
+ * derived, written atomically), keyed by the repository root, HEAD and package-lock.json's mtime and size.
+ *
+ * A load takes the memory copy, else the file copy. A copy whose key no longer matches (a commit, a dependency change)
+ * or that is older than the old 10 minutes (uncommitted edits) is still returned once while a single asynchronous rescan
+ * replaces it without blocking the thread. That is sound because the list only informs the owner: item hashes exclude
+ * the brief, and the update trial runner scans its own worktree with `findAyasPackageUsers`. Only when no copy exists at
+ * all (the very first run, or a deleted/unreadable cache file) does a load scan synchronously, once, as before.
+ */
 const USERS_CACHE_MS = 10 * 60_000;
-let usersCache: { readonly key: string; readonly at: number; readonly users: Map<string, string[]> } | undefined;
-function packageUsers(repoRoot: string, packageName: string): string[] {
-  let lockMtime = 0;
-  try { lockMtime = fs.statSync(path.join(repoRoot, "package-lock.json")).mtimeMs; } catch { /* no lock: still scan */ }
-  const key = `${path.resolve(repoRoot)}|${lockMtime}`;
-  if (!usersCache || usersCache.key !== key || Date.now() - usersCache.at > USERS_CACHE_MS) usersCache = { key, at: Date.now(), users: new Map() };
-  const cached = usersCache.users.get(packageName);
-  if (cached) return cached;
-  const contents = new Map<string, string>();
+const USERS_CACHE_SCHEMA = "ayas-update-radar-package-users:v1";
+type AyasPackageUsersMap = ReadonlyMap<string, readonly string[]>;
+interface PackageUsersEntry { readonly key: string; readonly at: number; readonly users: AyasPackageUsersMap }
+const usersMemory = new Map<string, PackageUsersEntry>();
+const usersRefreshes = new Map<string, Promise<void>>();
+
+/** The derived cache file of the package-users scan for this repository root (under the Git-ignored data/brain/autonomy/). */
+export function resolveAyasPackageUsersCacheFile(repoRoot: string): string {
+  return path.join(path.resolve(repoRoot), "data", "brain", "autonomy", "update-radar-package-users.json");
+}
+
+/** Drops the in-process copy, as a new process starts; for smokes that prove what a fresh process reads. */
+export function forgetAyasPackageUsersMemory(): void {
+  usersMemory.clear();
+}
+
+/** The asynchronous rescan currently replacing a stale copy for this root, if any (smokes await it). */
+export function ayasPackageUsersRefreshInFlight(repoRoot: string): Promise<void> | undefined {
+  return usersRefreshes.get(path.resolve(repoRoot));
+}
+
+function rootTrackedPackages(): string[] {
+  return [...new Set(Object.values(AYAS_TRACKED_RELEASE_SOURCES)
+    .flatMap((tracked) => tracked.installed.kind === "npm" && !tracked.installed.workspace ? [tracked.installed.packageName] : []))].sort();
+}
+
+const SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
+/** HEAD read from the Git files themselves (no process: this module is reachable from the console's server code). */
+function readGitHead(repoRoot: string): string | undefined {
+  try {
+    let gitDir = path.join(repoRoot, ".git");
+    if (fs.statSync(gitDir).isFile()) {
+      const pointer = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(gitDir, "utf8"))?.[1]?.trim();
+      if (!pointer) return undefined;
+      gitDir = path.resolve(repoRoot, pointer);
+    }
+    const head = fs.readFileSync(path.join(gitDir, "HEAD"), "utf8").trim();
+    if (SHA.test(head)) return head;
+    const ref = /^ref:\s*(\S+)$/.exec(head)?.[1];
+    if (!ref) return undefined;
+    let commonDir = gitDir;
+    try { commonDir = path.resolve(gitDir, fs.readFileSync(path.join(gitDir, "commondir"), "utf8").trim()); } catch { /* a main checkout */ }
+    for (const dir of [gitDir, commonDir]) {
+      try { const sha = fs.readFileSync(path.join(dir, ref), "utf8").trim(); if (SHA.test(sha)) return sha; } catch { /* packed */ }
+    }
+    const packed = fs.readFileSync(path.join(commonDir, "packed-refs"), "utf8").split(/\r?\n/).find((line) => line.endsWith(` ${ref}`))?.split(" ")[0];
+    return packed && SHA.test(packed) ? packed : undefined;
+  } catch { return undefined; }
+}
+
+function packageUsersKey(repoRoot: string): string {
+  let lock = "none";
+  try { const stat = fs.statSync(path.join(repoRoot, "package-lock.json")); lock = `${stat.mtimeMs}:${stat.size}`; } catch { /* no lock: still keyed */ }
+  return JSON.stringify([USERS_CACHE_SCHEMA, path.resolve(repoRoot), readGitHead(repoRoot) ?? "unknown-head", lock, rootTrackedPackages()]);
+}
+
+function usersFromContents(repoRoot: string, files: readonly string[], contents: ReadonlyMap<string, string>): AyasPackageUsersMap {
+  return new Map(rootTrackedPackages().map((name) => [name, Object.freeze(findAyasPackageUsers(repoRoot, name, files, (file) => contents.get(file) ?? ""))]));
+}
+
+function scanPackageUsersSync(repoRoot: string): AyasPackageUsersMap {
   const files = sourceFiles(repoRoot);
+  const contents = new Map<string, string>();
   for (const file of files) { try { contents.set(file, fs.readFileSync(path.join(repoRoot, file), "utf8")); } catch { contents.set(file, ""); } }
-  for (const tracked of Object.values(AYAS_TRACKED_RELEASE_SOURCES)) {
-    if (tracked.installed.kind === "npm" && !tracked.installed.workspace) usersCache.users.set(tracked.installed.packageName, findAyasPackageUsers(repoRoot, tracked.installed.packageName, files, (file) => contents.get(file) ?? ""));
+  return usersFromContents(repoRoot, files, contents);
+}
+
+/** The same walk and reads as the synchronous scan, one file at a time on the async API, so the thread stays free. */
+async function scanPackageUsersAsync(repoRoot: string): Promise<AyasPackageUsersMap> {
+  const files: string[] = [];
+  const walk = async (dir: string): Promise<void> => {
+    let entries: fs.Dirent[];
+    try { entries = await fs.promises.readdir(path.join(repoRoot, dir), { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const relative = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) { if (entry.name !== "node_modules" && !entry.name.startsWith(".")) await walk(relative); }
+      else if (entry.isFile() && SCAN_EXTENSIONS.has(path.extname(entry.name))) files.push(relative);
+    }
+  };
+  for (const root of SCAN_ROOTS) await walk(root);
+  const contents = new Map<string, string>();
+  for (const file of files) { try { contents.set(file, await fs.promises.readFile(path.join(repoRoot, file), "utf8")); } catch { contents.set(file, ""); } }
+  return usersFromContents(repoRoot, files, contents);
+}
+
+function readPackageUsersFile(repoRoot: string): PackageUsersEntry | undefined {
+  try {
+    const raw = JSON.parse(fs.readFileSync(resolveAyasPackageUsersCacheFile(repoRoot), "utf8")) as { schema?: unknown; key?: unknown; computedAt?: unknown; users?: Record<string, unknown> };
+    if (raw?.schema !== USERS_CACHE_SCHEMA || typeof raw.key !== "string" || typeof raw.computedAt !== "number" || !raw.users || typeof raw.users !== "object") return undefined;
+    const users = new Map<string, readonly string[]>();
+    for (const name of rootTrackedPackages()) {
+      const list = raw.users[name];
+      if (!Array.isArray(list) || !list.every((file) => typeof file === "string")) return undefined;
+      users.set(name, Object.freeze([...list] as string[]));
+    }
+    return { key: raw.key, at: raw.computedAt, users };
+  } catch { return undefined; }
+}
+
+/** Best effort: a cache that cannot be written only means the next process scans again. */
+function writePackageUsersFile(repoRoot: string, entry: PackageUsersEntry): void {
+  if (!fs.existsSync(repoRoot)) return;
+  const file = resolveAyasPackageUsersCacheFile(repoRoot);
+  const tmp = path.join(path.dirname(file), `.update-radar-package-users.${process.pid}.${crypto.randomUUID()}.tmp`);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const fd = fs.openSync(tmp, "w");
+    try { fs.writeFileSync(fd, `${JSON.stringify({ schema: USERS_CACHE_SCHEMA, key: entry.key, computedAt: entry.at, users: Object.fromEntries(entry.users) })}\n`, "utf8"); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    fs.renameSync(tmp, file);
+  } catch { try { fs.rmSync(tmp, { force: true }); } catch { /* nothing to clean */ } }
+}
+
+function startPackageUsersRefresh(repoRoot: string, key: string): void {
+  const root = path.resolve(repoRoot);
+  if (usersRefreshes.has(root)) return;
+  const at = Date.now();
+  const refresh = scanPackageUsersAsync(root).then((users) => {
+    const entry = { key, at, users };
+    usersMemory.set(root, entry);
+    writePackageUsersFile(root, entry);
+  }).catch(() => { /* the stale copy stays; the next load tries again */ }).finally(() => { usersRefreshes.delete(root); });
+  usersRefreshes.set(root, refresh);
+}
+
+/** Every tracked root package's importing files: memory copy, then file copy (refreshed in the background when stale). */
+export function loadAyasRootPackageUsers(repoRoot: string): AyasPackageUsersMap {
+  const root = path.resolve(repoRoot);
+  const key = packageUsersKey(root);
+  let entry = usersMemory.get(root);
+  if (!entry || entry.key !== key) {
+    const fromFile = readPackageUsersFile(root);
+    if (fromFile && (!entry || fromFile.key === key || fromFile.at > entry.at)) { entry = fromFile; usersMemory.set(root, fromFile); }
   }
-  return usersCache.users.get(packageName) ?? findAyasPackageUsers(repoRoot, packageName, files, (file) => contents.get(file) ?? "");
+  if (entry) {
+    if (entry.key !== key || Date.now() - entry.at > USERS_CACHE_MS) startPackageUsersRefresh(root, key);
+    return entry.users;
+  }
+  const scanned = { key, at: Date.now(), users: scanPackageUsersSync(root) };
+  usersMemory.set(root, scanned);
+  writePackageUsersFile(root, scanned);
+  return scanned.users;
+}
+
+function packageUsers(rootUsers: () => AyasPackageUsersMap, repoRoot: string, packageName: string): string[] {
+  const cached = rootUsers().get(packageName);
+  return cached ? [...cached] : findAyasPackageUsers(repoRoot, packageName);
 }
 
 function briefFor(item: Omit<AyasUpdateRadarItem, "brief" | "itemHash">, users: readonly string[]): AyasDevelopmentBrief {
@@ -152,6 +298,8 @@ export function buildAyasUpdateRadar(input: {
   readonly repoRoot: string; readonly seenItems: readonly AyasResearchSeenItem[]; readonly findings: readonly AyasExternalResearchFinding[];
 }): readonly AyasUpdateRadarItem[] {
   const items: AyasUpdateRadarItem[] = [];
+  let resolvedRootUsers: AyasPackageUsersMap | undefined;
+  const rootUsers = (): AyasPackageUsersMap => (resolvedRootUsers ??= loadAyasRootPackageUsers(input.repoRoot));
   for (const [sourceId, tracked] of Object.entries(AYAS_TRACKED_RELEASE_SOURCES)) {
     const source = AYAS_RESEARCH_SOURCE_REGISTRY.find((entry) => entry.sourceId === sourceId);
     if (!source) continue;
@@ -175,7 +323,7 @@ export function buildAyasUpdateRadar(input: {
     };
     const users = tracked.installed.kind !== "npm" ? []
       : tracked.installed.workspace ? findAyasPackageUsers(input.repoRoot, tracked.installed.packageName, sourceFiles(input.repoRoot, [`${tracked.installed.workspace}/src`]))
-        : packageUsers(input.repoRoot, tracked.installed.packageName);
+        : packageUsers(rootUsers, input.repoRoot, tracked.installed.packageName);
     items.push(Object.freeze({ ...base, brief: briefFor(base, users), itemHash: ayasUpdateRadarItemHash(base) }));
   }
   const rank = { MAJOR: 0, MINOR: 1, PATCH: 2 };

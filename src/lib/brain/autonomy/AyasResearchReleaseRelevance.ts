@@ -64,12 +64,33 @@ export function compareAyasReleaseVersions(a: string, b: string): number {
   return 0;
 }
 
+type LockPackages = Record<string, { version?: unknown }> | undefined;
+/** A lock written this close to when it was read may change again within the same mtime tick, so it is not trusted. */
+const LOCK_SETTLED_MS = 2_000;
+const lockPackagesCache = new Map<string, { readonly mtimeMs: number; readonly size: number; readonly readAt: number; readonly packages: LockPackages }>();
+
+/**
+ * package-lock.json's `packages`, parsed once per version of the file. Owner-approved performance change (2026-11-11): one
+ * `/` load asked for an installed version ~70 times (once per seen release and per approval) and read and parsed the
+ * whole lock each time. Reused while its mtime and size are unchanged and it was already settled when read (the racy-Git
+ * rule: a rewrite inside the same timestamp tick would keep both), so a fresh rewrite is always read again.
+ */
+function readLockPackages(lockFile: string): LockPackages {
+  const stat = fs.statSync(lockFile);
+  const cached = lockPackagesCache.get(lockFile);
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size && cached.readAt - cached.mtimeMs > LOCK_SETTLED_MS) return cached.packages;
+  const readAt = Date.now();
+  const packages = (JSON.parse(fs.readFileSync(lockFile, "utf8")) as { packages?: Record<string, { version?: unknown }> }).packages;
+  lockPackagesCache.set(lockFile, { mtimeMs: stat.mtimeMs, size: stat.size, readAt, packages });
+  return packages;
+}
+
 /** The installed version, or null when it cannot be read (fail open to analysis, never to a fabricated version). */
 export function resolveAyasInstalledVersion(tracked: AyasTrackedRelease, repoRoot: string): string | null {
   if (tracked.installed.kind === "node") return process.versions.node;
   try {
-    const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, tracked.installed.workspace ?? "", "package-lock.json"), "utf8")) as { packages?: Record<string, { version?: unknown }> };
-    const version = lock.packages?.[`node_modules/${tracked.installed.packageName}`]?.version;
+    const packages = readLockPackages(path.resolve(repoRoot, tracked.installed.workspace ?? "", "package-lock.json"));
+    const version = packages?.[`node_modules/${tracked.installed.packageName}`]?.version;
     return typeof version === "string" && /^\d+\.\d+\.\d+/.test(version) ? version : null;
   } catch { return null; }
 }

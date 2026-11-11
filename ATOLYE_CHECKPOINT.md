@@ -1,3 +1,44 @@
+## 11 Kasım 2026 (8) — Opus 5.5 işleri: tur seçimine ölçülen kusur, harita kadrajı, 4 güvenlik düzeltmesi, 3000 yalnız loopback, ana sayfa radar önbelleği
+
+Owner: "tamam bunları yaptır ama opus 5.5 yapsın", "bulduklarını yaptır", güvenlik kararlarından "sadece 1 madde" (3000
+portu yalnız bu makineye; "telefon bağlantım kesilmesin"), "sisteme çok yavaş giriyorum, ona da baktır", "a yı yap".
+Kod Opus 5.5 alt-ajanlarında yazıldı, lider oturum denetledi. Doğrulama: tsc, remotion tsc, lint 0/0; smoke-v3-
+director-council 11, council 18, episode-director 68, cirak 5, self-improvement 11, reference 13, developer-check-env 4,
+script 35, motion 12; ayas-login-hardening 14, access-gate 19, update-radar-cache 8, update-radar 9, homepage-v2 13,
+firewall-closure 13; smoke-ayas-access-daemon.ps1 64 (worktree dışı kopyadan, yalıtılmış LOCALAPPDATA ile).
+
+- **Çırak:** sınav tavanı $0.40 → $0.55 (`EXAM_CAP_USD`, env `ATOLYE_V3_CIRAK_SINAV_USD`), sınav yalnız tek kod dosyalı
+  commit'lerden (`EXAM_CODE_FILES`, env `ATOLYE_V3_CIRAK_SINAV_DOSYA`). Günlük tavan $1 kaldı → günde ~1 sınav (owner kararı açık).
+- **Referans hızı dil eşli:** `referenceTargets(records, tur, dil)` kelime/dk hedefini yalnız aynı dildeki referanslardan
+  alır (en az 3; yoksa hedef yok). EN 135/158, TR 93/101 ölçüldü; karışık hedef 107/118 yazara yanlış "az kelime" dersi
+  veriyordu. Depodaki 3 yanlış ders (Cannae, Çanakkale, Taranto) silinmedi — owner kararı.
+- **Kalite beyni `ornekler` denemesi** en çok 30 günde bir (`examplesTrialDue`); 9 günde 4 kez %63 ile kaybetmişti.
+- **Tur seçimi (`RetouchBrain`):** `RoundScore.kusurlar` (`cutFaults`: açık QC satırları — benzerlik/set/kapak/tarih
+  doğrulaması hariç — + yerleşim + piksel kusuru); sıra: eşik altı → az kusur → kurul → erken tur; `comparableRounds`
+  yeniden puanlanmayan kişinin son puanını taşır. Son 4 videoda teslim edilen tur değişmezdi.
+- **Harita kadrajı (yalnız Short):** `maps/UnitFraming.ts` (satırda etkin birlik pencereye sığmazsa yeni kamera durağı),
+  çok gemili grup açık suya (`MapBuilder.withShipsAfloat`), haritadaki tek karakter olayın yanına (`Director`,
+  `ShotView pairAim`), yeni ölçülen kusur `council/MapFramingCheck.ts` → `layoutReview` "harita kadrajı". Taranto s5
+  4 → 1, s6 2 → 0. Önce/sonra: `D:\ÜRETİM\private\temp\harita-kadraj-once|sonra\sheet-s5|s6.png`.
+- **Güvenlik:** giriş deneme sınırı başlıktan bağımsız global frenle (20 hata/10 dk → 3 sn'lik tek sıra, en çok 30 sn
+  bekleme, 10 dk kilit yok; `accessGate.admitLoginAttempt/settleLoginAttempt`, harita ≤1000); açık yönlendirme
+  (`safeRedirectPath`); parolasız dev sunucu yalnız loopback (`isLoopbackDevRequest`, `enforced` yolu aynı); geliştirici
+  kontrolleri anahtarsız ortamla (`Proc.checkEnv`, Developer + DevWriter).
+- **3000 yalnız loopback:** `ayas-access-daemon.ps1` `next start … -p 3000 -H 127.0.0.1` (cloudflared zaten
+  127.0.0.1:3000; `localhost` bu PC'de ::1'e gider, seçilmedi). Uygulamanın bir sonraki yeniden başlamasında devreye girer.
+- **Giriş yavaşlığı teşhisi:** açılışta 10–12 dk prebuilt sha256 kontrolü; soğuk diskte ilk Brain sayfası 20–60 sn
+  (güncelleme radarı 2.052 dosya tarıyordu, 50 sn soğuk). (a) yapıldı: `AyasUpdateRadar` sonucu
+  `data/brain/autonomy/update-radar-package-users.json` önbelleğinde (HEAD + lock anahtarı, eskiyse arkada yenilenir),
+  lock bir kez okunur; ana sayfa yükü 3.225 → 1.106 okuma, 46 → 1,8 MB.
+
+**Yarına (owner: "yarın yapıcaz, unutma"):** harita: uçak hedefi gemiye kilit + torpido izi/fişek/patlama, haritadaki
+ince konuşma yazısı, hareketsiz açılış haritası, karakter olaylara baksın, gece görünümü, gemiler Mar Grande'ye
+(yazar koordinatı; yer kontrolü araçlara bakmıyor). Açık kararlar: yavaşlık (b) açılış kontrolünü kısalt, (c) oturum
+kullanırken uzasın, (d) canlıya almaları topla; güvenlik duvarı `Remove-NetFirewallRule -DisplayName "Node.js
+JavaScript Runtime"` (yönetici); çırak günlük tavanı $1.10; 3 yanlış hız dersinin silinmesi;
+`AyasCodeChangeApplyRunner.checkEnv` eksik değişkenler; telefon anahtarı URL'de. Hata: çıkışta yönlendirme
+`localhost:3000`'e (app/api/auth/logout/route.ts:12). Bilinen ayrı kırık: smoke-ayas-research-time-budget (HEAD'de de).
+
 ## 11 Kasım 2026 (7) — sistem taraması: geliştirici beyninin içgüdüsü çalışmıyordu (düzeltildi); sınav nedeni; deniz üniforması
 
 Owner: "mevcut sistemi kontrol et … AYAS otomatik kendini geliştirsin, yardımcı beyinler daha gelişmiş olsun, atölye daha iyi
