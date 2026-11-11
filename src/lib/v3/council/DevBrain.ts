@@ -161,42 +161,90 @@ const MISS_STEP = 0.1;
 export const START_CONFIDENCE = 0.4;
 const MAX_CONFIDENCE = 0.9;
 const DROP_BELOW = 0.2;
-const MAX_INSTINCTS = 1_500;
+const MAX_INSTINCTS = 4_000;
+/** A change this wide (a sweep, a rename) says nothing about which word belongs to which file. */
+const INSTINCT_MAX_FILES = 8;
+/** Letters of a word an instinct keeps: "harita", "haritada" and "haritanin" are one trigger. */
+const STEM_LENGTH = 5;
 
-/** The instincts that fire on a task, strongest first. */
-export function firedInstincts(list: readonly Instinct[], task: string): Instinct[] {
-  return list.filter((i) => i.durum !== "reddedildi" && similarity(i.tetik, task) >= FIRE_AT).sort((a, b) => b.guven - a.guven);
+/**
+ * The triggers a task holds: its words cut to their stem. Until 11 Nov 2026 a trigger was the whole task sentence, and
+ * two tasks almost never share half their words (3 of 21 115 pairs in 211 changes): 996 instincts, none ever confirmed
+ * or dropped, 2 % of the changed files found. One word meets its file again and again.
+ */
+export function instinctTriggers(task: string): string[] {
+  return [...new Set(taskWords(task).map((w) => w.slice(0, STEM_LENGTH)))];
+}
+
+/** Whether a store still holds the old sentence triggers (it is then rebuilt from the change memory). */
+export function hasSentenceInstincts(list: readonly Instinct[]): boolean {
+  return list.some((i) => i.tetik.includes(" "));
 }
 
 /**
- * The instincts after one answer: each file that really changed confirms the instinct that pointed to it (or starts a
- * candidate); each instinct that fired on the task but pointed to a file left alone loses confidence, and is dropped
- * when it falls low enough. Confirmed = confident and seen in at least two places.
+ * The instincts that fire on a task, strongest first: those whose trigger word the task holds. One seen in a single
+ * change is a coincidence, not an instinct yet, so it stays silent until a second change confirms it.
+ */
+export function firedInstincts(list: readonly Instinct[], task: string): Instinct[] {
+  const triggers = new Set(instinctTriggers(task));
+  return list.filter((i) => i.durum !== "reddedildi" && i.kanit.length >= 2 && triggers.has(i.tetik)).sort((a, b) => b.guven - a.guven);
+}
+
+/** The files the fired instincts point to, strongest first: a file several words point to adds up. */
+export function instinctFiles(list: readonly Instinct[], task: string): { dosya: string; guven: number; tetikler: string[] }[] {
+  const byFile = new Map<string, { dosya: string; guven: number; tetikler: string[] }>();
+  for (const i of firedInstincts(list, task)) {
+    const f = byFile.get(i.dosya) ?? { dosya: i.dosya, guven: 0, tetikler: [] };
+    byFile.set(i.dosya, { dosya: i.dosya, guven: Math.round((f.guven + i.guven) * 100) / 100, tetikler: [...f.tetikler, i.tetik] });
+  }
+  return [...byFile.values()].sort((a, b) => b.guven - a.guven);
+}
+
+/**
+ * The instincts after one answer: each word of the task with each file that really changed confirms the instinct
+ * joining them (or starts a candidate); each instinct whose word is in the task but whose file was left alone loses
+ * confidence, and is dropped when it falls low enough. Confirmed = confident and seen in at least two changes.
  */
 export function learnInstincts(list: readonly Instinct[], task: string, changed: readonly string[], source: string, now = new Date()): Instinct[] {
   const real = gradedFiles(changed);
-  const trigger = taskWords(task).slice(0, 8).join(" ");
-  if (!trigger) return [...list];
+  const triggers = instinctTriggers(task);
+  if (!triggers.length || real.length > INSTINCT_MAX_FILES) return [...list];
   const out = list.map((i) => ({ ...i }));
-  const fired = (i: Instinct) => i.durum !== "reddedildi" && similarity(i.tetik, task) >= FIRE_AT;
+  const at = new Map(out.map((i, k) => [`${i.tetik}\n${i.dosya}`, k]));
   const settle = (i: Instinct, guven: number, kanit: readonly string[]): Instinct => {
     const g = Math.round(Math.min(MAX_CONFIDENCE, Math.max(0, guven)) * 100) / 100;
     return { ...i, guven: g, kanit, durum: g < DROP_BELOW ? "reddedildi" : g >= 0.6 && kanit.length >= 2 ? "dogrulandi" : "aday" };
   };
-  for (const f of real) {
-    const k = out.findIndex((i) => i.dosya === f && fired(i));
-    if (k >= 0) {
+  for (const tetik of triggers) {
+    for (const f of real) {
+      const k = at.get(`${tetik}\n${f}`);
+      if (k === undefined) {
+        at.set(`${tetik}\n${f}`, out.length);
+        out.push({ tetik, dosya: f, guven: START_CONFIDENCE, durum: "aday", kanit: [source], tarih: now.toISOString() });
+        continue;
+      }
       const i = out[k]!;
-      // The same source twice confirms nothing.
-      if (!i.kanit.includes(source)) out[k] = settle(i, i.guven + CONFIRM_STEP, [...i.kanit, source].slice(-6));
-    } else out.push({ tetik: trigger, dosya: f, guven: START_CONFIDENCE, durum: "aday", kanit: [source], tarih: now.toISOString() });
+      // The same source twice confirms nothing; a dropped one that meets its file again starts over.
+      if (i.kanit.includes(source)) continue;
+      out[k] = i.durum === "reddedildi" ? { ...i, guven: START_CONFIDENCE, durum: "aday", kanit: [source], tarih: now.toISOString() } : settle(i, i.guven + CONFIRM_STEP, [...i.kanit, source].slice(-6));
+    }
   }
+  const held = new Set(triggers);
   for (let k = 0; k < out.length; k++) {
     const i = out[k]!;
-    if (fired(i) && !real.includes(i.dosya) && !i.kanit.includes(source)) out[k] = settle(i, i.guven - MISS_STEP, i.kanit);
+    if (i.durum !== "reddedildi" && held.has(i.tetik) && !real.includes(i.dosya) && !i.kanit.includes(source)) out[k] = settle(i, i.guven - MISS_STEP, i.kanit);
   }
   // Too many: the dropped ones go first, then the weakest.
   return out.length <= MAX_INSTINCTS ? out : [...out].sort((a, b) => Number(a.durum === "reddedildi") - Number(b.durum === "reddedildi") || b.guven - a.guven).slice(0, MAX_INSTINCTS);
+}
+
+/** The instincts a change memory teaches, replayed oldest first (how a store of old sentence triggers is rebuilt). */
+export function rebuildInstincts(changes: readonly PastChange[]): Instinct[] {
+  let list: Instinct[] = [];
+  for (const c of [...changes].sort((a, b) => Date.parse(a.tarih) - Date.parse(b.tarih))) {
+    if (c.dosyalar.length) list = learnInstincts(list, c.mesaj, c.dosyalar, c.id.slice(0, 10), new Date(c.tarih));
+  }
+  return list;
 }
 
 /**

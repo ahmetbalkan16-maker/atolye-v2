@@ -61,7 +61,11 @@ import {
   firedInstincts,
   gradedFiles,
   gradeGuess,
+  hasSentenceInstincts,
+  instinctFiles,
+  instinctTriggers,
   learnInstincts,
+  rebuildInstincts,
   listChanges,
   listCodeExperience,
   listGrades,
@@ -357,17 +361,34 @@ async function main() {
     assert.deepEqual([gradeGuess({ ...g, dosyalar: [], karar: "var" }, []).isabet, gradeGuess({ ...g, dosyalar: [], karar: "var" }, []).kararDogru, gradeGuess(g, []).kararDogru], [1, true, false]);
     // Instincts: a new file starts as a candidate; another source on a similar task confirms it; misses lower it.
     const task = "kalabalık sahnede askerler yürür";
-    let list = learnInstincts([], task, ["src/lib/v3/script/CrowdRules.ts"], "c1");
-    assert.deepEqual([list.length, list[0]!.guven, list[0]!.durum], [1, START_CONFIDENCE, "aday"]);
-    assert.equal(learnInstincts(list, task, ["src/lib/v3/script/CrowdRules.ts"], "c1")[0]!.guven, START_CONFIDENCE, "the same source twice confirms nothing");
-    list = learnInstincts(list, "kalabalık askerler sahnede koşar", ["src/lib/v3/script/CrowdRules.ts"], "c2");
-    list = learnInstincts(list, "askerler kalabalık sahnede bekler", ["src/lib/v3/script/CrowdRules.ts"], "c3");
-    assert.deepEqual([list[0]!.guven, list[0]!.durum, list[0]!.kanit], [0.7, "dogrulandi", ["c1", "c2", "c3"]]);
-    assert.equal(firedInstincts(list, "sahnede kalabalık askerler")[0]?.dosya, "src/lib/v3/script/CrowdRules.ts");
-    assert.equal(firedInstincts(list, "müzik yatağı sesi").length, 0);
-    for (const [k, other] of ["m1", "m2", "m3", "m4", "m5", "m6"].entries()) list = learnInstincts(list, `askerler kalabalık sahnede ${k}`, ["src/lib/v3/mix/Other.ts"], other);
-    const crowd = list.find((i) => i.dosya.endsWith("CrowdRules.ts"))!;
+    // (11 Nov 2026: one instinct per word stem and file — a whole-sentence trigger never met a second task.)
+    const crowdFile = "src/lib/v3/script/CrowdRules.ts";
+    assert.deepEqual(instinctTriggers("Haritada harita, haritanın askerleri"), ["harit", "asker"]);
+    let list = learnInstincts([], task, [crowdFile], "c1");
+    assert.deepEqual([list.map((i) => i.tetik), list[0]!.guven, list[0]!.durum], [["kalab", "sahne", "asker", "yurur"], START_CONFIDENCE, "aday"]);
+    assert.equal(learnInstincts(list, task, [crowdFile], "c1")[0]!.guven, START_CONFIDENCE, "the same source twice confirms nothing");
+    assert.equal(firedInstincts(list, task).length, 0, "seen in one change only: a coincidence, it stays silent");
+    // Two tasks that share ONE word confirm it (as sentences they share too little to have met).
+    list = learnInstincts(list, "kalabalığın gölgesi uzar, müzik kısılır", [crowdFile], "c2");
+    list = learnInstincts(list, "kalabalıkta bayraklar dalgalanır", [crowdFile], "c3");
+    const kalab = list.find((i) => i.tetik === "kalab")!;
+    assert.deepEqual([kalab.guven, kalab.durum, kalab.kanit], [0.7, "dogrulandi", ["c1", "c2", "c3"]]);
+    assert.equal(firedInstincts(list, "sahnede kalabalık askerler")[0]?.dosya, crowdFile);
+    assert.equal(firedInstincts(list, "top sesi yankılanır").length, 0);
+    assert.deepEqual(instinctFiles(list, "kalabalık müzik eşliğinde")[0], { dosya: crowdFile, guven: 0.7, tetikler: ["kalab"] });
+    // A sweep over many files teaches no word.
+    assert.equal(learnInstincts(list, "kalabalık her yerde", Array.from({ length: 9 }, (_, k) => `src/lib/v3/mix/F${k}.ts`), "wide").length, list.length);
+    for (const other of ["m1", "m2", "m3", "m4", "m5", "m6"]) list = learnInstincts(list, "kalabalık başka yerde", ["src/lib/v3/mix/Other.ts"], other);
+    const crowd = list.find((i) => i.tetik === "kalab" && i.dosya === crowdFile)!;
     assert.deepEqual([crowd.durum, crowd.guven < 0.2], ["reddedildi", true], "an instinct that keeps missing is dropped");
+    assert.equal(instinctFiles(list, "kalabalık")[0]?.dosya, "src/lib/v3/mix/Other.ts");
+    // A dropped one that meets its file again starts over as a candidate.
+    assert.deepEqual([learnInstincts(list, "kalabalık döner", [crowdFile], "c9").find((i) => i.tetik === "kalab" && i.dosya === crowdFile)!.durum], ["aday"]);
+    // A store of old sentence triggers is recognised and rebuilt from the change memory, oldest first.
+    assert.equal(hasSentenceInstincts([{ tetik: "kalabalik sahnede askerler", dosya: crowdFile, guven: 0.4, durum: "aday", kanit: ["x"], tarih: at(1) }]), true);
+    assert.equal(hasSentenceInstincts(list), false);
+    const rebuilt = rebuildInstincts([{ id: "r2", tarih: at(2), mesaj: "kalabalık yürür", dosyalar: [crowdFile] }, { id: "r1", tarih: at(1), mesaj: "kalabalık bekler", dosyalar: [crowdFile] }, { id: "r0", tarih: at(0), mesaj: "yalnız not", dosyalar: [] }]);
+    assert.deepEqual(rebuilt.find((i) => i.tetik === "kalab")!.kanit, ["r1", "r2"]);
     // Past changes: only earlier ones, never the task's own.
     const past = [{ id: "a", tarih: at(1), mesaj: "kalabalık askerler sahnede", dosyalar: ["x"] }, { id: "b", tarih: at(5), mesaj: "kalabalık askerler sahnede yürür", dosyalar: ["y"] }];
     assert.deepEqual(similarChanges(past, "askerler kalabalık sahnede", { before: at(3) }).map((c) => c.id), ["a"]);

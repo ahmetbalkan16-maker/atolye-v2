@@ -66,6 +66,22 @@ export function periodShipLook(text: string, donem: string): string | undefined 
   return `The ships of ${donem} are grey steel warships and steamers with funnels, smoke and gun turrets — no sails, no rigging, no wooden hulls.`;
 }
 
+/** From this year on every navy dresses apart from its army: dark blue or white, not the army's field colours. */
+export const NAVY_UNIFORMS_FROM = 1850;
+
+const NAVY_PEOPLE = /\b(admirals?|commodores?|naval (?:officers?|staff|command(?:ers?)?|aviators?|pilots?)|navy (?:officers?|staff|command(?:ers?)?|pilots?)|sailors?|seamen|fleet command(?:ers?)?)\b/i;
+
+/**
+ * How the navy's people of a moment dress, for the second encoder: the Taranto Short (11 Nov 2026) painted "Japanese
+ * admirals studying the raid" in army khaki with field caps — naval officers wore dark navy blue or white. Only for a
+ * moment that names navy people, from NAVY_UNIFORMS_FROM on.
+ */
+export function periodNavyLook(text: string, donem: string): string | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined || year < NAVY_UNIFORMS_FROM || !NAVY_PEOPLE.test(text)) return undefined;
+  return `The admirals, naval officers and sailors of ${donem} wear navy uniforms — dark navy-blue or white, with peaked naval caps — never army khaki, olive or field-grey.`;
+}
+
 /**
  * What the buildings of an ancient period look like, for the second encoder: SDXL draws any "walled hilltop town with
  * stone towers" as a medieval castle town (the Rubicon's Corfinium, 49 BC: five drawings, five castles, crosses on two,
@@ -159,7 +175,7 @@ export function momentText(an: string | undefined, en: string, narration: string
 export function momentDesign(text: string, episode: Pick<Episode, "donem">): SetDesign {
   return {
     prompt: `${text}, ${MOMENT_STYLE}`,
-    prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}${periodShipLook(text, episode.donem) ? ` ${periodShipLook(text, episode.donem)}` : ""}`,
+    prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}${periodShipLook(text, episode.donem) ? ` ${periodShipLook(text, episode.donem)}` : ""}${periodNavyLook(text, episode.donem) ? ` ${periodNavyLook(text, episode.donem)}` : ""}`,
     negative: [MOMENT_NEGATIVE, ...periodNegatives(episode.donem)].join(", "),
   };
 }

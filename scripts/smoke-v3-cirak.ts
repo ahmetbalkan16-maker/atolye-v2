@@ -198,6 +198,22 @@ async function main() {
     let calls = 0;
     const stopped = await writeChange({ gorev: "x", dosyalar: [], semboller: [], benzer: [], dersler: [], rehber: "" }, { dir, repoRoot: dir, budget: mockBudget([]), model: MOCK, changed: async () => [], check: async () => ({ ok: true, cikti: "" }), log: () => {}, stop: async () => (calls++ ? "sipariş geldi" : undefined) });
     assert.deepEqual([stopped.gecti, stopped.durdu, stopped.turlar], [false, "sipariş geldi", 1]);
+    // The cap ends it before round 2: the reason keeps what the checks last said, and the unasked round is not counted.
+    let asked = 0;
+    const capped = new V3Budget({
+      providers: {
+        mock: {
+          generate: async () => {
+            if (asked++) throw new Error("V3_BUDGET_EXCEEDED: cirak-yaz: tahmini toplam $0.4002 > tavan $0.40; çağrı yapılmadı");
+            return { content: ["DOSYA: src/lib/v3/mix/Calc.ts", "<<<<<<< ARA", "/** Sums. */", "=======", "/** Totals. */", ">>>>>>> YERINE", "OZET: yorum"].join("\n"), finishReason: "stop", refused: false, complete: true, truncated: false };
+          },
+        },
+      },
+      capUsd: 0,
+    });
+    const broke = await writeChange({ gorev: "x", dosyalar: [], semboller: [], benzer: [], dersler: [], rehber: "" }, { dir, repoRoot: dir, budget: capped, model: MOCK, changed: async () => ["src/lib/v3/mix/Calc.ts"], check: async () => ({ ok: false, cikti: "AssertionError: beklenen 'beard'" }), log: () => {} });
+    assert.deepEqual([broke.gecti, broke.turlar], [false, 1]);
+    assert.match(broke.neden!, /V3_BUDGET_EXCEEDED[\s\S]*SON TURUN SONUCU:[\s\S]*AssertionError: beklenen 'beard'/);
   });
 
   await scenario("D the project's skills: parsed, the base ones always, the ones the task shows; linked into a sandbox and never deleted with it", async () => {

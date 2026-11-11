@@ -15,7 +15,9 @@ import {
   firedInstincts,
   gradedFiles,
   gradeGuess,
+  hasSentenceInstincts,
   type Instinct,
+  instinctFiles,
   isV3Smoke,
   lastGuess,
   learnInstincts,
@@ -26,6 +28,7 @@ import {
   MAX_GUESS_SYMBOLS,
   type PastChange,
   readInstincts,
+  rebuildInstincts,
   recordChange,
   recordCodeExperience,
   recordGrade,
@@ -220,6 +223,18 @@ async function grepScores(repoRoot: string, rev: string, terms: readonly string[
   return scores;
 }
 
+/**
+ * The instinct store as it is used. One still holding the old sentence triggers (before 11 Nov 2026: never confirmed,
+ * never dropped) is rebuilt once from the change memory, word by word, and written back.
+ */
+export async function currentInstincts(workRoot: string): Promise<Instinct[]> {
+  const stored = await readInstincts(workRoot);
+  if (!hasSentenceInstincts(stored)) return stored;
+  const rebuilt = rebuildInstincts(await listChanges(workRoot));
+  await writeInstincts(workRoot, rebuilt);
+  return rebuilt;
+}
+
 /** The brain's guess for a task at a revision, with what it found on the way (for the research note). */
 export async function guessTask(
   input: { readonly id: string; readonly kaynak: DevGuess["kaynak"]; readonly gorev: string; readonly rev: string; readonly before?: string },
@@ -240,8 +255,10 @@ export async function guessTask(
   const byMeaning = await meaningNeighbours(d, input.gorev, { ...(input.before ? { before: input.before } : {}), exclude: input.id });
   const benzer = [...byMeaning, ...byWords.filter((c) => !byMeaning.some((m) => m.id === c.id))].slice(0, 6);
   for (const c of benzer) for (const f of c.dosyalar) add(f, 6 * c.benzerlik, `benzer değişiklik "${c.mesaj.slice(0, 60)}"`);
-  const icguduler = firedInstincts(await readInstincts(d.workRoot), input.gorev).slice(0, 12);
-  for (const i of icguduler) add(i.dosya, 8 * i.guven, `içgüdü ${i.guven}`);
+  // An exam is taken with what was known then: instincts learned from the answer itself (or later) stay out.
+  const known = input.before ? rebuildInstincts((await listChanges(d.workRoot)).filter((c) => c.id !== input.id && Date.parse(c.tarih) < Date.parse(input.before!))) : await currentInstincts(d.workRoot);
+  const icguduler = firedInstincts(known, input.gorev).slice(0, 12);
+  for (const f of instinctFiles(known, input.gorev).slice(0, 8)) add(f.dosya, Math.min(12, 6 * f.guven), `içgüdü (${f.tetikler.slice(0, 3).join(", ")}) ${f.guven}`);
   const ranked = [...scores.entries()].sort((a, b) => b[1].puan - a[1].puan).slice(0, CANDIDATES).map(([f]) => f);
   const ozetler: Record<string, string> = {};
   const bildirimler: Record<string, string[]> = {};
@@ -357,7 +374,7 @@ export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS, 
   const coded = new Set((await listCodeExperience(d.workRoot)).map((x) => x.id));
   const commits = await v3Commits(d.repoRoot);
   const fresh = commits.filter((c) => !seen.has(c.sha));
-  let instincts = await readInstincts(d.workRoot);
+  let instincts = await currentInstincts(d.workRoot);
   const examFrom = Math.max(0, fresh.length - exams);
   const results: string[] = [];
   let sinav = 0;
@@ -430,7 +447,7 @@ export async function learnFromBuild(p: DevProposal, d: ResearchDeps): Promise<s
   const guess = await lastGuess(d.workRoot, p.id);
   const now = new Date().toISOString();
   await recordChange(d.workRoot, { id: p.id, tarih: now, mesaj: p.baslik, dosyalar: gradedFiles(changed) });
-  if (gradedFiles(changed).length) await writeInstincts(d.workRoot, learnInstincts(await readInstincts(d.workRoot), jobTask(p), changed, p.id));
+  if (gradedFiles(changed).length) await writeInstincts(d.workRoot, learnInstincts(await currentInstincts(d.workRoot), jobTask(p), changed, p.id));
   // What Claude wrote, as code: the kept build is the one commit on its branch.
   let symbols: string[] = [];
   if (p.is?.dal && gradedFiles(changed).length) {

@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, periodLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
@@ -173,6 +173,11 @@ async function main() {
     assert.match(taranto.negative, /square-rigged/);
     assert.equal(periodShipLook("Japanese admirals study a map", "1941"), undefined, "no ships named, no ship look");
     assert.equal(periodShipLook("The Ottoman fleet sails", "1571"), undefined);
+    // The same Short dressed "Japanese admirals" in army khaki: navy people get navy uniforms, from 1850 on.
+    assert.match(momentDesign("Japanese admirals study the Taranto raid over a harbour map", { donem: "1941" }).prompt2, /navy uniforms — dark navy-blue or white.*never army khaki/);
+    assert.equal(periodNavyLook("Army generals study a map", "1941"), undefined, "no navy people named");
+    assert.equal(periodNavyLook("The admiral of the Ottoman fleet prays", "1571"), undefined, "before navies dressed apart");
+    assert.ok(!taranto.prompt2.includes("navy uniforms"), "ships alone do not dress anyone");
     // SDXL drew the 49 BC Corfinium as a medieval castle five times: ancient sets get the look of their time and no castles.
     assert.match(rome.negative, /castle keep, turrets, conical tower roofs/);
     assert.ok(rome.prompt2.includes("terracotta-tiled roofs") && rome.prompt2.includes("as they were in 49 BC"));

@@ -1,3 +1,41 @@
+## 11 Kasım 2026 (7) — sistem taraması: geliştirici beyninin içgüdüsü çalışmıyordu (düzeltildi); sınav nedeni; deniz üniforması
+
+Owner: "mevcut sistemi kontrol et … AYAS otomatik kendini geliştirsin, yardımcı beyinler daha gelişmiş olsun, atölye daha iyi
+video hazırlasın; yanlış var mı eksik var mı bak". Skill: `v3-gelistirici`. Ölçümle bulunan üç şey düzeltildi.
+
+**Bulgu 1 (kendini geliştirme — asıl hata):** geliştirici beyninin karnesi "996 içgüdü (0 doğrulandı, 0 bırakıldı)" diyordu.
+Kök: içgüdünün tetiği görevin bütün cümlesiydi (8 kelime) ve iki görev kelimelerinin yarısını neredeyse hiç paylaşmıyor —
+211 değişiklikte 21.115 tetik çiftinden 3'ü. İçgüdü hiç doğrulanmadı, hiç düşmedi; tahmine katkısı ölçüldü: görevlerin
+%6'sında konuştu, değişen dosyaların %2'sini buldu. Kod (`DevBrain`): tetik artık kelime kökü (ilk 5 harf: "harita",
+"haritada", "haritanın" tek tetik) + dosya; `instinctTriggers`, `instinctFiles` (aynı dosyayı gösteren kelimeler toplanır),
+tek değişiklikte görülen içgüdü susar (tesadüf), 8'den çok dosyalı süpürme değişikliği öğretmez, düşen içgüdü dosyasıyla
+yeniden karşılaşınca aday olarak baştan başlar, tavan 1.500 → 4.000. `rebuildInstincts` + `DevResearch.currentInstincts`:
+eski cümle tetikli depo ilk kullanımda değişiklik hafızasından (`gecmis.jsonl`) kendiliğinden yeniden kurulur. Commit
+sınavında içgüdüler yalnız o commit'ten önceki değişikliklerden kurulur (sınav cevabı sızmaz).
+**Ölçüm (aynı 211 değişiklik, model yok, her değişiklik yalnız öncekilerle):** içgüdü görevlerin %96'sında konuşur; değişen
+dosyaların %24'ü ilk 3'te, %36'sı ilk 8'de (önce %2 / %3); 57 içgüdü doğrulandı, 487 düştü. Gerçek karneye (dosya bulma
+%41, fonksiyon %16) etkisi sonraki commit sınavlarında görülecek — henüz ölçülmedi.
+
+**Bulgu 2 (çırağın yazma sınavı, %20):** kalan son 10 sınavın 5'i tavanla ($0.40) bitti ve neden olarak yalnız
+"V3_BUDGET_EXCEEDED" yazıldı; sınav dersi de (`examLesson`) o satırdan yazıldı, kalan testten değil; sorulamayan tur da
+sayıldı ("6 tur"). Kod (`DevWriter.writeChange`): model çağrısı yapılamazsa son turun kontrol çıktısı nedende kalır,
+sorulmayan tur sayılmaz. Tavanın kendisi değişmedi (owner'ın parası; `ATOLYE_V3_CIRAK_SINAV_USD`).
+
+**Bulgu 3 (video — 11 Kasım (6)'nın açığı):** "Japon amiralleri" kara ordusu hâkisiyle çizilmişti.
+`BackgroundDesigner.periodNavyLook`: 1850'den itibaren amiral / deniz subayı / denizci geçen tasarlanan an istemine
+"lacivert ya da beyaz deniz üniforması, kasketli; asla hâki / haki-yeşil / gri" eklenir.
+
+**Bakıldı, hata değil:** Taranto'da tarih doğrulamasının "tek iddiası" kapsam eksiği değil — editör yalnız sorunlu satırları
+listeler; uydurma kişi açığı aynı gün `CastCheck` ile kapanmıştı.
+
+**Açık / öneriler (owner kararı):** (a) yazma sınavı tavanı $0.40 → ~$0.55: 5 sınav 6. tura birkaç sent kala kesildi;
+(b) çırak çok dosyalı işlerde yalnız 1 dosyaya dokunuyor (gerçek 2–4) — sınav seçimi şimdilik tek dosyalı commit'lere
+daraltılabilir; (c) izleyici yeniden başlatılana kadar akşam döngüsü eski içgüdü koduyla çalışır (depo sonra kendiliğinden
+yeniden kurulur).
+
+**Test:** tsc 0, lint 0/0; `smoke-v3-self-improvement` 11, `smoke-v3-cirak` 5, `smoke-v3-backgrounds` 23, `smoke-v3-council`
+17, `smoke-v3-brains-report` 4, `smoke-v3-episode-director` 67, firewall closure 13 PASS.
+
 ## 11 Kasım 2026 (6) — Taranto Short teslim edildi (tur 1); incelendi: konuşmacı etiketi, yelkenli gemiler düzeltildi
 
 Owner: "video durumuna bak … incele videoyu nasıl olmuş, müdahale edebileceğin bir şey varsa hallet". Skill: `v3-gelistirici`.

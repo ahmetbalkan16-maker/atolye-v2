@@ -326,7 +326,12 @@ export async function writeChange(task: WriterTask, deps: WriterDeps): Promise<W
       const out = await deps.budget.generate("cirak-yaz", deps.model, writerPrompt(task, views, [...reads.values()], feedback, canRead, ownDiff), { maxTokens: 8_000 });
       answer = parseWriterAnswer(out.result.content);
     } catch (e) {
-      return result(false, changedNow, `model çağrısı yapılamadı: ${(e as Error).message.slice(0, 300)}`);
+      // The round that could not be asked did not happen, and what the checks last said stays the reason: five of the
+      // first ten failed exams ended on the cap and recorded only "V3_BUDGET_EXCEEDED" — their lessons were written
+      // from that line instead of the failing test (11 Nov 2026).
+      turn--;
+      const failed = `model çağrısı yapılamadı: ${(e as Error).message.slice(0, 300)}`;
+      return result(false, changedNow, feedback ? `${failed}\nSON TURUN SONUCU:\n${feedback}` : failed);
     }
     if (answer.ozet) ozet = answer.ozet;
     if (answer.oku.length && !answer.duzenlemeler.length && canRead) {
