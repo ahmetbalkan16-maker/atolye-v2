@@ -7,6 +7,7 @@ import type { V3Paths } from "../V3Paths";
 import { type CouncilLog, readJsonAnswer } from "./Council";
 import { exampleDir, type Lesson, recall, remember } from "./ExperienceMemory";
 import { type LayoutFault, type LayoutFile, layoutFaults } from "./LayoutCheck";
+import { mapFramingFaults } from "./MapFramingCheck";
 import { type PixelFault, pixelFaults, scanVideo } from "./PixelCheck";
 
 /**
@@ -250,17 +251,24 @@ const PIXEL_TITLES: Readonly<Record<PixelFault["tur"], { baslik: string; oneri: 
 
 const span = (from: number, to: number) => `${from.toFixed(1)}–${to.toFixed(1)}. sn`;
 
+/** A Short's map framing fault (MapFramingCheck): what acts on the map is outside the window or cut at its edge. */
+const FRAMING_TITLE = { baslik: "harita kadrajı: etkin birlik kadraj dışında / kenarda", oneri: "haritanın kamerası o satırda işleyen birliklere çevrilmeli (UnitFraming), haritanın önündeki karakter onların yanında durmalı" };
+
 /**
  * The layout check over the boxes the render wrote (`yerlesim.json`, ChunkedRender): each cut or overlapping box that
- * lasts becomes a quality finding with its time. Returns the number of faults, or undefined when the render wrote no boxes.
+ * lasts becomes a quality finding with its time; for a Short, each moment a map's acting units stand outside the window
+ * or at its edge too (MapFramingCheck, from the plan). Returns the number of faults, or undefined when the render wrote no
+ * boxes and the plan shows no framing fault.
  */
-export async function layoutReview(input: { readonly file: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots">; readonly council: CouncilLog }): Promise<number | undefined> {
-  if (!existsSync(input.file)) return undefined;
-  const data = JSON.parse(await fs.readFile(input.file, "utf8")) as LayoutFile;
-  if (!data.kareler.length) return undefined;
+export async function layoutReview(input: { readonly file: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots"> & Partial<Pick<V3RenderPlan, "width" | "height" | "stage">>; readonly council: CouncilLog }): Promise<number | undefined> {
+  const plan = input.plan;
+  const framing = plan.width !== undefined && plan.height !== undefined ? mapFramingFaults({ ...plan, width: plan.width, height: plan.height }) : [];
+  for (const x of framing) input.council.find({ beyin: "kalite", onem: "eksik", baslik: FRAMING_TITLE.baslik, ayrinti: `${x.shot}: ${x.ayrinti}`, oneri: FRAMING_TITLE.oneri, tur: "kod", yer: span(x.at, x.at) });
+  const data = existsSync(input.file) ? (JSON.parse(await fs.readFile(input.file, "utf8")) as LayoutFile) : undefined;
+  if (!data?.kareler.length) return framing.length ? framing.length : undefined;
   const faults = layoutFaults(data, layoutSkip(input.plan));
   for (const x of faults) input.council.find({ beyin: "kalite", onem: x.to - x.from >= MEASURED_FAULT_S ? "eksik" : "uyari", baslik: LAYOUT_TITLES[x.tur].baslik, ayrinti: x.ayrinti, oneri: LAYOUT_TITLES[x.tur].oneri, tur: "kod", yer: span(x.from, x.to) });
-  return faults.length;
+  return faults.length + framing.length;
 }
 
 /** The pixel check over every frame of the finished video: dark bands, a moment of land painted as sea, a flash of black. */

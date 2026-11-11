@@ -10,7 +10,8 @@ import path from "node:path";
 import { openai } from "../src/lib/ai/client";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, narratedSpans, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutReview, layoutSkip, narratedSpans, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
+import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { cutSides, layoutFaults, MIN_PROBES, overlapShare } from "../src/lib/v3/council/LayoutCheck";
 import { examScore, eyeQuestion, faultsAt, type FrameQuestion, MIN_EYE_QUESTIONS, questionProblems } from "../src/lib/v3/council/QualityExam";
 import { BAND_MIN_FRAMES, frameStats, PIXEL_H, PIXEL_W, pixelFaults } from "../src/lib/v3/council/PixelCheck";
@@ -357,6 +358,42 @@ async function main() {
     const cut = (kare: number) => ({ kare, ogeler: [lazarCut] });
     assert.deepEqual(layoutFaults(file([cut(0), cut(15), cut(30)]), (f) => f === 15).length, 0, "a transition between two probes splits the run");
     assert.equal(MIN_PROBES, 2);
+  });
+
+  await scenario("L2 the map framing check (the Taranto Short, 11 Nov 2026: every check passed while the attack showed empty sea): a Short's acting units outside the window, at its edge or behind a character are measured faults", async () => {
+    // s6 as rendered: the sailor stands at 0.26 of the stage, the window round him; the ships (1053, 486) and the admiral's
+    // badge (960, 540) never in it. s5's first beat: six planes whose wedge reaches the top edge.
+    const shot = (id: string, start: number, performers: unknown[], geoMap: unknown) => ({ id, start, duration: 300, performers, geoMap, titleCards: [], camera: [] });
+    const sailor = { castId: "italian-sailor", x: 0.26, depth: 0.08, moves: [] };
+    const ships = { kind: "gemi", color: "#b3263a", count: 3, start: 9, path: [{ x: 1053, y: 486 }], lossStart: 237, losses: [2.4] };
+    const badge = { castId: "luigi", label: "Admiral Inigo Campioni", start: 9, path: [{ x: 960, y: 540 }] };
+    const planes = { kind: "ucak", color: "#3a7e6b", count: 6, start: 9, path: [{ x: 635, y: 112 }] };
+    const base = { arrows: [], armies: [], territories: [], cities: [], lakes: [], rivers: [], land: "" };
+    const plan = {
+      fps: 30,
+      width: 1080,
+      height: 1920,
+      stage: { width: 1920, height: 1080 },
+      shots: [shot("s6", 0, [sailor], { ...base, vehicles: [ships], badges: [badge] }), shot("s5", 300, [], { ...base, vehicles: [planes, { ...ships, path: [{ x: 1053, y: 486 }] }] })],
+    } as unknown as Parameters<typeof mapFramingFaults>[0];
+    const faults = mapFramingFaults(plan);
+    assert.deepEqual(faults.map((f) => [f.shot, f.at]), [["s6", 0.3], ["s6", 7.9], ["s5", 10.3]]);
+    // The window round the sailor is pulled toward them (ShotView's pairAim) as far as it goes: they reach its edge, cut.
+    assert.ok(faults[0]!.ayrinti.includes("gemi ×3") && /kadraj (dışında|kenarında kesik)/.test(faults[0]!.ayrinti), faults[0]!.ayrinti);
+    assert.ok(faults[2]!.ayrinti.includes("ucak ×6 kadraj kenarında kesik"), faults[2]!.ayrinti);
+    // The sailor just right of the ships (UnitFraming.besideAction): the window pulled toward them shows both, nothing behind him.
+    const fixed = { ...plan, shots: [shot("s6", 0, [{ ...sailor, x: 0.65 }], { ...base, vehicles: [ships], badges: [badge] })] } as unknown as typeof plan;
+    assert.deepEqual(mapFramingFaults(fixed), []);
+    // In front of the ships: behind the character.
+    const hidden = { ...plan, shots: [shot("s6", 0, [{ ...sailor, x: 0.53 }], { ...base, vehicles: [ships] })] } as unknown as typeof plan;
+    assert.ok(mapFramingFaults(hidden)[0]?.ayrinti.includes("karakterin arkasında"), JSON.stringify(mapFramingFaults(hidden)));
+    // A 16:9 plan has no window: not judged here.
+    assert.deepEqual(mapFramingFaults({ ...plan, width: 1920, height: 1080, stage: undefined } as typeof plan), []);
+    // Counted with the layout faults even when the render wrote no boxes, each a quality finding with its time.
+    const council = new CouncilLog();
+    const n = await layoutReview({ file: path.join(os.tmpdir(), "v3-yok", "yerlesim.json"), plan, council });
+    assert.equal(n, 3);
+    assert.equal(council.findings.filter((f) => f.baslik.startsWith("harita kadrajı")).length, 3);
   });
 
   await scenario("P the pixel check: a flat dark band down an edge, land painted as sea for a moment, designed moments skipped", () => {

@@ -24,6 +24,9 @@ import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
+import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
+import { behindFigure, besideAction, frameLineAction, framesAction, lineAction, loneWindowCentre, shortWindow } from "../src/lib/v3/maps/UnitFraming";
+import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
@@ -2416,6 +2419,88 @@ async function main() {
     const said: Record<number, { w: string; f: number }[]> = { 1: [["The", 90], ["African", 96], ["veterans", 104], ["swing", 112], ["in", 118], ["Hasdrubal's", 130], ["horsemen", 140], ["hit", 150], ["the", 154], ["Roman", 158], ["rear", 166]].map(([w, f]) => ({ w: w as string, f: f as number })) };
     const out2 = narrateMoves(cannae, cannae.map(() => src([false, false], [0, 1])), { start: (l: number) => [0, 90][l]!, end: (l: number) => [89, 300][l], told: (l: number, r: RegExp) => said[l]?.find((x) => r.test(x.w.replace(/[^\p{L}\p{N}'’-]+/gu, "")))?.f }, 30, (n) => Array.from({ length: n }, () => 0.4));
     assert.deepEqual(out2.units.map((u) => u.steps[1]!.start), [96, 96, 144, 192]);
+  });
+
+  await scenario("W5 the Taranto Short (11 Nov 2026, owner: \"no enactment on the map; the viewer must live the moment\"): each line's acting units framed in the window, ships in clear water, a lone character beside the action", () => {
+    const win = shortWindow(STAGE_SIZE, SHORTS_SIZE);
+    assert.ok(Math.abs(win.width - 0.3164) < 0.001 && win.aspect === 0.5625, JSON.stringify(win));
+    // s5 as delivered: two waves of six planes, three battleships, RouteZoom's 5 km stops on the planes' lines.
+    const s5: SceneMap = {
+      merkez: [17.25, 40.47],
+      genislik_km: 10,
+      araclar: [
+        { tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [17.23, 40.49], satir: 0, yol: [[17.23, 40.49], [17.25, 40.47]], yol_satir: 1, kayip: 1, kayip_satir: 2 },
+        { tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [17.27, 40.45], satir: 2, yol: [[17.27, 40.45], [17.25, 40.47]], yol_satir: 3, kayip: 1, kayip_satir: 3 },
+        { tur: "gemi", renk: "#b3263a", sayi: 3, konum: [17.25, 40.47], satir: 0, kayip: 1, kayip_satir: 1 },
+      ],
+      kamera: [{ satir: 1, merkez: [17.24, 40.48], genislik_km: 5 }, { satir: 3, merkez: [17.26, 40.46], genislik_km: 5 }],
+    };
+    assert.equal(framesAction(lineAction(s5, 0), s5.merkez!, 10, win, true), false, "line 0: the planes' wedge reaches the frame's top");
+    assert.equal(framesAction(lineAction(s5, 1), [17.24, 40.48], 5, win, true), false, "line 1: a 1.7 km run is wider than a 5 km stop's window");
+    assert.equal(framesAction(lineAction(s5, 2), [17.24, 40.48], 5, win, true), false, "line 2: the second wave off the stage");
+    const framed = frameLineAction(s5, win);
+    assert.deepEqual(framed.lines, [0, 1, 2, 3]);
+    for (const line of [0, 1, 2, 3]) {
+      const k = framed.map.kamera!.filter((c) => c.satir <= line).pop()!;
+      assert.ok(framesAction(lineAction(s5, line), k.merkez, k.genislik_km, win, true), `line ${line} framed by ${JSON.stringify(k)}`);
+    }
+    // A stop that already frames its line is kept: the 16:9 window holds the same raid on a 15 km map.
+    assert.equal(frameLineAction({ ...s5, genislik_km: 15, kamera: [] }, { width: 1, aspect: 0.5625 }).lines.length, 0);
+    // One fleet at one place on a close map is a speck: the camera moves in to a few streets; a wide map only pans.
+    const speck = frameLineAction({ merkez: [17.25, 40.47], genislik_km: 10, araclar: [{ tur: "gemi", renk: "#b3263a", sayi: 3, konum: [17.25, 40.47], satir: 0 }] }, win);
+    assert.deepEqual(speck.map.kamera, [{ satir: 0, merkez: [17.25, 40.47], genislik_km: CLOSE_MIN_ZOOM_KM }]);
+    const far = frameLineAction({ merkez: [17.2, 40.5], genislik_km: 1200, araclar: [{ tur: "gemi", renk: "#2e4a7d", konum: [8.0, 40.5], satir: 1 }] }, win);
+    assert.deepEqual(far.map.kamera, [{ satir: 1, merkez: [8, 40.5], genislik_km: 1200 }]);
+
+    // Ships in clear water: land west of 29.0 with a small dock cut into the quay beside the written place.
+    const square = [[[[28, 40], [29, 40], [29, 42], [28, 42], [28, 40]]]];
+    const dock = [[[[28.996, 41.039], [28.9995, 41.039], [28.9995, 41.041], [28.996, 41.041], [28.996, 41.039]]]];
+    const data = withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: square as never, water: dock as never });
+    const harbour: SceneMap = { merkez: [28.99, 41.04], genislik_km: 10, araclar: [{ tur: "gemi", renk: "#b3263a", konum: [28.995, 41.04], satir: 0 }, { tur: "gemi", renk: "#b3263a", sayi: 3, konum: [28.995, 41.04], satir: 0 }] };
+    const { onLand } = landTest(harbour, data, mapView(harbour.merkez!, 10, 1920, 1080));
+    const [one, three] = shipStarts(harbour, onLand, true, 1920);
+    assert.ok(one![0] < 29.0 && !onLand([one![0], one![1]]), `one ship: the nearest water, the dock, as before (${one})`);
+    assert.ok(three![0] > 29.003, `three ships: clear water off the quay, not the dock (${three})`);
+    assert.deepEqual(withShipsAfloat(harbour, data, 1920, 1080).araclar![1]!.konum, [three![0], three![1]], "the framing sees them where they are drawn");
+
+    // A lone character over the map: s6's sailor stood at 0.26, the ships (1053, 486) and the admiral (960, 540) off his window.
+    const marks = [{ name: "gemi ×3", x: 1053, y: 486, reach: 63 }, { name: "Campioni", x: 960, y: 540, reach: 70 }];
+    const at = besideAction(marks, 0.26, 1920, 1080, win)!;
+    const centre = loneWindowCentre(at, (1053 + 960) / 2 / 1920, win);
+    assert.ok(marks.every((m) => Math.abs(m.x - centre * 1920) <= (win.width / 2) * 1920 - m.reach && !behindFigure(m, at, 1920, 1080)), `beside at ${at}, window at ${centre}`);
+    assert.equal(besideAction(marks, at, 1920, 1080, win), undefined, "already beside: kept");
+
+    // The whole Short: a fleet written on land, a sailor speaking over the map — nothing acts out of the window or behind him.
+    const ep = sampleEpisode();
+    const cast: Episode["oyuncu_kadrosu"] = [ep.oyuncu_kadrosu[0]!, { ...castBase, id: "sailor", ad: "Giuseppe", rol: "Italian sailor", ses_id: "sailor" }];
+    const scene: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "t-liman",
+      mekan: "Close map: the harbour",
+      harita: { merkez: [28.97, 41.04], genislik_km: 10, araclar: [{ tur: "gemi", renk: "#b3263a", sayi: 3, konum: [28.99, 41.04], satir: 0, kayip: 1, kayip_satir: 1 }] },
+      satirlar: [
+        { karakter: "anlatici", metin: "The battleship sinks at her mooring.", duygu: "notr" },
+        { karakter: "sailor", metin: "I just polished that deck!", duygu: "uzgun", balon: "I just polished that!" },
+      ],
+    };
+    const episode: Episode = { ...ep, donem: "1940", oyuncu_kadrosu: cast, sahneler: [scene] };
+    const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(3)]]);
+    const plan = buildRenderPlan({
+      episode,
+      timeline: tl,
+      cast: toRenderCast(cast, "kukla"),
+      accessories: [],
+      backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }],
+      mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never,
+      coasts: new Map([["t-liman", { land: square as never, water: [] }]]),
+      fps: 30,
+      ...STAGE_SIZE,
+      output: SHORTS_SIZE,
+      endCard: false,
+      showCaptions: false,
+    });
+    assert.equal(plan.shots[0]!.performers.length, 1);
+    assert.deepEqual(mapFramingFaults(plan), [], JSON.stringify(mapFramingFaults(plan)));
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

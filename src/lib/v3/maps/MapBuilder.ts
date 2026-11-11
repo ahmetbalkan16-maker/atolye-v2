@@ -1015,6 +1015,83 @@ const SHORE_KM = 0.4;
 
 /** The script's vehicles that float. */
 const SHIPS = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
+
+/** A vehicle token's size at 1080p (remotion-v3 MapVehicles' SIZE). */
+export const VEHICLE_TOKEN_PX = 30;
+
+/**
+ * How far (screen px at 1080p) a group of `count` vehicles reaches round its leader's point: MapVehicles draws the rest in
+ * a wedge behind it, 1.5 tokens a row, two to a row, and each token is about 0.6 of its size across from its centre.
+ */
+export function shipReachPx(count: number): number {
+  return VEHICLE_TOKEN_PX * (1.5 * Math.ceil((Math.max(1, count) - 1) / 2) + 0.6);
+}
+
+/**
+ * A map's land test (lon/lat) in view `v`: its land outside its lakes and — on the close map — outside OpenStreetMap's
+ * wide rivers (Natural Earth's 1:50m rivers are a straight line a kilometre or two off at this scale: the Belgrade trial,
+ * 23 Oct 2026, drew the Danube through the fields; they stay a thin line). Also the rivers' bands in `v`'s pixels.
+ */
+export function landTest(map: SceneMap, data: MapData, v: MapView): { onLand: (p: [number, number]) => boolean; riverBands: { pts: XY[]; half: number }[] } {
+  const closeMap = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const toPx = (p: readonly [number, number]) => {
+    const [x, y] = projectNear(v, p[0], p[1]);
+    return { x: r1(x), y: r1(y) };
+  };
+  const pxPerKm = v.width / (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180)));
+  const inWorld = (p: XY) => p.x > -v.width * 0.1 && p.x < v.width * 1.1 && p.y > -v.height * 0.1 && p.y < v.height * 1.1;
+  const riverBands = closeMap
+    ? (data.wideRivers ?? [])
+        .map((r) => ({ pts: r.line.map((p) => toPx(p)), half: (r.km * pxPerKm) / 2 }))
+        .filter((r) => r.pts.length >= 2 && r.pts.some(inWorld))
+    : [];
+  const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes) && (!riverBands.length || !riverBands.some((r) => nearestOnLine(r.pts, toPx(p)).d < r.half));
+  return { onLand, riverBands };
+}
+
+/**
+ * Where a script's vehicles appear (lon/lat): a ship the writer set on land where the water is known (`knownWater`:
+ * OpenStreetMap's coast or rivers on a close map) stands in the nearest water — within a few hundred metres to a few km,
+ * by the map's width (Belgrade's trials: the Ottoman fleet "at Belgrade" drawn in the fields beside the Sava); further
+ * inland the writer pointed at a place, and it is left there. A group of ships stands in a wedge round its leader
+ * (MapVehicles), so it needs water that far round its point: the Taranto Short (11 Nov 2026) set three battleships at
+ * the town's centre, the nearest water was a dock's mouth and two of the three hulls were drawn on the quay. Clear water
+ * is sought first (a group already in clear water stays), the nearest water only when there is none.
+ */
+export function shipStarts(map: SceneMap, onLand: (p: [number, number]) => boolean, knownWater: boolean, width: number): (readonly [number, number])[] {
+  const floatKm = Math.max(1.5, (map.genislik_km ?? 0) * 0.08);
+  const afloat = (p: readonly [number, number], count: number): readonly [number, number] => {
+    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
+    const near = (q: readonly [number, number], km: number, a: number): [number, number] => [q[0] + (Math.cos(a) * km) / kx, q[1] + (Math.sin(a) * km) / 110.57];
+    const clearKm = (shipReachPx(count) * (map.genislik_km ?? 0)) / Math.max(1, width);
+    const clear = (q: [number, number]) => !onLand(q) && [0.5, 1].every((f) => Array.from({ length: 8 }, (_, j) => near(q, clearKm * f, (j * Math.PI) / 4)).every((o) => !onLand(o)));
+    const land = onLand([p[0], p[1]]);
+    if (!land && (count < 2 || clear([p[0], p[1]]))) return p;
+    const step = floatKm / 15;
+    let water: [number, number] | undefined;
+    for (let r = step; r <= floatKm + 1e-9; r += step)
+      for (let j = 0; j < 24; j++) {
+        const q = near(p, r, (j * Math.PI) / 12);
+        if (count >= 2 && clear(q)) return q;
+        // A little past the shore, so the hull is on the water and not on the bank.
+        if (!water && !onLand(q)) water = !onLand(near(p, r + step * 0.6, (j * Math.PI) / 12)) ? near(p, r + step * 0.6, (j * Math.PI) / 12) : q;
+        if (water && count < 2) return water;
+      }
+    return land ? (water ?? p) : p;
+  };
+  return (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum, Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)))) : a.konum));
+}
+
+/**
+ * The map as it is drawn, for deciding what the camera frames before it is built: its ships where shipStarts puts them
+ * (a fleet written on land is drawn in the water), so a frame chosen for them holds them.
+ */
+export function withShipsAfloat(map: SceneMap, data: MapData, width: number, height: number): SceneMap {
+  if (!map.araclar?.length || !map.merkez || !map.genislik_km) return map;
+  const closeMap = map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const starts = shipStarts(map, landTest(map, data, mapWorld(map, width, height).view).onLand, closeMap && Boolean(data.closeWater), width);
+  return starts.every((s, i) => s === map.araclar![i]!.konum) ? map : { ...map, araclar: map.araclar.map((a, i) => ({ ...a, konum: [starts[i]![0], starts[i]![1]] as [number, number] })) };
+}
 /** A stretch of land shorter than this share of the route is the shore it leaves from, not a haul. */
 const MIN_OVERLAND_SHARE = 0.04;
 
@@ -1438,15 +1515,7 @@ function projectGeoMap(
   // for ships, never land for houses, woods or tokens.
   const closeMap = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM;
   const pxPerKm = v.width / (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180)));
-  const inWorld = (p: XY) => p.x > -v.width * 0.1 && p.x < v.width * 1.1 && p.y > -v.height * 0.1 && p.y < v.height * 1.1;
-  // Only OpenStreetMap's: Natural Earth's 1:50m rivers are a straight line a kilometre or two off at this scale (the
-  // Belgrade trial, 23 Oct 2026, drew the Danube through the fields) and stay a thin line.
-  const riverBands = closeMap
-    ? (data.wideRivers ?? [])
-        .map((r) => ({ pts: r.line.map((p) => toPx(p)), half: (r.km * pxPerKm) / 2 }))
-        .filter((r) => r.pts.length >= 2 && r.pts.some(inWorld))
-    : [];
-  const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes) && (!riverBands.length || !riverBands.some((r) => nearestOnLine(r.pts, toPx(p)).d < r.half));
+  const { riverBands, onLand } = landTest(map, data, v);
   // A ship is hauled over land only where the water is known (OpenStreetMap's coast or rivers on a close map): on
   // Natural Earth's coarse coast a sea route cutting a cape, or a river fleet, would look dragged over the fields.
   const knownWater = closeMap && Boolean(data.closeWater);
@@ -1465,21 +1534,7 @@ function projectGeoMap(
   // A ship the writer set on land where the water is known stands in the nearest water (Belgrade's trials: the Ottoman
   // fleet "at Belgrade" drawn in the fields beside the Sava) — within a few hundred metres to a few km, by the map's
   // width; further inland the writer pointed at a place, and the route rules below keep the ship afloat.
-  const floatKm = Math.max(1.5, (map.genislik_km ?? 0) * 0.08);
-  const afloat = (p: readonly [number, number]): readonly [number, number] => {
-    if (!onLand([p[0], p[1]])) return p;
-    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
-    const at = (km: number, a: number): [number, number] => [p[0] + (Math.cos(a) * km) / kx, p[1] + (Math.sin(a) * km) / 110.57];
-    const step = floatKm / 15;
-    for (let r = step; r <= floatKm + 1e-9; r += step)
-      for (let j = 0; j < 24; j++) {
-        const a = (j * Math.PI) / 12;
-        // A little past the shore, so the hull is on the water and not on the bank.
-        if (!onLand(at(r, a))) return !onLand(at(r + step * 0.6, a)) ? at(r + step * 0.6, a) : at(r, a);
-      }
-    return p;
-  };
-  const starts = (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum) : a.konum));
+  const starts = shipStarts(map, onLand, knownWater, width);
   // Fire aimed at a ship's written place follows it into the water (the Hungarian fleet's shots fell in the fields).
   const aimAt = (h: readonly [number, number]) => {
     const j = (map.araclar ?? []).findIndex((o, oi) => starts[oi] !== o.konum && Math.hypot((o.konum[0] - h[0]) * 111.32 * Math.cos((h[1] * Math.PI) / 180), (o.konum[1] - h[1]) * 110.57) < 0.3);

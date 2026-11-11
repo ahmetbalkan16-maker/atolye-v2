@@ -31,8 +31,9 @@ import type {
 } from "../render/RenderPlanTypes";
 import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
-import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast } from "../maps/MapBuilder";
+import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast, withShipsAfloat } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
+import { besideAction, frameLineAction, recentAction, shortWindow } from "../maps/UnitFraming";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
@@ -747,8 +748,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       squeezeForWindow(slots);
     }
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
+    // A Short's map is framed on what acts in each line, its ships where they are drawn: its window is a third of the
+    // stage (UnitFraming).
+    const shortWin = vertical ? shortWindow({ width: input.width, height: input.height }, input.output!) : undefined;
+    const sceneMap = mapped ? withNamedHighlights(scene).harita! : undefined;
+    const mapData = mapped ? withCoast(input.mapData!, input.coasts?.get(scene.id)) : undefined;
+    const kamera = sceneMap && shortWin ? frameLineAction(withShipsAfloat(sceneMap, mapData!, input.width, input.height), shortWin).map.kamera : undefined;
     const geo = mapped
-      ? buildGeoMap(withNamedHighlights(scene).harita!, withCoast(input.mapData!, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+      ? buildGeoMap(kamera ? { ...sceneMap!, kamera } : sceneMap!, mapData!, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),
@@ -772,8 +779,15 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
     if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
       const speaks = lines.find((l) => l.speaker === lone[0]);
-      const x = mapStageX(mapOnScreen(geo!, speaks ? local(speaks.start) : 0, input.width, input.height), input.width, input.height);
-      slots.set(lone[0], { ...lone[1], x, facing: x < 0.5 ? "right" : "left" });
+      const at = speaks ? local(speaks.start) : 0;
+      const free = mapStageX(mapOnScreen(geo!, at, input.width, input.height), input.width, input.height);
+      // In a Short the window holds the character: they stand beside what acts on the map then, not away from it.
+      const marks = shortWin ? recentAction(geo!, at, fps, input.width, input.height) : [];
+      const beside = shortWin ? besideAction(marks, free, input.width, input.height, shortWin) : undefined;
+      const x = beside ?? free;
+      // Beside the action they face it.
+      const toward = beside !== undefined ? marks.reduce((a, m) => a + m.x, 0) / marks.length / input.width : 0.5;
+      slots.set(lone[0], { ...lone[1], x, facing: x < toward ? "right" : "left" });
     }
 
     // Per-performer tracks.

@@ -127,8 +127,9 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   // stage, to what happens on the map as well (and back to it after a badge's words).
   const turns = vertical ? [...(shot.bubbles ?? []), ...(shot.focus ?? [])].filter((b) => heads.has(b.castId)) : [];
   const onStage = states.some(({ p }) => heads.has(p.castId) && !badgeHeads.has(p.castId));
-  const beats = vertical && geo && !onStage ? mapBeats(geo, fps) : [];
-  const aims = vertical ? withMapBeats(windowAims(turns, fps), beats, turns, fps) : [];
+  const beats = vertical && geo ? mapBeats(geo, fps) : [];
+  // With someone on the stage the window stays on them; the map's beats only pull it (a lone character, below).
+  const aims = vertical ? withMapBeats(windowAims(turns, fps), onStage ? [] : beats, turns, fps) : [];
   let aimX: AimX = (id) => (id ? heads.get(id)?.x : undefined) ?? W / 2;
   if (vertical) {
     const actors = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [{ id: p.castId, ...heads.get(p.castId)! }] : []));
@@ -141,7 +142,11 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
       const badge = b.badge !== undefined ? geo?.badges?.[b.badge] : undefined;
       return badge ? stageX(badgeAt(geo!, badge, frame, fps, H, shot.duration).at.x) : beatAim(b.xs.map(stageX), stageX(b.last), winW);
     };
-    const middle = actors.length ? actors.reduce((a, b) => a + b.x, 0) / actors.length : beats.length ? beatX(beatAt(beats, frame, fps)) : W / 2;
+    // A lone character over a Short's map is seen with what happens on the map then, beside them (the Taranto Short's
+    // sailor stood in front of empty sea for 15 s while the ships went down off the window, 11 Nov 2026).
+    const mapPartner = actors.length === 1 && beats.length ? { x: beatX(beatAt(beats, frame, fps)) } : undefined;
+    const lone = actors.length === 1 ? actors[0]! : undefined;
+    const middle = lone && mapPartner ? pairAim(lone.x, lone.r * BODY_PER_HEAD, [mapPartner], winW) : actors.length ? actors.reduce((a, b) => a + b.x, 0) / actors.length : beats.length ? beatX(beatAt(beats, frame, fps)) : W / 2;
     const restId = shot.lead && !badgeHeads.has(shot.lead) && heads.has(shot.lead) ? shot.lead : undefined;
     // On a speaker (or the resting lead), and the one they talk with beside them when both fit; with no partner, the
     // nearest — a near tie settled by name, so the window never flips between two neighbours as a head turns.
@@ -152,7 +157,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
       const others = actors.filter((a) => a.id !== id);
       const near = Math.min(...others.map((a) => Math.abs(a.x - h.x)));
       const nearest = others.filter((a) => Math.abs(a.x - h.x) <= near * 1.1 + 1).sort((a, b) => a.id.localeCompare(b.id))[0];
-      return pairAim(h.x, h.r * BODY_PER_HEAD, p ? [p] : nearest ? [nearest] : [], winW);
+      return pairAim(h.x, h.r * BODY_PER_HEAD, p ? [p] : nearest ? [nearest] : mapPartner ? [mapPartner] : [], winW);
     };
     aimX = (id, partner) => (id?.startsWith(MAP_BEAT_ID) ? beatX(Number(id.slice(MAP_BEAT_ID.length))) : id ? (badgeHeads.has(id) ? heads.get(id)?.x : withPartner(id, partner)) : undefined) ?? withPartner(restId, partner) ?? middle;
     winX = Math.min(W - winW, Math.max(0, windowCentre(aims, frame, fps, aimX) - winW / 2));
