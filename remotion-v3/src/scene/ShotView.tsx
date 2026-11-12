@@ -7,7 +7,7 @@ import { extraState } from "../character/extras";
 import { Horse, RiderLeg, SADDLE_X, SADDLE_Y } from "../character/Horse";
 import { headCenter, type PerformerState, performerState, turnStretch } from "../character/motion";
 import { drift, HEAD_R, HIP_Y, INK } from "../character/rig";
-import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
+import { cameraAt, clampView, coverShake, filmCamera, shakeAt } from "./camera";
 import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { InfoCardView } from "./InfoCard";
@@ -64,8 +64,9 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
   const raw = filmCamera(cameraAt(shot.camera, frame, fps), shot.id, frame, shot.duration, fps);
   const cam = clampView(raw.zoom, raw.cx, raw.cy);
   const shake = shakeAt(shot, frame);
-  // Parallax: the set moves less than the characters; 3% overscan hides the edges during shakes.
-  const bgCam = clampView((1 + (cam.zoom - 1) * 0.72) * 1.03, cam.cx, cam.cy);
+  // Parallax: the set moves less than the characters; 3% overscan, and as much more as a strong shake needs, hides the
+  // stage's edges (coverShake).
+  const bgCam = coverShake({ zoom: (1 + (cam.zoom - 1) * 0.72) * 1.03, cx: cam.cx, cy: cam.cy }, shake, W, H);
 
   const view = (v: { zoom: number; cx: number; cy: number }) =>
     `translate(${W / 2 + shake.dx}px, ${H / 2 + shake.dy}px) rotate(${shake.rot}deg) scale(${v.zoom}) translate(${-v.cx * W}px, ${-v.cy * H}px)`;

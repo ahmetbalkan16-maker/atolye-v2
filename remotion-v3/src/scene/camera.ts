@@ -77,7 +77,33 @@ export function clampView(zoom: number, cx: number, cy: number): View {
   return { zoom: z, cx: Math.min(1 - half, Math.max(half, cx)), cy: Math.min(1 - half, Math.max(half, cy)) };
 }
 
-export function shakeAt(shot: V3Shot, frame: number): { dx: number; dy: number; rot: number } {
+export interface Shake {
+  readonly dx: number;
+  readonly dy: number;
+  /** Degrees. */
+  readonly rot: number;
+}
+
+/**
+ * The set's view grown and moved just enough that the shaken, turned frame still lies on the stage: a gun's shake
+ * pushed the set further than its 3% overscan, more so with the view at the stage's edge, and the empty frame showed
+ * as a dark band along the top (Guadalcanal, 12 Nov 2026, 36 px for 0.2 s). Without a shake it is clampView.
+ * `shake` in stage px, as ShotView applies it: translate(W/2 + dx, H/2 + dy) rotate(rot) scale(zoom) translate(-c).
+ */
+export function coverShake(view: View, shake: Shake, width: number, height: number): View {
+  const a = (shake.rot * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(a), Math.sin(a)];
+  // The frame's corners on the stage, about the view's centre, before the zoom (the inverse of the shot's transform).
+  const corners = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => ({ x: (sx * width) / 2 - shake.dx, y: (sy * height) / 2 - shake.dy })));
+  const xs = corners.map((q) => q.x * cos + q.y * sin);
+  const ys = corners.map((q) => -q.x * sin + q.y * cos);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const z = Math.max(1, view.zoom, (x1 - x0) / width, (y1 - y0) / height);
+  const clamp = (c: number, lo: number, hi: number, size: number) => Math.min(1 - hi / (z * size), Math.max(-lo / (z * size), c));
+  return { zoom: z, cx: clamp(view.cx, x0, x1, width), cy: clamp(view.cy, y0, y1, height) };
+}
+
+export function shakeAt(shot: V3Shot, frame: number): Shake {
   let dx = 0, dy = 0, rot = 0;
   for (const s of shot.shakes) {
     if (frame < s.start || frame >= s.end) continue;
