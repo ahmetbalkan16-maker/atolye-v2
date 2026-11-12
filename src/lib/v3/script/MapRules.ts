@@ -317,6 +317,71 @@ export function aimPlanesAtShips(episode: Episode): { episode: Episode; fixes: s
   return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
+/** The words a narrator names a vehicle group by (ships are named on every naval line, so they are not looked for). */
+const TOLD_VEHICLE: Partial<Record<string, RegExp>> = {
+  ucak: /(?:^|[^\p{L}])(?:(?:bi)?planes?|aircraft|air\s?planes?|bombers?|fighters?|dive[- ]bombers?|torpedo[- ]bombers?|uçak\p{L}*)(?!\p{L})/iu,
+  denizalti: /(?:^|[^\p{L}])(?:submarines?|subs?|u-boats?|denizaltı\p{L}*)(?!\p{L})/iu,
+  tank: /(?:^|[^\p{L}])(?:tanks?|panzers?|tank\p{L}*)(?!\p{L})/iu,
+  suvari: /(?:^|[^\p{L}])(?:cavalry|horsemen|riders|süvari\p{L}*)(?!\p{L})/iu,
+  fil: /(?:^|[^\p{L}])(?:elephants?|fil(?:ler\p{L}*)?)(?!\p{L})/iu,
+};
+/** A loss told: a ship sunk, scuttled or finished off. */
+const TOLD_LOSS = /(?:^|[^\p{L}])(?:sunk|sinks?|sank|scuttl\p{L}*|wreck\p{L}*|destroy\p{L}*|blown|finish(?:es|ed)?\s+(?:her\s+|it\s+|\p{L}+\s+)?off|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*)(?!\p{L})/iu;
+const TOLD_DAWN = /(?:^|[^\p{L}])(?:dawn|daybreak|sunrise|first light|şafak\p{L}*|tan\s+yeri)(?!\p{L})/iu;
+
+/**
+ * What a narrator line tells happens on that line (Guadalcanal Short, 12 Nov 2026: "At dawn, U.S. planes from Henderson
+ * Field and Enterprise finish off Hiei … Hiei is scuttled" stood 9 s over a lone ship; the writer flew the planes and
+ * sank her only on Abe's joke after it, and the dawn map was drawn as night): a vehicle group that sets out on a later line
+ * sets out with the nearest narrator line up to two before it that names it (planes, submarines, tanks, cavalry,
+ * elephants — not ships, named on every naval line), its fire with it; a ship lost on the line the group was moved from
+ * is lost on the new one when that line tells the loss; a night map whose date or first narrator line says dawn is a dawn
+ * map. Only what the writer put on the later line is moved; logged as a fix.
+ */
+export function vehiclesOnToldLine(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    if (!h) return s;
+    let harita: SceneMap = h;
+    const narrated = (l: number) => s.satirlar[l]?.karakter === "anlatici";
+    const moved = new Map<number, number>();
+    const araclar = (h.araclar ?? []).map((a, i) => {
+      const words = TOLD_VEHICLE[a.tur];
+      const line = a.yol?.length ? (a.yol_satir ?? a.satir) : undefined;
+      if (!words || line === undefined || line <= 0) return a;
+      let told: number | undefined;
+      for (let l = line - 1; l >= Math.max(0, line - 2) && told === undefined; l--) if (narrated(l) && words.test(s.satirlar[l]!.metin)) told = l;
+      if (told === undefined) return a;
+      moved.set(line, told);
+      fixes.push(`${s.id}: araclar[${i}] (${a.tur}) ${line}. satır yerine onu anlatan ${told}. satırda yola çıkar`);
+      return {
+        ...a,
+        satir: Math.min(a.satir, told),
+        yol_satir: told,
+        // Fire the writer set on the moved line goes with it; a later one stays.
+        ...(a.ates_satir === line ? { ates_satir: told } : {}),
+      };
+    });
+    const sunk = araclar.map((a, i) => {
+      const to = a.kayip_satir !== undefined ? moved.get(a.kayip_satir) : undefined;
+      if (to === undefined || !SHIP_KINDS.has(a.tur) || !(a.kayip ?? 0) || !TOLD_LOSS.test(s.satirlar[to]?.metin ?? "")) return a;
+      fixes.push(`${s.id}: araclar[${i}] (${a.tur}) kaybı onu anlatan ${to}. satıra alınır`);
+      return { ...a, kayip_satir: to };
+    });
+    if (moved.size) harita = { ...harita, araclar: sunk };
+    const firstNarration = s.satirlar.find((l) => l.karakter === "anlatici")?.metin ?? "";
+    // The date stamp decides when there is one (Guadalcanal's "Night, 14–15 Nov 1942" told Kirishima sinking by dawn).
+    const dated = h.tarih?.[0]?.metin;
+    if (h.zaman === "gece" && (dated !== undefined ? TOLD_DAWN.test(dated) : TOLD_DAWN.test(firstNarration) && !/night|gece/i.test(firstNarration))) {
+      harita = { ...harita, zaman: "safak" };
+      fixes.push(`${s.id}: şafakta anlatılan harita gece yerine şafak`);
+    }
+    return harita === h ? s : { ...s, harita };
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
 /** Folded for a name search: Turkish dotless and dotted i alike, marks dropped, lower case. */
 const fold = (t: string) => t.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("en-US");
 
@@ -382,15 +447,17 @@ export function openOpeningMap(episode: Episode): { episode: Episode; fixes: str
  * 1389 trial was directed by hand): on a close map a commander's badge appears with the line that first names him; on any
  * map a ruler a line tells killed or captured gets the red X on his badge from that line; on a close map a side a line
  * tells breaking ("collapses", "flees") routs on that line when its formation moves away from the enemy; and a side a
- * line tells charging gets an arrow from where it stood to where it goes, before the tokens move. Then planes flying at a
- * sunk ship strike it (aimPlanesAtShips) and the opening map moves from its first line (openOpeningMap). Only what the
+ * line tells charging gets an arrow from where it stood to where it goes, before the tokens move. Then the planes, tanks
+ * or cavalry a narrator line names set out with that line (vehiclesOnToldLine), planes flying at a sunk ship strike it
+ * (aimPlanesAtShips) and the opening map moves from its first line (openOpeningMap). Only what the
  * writer left out is filled in; every fix is logged.
  */
 export function directBattleMaps(episode: Episode): { episode: Episode; fixes: string[] } {
   const battle = directBattleMapsOnly(episode);
-  const aimed = aimPlanesAtShips(battle.episode);
+  const told = vehiclesOnToldLine(battle.episode);
+  const aimed = aimPlanesAtShips(told.episode);
   const opened = openOpeningMap(aimed.episode);
-  return { episode: opened.episode, fixes: [...battle.fixes, ...aimed.fixes, ...opened.fixes] };
+  return { episode: opened.episode, fixes: [...battle.fixes, ...told.fixes, ...aimed.fixes, ...opened.fixes] };
 }
 
 /** directBattleMaps' battle-map pass: badges with the line naming them, the fallen's X, routs, charge arrows. */

@@ -746,7 +746,7 @@ type GeoMapOptions = {
 // (\p{L}, not \w: a Turkish ending's "ı" is no \w — "batırıldı" slipped.)
 export const TOLD_WORDS = {
   /** A ship, gun or unit lost. */
-  kayip: /^(?:sunk|sink\p{L}*|sank|wreck\p{L}*|destroy\p{L}*|blown|blew|lost|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*|yok\s?edil\p{L}*|parçala\p{L}*|kaybed\p{L}*)$/iu,
+  kayip: /^(?:sunk|sink\p{L}*|sank|scuttl\p{L}*|wreck\p{L}*|destroy\p{L}*|blown|blew|lost|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*|yok\s?edil\p{L}*|parçala\p{L}*|kaybed\p{L}*)$/iu,
   /** Fire opened (a plane's: its torpedoes or bombs). */
   ates: /^(?:fire[sd]?|firing|torpedo\p{L}*|torpido\p{L}*|bombs?|bombed|bombing|shell\p{L}*|bombard\p{L}*|cannon\p{L}*|guns?|blast\p{L}*|ateş\p{L}*|bombala\p{L}*|döv\p{L}*|topa)$/iu,
   /**

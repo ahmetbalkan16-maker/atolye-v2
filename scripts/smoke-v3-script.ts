@@ -18,7 +18,8 @@ import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/maps/Tactics";
-import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap } from "../src/lib/v3/script/MapRules";
+import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
+import { TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -1283,6 +1284,44 @@ async function main() {
     assert.ok((await inventedPeople(cast([{ id: "a", ad: "Admiral Inigo Campioni", wiki: "Horatio Nelson" }]), lookup))[0]!.includes("someone else"));
     // An offline Wikipedia decides nothing.
     assert.deepEqual(await inventedPeople(cast([{ id: "p", ad: "Admiral Luigi de Pignati", wiki: "Luigi de Pignati" }]), async () => "error" as const), []);
+  });
+
+  await scenario("the Guadalcanal Short's dawn map (12 Nov 2026): the planes a narrator line names fly on it, the ship it tells sunk goes down on it, a dawn map is no night map", async () => {
+    const line = (metin: string, karakter = "anlatici") => ({ karakter, metin, duygu: "notr" as const });
+    const base = episode();
+    // s5-hiei-doomed as the writer left it: one still ship for 9 s, planes and the sinking only on Abe's joke.
+    const hiei = { tur: "gemi" as const, renk: "#a39b6a", sayi: 1, konum: [159.91, -9.19] as [number, number], satir: 0, kayip: 1, kayip_satir: 1 };
+    const planes = { tur: "ucak" as const, renk: "#5f5f34", sayi: 3, konum: [160.05, -9.42] as [number, number], satir: 1, yol: [[160.05, -9.42], [159.91, -9.19]] as [number, number][], yol_satir: 1, hedef: [159.91, -9.19] as [number, number] };
+    const scene = {
+      ...base.sahneler[1]!,
+      id: "s5-hiei-doomed",
+      mekan: "Close map: Savo Sound",
+      satirlar: [line("At dawn, U.S. planes from Henderson Field and Enterprise finish off Hiei. Abe has to abandon ship. Hiei is scuttled."), line("Well, there goes my ride home.", base.sahneler[1]!.satirlar[0]!.karakter)],
+      harita: { merkez: [159.91, -9.19] as [number, number], genislik_km: 20, zaman: "gece" as const, araclar: [hiei, planes], tarih: [{ satir: 0, metin: "Dawn, 14 Nov 1942" }] },
+    };
+    const ep = { ...base, donem: "1942", sahneler: [base.sahneler[0]!, scene] } as unknown as Episode;
+    const told = vehiclesOnToldLine(ep);
+    const h = told.episode.sahneler[1]!.harita!;
+    assert.deepEqual([h.araclar![1]!.satir, h.araclar![1]!.yol_satir], [0, 0], "the planes fly with the line that names them");
+    assert.equal(h.araclar![0]!.kayip_satir, 0, "Hiei goes down on the line that tells it");
+    assert.equal(h.zaman, "safak");
+    assert.equal(told.fixes.length, 3, told.fixes.join(" | "));
+    assert.ok(validateEpisode(told.episode).ok);
+    assert.equal(vehiclesOnToldLine(told.episode).fixes.length, 0, "a second pass changes nothing");
+    // MapBuilder times the loss at the told word: "scuttled" is one now (else she sank at the line's start, before the planes).
+    assert.ok(TOLD_WORDS.kayip.test("scuttled"));
+    // Not named on the line before (a character's line, or the narrator speaking of something else): left alone.
+    const quiet = { ...scene, satirlar: [line("Abe's flagship drifts, her rudder jammed."), scene.satirlar[1]!] };
+    assert.equal(vehiclesOnToldLine({ ...ep, sahneler: [base.sahneler[0]!, { ...quiet, harita: { ...scene.harita, zaman: undefined } }] } as unknown as Episode).fixes.length, 0);
+    // Ships are named on every naval line: a ship's route is never moved by its word.
+    const sailing = { ...scene, satirlar: [line("Washington's ships close in."), line("Then they turn.")], harita: { ...scene.harita, zaman: undefined, araclar: [{ ...hiei, kayip: undefined, kayip_satir: undefined, yol: [[159.91, -9.19], [159.95, -9.2]] as [number, number][], yol_satir: 1 }] } };
+    assert.equal(vehiclesOnToldLine({ ...ep, sahneler: [base.sahneler[0]!, sailing] } as unknown as Episode).fixes.length, 0);
+    // The night battle's date keeps its night, even when its narration tells the sinking "by dawn" (s6).
+    const nightLine = line("The next night, Lee's battleships arrive; Kirishima is gone by dawn.");
+    assert.equal(vehiclesOnToldLine({ ...ep, sahneler: [base.sahneler[0]!, { ...quiet, satirlar: [nightLine], harita: { ...scene.harita, araclar: [], tarih: [{ satir: 0, metin: "Night, 14–15 Nov 1942" }] } }] } as unknown as Episode).fixes.length, 0);
+    assert.equal(vehiclesOnToldLine({ ...ep, sahneler: [base.sahneler[0]!, { ...quiet, satirlar: [nightLine], harita: { ...scene.harita, araclar: [], tarih: undefined } }] } as unknown as Episode).fixes.length, 0, "undated: a line that says night too");
+    // The director's pass runs it before aiming the planes.
+    assert.equal(directBattleMaps(ep).episode.sahneler[1]!.harita!.araclar![1]!.yol_satir, 0);
   });
 
   await scenario("the Taranto Short's maps (owner, 11 Nov 2026): planes flying at a sunk ship strike it; the opening map rings the town its first line names and the carrier sails from line 0", async () => {
