@@ -1,3 +1,18 @@
+## 12 Kasım 2026 (4) — Guadalcanal Short GÜVENLİ DURDURULDU (owner: kullanım tokeni bitiyor) — DEVAM BURADAN
+
+Sipariş `20261112T100728-1942-naval-battle-of-guadalcanal-12-15-n` 14:5x'te rötuş turu 1'in kostüm aşamasında
+durduruldu (owner isteği). Durum `hata` (izleyici kendiliğinden başlatmaz). Elde: `final-tur0.mp4` (ilk kesim, 110.9 sn,
+yelkenli s5 görseli ve Lee'nin zeytin üniforması içerir — teslim edilmemeli), `rotus-plani.json` (tur 1: Abe + Lee
+yeniden tasarım, AYAS'ın 6 satır düzeltmesi; satırlar episode.json'a yazılmış).
+Bu oturumdaki müdahaleler: s4/s6 zaman sıkıştırması düzeltildi (ilk), rötuş yazarının "Atlanta ertesi gün batırıldı"
+hatası s4#0'da iki dosyada da düzeltildi ("Atlanta is wrecked and later scuttled. Hours after the fight, a Japanese sub
+torpedoes the damaged Juneau…"); f5115433 üniforma notu rengi, 19f6178d yelkenli gemi hakemi + "çelik gemi" istemi (canlı).
+**Devam:** sipariş JSON'unda `"durum": "bekliyor"`, `"devamAdimi": "gardirop"`, `"rotusTuru": 1`; `bitis/ozet/baslangic`
+silinir; `uret.log` → `onceki-deneme-2/`. İzleyici 30 sn içinde rötuş turu 1'i kostümden başlatır. Sonra izle: Lee
+lacivert mi, s5 tasarlanan anı yelkensiz mi (hakem "önceki çağın gemisi" satırı), s4#0 doğru mu. Açık küçükler: açılış
+balonu üstte kesik, altyazıda "Unknown authorUnknown author", ikinci gecede Abe rozeti (Kondo olmalı), kalite beyni
+yelkenliyi 0 kusurla geçirdi (ogret ile öğretilmeli).
+
 ## 12 Kasım 2026 (3) — V3 video kalitesi: akıcı geçişler, internetten araştırma, telif; sistem taraması; Guadalcanal Short
 
 Owner: "daha iyi kalitede video, daha akıcı geçişler, araştırmalar genişletilsin ama telif haklarına dikkat edilsin",
