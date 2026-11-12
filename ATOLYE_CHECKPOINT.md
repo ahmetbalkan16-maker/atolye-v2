@@ -1,3 +1,14 @@
+## 12 Kasım 2026 (6) — Guadalcanal Short TESLİM EDİLDİ (tur 2, yeniden render) — yüklemeyi owner bekliyor
+
+`final.mp4` = final-tur2 (107,5 sn, −14,3 LUFS, ses bozukluğu yok; ilk tur 2 kopyası `private/temp/guadal-final-tur2-ilk.mp4`).
+Tur 1'de ses bekçisi önbellekteki bozuk Abe klibini yakalayıp yeniden üretti; teslim öncesi ses ölçümü üç turda da temiz.
+Ek düzeltmeler: b76462ab balon satırı kelime kırılımıyla sayılır (kanca kadraj üstüne taşıyordu); 1619c703 üst kenara yakın
+rozetin sözü rozetin altına geçer (Abe rozetini %48 örtüyordu). Müdahale: tur 2'de AYAS Callaghan'ın GERÇEK "odd ships
+starboard, even ships port" emrini şaka sanıp sildirdi, yazar uydurma söz koydu ve Juneau/Sullivan kardeşleri düşürdü →
+kostümde durduruldu, iki dosyada geri yazıldı (yedek `guadal-*.tur2-once`), devam ettirildi; dersler 1619c703'te.
+Kalan (sonraki iş): haritada Callaghan/Abe rozeti %14 üst üste, "…which one am I?" balonu Scott rozetini %32 örtüyor;
+şafak 14 Kasım haritası birkaç saniye boş kalıyor; çöp adam payı %11 (Short hedefi ~%30); Lee benzerliği 8/10.
+
 ## 12 Kasım 2026 (5) — Guadalcanal Short: owner incelemesi (ses, kayan fotoğraf) düzeltildi, rötuş turu 1 devam ettirildi
 
 Owner: "videoda ses hatası var, fotoğraf kayıyor bozuluyor" → "üst düzey video olana kadar iyileştir; %90 kullanımda güvenli
