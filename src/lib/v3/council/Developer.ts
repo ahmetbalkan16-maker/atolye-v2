@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type AyasCodeBuild, type AyasCodeScope, ayasCodeBuildHash, ayasCodeContentSha256, ayasCodeJobTrailer } from "../../brain/autonomy/AyasCodeChangeLane";
-import { checkEnv, runProcess } from "../util/Proc";
+import { ayasCheckEnv, isAyasCheckEnvDenied } from "../../brain/autonomy/AyasCheckEnv";
+import { runProcess } from "../util/Proc";
 import { BRAIN_NAMES } from "./Council";
 import { AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
@@ -53,6 +54,50 @@ export function claudeAgent(env: Readonly<Record<string, string | undefined>> = 
   const cli = env.ATOLYE_V3_CLAUDE_CLI || path.join(env.APPDATA ?? "", "npm", "node_modules", "@anthropic-ai", "claude-code", "cli-wrapper.cjs");
   if (kapsam === "ayas") return [process.execPath, cli, "-p", "--permission-mode", "acceptEdits", `--allowedTools=${AYAS_AGENT_TOOLS.join(",")}`, `--disallowedTools=${AYAS_AGENT_DENIED.join(",")}`, "--append-system-prompt", AYAS_DEVELOPER_RULES, "--output-format", "text"];
   return [process.execPath, cli, "-p", "--permission-mode", "acceptEdits", `--allowedTools=${AGENT_TOOLS.join(",")}`, "--append-system-prompt", DEVELOPER_RULES, "--output-format", "text"];
+}
+
+/**
+ * What Windows, Node and Git Bash need for Claude Code and the commands it may run (npx tsc, npx tsx, node) to start:
+ * the search path, the system and user folders, TEMP/TMP, the processor description and locale, the npm cache and
+ * Node's own options. Compared upper-cased (Windows names are case-insensitive: `Path` is PATH).
+ */
+const AGENT_ENV_SYSTEM: ReadonlySet<string> = new Set([
+  "PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "OS", "TEMP", "TMP", "TMPDIR",
+  "USERPROFILE", "HOME", "HOMEDRIVE", "HOMEPATH", "USERNAME", "USERDOMAIN", "COMPUTERNAME", "APPDATA", "LOCALAPPDATA",
+  "PROGRAMDATA", "ALLUSERSPROFILE", "PUBLIC", "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432", "COMMONPROGRAMFILES",
+  "COMMONPROGRAMFILES(X86)", "COMMONPROGRAMW6432", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "PROCESSOR_IDENTIFIER",
+  "PROCESSOR_LEVEL", "PROCESSOR_REVISION", "LANG", "LC_ALL", "TZ", "TERM", "NPM_CONFIG_CACHE", "NODE_OPTIONS",
+  "NODE_EXTRA_CA_CERTS",
+]);
+/**
+ * Claude Code's own sign-in and configuration, passed only when set. On this machine it signs in with the owner's
+ * Claude login (`%USERPROFILE%\.claude\.credentials.json`, found through USERPROFILE — no variable at all); an API key,
+ * token, endpoint or config folder set for Claude Code itself still reaches it. Bedrock/Vertex switches are not
+ * passed: they would hand Claude the AWS/Google credentials the studio's providers use.
+ */
+const AGENT_ENV_CLAUDE: ReadonlySet<string> = new Set([
+  "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_GIT_BASH_PATH",
+]);
+
+/**
+ * The environment the unattended Claude Code build agent (`claude -p`) runs with (owner 2026-11-12: "kalan güvenlik
+ * açıklarını kapatalım"). Until then it got the order watcher's whole environment — the OpenAI key (a Windows user
+ * variable here), YouTube OAuth, GitHub tokens, V3's secrets-file pointer, AYAS's own keys — while its task comes
+ * partly from LLM-written reports of fetched material and its Bash runs the code it writes. An allow list: only
+ * `AGENT_ENV_SYSTEM` (still without anything credential-shaped by the shared check rule) and Claude's own
+ * `AGENT_ENV_CLAUDE`. Nested-session markers of a Claude session that started the queue (CLAUDECODE,
+ * CLAUDE_CODE_SESSION_ID, its messaging socket…) do not pass either. The apprentice (yazan "cirak") is not covered: its
+ * writer needs the studio's model key and keeps the full environment, its checks stay scrubbed (DevWriter.runChecks).
+ * Pure; files are not covered (an agent can still read a file by its path).
+ */
+export function claudeAgentEnv(env: Readonly<Record<string, string | undefined>> = process.env): NodeJS.ProcessEnv {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(env)) {
+    if (value === undefined) continue;
+    const upper = name.toUpperCase();
+    if (AGENT_ENV_CLAUDE.has(upper) || (AGENT_ENV_SYSTEM.has(upper) && !isAyasCheckEnvDenied(name))) out[name] = value;
+  }
+  return out as NodeJS.ProcessEnv;
 }
 
 /** Suites never run by a build's checks: helpers another suite spawns, the scheduled-task probe, frozen evidence. */
@@ -222,7 +267,9 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     await fs.writeFile(path.join(record, `gorev-${job.deneme}.md`), packet);
     d.log(`  geliştirici: "${p.baslik}"${kapsam === "ayas" ? " (ana AYAS)" : ""} — ${dir} içinde ${yazan === "cirak" ? "çırak" : "Claude"} çalışıyor (deneme ${job.deneme})`);
     const agent = d.agent ?? claudeAgent(process.env, kapsam);
-    const run = await runProcess(agent[0]!, agent.slice(1), { cwd: dir, input: packet, timeoutMs: d.agentTimeoutMs ?? AGENT_TIMEOUT_MS });
+    // Claude Code gets only what it needs to start and sign in (claudeAgentEnv); the apprentice keeps its model key.
+    const agentEnv = yazan === "claude" ? claudeAgentEnv(process.env) : process.env;
+    const run = await runProcess(agent[0]!, agent.slice(1), { cwd: dir, env: agentEnv, input: packet, timeoutMs: d.agentTimeoutMs ?? AGENT_TIMEOUT_MS });
     await fs.writeFile(path.join(record, `ajan-${job.deneme}.log`), `${run.stdout}\n--- stderr ---\n${run.stderr}`);
     const ozet = run.stdout.trim().slice(-1500);
     const until = run.code !== 0 && yazan === "claude" ? usageLimitUntil(`${run.stdout}\n${run.stderr}`) : undefined;
@@ -251,7 +298,7 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const tabandaDusen: string[] = [];
     const changedSet = new Set(dosyalar.map((f) => f.replace(/\\/g, "/")));
     for (const c of checks) {
-      const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, env: checkEnv(), timeoutMs: CHECK_TIMEOUT_MS });
+      const r = await runProcess(c[0]!, c.slice(1), { cwd: dir, env: ayasCheckEnv(process.env) as NodeJS.ProcessEnv, timeoutMs: CHECK_TIMEOUT_MS });
       outputs.push(`$ ${c.slice(1).join(" ")}\n${r.stdout.slice(-2000)}${r.stderr.slice(-1000)}`);
       if (r.code !== 0) {
         // A main-AYAS build runs suites it did not write: one that fails on the untouched base too (this machine's
@@ -307,7 +354,7 @@ async function failsOnBase(repoRoot: string, dir: string, taban: string, c: read
     await linkShared(repoRoot, dir);
     base.dir = dir;
   }
-  const r = await runProcess(c[0]!, c.slice(1), { cwd: base.dir, env: checkEnv(), timeoutMs: CHECK_TIMEOUT_MS });
+  const r = await runProcess(c[0]!, c.slice(1), { cwd: base.dir, env: ayasCheckEnv(process.env) as NodeJS.ProcessEnv, timeoutMs: CHECK_TIMEOUT_MS });
   return r.code !== 0;
 }
 

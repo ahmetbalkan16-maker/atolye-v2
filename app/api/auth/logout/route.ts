@@ -9,7 +9,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     contentType.includes("multipart/form-data");
 
   const response = isForm
-    ? NextResponse.redirect(new URL("/login", request.nextUrl), 303)
+    ? // Relative Location (same as the login route): `request.nextUrl` carries the
+      // server's bind address, so an absolute URL sent phones to localhost.
+      new NextResponse(null, { status: 303, headers: { location: "/login" } })
     : NextResponse.json({ ok: true });
 
   response.cookies.set({

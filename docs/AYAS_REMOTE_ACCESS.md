@@ -41,7 +41,7 @@ Run the app on localhost:
 
 ```
 npm run build
-npm run start            # Next on 127.0.0.1:3000 (HTTP) — do NOT expose this port directly
+npm run start            # manual: plain `next start` binds ALL interfaces (0.0.0.0:3000, HTTP) — do NOT expose it; the live app (access daemon) runs `next start -p 3000 -H 127.0.0.1`
 ```
 
 Then put **Caddy** in front of it (`deploy/Caddyfile` is ready — its **primary

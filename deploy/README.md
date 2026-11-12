@@ -42,7 +42,7 @@ New-NetFirewallRule -DisplayName "AYAS HTTPS (LAN)" -Direction Inbound `
 
 # 4 — run
 npm run build
-npm run start                              # Next on 127.0.0.1:3000
+npm run start                              # manual: binds all interfaces; use `npx next start -H 127.0.0.1` to keep it loopback-only (the live app via the access daemon already does)
 caddy run --config deploy/Caddyfile        # separate shell, from the repo root
 caddy trust                                # trust Caddy's local CA on THIS PC (elevated)
 

@@ -201,6 +201,17 @@ async function main() {
     assert.equal(small.size, 1, "below the cap nothing is scanned");
   });
 
+  await scenario("logout route: form post redirects with a relative Location (not localhost) and clears the cookie", async () => {
+    const { POST } = await import("../app/api/auth/logout/route");
+    const res = await POST(new NextRequest("http://localhost:3000/api/auth/logout", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", host: "phone.example" },
+      body: "",
+    }));
+    assert.equal(res.status, 303);
+    assert.equal(res.headers.get("location"), "/login");
+    assert.equal(res.cookies.get(AYAS_SESSION_COOKIE)?.value, "");
+  });
   await scenario("login route: 21 failures with forged X-Forwarded-For make the next try wait; the correct passcode still gets in", async () => {
     await withEnv({ AYAS_ACCESS_KEY: KEY }, async () => {
       const { POST } = await import("../app/api/auth/login/route");

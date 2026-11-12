@@ -30,6 +30,8 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import ayasPhoneGatewayWorker, { type AyasWorkerEnv } from "../cloudflare/ayas-phone-gateway/src/worker";
 import {
@@ -463,6 +465,69 @@ async function run() {
     } as unknown as Window;
     bootstrapAyasPhoneKeyFromUrl(noParamWin);
     assert.equal(store2.size, 0);
+  });
+
+  // Owner 2026-11-12 ("kalan güvenlik açıklarını kapatalım"): the bootstrap link carries the key in the fragment,
+  // which the browser never sends (request line, proxy/server logs, the login redirect's `next`, Referer).
+  const fakeWinAt = (href: string, store: Map<string, string>) => {
+    const win = {
+      location: { href },
+      localStorage: { setItem: (k: string, v: string) => store.set(k, v) },
+      history: { state: null, replaceState: (_s: unknown, _t: string, url: string) => { win.location.href = url; } },
+    };
+    return win;
+  };
+
+  await scenario("bootstrapAyasPhoneKeyFromUrl — the #fragment form is captured and stripped; the query and other fragment entries stay", () => {
+    const store = new Map<string, string>();
+    const win = fakeWinAt(`https://192.168.2.74/brain?panel=research#ayasPhoneKey=${PHONE_KEY}&tab=2`, store);
+    bootstrapAyasPhoneKeyFromUrl(win as unknown as Window);
+    assert.equal(store.get("ayasPhoneKey"), PHONE_KEY);
+    assert.equal(win.location.href, "https://192.168.2.74/brain?panel=research#tab=2");
+
+    const store2 = new Map<string, string>();
+    const only = fakeWinAt(`https://192.168.2.74/brain#ayasPhoneKey=${PHONE_KEY}`, store2);
+    bootstrapAyasPhoneKeyFromUrl(only as unknown as Window);
+    assert.equal(store2.get("ayasPhoneKey"), PHONE_KEY);
+    assert.equal(only.location.href, "https://192.168.2.74/brain", "no empty # left behind");
+  });
+
+  await scenario("bootstrapAyasPhoneKeyFromUrl — on the login page (fragment carried through the redirect), a short fragment key, a plain #anchor", () => {
+    const store = new Map<string, string>();
+    const login = fakeWinAt(`https://192.168.2.74/login?next=%2Fbrain#ayasPhoneKey=${PHONE_KEY}`, store);
+    bootstrapAyasPhoneKeyFromUrl(login as unknown as Window);
+    assert.equal(store.get("ayasPhoneKey"), PHONE_KEY);
+    assert.equal(login.location.href, "https://192.168.2.74/login?next=%2Fbrain", "the login's next is left exactly as it was");
+
+    const store2 = new Map<string, string>();
+    const short = fakeWinAt("https://192.168.2.74/brain#ayasPhoneKey=short", store2);
+    bootstrapAyasPhoneKeyFromUrl(short as unknown as Window);
+    assert.equal(store2.size, 0);
+    assert.equal(short.location.href, "https://192.168.2.74/brain#ayasPhoneKey=short", "nothing captured, nothing rewritten");
+
+    const anchor = fakeWinAt("https://192.168.2.74/brain#chat", store2);
+    bootstrapAyasPhoneKeyFromUrl(anchor as unknown as Window);
+    assert.equal(store2.size, 0);
+    assert.equal(anchor.location.href, "https://192.168.2.74/brain#chat");
+  });
+
+  await scenario("bootstrapAyasPhoneKeyFromUrl — fragment and legacy query together: the fragment wins, both are stripped", () => {
+    const store = new Map<string, string>();
+    const other = "another-phone-key-0123456789";
+    const win = fakeWinAt(`https://192.168.2.74/brain?ayasPhoneKey=${other}&x=1#ayasPhoneKey=${PHONE_KEY}`, store);
+    bootstrapAyasPhoneKeyFromUrl(win as unknown as Window);
+    assert.equal(store.get("ayasPhoneKey"), PHONE_KEY);
+    assert.equal(win.location.href, "https://192.168.2.74/brain?x=1");
+  });
+
+  await scenario("the phone key reaches the gateway only in the Authorization header, never in a URL", () => {
+    const src = (file: string) => readFileSync(path.join(process.cwd(), ...file.split("/")), "utf8");
+    for (const file of ["src/components/brain/ayasChatStreamClient.ts", "src/components/brain/voice/localLlm/phoneLlmPrecacheDownloader.ts", "src/components/brain/voice/localLlm/phoneLlmRangeDiagnostic.ts"]) {
+      const code = src(file);
+      assert.match(code, /Authorization: `Bearer \$\{phoneKey\}`/, `${file} sends the key as a Bearer header`);
+      assert.doesNotMatch(code, /[?&]ayasPhoneKey=\$\{|searchParams\.(?:set|append)\(\s*["']ayasPhoneKey/, `${file} never puts the key into a URL`);
+    }
+    assert.match(src("app/login/page.tsx"), /<AyasPhoneKeyBootstrap \/>/, "the login page captures a fragment key before sign-in");
   });
 
   /* ---------------- Route 2: Phone-LLM model-weight Range proxy ---------------- */

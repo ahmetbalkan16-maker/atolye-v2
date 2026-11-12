@@ -156,7 +156,7 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
  * Cloudflare Worker, authenticated with the phone's stored key.
  *
  * No Worker URL configured, or no phone key stored yet (the one-time
- * `?ayasPhoneKey=` bootstrap hasn't run on this device) → behaves exactly
+ * `#ayasPhoneKey=` bootstrap hasn't run on this device) → behaves exactly
  * like the plain `runAyasChatStream` (returns its `network` failure as-is,
  * so the caller's existing `askAyas` Server Action fallback still applies).
  */

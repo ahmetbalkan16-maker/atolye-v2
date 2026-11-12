@@ -236,7 +236,7 @@ const FAILURE_LABEL: Record<string, string> = {
   "storage-unavailable":
     "LOCAL_MODEL_STORAGE_UNAVAILABLE — bu tarayıcı/ortamda IndexedDB kullanılamıyor, model kalıcı olarak saklanamaz. Bu deney başka bir depolama yedeğine dönmüyor.",
   "gateway-not-configured":
-    "AYAS Gateway bu cihazda henüz yapılandırılmamış — doğrudan Hugging Face isteği bu cihazda Range'i onurlandırmıyor. Önce /brain?ayasPhoneKey=<key> bağlantısını bir kez açın, sonra tekrar deneyin.",
+    "AYAS Gateway bu cihazda henüz yapılandırılmamış — doğrudan Hugging Face isteği bu cihazda Range'i onurlandırmıyor. Önce /brain#ayasPhoneKey=<key> bağlantısını bir kez açın, sonra tekrar deneyin.",
 };
 
 function describeFailure(reason: string, detail: string): string {

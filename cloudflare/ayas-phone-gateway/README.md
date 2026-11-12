@@ -62,11 +62,16 @@ npx wrangler secret put AYAS_PHONE_KEY
    in `.env.local` (PC-side; it's a public URL, not a secret — safe as
    `NEXT_PUBLIC_*`) and rebuild (`npm run build && npm start`).
 2. While the PC is on and the phone is on the same network as normal, open
-   the installed PWA once with `?ayasPhoneKey=<the phone key from step 3
-   above>` appended to the URL. The app stores it in that browser's
-   `localStorage` and strips the parameter from the address bar immediately —
-   the key is never sent to the PC, logged, or written to a file. Do this once
-   per device.
+   the installed PWA once with `#ayasPhoneKey=<the phone key from step 3
+   above>` appended to the URL (e.g. `https://192.168.2.74/brain#ayasPhoneKey=…`;
+   a `#` fragment, not a `?` query). The app stores it in that browser's
+   `localStorage` and strips it from the address bar immediately. A fragment
+   never leaves the browser, so the key is never sent to the PC, logged by
+   the proxy/server, put into the login redirect or a Referer, or written to
+   a file. Not signed in yet? The login page captures it before you sign in.
+   Do this once per device. (The older `?ayasPhoneKey=` query form is still
+   accepted for a saved link, but it does reach the PC in the request line and
+   its logs — prefer the fragment.)
 3. From then on: PC reachable → unchanged Quick-Tunnel/Ollama path. PC
    unreachable (network error, not an HTTP error) → the client retries once
    against the Worker URL with `Authorization: Bearer <phone key>`.

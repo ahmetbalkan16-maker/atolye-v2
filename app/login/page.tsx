@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AyasPhoneKeyBootstrap } from "@/components/brain/AyasPhoneKeyBootstrap";
 import { resolveAccessGate, safeRedirectPath } from "@/lib/auth/accessGate";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default async function LoginPage({
 
   return (
     <main style={styles.shell}>
+      <AyasPhoneKeyBootstrap />
       <section style={styles.card}>
         <p style={styles.eyebrow}>ATÖLYE</p>
         <h1 style={styles.title}>AYAS</h1>

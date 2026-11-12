@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { ayasCodeBuildHash, ayasCodeContentSha256, ayasCodeJobTrailer, ayasCodeLaneRefusals, type AyasCodeBuild } from "./AyasCodeChangeLane";
 import type { AyasCodeApplyDecisionRecord, AyasCodeApplyRecord, AyasCodeApplyStatus, AyasCodeChangeStore } from "./AyasCodeChangeStore";
+import { ayasCheckEnv } from "./AyasCheckEnv";
 import { pushAyasBranchWithRetry } from "./AyasGitPushRetry";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
@@ -75,12 +76,15 @@ export function proveAyasCodeBuild(repoRoot: string, build: AyasCodeBuild, build
   return undefined;
 }
 
-/** Secrets never reach a check; TEMP stays on D (owner rule). */
-function checkEnv(repoRoot: string): Record<string, string | undefined> {
-  const env: Record<string, string | undefined> = { ...process.env };
-  for (const key of Object.keys(env)) if (/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|^OPENAI|^ANTHROPIC|^ELEVENLABS|^YOUTUBE/i.test(key)) delete env[key];
+/**
+ * The environment a build's re-verification runs with: secrets never reach a check (the shared `ayasCheckEnv` rule,
+ * the same one the V3 developer's checks use — owner 2026-11-12, "kalan güvenlik açıklarını kapatalım": this runner's
+ * own list had drifted and still passed GEMINI/GOOGLE/GH_* credentials, GIT_ASKPASS, passphrases, sessions and V3's
+ * secrets-file pointer), and TEMP/TMP and the npm cache stay on D (owner rule). Pure; exported for its smoke.
+ */
+export function ayasCodeCheckEnv(repoRoot: string, env: Readonly<Record<string, string | undefined>> = process.env): Record<string, string> {
   const temp = path.join(path.resolve(repoRoot, "..", "..", "private", "temp"));
-  return { ...env, TEMP: temp, TMP: temp, NPM_CONFIG_CACHE: path.join(path.resolve(repoRoot, "..", "..", "private", "npm-cache")) };
+  return { ...ayasCheckEnv(env), TEMP: temp, TMP: temp, NPM_CONFIG_CACHE: path.join(path.resolve(repoRoot, "..", "..", "private", "npm-cache")) };
 }
 
 const LINKS = ["node_modules", path.join("remotion-v3", "node_modules")];
@@ -132,7 +136,7 @@ export async function reverifyAyasCodeBuild(repoRoot: string, head: string, buil
       { label: "lint", args: [path.join("scripts", "lint-yerel.mjs")] },
       ...build.smokes.filter((smoke) => fs.existsSync(path.join(dir, ...smoke.split("/")))).slice(0, 40).map((smoke) => ({ label: smoke, args: [tsx, path.join(...smoke.split("/"))] })),
     ];
-    const env = checkEnv(repoRoot);
+    const env = ayasCodeCheckEnv(repoRoot);
     for (const check of checks) {
       const run = spawnSync(process.execPath, [...check.args], { cwd: dir, env: env as NodeJS.ProcessEnv, encoding: "utf8", windowsHide: true, timeout: 20 * 60_000, maxBuffer: 32_000_000 });
       if (run.status !== 0) return { ok: false, summary: `${check.label}: ${`${run.stdout ?? ""}${run.stderr ?? ""}`.trim().slice(-300) || (run.error?.message ?? `çıkış ${run.status}`)}` };

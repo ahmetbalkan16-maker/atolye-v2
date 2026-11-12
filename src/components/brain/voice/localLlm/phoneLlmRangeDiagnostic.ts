@@ -115,7 +115,7 @@ export interface RangeDiagnosisResult {
    * device: `resolveAyasWorkerUrl()` returns `null` (no
    * `NEXT_PUBLIC_AYAS_WORKER_URL` at build time) or
    * `getStoredAyasPhoneKey()` returns `null` (this device never bootstrapped
-   * `?ayasPhoneKey=...` — see `ayasPhoneFallback.ts`). Both are required for
+   * `#ayasPhoneKey=...` — see `ayasPhoneFallback.ts`). Both are required for
    * probe C to mean anything; a probe sent without a valid key would only
    * prove the gateway's OWN auth gate works (already proven from the PC),
    * not what this probe exists to check.
