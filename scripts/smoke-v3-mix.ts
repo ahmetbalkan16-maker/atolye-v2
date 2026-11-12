@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
-import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
+import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, declickClip, fadeClipEdges, LINE_PROMINENCE_DB, MAX_NOTCHES, ticks, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps/MapBuilder";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
@@ -623,6 +623,49 @@ async function main() {
     assert.deepEqual(brokenStretches(new Float32Array(rate * 3), rate), [], "silence is not broken");
     const blip = new Float32Array(rate * 3); blip.fill(0.9, rate, rate + rate / 2); // half a second: under BROKEN_MIN_S
     assert.deepEqual(brokenStretches(blip, rate), []);
+  });
+
+  await scenario("the ear hears a tick (owner, 12 Nov 2026: \"arkada bazı yerlerde cızıltı\"): a dropped sample and a line cut at silence are found and mended; a gunshot, hiss, a square wave and a soft onset are not ticks", () => {
+    const rate = 48000;
+    const pad = Math.round(0.04 * rate);
+    // A voiced line as Tts writes it: 40 ms of digital silence, a vowel that starts and stops loud (the trim cut
+    // mid-sound), 40 ms of silence; FFmpeg's silenceremove put one sample at 0 80 ms in (the junction it keeps).
+    const vowelAt = (i: number) => (0.3 * Math.sin((2 * Math.PI * 150 * i) / rate) + 0.08 * Math.sin((2 * Math.PI * 900 * i) / rate) + 0.25);
+    const n = Math.round(0.5 * rate);
+    const line = new Float32Array(pad + n + pad);
+    for (let i = 0; i < n; i++) line[pad + i] = vowelAt(i);
+    const drop = pad + Math.round(0.04 * rate);
+    const clean = Float32Array.from(line);
+    line[drop] = 0;
+    const found = ticks(line, rate);
+    assert.deepEqual(found.map((t) => t.kind).sort(), ["dusme", "kenar", "kenar"], JSON.stringify(found));
+    assert.ok(Math.abs(found.find((t) => t.kind === "dusme")!.t - drop / rate) < 1e-6);
+    assert.deepEqual(ticks(clean, rate).map((t) => t.kind), ["kenar", "kenar"], "a line cut at silence ticks even without a drop");
+    const fixed = declickClip(line, rate);
+    assert.equal(fixed.repaired, 1);
+    assert.deepEqual(ticks(fixed.samples, rate), [], "nothing left to hear");
+    assert.equal(fixed.samples.length, line.length, "the line keeps its length (lip sync and timing)");
+    assert.ok(Math.abs(fixed.samples[drop]! - clean[drop]!) < 0.01, `the dropped sample is back on its wave (${fixed.samples[drop]} vs ${clean[drop]})`);
+    const mid = pad + Math.round(0.25 * rate);
+    assert.equal(fixed.samples[mid], line[mid], "the voice between its ends is untouched");
+    assert.equal(line[drop], 0, "the clip itself is not changed (a copy)");
+    // Not ticks: a gunshot's crack inside a bed, hiss, a square wave (Kenney's error buzz), a line that fades in and out.
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+    const bed = Float32Array.from({ length: rate }, (_, i) => 0.05 * Math.sin((2 * Math.PI * 110 * i) / rate));
+    for (let i = 0; i < 2400; i++) bed[20000 + i]! += 0.9 * Math.exp(-i / 300) * rnd();
+    // (each faded at its own ends: a signal's first and last samples meet silence too)
+    const faded = (x: Float32Array) => fadeClipEdges(x, rate, 0.01, 0.02);
+    assert.deepEqual(ticks(faded(bed), rate), [], "a gunshot moves its neighbours too");
+    assert.deepEqual(ticks(faded(Float32Array.from({ length: rate }, () => 0.2 * rnd())), rate), [], "hiss is not a tick");
+    assert.deepEqual(ticks(faded(Float32Array.from({ length: rate }, (_, i) => (Math.floor((i * 440 * 2) / rate) % 2 ? 0.5 : -0.5))), rate), [], "a square wave is not a tick");
+    const soft = fadeClipEdges(clean, rate, 0.01, 0.02);
+    assert.deepEqual(ticks(soft, rate), [], "a line that fades in and out of silence");
+    assert.equal(soft[pad]!, 0, "the fade starts from nothing at the first sound");
+    assert.equal(soft[pad + n - 1]!, 0, "and ends in nothing at the last");
+    // A wave touching zero on its way through is not silence; a long quiet tail is not a tick either.
+    const crossing = Float32Array.from({ length: rate / 10 }, (_, i) => Math.round(1000 * Math.sin((2 * Math.PI * 200 * i) / rate)) / 1000);
+    assert.deepEqual(ticks(faded(crossing), rate), []);
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);

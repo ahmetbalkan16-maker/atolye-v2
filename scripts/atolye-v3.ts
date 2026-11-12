@@ -66,7 +66,7 @@ import { armsOf } from "../src/lib/v3/episode/Period";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureBroken, measureWhine, whineLine } from "../src/lib/v3/mix/AudioQuality";
 import { battleCredit, battleWindows, renderBattleBed } from "../src/lib/v3/mix/BattleBed";
-import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
+import { measureLoudness, type MixDeclick, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
@@ -1148,7 +1148,7 @@ async function main() {
   }
 
   // 7) Miks
-  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[]; sesTasarimi?: boolean; savas?: unknown; efekt?: readonly { dosya?: string }[] };
+  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[]; sesTasarimi?: boolean; savas?: unknown; efekt?: readonly { dosya?: string }[]; tik?: MixDeclick };
   let mix: MixMeta;
   if (need("miks", "miks.json")) {
     mix = await step("miks", async () => {
@@ -1207,7 +1207,8 @@ async function main() {
       const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx, ambience, ...(battle ? { battle: battle.file } : {}) }, f("miks.wav"));
       if (battle) await fs.rm(battle.file, { force: true });
       for (const c of r.cleanup) log(`  ses temizliği: ${c.kaynak} — ${c.once} sabit tiz çizgi → ${c.sonra}`);
-      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, dosya: path.basename(s.file), ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup, ...(battle ? { savas: { pencereler: battle.windows, silah: battle.arms, ...battle.counts } } : {}) };
+      if (r.declick.once) log(`  ses tıkırtısı: ${r.declick.satir} satırda ${r.declick.once} tık → ${r.declick.sonra}`);
+      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, dosya: path.basename(s.file), ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup, tik: r.declick, ...(battle ? { savas: { pencereler: battle.windows, silah: battle.arms, ...battle.counts } } : {}) };
       await writeJson(f("miks.json"), meta);
       return meta;
     });
@@ -1300,6 +1301,8 @@ async function main() {
     const broken = await measureBroken(paths, f("miks.wav"));
     const brokenLine = broken.map((b) => `${b.start.toFixed(1)}–${b.end.toFixed(1)} sn (tepe/ortalama ${b.crestDb.toFixed(1)} dB)`).join(", ");
     if (broken.length) council.find({ beyin: "ses", onem: "eksik", baslik: "miksde bozuk ses (takılı sinyal / uğultu)", ayrinti: `${brokenLine} — o andaki seslendirme ya da efekt dosyası bozuk`, oneri: "o andaki satırın ses dosyasını sil, yeniden seslendir", tur: "veri", yer: "miks" });
+    // Ticks in the voiced lines (owner, 12 Nov 2026: "arkada bazı yerlerde cızıltı"): the mixer repairs them; one left is a fault.
+    if (mix.tik?.sonra) council.find({ beyin: "ses", onem: "eksik", baslik: "miksde tıkırtı (seslendirmede düşen örnek / sessizliğe sert kesilen satır)", ayrinti: `${mix.tik.sonra} tık kaldı (seslendirmede ${mix.tik.once} vardı, ${mix.tik.satir} satır)`, oneri: "Mixer.renderMix declickClip'i her satıra uyguluyor mu bak; miksi yeniden yap", tur: "kod", yer: "miks" });
     const events = visualEvents(plan);
     const gaps = events.slice(1).map((t, i) => t - events[i]!);
     const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : Infinity;
@@ -1365,6 +1368,7 @@ async function main() {
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
       row(!broken.length, `Ses bozukluğu: ${broken.length ? `BOZUK — ${brokenLine}` : "takılı sinyal ya da uğultu yok"}`),
+      mix.tik ? row(!mix.tik.sonra, `Ses tıkırtısı: ${mix.tik.sonra ? `${mix.tik.sonra} TIK KALDI` : "miksde tık yok"} (seslendirmede ${mix.tik.once} tık, ${mix.tik.satir} satır onarıldı)`) : row(false, "Ses tıkırtısı: ölçülmedi (miks bu ölçümden önce yapılmış)", false),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`, false),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(!descFit.requiredDropped.length, `YouTube açıklaması: ${Buffer.byteLength(bodyOf(aciklama).trim())} bayt${compactCredits ? ", kamu malı görseller tek satırda sayıldı" : ""}; zorunlu atıf satırları ${descFit.requiredDropped.length ? `— ${descFit.requiredDropped.length} SATIR 5000 BAYTA SIĞMIYOR, yükleme reddedilir` : "hepsi açıklamada"}`, false),

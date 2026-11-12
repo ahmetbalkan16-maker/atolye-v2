@@ -245,3 +245,132 @@ export function brokenStretches(samples: Float32Array, rate: number): BrokenStre
 export async function measureBroken(paths: Pick<V3Paths, "ffmpeg" | "asciiTemp">, file: string): Promise<BrokenStretch[]> {
   return brokenStretches(await decodeMono(paths, file), 48_000);
 }
+
+/**
+ * Ticks in the voiced lines (owner, 12 Nov 2026, on the Guadalcanal Short: "arkada bazı yerlerde cızıltı duyuyorum …
+ * sonraki videolarda olmasın"). Measured, two kinds, both made by the voice clips' post-processing and not by the voice:
+ * - "dusme": FFmpeg's silenceremove with start_silence puts one sample at 0 where the kept silence meets the sound
+ *   (FFmpeg 9, reproduced on a plain sine; Tts.postProcessFilter uses it at both ends), so about 80 ms into a line and
+ *   100 ms before its end one sample falls out of the voice (the loudness pass after it smears the zero into a dip);
+ * - "kenar": a clip that starts or stops loud right next to digital silence (the trim cut mid-sound, the loudness pass
+ *   raised it), heard as a tick in the pause after the line.
+ * Guadalcanal: 17 ticks in 12 of 18 lines (drops up to −19 dBFS, a line opening at −6 dBFS within half a millisecond);
+ * Taranto 20 in 15 of 23 lines, Çanakkale 24 in 19 of 25. A drop is a sample at least GLITCH_MIN off the line through its two
+ * neighbours and towards zero, the neighbours agreeing with each other and the waveform around it smooth (the drop
+ * GLITCH_RATIO times the local median step): a gunshot's crack or a sibilant moves its neighbours too and is not one
+ * (in 66 lines of three videos every drop found sat at a trim junction).
+ */
+export const GLITCH_MIN = 0.01;
+export const GLITCH_RATIO = 6;
+/** Sound reaching −40 dBFS within half a millisecond of digital silence is heard as a tick. */
+export const EDGE_STEP_MIN = 0.01;
+export const EDGE_WINDOW_S = 0.0005;
+/** Digital silence is at least this long: speech touches zero on its way through, never for a millisecond. */
+export const EDGE_SILENCE_S = 0.001;
+/** Fades at a voiced line's ends (inside the trim's kept quiet, so no word is touched) and at an effect's ends. */
+export const LINE_FADE_IN_S = 0.01;
+export const LINE_FADE_OUT_S = 0.02;
+export const EFFECT_FADE_IN_S = 0.002;
+export const EFFECT_FADE_OUT_S = 0.01;
+
+export interface Tick {
+  /** Seconds into the signal. */
+  readonly t: number;
+  readonly kind: "dusme" | "kenar";
+  /** How far the sample is off (a drop) or how big the step is (an edge), dBFS. */
+  readonly db: number;
+}
+
+const GLITCH_SPAN = 16;
+/** Samples redrawn on each side of a drop (declickClip). */
+const GLITCH_FIX = 3;
+
+function isDrop(x: Float32Array, i: number): number {
+  const a = x[i - 1]!, b = x[i + 1]!, v = x[i]!;
+  const mid = (a + b) / 2;
+  const dev = Math.abs(v - mid);
+  if (dev < GLITCH_MIN || a * b <= 0 || Math.abs(v) >= Math.abs(mid) || Math.abs(b - a) > dev) return 0;
+  const steps: number[] = [];
+  for (let j = Math.max(1, i - GLITCH_SPAN); j <= Math.min(x.length - 1, i + GLITCH_SPAN); j++) if (j !== i && j !== i + 1) steps.push(Math.abs(x[j]! - x[j - 1]!));
+  steps.sort((p, q) => p - q);
+  return dev > GLITCH_RATIO * (steps[steps.length >> 1] ?? 0) ? dev : 0;
+}
+
+/** The ticks of a signal (a voiced line, the dialogue of a mix), in time order. */
+export function ticks(samples: Float32Array, rate: number): Tick[] {
+  const out: Tick[] = [];
+  const db = (v: number) => Math.round(20 * Math.log10(Math.max(v, 1e-9)));
+  // Silence is EDGE_SILENCE_S of zero samples (or the signal's own end); a wave touching zero on its way is not.
+  const silent = (i: number) => i < 0 || i >= samples.length || samples[i] === 0;
+  const quiet = Math.max(2, Math.round(EDGE_SILENCE_S * rate));
+  const silenceFrom = (i: number, dir: 1 | -1) => {
+    for (let k = 0; k < quiet; k++) {
+      const j = i + dir * k;
+      if (j < 0 || j >= samples.length) return true;
+      if (samples[j] !== 0) return false;
+    }
+    return true;
+  };
+  const w = Math.max(1, Math.round(EDGE_WINDOW_S * rate));
+  for (let i = 0; i < samples.length; i++) {
+    const v = samples[i]!;
+    if (v === 0 && silent(i - 1)) continue;
+    const onset = v !== 0 && silent(i - 1) && silenceFrom(i - 1, -1);
+    const offset = v !== 0 && silent(i + 1) && silenceFrom(i + 1, 1);
+    if (onset || offset) {
+      // The level reached within EDGE_WINDOW_S of the silence: a fade takes far longer to get there.
+      let level = 0;
+      for (let k = 0; k < w; k++) {
+        const j = onset ? i + k : i - k;
+        if (silent(j) && k > 0) break;
+        level = Math.max(level, Math.abs(samples[j]!));
+      }
+      if (level >= EDGE_STEP_MIN) out.push({ t: i / rate, kind: "kenar", db: db(level) });
+    } else if (i > 0 && i < samples.length - 1) {
+      const dev = isDrop(samples, i);
+      if (dev) out.push({ t: i / rate, kind: "dusme", db: db(dev) });
+    }
+  }
+  return out;
+}
+
+/**
+ * A voiced line made safe to place (Mixer.renderMix): every dropped sample is put back on the line through its
+ * neighbours, and the sound fades in over `fadeIn` s from its first non-zero sample and out over `fadeOut` s to its last,
+ * so it never steps out of or into silence. A copy; the clip file is left as it is (the TTS cache keeps its takes).
+ */
+export function declickClip(samples: Float32Array, rate: number, fadeIn = LINE_FADE_IN_S, fadeOut = LINE_FADE_OUT_S): { samples: Float32Array; repaired: number } {
+  const x = Float32Array.from(samples);
+  let repaired = 0;
+  // The loudness pass after the trim rings around the dropped sample, so a few samples on both sides are drawn again
+  // on the straight line between their outer neighbours (a seventh of a millisecond: under any vowel's period); a drop
+  // smeared wider shows again once its middle is back, so a few passes until none is left.
+  for (let pass = 0, found = 1; pass < 4 && found; pass++) {
+    found = 0;
+    for (let i = 1; i < x.length - 1; i++) {
+      if (!isDrop(x, i)) continue;
+      const from = Math.max(0, i - GLITCH_FIX - 1), to = Math.min(x.length - 1, i + GLITCH_FIX + 1);
+      for (let j = from + 1; j < to; j++) x[j] = x[from]! + ((x[to]! - x[from]!) * (j - from)) / (to - from);
+      found++;
+      i = to;
+    }
+    repaired += found;
+  }
+  return { samples: fadeClipEdges(x, rate, fadeIn, fadeOut), repaired };
+}
+
+/** `samples` (a copy) faded in from its first non-zero sample and out to its last, raised-cosine. */
+export function fadeClipEdges(samples: Float32Array, rate: number, fadeIn: number, fadeOut: number): Float32Array {
+  const x = Float32Array.from(samples);
+  let first = 0;
+  while (first < x.length && x[first] === 0) first++;
+  let last = x.length - 1;
+  while (last > first && x[last] === 0) last--;
+  if (first >= x.length) return x;
+  const span = last - first + 1;
+  const nIn = Math.min(Math.round(fadeIn * rate), Math.floor(span / 2));
+  const nOut = Math.min(Math.round(fadeOut * rate), Math.floor(span / 2));
+  for (let k = 0; k < nIn; k++) x[first + k]! *= 0.5 - 0.5 * Math.cos((Math.PI * k) / nIn);
+  for (let k = 0; k < nOut; k++) x[last - k]! *= 0.5 - 0.5 * Math.cos((Math.PI * k) / nOut);
+  return x;
+}

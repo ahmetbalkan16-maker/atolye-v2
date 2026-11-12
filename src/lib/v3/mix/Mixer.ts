@@ -8,14 +8,15 @@ import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
-import { cleanAudioFile } from "./AudioQuality";
+import { cleanAudioFile, declickClip, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S, fadeClipEdges, ticks } from "./AudioQuality";
 
 /**
  * V3 audio mix: dialogue and effects are placed sample-exactly in Node, music beds are cut, looped and
  * cross-faded with FFmpeg and ducked under the dialogue (sidechain compression), every bed gives way a little under
  * the effects (mixGraph), and the whole mix is brought to
  * −14 LUFS / −1 dBTP in two loudnorm passes (measure, then apply), 48 kHz stereo. Music, effects and ambience go in
- * without the generators' whine lines (AudioQuality.cleanAudioFile).
+ * without the generators' whine lines (AudioQuality.cleanAudioFile); voiced lines and effects go in without ticks
+ * (AudioQuality.declickClip, fadeClipEdges).
  */
 export const SAMPLE_RATE = 48_000;
 /** Overlap between two music beds. */
@@ -359,6 +360,15 @@ export interface MixResult {
   readonly credits: readonly string[];
   /** Sources that had whine lines, with how many before and after the cleaning. */
   readonly cleanup: readonly MixCleanup[];
+  /** Ticks in the dialogue (AudioQuality.ticks) before and after the repair; `sonra` above 0 is a fault before delivery. */
+  readonly declick: MixDeclick;
+}
+
+/** Lines that had ticks, and the dialogue's ticks as voiced (`once`) and as mixed (`sonra`). */
+export interface MixDeclick {
+  readonly satir: number;
+  readonly once: number;
+  readonly sonra: number;
 }
 
 function loudnormStats(stderr: string): Record<string, string> {
@@ -394,10 +404,21 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
     return out;
   };
 
+  // Voiced lines go in without their ticks (AudioQuality.declickClip): measured on the dialogue before and after.
   const dialogue = new Float32Array(total);
-  for (const d of input.dialogue) placeSamples(dialogue, await monoAt48k(paths, d.file, tmp), d.start);
+  const asVoiced = new Float32Array(total);
+  let ticked = 0;
+  for (const d of input.dialogue) {
+    const voice = await monoAt48k(paths, d.file, tmp);
+    placeSamples(asVoiced, voice, d.start);
+    const fixed = declickClip(voice, SAMPLE_RATE);
+    if (ticks(voice, SAMPLE_RATE).length) ticked++;
+    placeSamples(dialogue, fixed.samples, d.start);
+  }
+  const declick: MixDeclick = { satir: ticked, once: ticks(asVoiced, SAMPLE_RATE).length, sonra: ticks(dialogue, SAMPLE_RATE).length };
+  // An effect never steps out of or into silence either (a boing began at −2 dBFS on its first sample).
   const effects = new Float32Array(total);
-  for (const s of input.sfx) placeSamples(effects, await monoAt48k(paths, await clean(s.file, "efekt"), tmp), s.t, SFX_GAIN[s.id]);
+  for (const s of input.sfx) placeSamples(effects, fadeClipEdges(await monoAt48k(paths, await clean(s.file, "efekt"), tmp), SAMPLE_RATE, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S), s.t, SFX_GAIN[s.id]);
   const dlgFile = path.join(tmp, "dialogue.wav");
   const sfxFile = path.join(tmp, "sfx.wav");
   await fs.writeFile(dlgFile, wavFloat32(dialogue));
@@ -458,5 +479,5 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const loud = await measureLoudness(paths, out);
   await fs.rm(tmp, { recursive: true, force: true });
   const credits = [...new Set(input.music.map((m) => m.track.attribution ?? `${m.track.title} — ${m.track.license ?? "lisans bilinmiyor"}`))];
-  return { file: out, ...loud, credits, cleanup };
+  return { file: out, ...loud, credits, cleanup, declick };
 }
