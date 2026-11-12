@@ -6,9 +6,9 @@
  */
 import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
-import { cameraAt, filmCamera } from "../remotion-v3/src/scene/camera";
+import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
-import type { V3CameraKey, V3GeoMap, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
+import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
 // type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
@@ -394,6 +394,41 @@ async function main() {
     // Owner, 11 Nov 2026: the thin white words over the Taranto map could not be read on the phone.
     assert.equal(mapBubbleSize(true), 1);
     assert.equal(mapBubbleSize(false), MAP_BUBBLE);
+  });
+
+  await scenario("N a gun's shake never shows the empty frame at the set's edge: the set grows and moves just enough (Guadalcanal, 12 Nov 2026: 36 px dark band at the top)", () => {
+    const [W, H] = [1920, 1080];
+    // The frame's corners through ShotView's transform, back onto the stage: every one must lie on it.
+    const exposed = (v: View, s: Shake) => {
+      const a = (s.rot * Math.PI) / 180;
+      let worst = 0;
+      for (const [px, py] of [[0, 0], [W, 0], [0, H], [W, H]] as const) {
+        const [qx, qy] = [px - W / 2 - s.dx, py - H / 2 - s.dy];
+        const x = v.cx * W + (qx * Math.cos(a) + qy * Math.sin(a)) / v.zoom;
+        const y = v.cy * H + (-qx * Math.sin(a) + qy * Math.cos(a)) / v.zoom;
+        worst = Math.max(worst, -x, x - W, -y, y - H);
+      }
+      return worst;
+    };
+    // Without a shake it is the old clamp exactly: nothing changes for a calm shot.
+    for (const v of [{ zoom: 1.03, cx: 0.5, cy: 0.5 }, { zoom: 1.4, cx: 0.2, cy: 0.9 }, { zoom: 0.9, cx: 0.5, cy: 0.5 }]) {
+      const [now, was] = [coverShake(v, { dx: 0, dy: 0, rot: 0 }, W, H), clampView(v.zoom, v.cx, v.cy)];
+      for (const k of ["zoom", "cx", "cy"] as const) assert.ok(Math.abs(now[k] - was[k]) < 1e-12, `${k}: ${now[k]} vs ${was[k]}`);
+    }
+    // A cannon shot (26) and a shake cue (18) at once, the view pushed against the top: the old clamp left the band.
+    const set = { zoom: (1 + 0.2 * 0.72) * 1.03, cx: 0.5, cy: 0.42 };
+    const shot = { shakes: [{ start: 0, end: 21, amplitude: 26 }, { start: 0, end: 18, amplitude: 18 }] } as unknown as V3Shot;
+    const old = clampView(set.zoom, set.cx, set.cy);
+    let before = 0;
+    for (let f = 0; f < 21; f++) {
+      const s = shakeAt(shot, f);
+      before = Math.max(before, exposed(old, s));
+      const v = coverShake(set, s, W, H);
+      assert.ok(exposed(v, s) < 1e-6, `frame ${f}: ${exposed(v, s).toFixed(1)} px of empty frame`);
+      // Grown only as much as the shake needs (the 44 px shake and its turn: a few per cent).
+      assert.ok(v.zoom >= old.zoom - 1e-9 && v.zoom <= old.zoom * 1.06, `zoom ${v.zoom.toFixed(3)}`);
+    }
+    assert.ok(before > 10, `the old clamp showed the empty frame (${before.toFixed(1)} px)`);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);
