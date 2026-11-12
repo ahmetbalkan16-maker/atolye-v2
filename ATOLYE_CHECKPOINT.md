@@ -1,3 +1,19 @@
+## 12 Kasım 2026 (5) — Guadalcanal Short: owner incelemesi (ses, kayan fotoğraf) düzeltildi, rötuş turu 1 devam ettirildi
+
+Owner: "videoda ses hatası var, fotoğraf kayıyor bozuluyor" → "üst düzey video olana kadar iyileştir; %90 kullanımda güvenli
+durdur; beyinlere öğret". 5f0d8694 (feature + canlı dal ileri sarıldı, kanonik `atolye-v2` çekildi):
+- Ses: Abe'nin son satırı ("…Preferably one on land.") VoxCPM2'den 0,25 sn konuşma + 3,3 sn tam seviye sabit sinyal geldi
+  (`_onbellek/tts/c97fec3d….wav`), miksde 103,6–107,4 sn uğultu + tık. `Tts.stuckSeconds` bekçisi (önbellekte de; başka
+  tohumla yeniden), teslim öncesi `AudioQuality.brokenStretches` → "eksik" bulgu + QC satırı.
+- Fotoğraf kayması: `DepthFilter` meet haritasının yan bantları tam kaydırma veriyordu; nötr gri zemin.
+- Yer kartı balonu örtüyordu (kurul ölçmüştü, düzeltecek kod yoktu): konuşma varsa kart sol alta.
+- `namedShipCheck`: sahnede geçmeyen gemi fotoğrafı (USS Washington ilk gecede) konu 2. "Unknown authorUnknown author" düzeldi.
+- Sipariş verisi: s6 haritasından Abe rozeti çıkarıldı (iki bölüm dosyası; yedek `private/temp/guadal-*.rozet-once`).
+- Kalite beynine 4 kare öğretildi (guadal-yelkenli, -kenar-surtunme, -yanlis-gemi, -kart-balon); dersler commit'te.
+Sipariş 17:15'te `gardirop`/rötuş turu 1 ile devam ettirildi (`uret.log` → `onceki-deneme-2/`). Dikkat: tur 0 bozuk sesli;
+bestRound tur 0'ı seçerse teslim edilmemeli (final-tur1 elle). Açık: çöp adam payı %10 (hedef %30), rozet çakışmaları,
+Lee/Abe benzerliği 6–7/10.
+
 ## 12 Kasım 2026 (4) — Guadalcanal Short GÜVENLİ DURDURULDU (owner: kullanım tokeni bitiyor) — DEVAM BURADAN
 
 Sipariş `20261112T100728-1942-naval-battle-of-guadalcanal-12-15-n` 14:5x'te rötuş turu 1'in kostüm aşamasında
