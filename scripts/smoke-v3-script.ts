@@ -10,7 +10,8 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { articleExcerpt, articleSource, castCandidates, castExcerpt, factPrompt, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
+import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
+import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
 import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
@@ -515,8 +516,8 @@ async function main() {
   });
 
   await scenario("N2 a long video is researched deeper: more articles, three times the facts, the whole story in order", () => {
-    assert.deepEqual(researchDepth(180), { articles: 4, search: 6, facts: "25–45", maxTokens: 9_000, long: false, mainChars: 40_000, otherChars: 14_000, cast: 6, castChars: 5_000, castFacts: "1–3", castTokens: 2_500 });
-    assert.deepEqual(researchDepth(1200), { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true, mainChars: 40_000, otherChars: 20_000, cast: 8, castChars: 8_000, castFacts: "2–4", castTokens: 4_500 });
+    assert.deepEqual(researchDepth(180), { articles: 4, search: 6, facts: "25–45", maxTokens: 9_000, long: false, mainChars: 40_000, otherChars: 14_000, cast: 6, castChars: 5_000, castFacts: "1–3", castTokens: 2_500, webQueries: 3, webPages: 4, webChars: 8_000, webFacts: "2–5", webPerPage: 6, webTokens: 3_500 });
+    assert.deepEqual(researchDepth(1200), { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true, mainChars: 40_000, otherChars: 20_000, cast: 8, castChars: 8_000, castFacts: "2–4", castTokens: 4_500, webQueries: 4, webPages: 6, webChars: 10_000, webFacts: "3–6", webPerPage: 8, webTokens: 6_000 });
     const article = { title: "Fall of Constantinople", revid: 1, timestamp: "2026-01-01T00:00:00Z", text: "The city fell on 29 May 1453." };
     const long = factPrompt("Fall of Constantinople", "1453", [article], "en", 1200);
     assert.ok(long.includes("long documentary (20 minutes") && long.includes("list 40–90 atomic facts") && long.includes("Cover the WHOLE story in depth"));
@@ -641,7 +642,7 @@ async function main() {
     const openai = new FakeProvider([mainAnswer, castAnswer, mainAnswer, castAnswer], { promptTokens: 20_000, completionTokens: 4_000 });
     const budget = new V3Budget({ providers: { openai } });
     const logs: string[] = [];
-    const out = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, fetchJson, log: (s) => logs.push(s) });
+    const out = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, fetchJson, web: false, log: (s) => logs.push(s) });
     assert.deepEqual(budget.ledger.map((e) => e.step), ["arastirma", "arastirma-kadro"]);
     const castPrompt = openai.calls[1]!.prompt;
     assert.ok(castPrompt.includes('title="Daniel J. Callaghan"') && castPrompt.includes('title="Hiroaki Abe"') && !castPrompt.includes("Olympic shooter"), "Lee's article never mentions the battle, so it is not read for the cast");
@@ -658,10 +659,191 @@ async function main() {
     assert.ok(urls.every((u) => u.startsWith("https://en.wikipedia.org/w/api.php?") || u.startsWith("https://www.wikidata.org/w/api.php?")));
     // Offline Wikidata and a broken link list: a line in the log, the research goes on.
     wikidataUp = false;
-    const offline = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, fetchJson: async (u) => { if (new URL(u).searchParams.get("prop") === "links") throw new Error("COMMONS_HTTP_503"); return fetchJson(u); }, log: (s) => logs.push(s) });
+    const offline = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, web: false, fetchJson: async (u) => { if (new URL(u).searchParams.get("prop") === "links") throw new Error("COMMONS_HTTP_503"); return fetchJson(u); }, log: (s) => logs.push(s) });
     assert.ok(logs.some((l) => l.startsWith("araştırma: Wikidata okunamadı (fetch failed)")) && logs.some((l) => l.startsWith("araştırma: kadro makaleleri okunamadı (COMMONS_HTTP_503)")), logs.slice(-4).join("\n"));
     assert.equal(offline.bank.olgular.length, 5);
     assert.ok(!offline.bank.kaynaklar.some((k) => k.id.startsWith("wikidata-")));
+  });
+
+  await scenario("N9 the open web (owner, 12 Nov 2026): reputable pages read politely, a fact kept only with its quote in that page, searches booked; off, Ollama and offline skip softly", async () => {
+    const wiki = `The Naval Battle of Guadalcanal took place from 12 to 15 November 1942. Rear Admiral Daniel J. Callaghan led the American cruisers. ${"The fighting at night was confused and fierce. ".repeat(30)}`;
+    const fetchJson = async (url: string): Promise<unknown> => {
+      const q = new URL(url).searchParams;
+      if (q.get("list") === "search") return { query: { search: [{ title: "Naval Battle of Guadalcanal" }] } };
+      return { query: { pages: { "1": { title: "Naval Battle of Guadalcanal", extract: wiki, revisions: [{ revid: 100, timestamp: "2026-11-01T00:00:00Z" }] } } } };
+    };
+    const wikiId = sourceId("Naval Battle of Guadalcanal");
+    const mainAnswer = JSON.stringify({ olgular: [
+      { metin: "The battle lasted from 12 to 15 November 1942.", kaynak: wikiId, alinti: "The Naval Battle of Guadalcanal took place from 12 to 15 November 1942." },
+      { metin: "Callaghan led the American cruisers.", kaynak: wikiId, alinti: "Rear Admiral Daniel J. Callaghan led the American cruisers." },
+      { metin: "The night fighting was confused.", kaynak: wikiId, alinti: "The fighting at night was confused and fierce." },
+      { metin: "It was fierce at night.", kaynak: wikiId, alinti: "The fighting at night was confused and fierce. The fighting" },
+      { metin: "The battle was in 1942, at night.", kaynak: wikiId, alinti: "took place from 12 to 15 November 1942. Rear Admiral" },
+    ] });
+    const filler = "The cruisers fought at very close range in the dark, and many of their crews never saw the enemy they fired at. ".repeat(16);
+    const navyHtml = `<html><head><title>The Naval Battle of Guadalcanal, 12-15 November 1942</title><meta property="og:site_name" content="Naval History and Heritage Command"><script>var t = "In the night of 13 November the destroyer Laffey nearly collided with Hiei";</script><style>.x{color:red}</style></head><body><nav><ul><li>Sign up for our newsletter and get the latest research updates from the archive</li></ul></nav><main><h1>Guadalcanal</h1><p>At 01:48 on 13 November 1942 the destroyer Laffey passed so close to the battleship Hiei that the two ships nearly collided.</p><p>${filler}</p></main><footer>This is an official website of the Department of the Navy, all rights reserved.</footer></body></html>`;
+    const museumHtml = `<html><head><title>Guadalcanal: The Naval Battles &amp; Their Cost</title></head><body><div><p>The light cruiser Juneau was sunk by the submarine I-26 on 13 November 1942, and only ten of her crew survived.</p><p>The battle was fought from 12 to 15 November 1942 and decided the campaign at sea.</p><p>${filler}</p></div></body></html>`;
+    const pageUrls = { navy: "https://www.history.navy.mil/research/histories/guadalcanal.html", museum: "https://www.nationalww2museum.org/war/articles/guadalcanal-naval?utm_source=x" };
+    const hits = [
+      { url: "https://en.wikipedia.org/wiki/Naval_Battle_of_Guadalcanal", title: "Wikipedia" },
+      { url: "https://www.reddit.com/r/history/comments/1/guadalcanal", title: "Reddit" },
+      { url: "https://www.youtube.com/watch?v=abc", title: "Video" },
+      { url: "http://insecure.example.org/guadalcanal", title: "Insecure" },
+      { url: "https://www.example.edu/guadalcanal.pdf", title: "A PDF" },
+      { url: "https://forum.example.com/t/guadalcanal", title: "A forum" },
+      { url: "https://offline.example.org/guadalcanal", title: "Offline" },
+      { url: "https://blocked.example.com/private/guadalcanal", title: "Robots" },
+      { url: "https://broken.example.net/guadalcanal", title: "Broken" },
+      { url: pageUrls.museum, title: "Museum" },
+      { url: pageUrls.navy, title: "NHHC" },
+      { url: "https://www.history.navy.mil/research/other.html", title: "NHHC again" },
+    ];
+    const searched: { prompt: string; model: string }[] = [];
+    const search = async (prompt: string, opts: { model: string; maxOutputTokens: number }) => {
+      searched.push({ prompt, model: opts.model });
+      return { hits, searches: 1, inputTokens: 9_000, outputTokens: 300 };
+    };
+    const fetched: string[] = [];
+    const fetchPage = async (url: string) => {
+      fetched.push(url);
+      const u = new URL(url);
+      if (u.hostname === "offline.example.org") return { ok: false as const, reason: "ağ: fetch failed" };
+      if (u.pathname === "/robots.txt") return u.hostname === "blocked.example.com" ? { ok: true as const, body: "User-agent: *\nDisallow: /private\n", contentType: "text/plain", finalUrl: url } : { ok: false as const, reason: "HTTP 404" };
+      if (u.hostname === "broken.example.net") return { ok: false as const, reason: "HTTP 500" };
+      if (u.hostname === "www.history.navy.mil") return { ok: true as const, body: navyHtml, contentType: "text/html; charset=utf-8", finalUrl: url };
+      if (u.hostname === "www.nationalww2museum.org") return { ok: true as const, body: museumHtml, contentType: "text/html", finalUrl: url };
+      return { ok: false as const, reason: "HTTP 404" };
+    };
+    const navyId = webSourceId(pageUrls.navy);
+    const museumId = webSourceId(cleanUrl(pageUrls.museum));
+    const webAnswer = JSON.stringify({ olgular: [
+      { metin: "Laffey nearly rammed Hiei at 01:48.", kaynak: navyId, alinti: "At 01:48 on 13 November 1942 the destroyer Laffey passed so close to the battleship Hiei that the two ships nearly collided." },
+      { metin: "Read from the page's script.", kaynak: navyId, alinti: "In the night of 13 November the destroyer Laffey nearly collided with Hiei" },
+      { metin: "Read from the menu.", kaynak: navyId, alinti: "Sign up for our newsletter and get the latest research updates" },
+      { metin: "Only ten of Juneau's crew survived her sinking by I-26.", kaynak: museumId, alinti: "The light cruiser Juneau was sunk by the submarine I-26 on 13 November 1942, and only ten of her crew survived." },
+      { metin: "The battle was fought from 12 to 15 November 1942.", kaynak: museumId, alinti: "The battle was fought from 12 to 15 November 1942" },
+      { metin: "Invented: Juneau carried 900 men.", kaynak: museumId, alinti: "Juneau carried nine hundred men into the sound." },
+    ] });
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "v3-web-"));
+    const logs: string[] = [];
+    const openai = new FakeProvider([mainAnswer, webAnswer], { promptTokens: 20_000, completionTokens: 2_000 });
+    const budget = new V3Budget({ providers: { openai } });
+    type ResearchInput = Parameters<typeof researchTopic>[0];
+    const research = (b: V3Budget, web: ResearchInput["web"], extra: Partial<ResearchInput> = {}) =>
+      researchTopic({ cacheDir: tmp, konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget: b, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 60, cast: false, wikidata: false, fetchJson, web, env: {}, log: (s) => logs.push(s), ...extra });
+    const out = await research(budget, { search, fetchPage, cacheDir: path.join(tmp, "web"), today: "2026-11-12" });
+    // Three searches, each booked: OpenAI's $0.01 fee and the reported tokens, which hold its 8,000-token block (gpt-4.1-mini).
+    assert.deepEqual(budget.ledger.map((e) => e.step), ["arastirma", "arastirma-web-arama", "arastirma-web-arama", "arastirma-web-arama", "arastirma-web"]);
+    const searchCost = 0.01 + 9_000 * 0.4e-6 + 300 * 1.6e-6;
+    for (const e of budget.ledger.filter((x) => x.step === "arastirma-web-arama")) assert.ok(Math.abs(e.costUsd - searchCost) < 1e-6 && e.ceilingUsd > 0.0145 && e.ceilingUsd < 0.0155, JSON.stringify(e));
+    assert.equal(searched.length, 3);
+    assert.ok(searched[0]!.prompt.includes("Naval Battle of Guadalcanal 1942") && /museums, national archives/.test(searched[0]!.prompt) && searched[1]!.prompt.includes("timeline"));
+    assert.ok(searched.every((s) => s.model === "gpt-4.1-mini") && /Do not use Wikipedia, social media, forums, video sites/.test(searched[0]!.prompt));
+    // Never fetched: Wikipedia (read already), social media, video, http, a PDF, a forum, a second page of the same site, a robots-refused path.
+    assert.ok(!fetched.some((u) => /wikipedia|reddit|youtube|insecure|\.pdf|forum\.|other\.html|\/private\//.test(u)), fetched.join("\n"));
+    assert.ok(fetched.includes("https://blocked.example.com/robots.txt"));
+    const webLog = logs.find((l) => l.startsWith("araştırma: web — "))!;
+    assert.ok(webLog.includes("3 arama") && webLog.includes("Wikipedia (zaten okundu) 1") && webLog.includes("sosyal medya 1") && webLog.includes("video sitesi 1") && webLog.includes("forum 1") && webLog.includes("2 sayfa okundu"), webLog);
+    assert.ok(webLog.includes("robots.txt izin vermiyor") && webLog.includes("ağ: fetch failed") && webLog.includes("HTTP 500"), webLog);
+    // The official site is read before the museum; the page's script, menu and footer are not its text.
+    const webPrompt = openai.calls[1]!.prompt;
+    assert.ok(webPrompt.indexOf(navyId) < webPrompt.indexOf(museumId) && webPrompt.includes("KNOWN FACTS") && webPrompt.includes("Callaghan led the American cruisers."));
+    assert.ok(!webPrompt.includes("newsletter") && !webPrompt.includes("var t =") && !webPrompt.includes("Department of the Navy, all rights"));
+    assert.ok(webPrompt.includes('title="Guadalcanal: The Naval Battles & Their Cost"'), "entities decoded");
+    // Kept: the two quoted facts that add to Wikipedia. Dropped: script and menu quotes, the invented one, the repeat.
+    const webFacts = out.bank.alintilar.filter((f) => f.kaynak.startsWith("web-"));
+    assert.deepEqual(webFacts.map((f) => f.metin), ["Laffey nearly rammed Hiei at 01:48.", "Only ten of Juneau's crew survived her sinking by I-26."]);
+    assert.equal(out.bank.reddedilen, 3, "three quotes are not in their page's text");
+    assert.ok(logs.some((l) => l.includes("web olguları 2") && l.includes("1 olgu Wikipedia'dakini tekrarladığı için")), logs.join("\n"));
+    const navySource = out.bank.kaynaklar.find((k) => k.id === navyId)!;
+    assert.deepEqual(navySource, { id: navyId, kunye: 'Naval History and Heritage Command, "The Naval Battle of Guadalcanal, 12-15 November 1942" (history.navy.mil, read 2026-11-12)', url: pageUrls.navy });
+    assert.equal(out.bank.kaynaklar.find((k) => k.id === museumId)!.url, "https://www.nationalww2museum.org/war/articles/guadalcanal-naval", "tracking parameters dropped");
+    assert.match(navyId, /^web-history-navy-mil-[0-9a-f]{8}$/);
+    assert.ok(out.bank.aciklama.includes("görselleri alınmadı"));
+    const episodeCheck = validateEpisode({ ...episode(), kaynaklar: out.bank.kaynaklar });
+    assert.ok(!episodeCheck.errors.some((e) => e.path.startsWith("$.kaynaklar")), JSON.stringify(episodeCheck.errors.filter((e) => e.path.startsWith("$.kaynaklar"))));
+
+    // A day later the same searches come from the cache: no fee, no call.
+    const again = new V3Budget({ providers: { openai: new FakeProvider([mainAnswer, webAnswer], { promptTokens: 20_000, completionTokens: 2_000 }) } });
+    await research(again, { search: async () => assert.fail("a cached search is not made again"), fetchPage: async () => assert.fail("a cached page is not fetched again"), cacheDir: path.join(tmp, "web"), today: "2026-11-12" });
+    assert.deepEqual(again.ledger.map((e) => e.step), ["arastirma", "arastirma-web"]);
+
+    // Offline search: one line per search, the research goes on with Wikipedia alone.
+    logs.length = 0;
+    const offline = await research(new V3Budget({ providers: { openai: new FakeProvider([mainAnswer]) } }), { search: async () => { throw new Error("fetch failed"); }, fetchPage, cacheDir: path.join(tmp, "web-offline"), today: "2026-11-12" });
+    assert.equal(logs.filter((l) => /^araştırma: web araması ".+" yapılamadı \(fetch failed\); atlandı$/.test(l)).length, 3, logs.join("\n"));
+    assert.equal(offline.bank.olgular.length, 5);
+    assert.ok(!offline.bank.kaynaklar.some((k) => k.id.startsWith("web-")));
+
+    // Off by the setting, and on Ollama: no search at all, a line in the log.
+    const cases: [Record<string, string>, ResearchInput["model"], string][] = [[{ ATOLYE_V3_WEB_ARASTIRMA: "0" }, { provider: "openai", model: "gpt-4.1-mini" }, "ATOLYE_V3_WEB_ARASTIRMA=0"], [{}, { provider: "ollama" }, "sağlayıcı ollama"]];
+    for (const [env, model, why] of cases) {
+      logs.length = 0;
+      const b = new V3Budget({ providers: { openai: new FakeProvider([mainAnswer]), ollama: new FakeProvider([mainAnswer]) } });
+      await research(b, { search: async () => assert.fail("no search when off"), fetchPage }, { env, model });
+      assert.ok(logs.some((l) => l.startsWith("araştırma: açık web araştırması atlandı (") && l.includes(why)), logs.join("\n"));
+      assert.ok(!b.ledger.some((e) => e.step.startsWith("arastirma-web")));
+    }
+    assert.match(webSkipReason({ model: "gpt-4.1" }, { provider: "openai", model: "gpt-4.1" }, {}) ?? "", /fiyatı sabit değil/, "a search model without a fixed search price is not used");
+
+    // The cap holds for searches: a search that would cross it is not made, and nothing falls back to a free model.
+    const tight = new V3Budget({ providers: {}, capUsd: 0.02, fallback: { provider: "ollama" } });
+    let ran = 0;
+    await tight.paid("arastirma-web-arama", { provider: "openai", model: "gpt-4.1-mini" }, 0.015, async () => (ran++, { value: 1, costUsd: 0.0151 }));
+    await assert.rejects(tight.paid("arastirma-web-arama", { provider: "openai", model: "gpt-4.1-mini" }, 0.015, async () => (ran++, { value: 1 })), /V3_BUDGET_EXCEEDED/);
+    assert.equal(ran, 1);
+    assert.equal(tight.spentUsd, 0.0151);
+  });
+
+  await scenario("N10 the web page rules: robots.txt groups, refused hosts, HTML to text, OpenAI's answer, and the fetch reaches public https hosts only", async () => {
+    const robots = "User-agent: Googlebot\nDisallow: /\n\nUser-agent: *\nDisallow: /search\nDisallow: /*.php$\nAllow: /search/about\n\nUser-agent: AtolyeV3\nUser-agent: OtherBot\nDisallow: /drafts/\n";
+    assert.equal(robotsAllows(robots, "/history/guadalcanal"), true);
+    assert.equal(robotsAllows(robots, "/drafts/x"), false, "its own group");
+    assert.equal(robotsAllows(robots, "/search?q=x"), true, "its own group replaces the * group");
+    assert.equal(robotsAllows(robots, "/search?q=x", "SomeBot"), false);
+    assert.equal(robotsAllows(robots, "/search/about", "SomeBot"), true, "the longer Allow wins");
+    assert.equal(robotsAllows(robots, "/page.php", "SomeBot"), false);
+    assert.equal(robotsAllows(robots, "/page.php?x=1", "SomeBot"), true, "$ anchors the end");
+    assert.equal(robotsAllows("", "/x"), true);
+    assert.equal(webRefusal("https://de.m.wikipedia.org/wiki/X"), "Wikipedia (zaten okundu)");
+    assert.equal(webRefusal("https://www.quora.com/q"), "sosyal medya");
+    assert.equal(webRefusal("https://example.org/forums/topic/1"), "forum");
+    assert.equal(webRefusal("https://www.grokipedia.com/page/X"), "içerik çiftliği / ödev / yapay zekâ sitesi");
+    assert.equal(webRefusal("https://www.history.navy.mil/a.html"), undefined);
+    const article = Array.from({ length: 6 }, (_, i) => "Sentence " + i + " of the article is long enough to count as one of the real sentences of its text.").join(" ");
+    assert.equal(copiesWikipedia(article + " A footer line.", normalizeForMatch(article)), true, "a mirror of the article read is not another source");
+    assert.equal(copiesWikipedia(article.replace(/article/g, "report"), normalizeForMatch(article)), false);
+    assert.ok(reputableScore("https://www.history.navy.mil/x") > reputableScore("https://www.nationalww2museum.org/x") && reputableScore("https://www.nationalww2museum.org/x") > reputableScore("https://blog.example.com/x"));
+    const t = htmlToText(`<title>A &#8211; B</title><body><p>First paragraph is long enough to be kept as page text here.</p><div>short</div><aside>Related articles you might enjoy reading next time around</aside><p>Second&nbsp;paragraph, also long enough to be kept as page text.</p></body>`, "https://www.example.org/x");
+    assert.deepEqual(t, { title: "A – B", site: "example.org", text: "First paragraph is long enough to be kept as page text here.\nSecond paragraph, also long enough to be kept as page text." });
+    const answer = readSearchAnswer({ output: [
+      { type: "web_search_call", action: { type: "search", query: "q", sources: [{ type: "url", url: "https://a.example.org/1#top" }] } },
+      { type: "message", content: [{ type: "output_text", text: "A — https://a.example.org/1\nB — https://b.example.org/2.", annotations: [{ type: "url_citation", url: "https://a.example.org/1?utm_source=openai", title: "Page A" }] }] },
+    ], usage: { input_tokens: 9100, output_tokens: 120 } });
+    assert.deepEqual(answer, { hits: [{ url: "https://a.example.org/1", title: "Page A" }, { url: "https://b.example.org/2", title: "" }], searches: 1, inputTokens: 9100, outputTokens: 120 });
+    assert.ok(Math.abs(webSearchCostUsd("gpt-4.1-mini", answer)! - (0.01 + 9_100 * 0.4e-6 + 120 * 1.6e-6)) < 1e-9);
+    assert.ok(Math.abs(webSearchCostUsd("gpt-4.1-mini", { hits: [], searches: 2, inputTokens: 300, outputTokens: 0 })! - (0.02 + 16_000 * 0.4e-6)) < 1e-9, "each search is billed, its block at least");
+    assert.equal(webSearchCostUsd("gpt-4.1-mini", { hits: [], searches: 1 }), undefined, "no usage: the budget books the ceiling");
+    assert.deepEqual(webQueries("Naval Battle of Guadalcanal", "1942", ["Daniel J. Callaghan", "Hiroaki Abe", "Japanese battleship Hiei (1912)", "Willis A. Lee"], 3), ["Naval Battle of Guadalcanal 1942", "Naval Battle of Guadalcanal timeline dates numbers losses", "Naval Battle of Guadalcanal Daniel J. Callaghan, Hiroaki Abe, Japanese battleship Hiei"]);
+    // The fetch: a private address (directly, by DNS or by a redirect) is never requested; a PDF body is not read.
+    const asked: string[] = [];
+    const fake = (async (url: string | URL | Request) => {
+      asked.push(String(url));
+      if (String(url).includes("/moved")) return new Response(null, { status: 302, headers: { location: "https://intranet.example.org/secret" } });
+      if (String(url).includes(".pdf")) return new Response("%PDF", { headers: { "content-type": "application/pdf" } });
+      return new Response(`<p>${"x".repeat(5000)}</p>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }) as typeof fetch;
+    const page = safePageFetch({ fetchImpl: fake, maxBytes: 1_000, resolve: async (h) => (h === "intranet.example.org" ? ["10.1.2.3"] : ["93.184.215.14"]) });
+    assert.deepEqual(await page("https://192.168.1.1/x"), { ok: false, reason: "özel ağ adresi" });
+    assert.deepEqual(await page("https://intranet.example.org/x"), { ok: false, reason: "özel ağ adresi" });
+    assert.deepEqual(await page("https://localhost/x"), { ok: false, reason: "yerel adres" });
+    assert.deepEqual(await page("http://www.example.org/x"), { ok: false, reason: "yalnız https (443)" });
+    assert.deepEqual(await page("https://www.example.org/moved"), { ok: false, reason: "özel ağ adresi" });
+    assert.deepEqual(await page("https://www.example.org/a.pdf"), { ok: false, reason: "metin değil (application/pdf)" });
+    const ok = await page("https://www.example.org/x");
+    assert.ok(ok.ok && ok.body.length <= 1_000, "the body is cut at its cap");
+    assert.ok(!asked.some((u) => /192\.168|intranet|localhost|^http:/.test(u)), asked.join("\n"));
+    assert.ok(privateAddress("127.0.0.1") && privateAddress("::1") && privateAddress("fd00::1") && privateAddress("::ffff:10.0.0.1") && !privateAddress("93.184.215.14"));
   });
 
   await scenario("N7 the writer and the fact checker see each fact's evidence, told to paraphrase; a hand-made bank reads as before", () => {

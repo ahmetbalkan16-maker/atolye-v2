@@ -166,6 +166,33 @@ export class V3Budget {
     return { result: out, used: choice };
   }
 
+  /**
+   * A paid call the token table cannot price alone — OpenAI's web search bills a fee per search and a fixed block of
+   * search tokens besides the prompt (owner, 12 Nov 2026: research the open internet, not Wikipedia only). The caller
+   * gives the call's worst case, checked against the cap exactly like `generate`'s ceiling; the call returns what it
+   * cost, booked as it is (the ceiling when it reports nothing). There is no free fallback: a local model cannot
+   * search, so a search that would cross the cap is not made (V3_BUDGET_EXCEEDED).
+   */
+  async paid<T>(step: string, choice: V3ModelChoice, ceilingUsd: number, run: () => Promise<{ readonly value: T; readonly costUsd?: number; readonly promptTokens?: number; readonly completionTokens?: number }>): Promise<T> {
+    const model = choice.provider === "openai" ? (choice.model ?? "") : choice.provider;
+    const decision = checkpoint(this.spentUsd, ceilingUsd, this.capUsd);
+    if (decision.decision === "BLOCK") throw new V3BudgetError("V3_BUDGET_INPUT", `${step}: ${decision.reason}`);
+    if (decision.decision === "PAUSE_BEFORE_BILLABLE_CALL") throw new V3BudgetError("V3_BUDGET_EXCEEDED", `${step}: tahmini toplam $${decision.projectedUsd.toFixed(4)} > tavan $${this.capUsd.toFixed(2)}; çağrı yapılmadı`);
+    const out = await run();
+    const cost = typeof out.costUsd === "number" && Number.isFinite(out.costUsd) && out.costUsd >= 0 ? out.costUsd : ceilingUsd;
+    this.entries.push({
+      step,
+      provider: choice.provider,
+      model,
+      ceilingUsd,
+      costUsd: Math.round(cost * 1e6) / 1e6,
+      ...(out.promptTokens !== undefined ? { promptTokens: out.promptTokens } : {}),
+      ...(out.completionTokens !== undefined ? { completionTokens: out.completionTokens } : {}),
+      reason: decision.reason,
+    });
+    return out.value;
+  }
+
   private async call(choice: V3ModelChoice, prompt: string, opts: AIProviderGenerateOptions): Promise<AIProviderResult> {
     const provider = this.options.providers[choice.provider];
     if (!provider) throw new V3BudgetError("V3_BUDGET_INPUT", `sağlayıcı yapılandırılmamış: ${choice.provider}`);

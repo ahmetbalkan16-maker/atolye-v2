@@ -1,7 +1,9 @@
+import path from "node:path";
 import { cachedJson } from "../backgrounds/CommonsProvider";
 import type { EpisodeSource } from "../episode/EpisodeTypes";
 import type { SourceBank } from "../script/ScriptPrompts";
-import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "../script/V3Budget";
+import { LONG_FORM_MIN_S, type V3Budget, V3BudgetError, type V3ModelChoice } from "../script/V3Budget";
+import { cleanUrl, openAIWebSearch, type PageFetch, readWebCache, readWebPage, reputableScore, safePageFetch, WEB_SEARCH_MAX_OUTPUT, WEB_SEARCH_MODELS, webQueries, webRefusal, type WebHit, type WebPage, type WebSearchCall, webSearchCeilingUsd, webSearchCostUsd, webSearchPrompt, webSource, writeWebCache } from "./WebResearch";
 
 /**
  * Builds a verified source bank for any topic, so the script writer never works from memory alone: the topic's
@@ -252,17 +254,26 @@ export interface ResearchDepth {
   readonly castChars: number;
   readonly castFacts: string;
   readonly castTokens: number;
+  /** Open-web searches (webQueries), pages read from their results, characters of each page, facts asked of each, facts kept of each, and their answer budget. */
+  readonly webQueries: number;
+  readonly webPages: number;
+  readonly webChars: number;
+  readonly webFacts: string;
+  readonly webPerPage: number;
+  readonly webTokens: number;
 }
 
 /**
  * Cost at gpt-4.1-mini ($0.40 / $1.60 per million tokens), as V3Budget books its ceiling (prompt chars × 1.4 / 4 plus
  * the whole answer budget): a Short's two calls ≤ ~$0.034 (topic ≤ 84k chars + 9k answer; cast ≤ 32k + 2.5k), a long
- * video's ≤ ~$0.055 — until 12 Nov 2026 a Short read 3 × 14k chars for ≤ ~$0.016.
+ * video's ≤ ~$0.055 — until 12 Nov 2026 a Short read 3 × 14k chars for ≤ ~$0.016. The open web adds per search ≤ ~$0.015
+ * (OpenAI's $0.01 fee, its 8,000-token content block, the prompt and a 700-token answer) and one fact call over the pages
+ * (a Short's 4 × 8k chars ≤ ~$0.011): a Short's web pass ≤ ~$0.056, a long video's (4 searches, 6 × 10k) ≤ ~$0.08.
  */
 export function researchDepth(seconds: number | undefined): ResearchDepth {
   return seconds !== undefined && seconds > LONG_FORM_MIN_S
-    ? { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true, mainChars: 40_000, otherChars: 20_000, cast: 8, castChars: 8_000, castFacts: "2–4", castTokens: 4_500 }
-    : { articles: 4, search: 6, facts: "25–45", maxTokens: 9_000, long: false, mainChars: 40_000, otherChars: 14_000, cast: 6, castChars: 5_000, castFacts: "1–3", castTokens: 2_500 };
+    ? { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true, mainChars: 40_000, otherChars: 20_000, cast: 8, castChars: 8_000, castFacts: "2–4", castTokens: 4_500, webQueries: 4, webPages: 6, webChars: 10_000, webFacts: "3–6", webPerPage: 8, webTokens: 6_000 }
+    : { articles: 4, search: 6, facts: "25–45", maxTokens: 9_000, long: false, mainChars: 40_000, otherChars: 14_000, cast: 6, castChars: 5_000, castFacts: "1–3", castTokens: 2_500, webQueries: 3, webPages: 4, webChars: 8_000, webFacts: "2–5", webPerPage: 6, webTokens: 3_500 };
 }
 
 /** The rule every fact list states: a fact is the source's information, its quote only the evidence for checking. */
@@ -315,6 +326,62 @@ ${QUOTE_RULE}
 Return ONLY JSON: {"olgular":[{"metin":"…","kaynak":"…","alinti":"…"}]}
 
 ${cast.map((c) => `=== ARTICLE id=${sourceId(c.article.title)} title="${c.article.title}" ===\n${c.excerpt}`).join("\n\n")}`;
+}
+
+/**
+ * The open-web pages' fact list: what each page ADDS to the facts Wikipedia already gave (exact dates, numbers, names,
+ * ships and their fates, first-hand details), with the same quote rule — the pages are other authors' writing.
+ */
+export function webFactPrompt(konu: string, donem: string, pages: readonly WebPage[], known: readonly string[], dil: "tr" | "en", seconds?: number): string {
+  const lang = dil === "tr" ? "Turkish" : "English";
+  const depth = researchDepth(seconds);
+  let left = 5_000;
+  const knownLines = known.filter((k) => (left -= k.length + 3) > 0).map((k) => `- ${k}`).join("\n");
+  return `You are a careful history researcher. A documentary is about this topic:
+TOPIC: ${konu}
+PERIOD: ${donem}
+
+Below are pages from history sites on the open web (museums, archives, official histories, universities, encyclopedias).
+For EACH page list ${depth.webFacts} atomic facts about this topic that ADD to the known facts below: exact dates and times,
+numbers, people with rank and full name, ships with their type and what happened to them, places, first-hand details.
+Leave out a fact the known list already has, anything about other events, and the site's menus, ads and comments.
+Only facts the page states. For every fact give:
+- "metin": the fact as one short sentence in ${lang};
+- "kaynak": the page id it comes from;
+${QUOTE_RULE}
+Return ONLY JSON: {"olgular":[{"metin":"…","kaynak":"…","alinti":"…"}]}
+
+KNOWN FACTS (from Wikipedia — do not repeat them):
+${knownLines || "- (none)"}
+
+${pages.map((p) => `=== PAGE id=${p.id} site="${p.site}" title="${p.title}" ===\n${cutAt(p.text, depth.webChars)}`).join("\n\n")}`;
+}
+
+/**
+ * Whether a page's text is Wikipedia's own (a mirror or a copy site; 12 Nov 2026 dry run: one of four pages found for
+ * Guadalcanal was the Wikipedia article again): at least 4 of its first 30 long sentences, and 40 % of them, stand word
+ * for word in the Wikipedia texts read. `wiki` is those texts through normalizeForMatch.
+ */
+export function copiesWikipedia(text: string, wiki: string): boolean {
+  const sentences = text.split(/(?<=[.!?])\s+/).map(normalizeForMatch).filter((s) => s.length >= 80).slice(0, 30);
+  const copied = sentences.filter((s) => wiki.includes(s)).length;
+  return copied >= 4 && copied >= sentences.length * 0.4;
+}
+
+/** Content words of a fact, folded, for telling a repeated fact from a new one. */
+function factWords(text: string): Set<string> {
+  return new Set(normalizeForMatch(text).normalize("NFD").replace(/\p{M}/gu, "").split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3 || /\d/.test(w)));
+}
+
+/** Whether a fact says what one already in the bank says (most of its words shared, its numbers all the same). */
+export function repeatsFact(fact: string, known: readonly string[]): boolean {
+  const a = factWords(fact);
+  const nums = [...a].filter((w) => /\d/.test(w));
+  return known.some((k) => {
+    const b = factWords(k);
+    const shared = [...a].filter((w) => b.has(w)).length;
+    return shared / Math.max(1, Math.min(a.size, b.size)) >= 0.75 && nums.every((n) => b.has(n));
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -529,9 +596,12 @@ export interface ResearchFact {
   readonly alinti: string;
 }
 
-/** Facts whose quote is really in the cited article; the rest are counted as rejected. */
-export function verifyFacts(raw: unknown, articles: readonly WikiArticle[]): { kept: ResearchFact[]; rejected: number } {
-  const byId = new Map(articles.map((a) => [sourceId(a.title), normalizeForMatch(a.text)]));
+/**
+ * Facts whose quote is really in the cited article; the rest are counted as rejected. A Wikipedia article is cited by
+ * `sourceId(title)`; a web page passes its own id (`idOf`), and the same rule holds for it.
+ */
+export function verifyFacts<A extends { readonly title: string; readonly text: string }>(raw: unknown, articles: readonly A[], idOf: (a: A) => string = (a) => sourceId(a.title)): { kept: ResearchFact[]; rejected: number } {
+  const byId = new Map(articles.map((a) => [idOf(a), normalizeForMatch(a.text)]));
   const list = typeof raw === "object" && raw !== null && Array.isArray((raw as { olgular?: unknown }).olgular) ? ((raw as { olgular: unknown[] }).olgular) : [];
   const kept: ResearchFact[] = [];
   let rejected = 0;
@@ -549,6 +619,141 @@ export function verifyFacts(raw: unknown, articles: readonly WikiArticle[]): { k
     kept.push({ metin: text, kaynak: f.kaynak!, alinti: f.alinti!.trim() });
   }
   return { kept, rejected };
+}
+
+/** What the open-web pass may be given (tests pass fakes); by default OpenAI's search and the polite page fetch. */
+export interface WebResearchOptions {
+  readonly search?: WebSearchCall;
+  readonly fetchPage?: PageFetch;
+  /** The search model (ATOLYE_V3_WEB_SEARCH_MODEL, default gpt-4.1-mini); only models whose search price is fixed. */
+  readonly model?: string;
+  /** The 24 h cache of searches, robots.txt and pages; default `_onbellek/web` beside the Wikipedia cache. */
+  readonly cacheDir?: string;
+  /** The day pages are cited as read (YYYY-MM-DD); default today. */
+  readonly today?: string;
+}
+
+/** Why the open-web pass does not run for this video, or undefined when it does. */
+export function webSkipReason(web: false | WebResearchOptions | undefined, model: V3ModelChoice, env: Readonly<Record<string, string | undefined>>): string | undefined {
+  if (web === false) return "bu çağrıda kapalı";
+  if (env.ATOLYE_V3_WEB_ARASTIRMA === "0") return "ATOLYE_V3_WEB_ARASTIRMA=0";
+  if (model.provider !== "openai") return `sağlayıcı ${model.provider}; web araması yalnız OpenAI hesabıyla yapılır`;
+  const searchModel = web?.model ?? env.ATOLYE_V3_WEB_SEARCH_MODEL ?? "gpt-4.1-mini";
+  if (!WEB_SEARCH_MODELS.includes(searchModel)) return `"${searchModel}" için web araması fiyatı sabit değil (yalnız ${WEB_SEARCH_MODELS.join(", ")})`;
+  return undefined;
+}
+
+/**
+ * The open-web pass (owner, 12 Nov 2026: research the internet, Wikipedia included, minding copyright): a few searches
+ * through OpenAI's web search (each booked through the budget, a cached one free), the reputable results read one per
+ * site (no Wikipedia, social media, video, forums, content farms, PDFs; robots.txt honoured), and one fact call over the
+ * pages keeping a fact only when its quote is in its page's text, and only when the Wikipedia bank does not have it yet.
+ * Nothing it fails at stops the research; a budget stop ends its searches.
+ */
+export async function researchWeb(input: {
+  readonly konu: string;
+  readonly donem: string;
+  readonly dil: "tr" | "en";
+  readonly seconds?: number;
+  readonly budget: V3Budget;
+  /** The fact model (the research model). */
+  readonly model: V3ModelChoice;
+  readonly searchModel: string;
+  /** The cast the Wikipedia pass named (people, ships), for the third search. */
+  readonly names: readonly string[];
+  /** The bank's facts so far: told to the model, and a repeat of one is not kept. */
+  readonly known: readonly string[];
+  /** The Wikipedia texts already read: a page that copies them is a mirror, not another source. */
+  readonly wikiTexts?: readonly string[];
+  readonly search: WebSearchCall;
+  readonly fetchPage: PageFetch;
+  readonly cacheDir?: string;
+  readonly today: string;
+  readonly log: (s: string) => void;
+}): Promise<{ pages: WebPage[]; facts: ResearchFact[]; rejected: number }> {
+  const { log } = input;
+  const depth = researchDepth(input.seconds);
+  const queries = webQueries(input.konu, input.donem, input.names, depth.webQueries);
+  const hits: WebHit[] = [];
+  let searched = 0;
+  for (const q of queries) {
+    const prompt = webSearchPrompt(q);
+    const key = `search\u0000${input.searchModel}\u0000${prompt}`;
+    try {
+      let found = await readWebCache<WebHit[]>(input.cacheDir, key);
+      if (!found) {
+        const ceiling = webSearchCeilingUsd(input.searchModel, prompt.length, WEB_SEARCH_MAX_OUTPUT);
+        if (ceiling === undefined) throw new Error(`${input.searchModel} fiyat tablosunda yok`);
+        found = [
+          ...(await input.budget.paid("arastirma-web-arama", { provider: "openai", model: input.searchModel }, ceiling, async () => {
+            const answer = await input.search(prompt, { model: input.searchModel, maxOutputTokens: WEB_SEARCH_MAX_OUTPUT });
+            const costUsd = webSearchCostUsd(input.searchModel, answer);
+            return { value: answer.hits, ...(costUsd !== undefined ? { costUsd } : {}), ...(answer.inputTokens !== undefined ? { promptTokens: answer.inputTokens } : {}), ...(answer.outputTokens !== undefined ? { completionTokens: answer.outputTokens } : {}) };
+          })),
+        ];
+        await writeWebCache(input.cacheDir, key, found).catch(() => {});
+      }
+      searched++;
+      hits.push(...found);
+    } catch (e) {
+      log(`araştırma: web araması "${q}" yapılamadı (${(e as Error).message.slice(0, 120)}); atlandı`);
+      if (e instanceof V3BudgetError) break;
+    }
+  }
+  if (!searched) return { pages: [], facts: [], rejected: 0 };
+
+  // The results: one page a site, the most trusted sites first; refused ones counted by why.
+  const refused = new Map<string, number>();
+  const candidates: WebHit[] = [];
+  const seenUrls = new Set<string>();
+  const seenHosts = new Set<string>();
+  for (const h of hits) {
+    const url = cleanUrl(h.url);
+    if (!url || seenUrls.has(url)) continue;
+    seenUrls.add(url);
+    const why = webRefusal(url);
+    if (why) {
+      refused.set(why, (refused.get(why) ?? 0) + 1);
+      continue;
+    }
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    candidates.push({ url, title: h.title });
+  }
+  candidates.sort((a, b) => reputableScore(b.url) - reputableScore(a.url));
+  const pages: WebPage[] = [];
+  const skipped: string[] = [];
+  const wiki = input.wikiTexts?.length ? normalizeForMatch(input.wikiTexts.join("\n")) : undefined;
+  for (const c of candidates.slice(0, depth.webPages * 3)) {
+    if (pages.length >= depth.webPages) break;
+    const read = await readWebPage(c.url, input.fetchPage, input.cacheDir, input.today).catch((e: Error) => ({ skipped: `ağ: ${e.message.slice(0, 80)}` }));
+    if ("skipped" in read) skipped.push(`${new URL(c.url).hostname} (${read.skipped})`);
+    else if (wiki && copiesWikipedia(read.text, wiki)) skipped.push(`${new URL(c.url).hostname} (Wikipedia kopyası)`);
+    else if (!pages.some((p) => p.id === read.id)) pages.push(read);
+  }
+  const refusedLine = [...refused].map(([why, n]) => `${why} ${n}`).join(", ");
+  log(`araştırma: web — ${searched} arama, ${seenUrls.size} sonuç${refusedLine ? ` (elenen: ${refusedLine})` : ""}; ${pages.length} sayfa okundu${pages.length ? `: ${pages.map((p) => new URL(p.url).hostname).join(", ")}` : ""}${skipped.length ? `; okunamayan: ${skipped.slice(0, 6).join(", ")}` : ""}`);
+  if (!pages.length) return { pages: [], facts: [], rejected: 0 };
+
+  const answer = await input.budget.generate("arastirma-web", input.model, webFactPrompt(input.konu, input.donem, pages, input.known, input.dil, input.seconds), { maxTokens: depth.webTokens, jsonSchema: { type: "object" } });
+  const verified = verifyFacts(jsonOf(answer.result.content), pages, (p) => p.id);
+  const known = [...input.known];
+  const perPage = new Map<string, number>();
+  const facts: ResearchFact[] = [];
+  let repeated = 0;
+  for (const f of verified.kept) {
+    if (repeatsFact(f.metin, known)) {
+      repeated++;
+      continue;
+    }
+    if ((perPage.get(f.kaynak) ?? 0) >= depth.webPerPage) continue;
+    perPage.set(f.kaynak, (perPage.get(f.kaynak) ?? 0) + 1);
+    known.push(f.metin);
+    facts.push(f);
+  }
+  log(`araştırma: web olguları ${facts.length} (${pages.map((p) => `${new URL(p.url).hostname} ${perPage.get(p.id) ?? 0}`).join(", ")}); ${verified.rejected} olgu alıntısı sayfada bulunamadığı için, ${repeated} olgu Wikipedia'dakini tekrarladığı için atıldı`);
+  return { pages: pages.filter((p) => perPage.has(p.id)), facts, rejected: verified.rejected };
 }
 
 export interface ResearchResult {
@@ -577,6 +782,13 @@ export async function researchTopic(input: {
   readonly wikidata?: boolean;
   /** The JSON GET (tests pass a fake); default the 24 h cache with Wikimedia's polite fetch. */
   readonly fetchJson?: JsonGet;
+  /**
+   * The open-web pass (researchWeb): on by default when the research model is OpenAI's, off with
+   * ATOLYE_V3_WEB_ARASTIRMA=0 or `false`; tests pass fake search and page fetch.
+   */
+  readonly web?: false | WebResearchOptions;
+  /** Where ATOLYE_V3_* settings are read (loadV3Settings puts .env.v3.local into process.env); tests pass their own. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
   readonly log?: (s: string) => void;
 }): Promise<ResearchResult> {
   const log = input.log ?? (() => {});
@@ -638,17 +850,48 @@ export async function researchTopic(input: {
     }
   }
 
-  const rejected = main.rejected + castRejected;
-  const verifiedCount = main.kept.length + castKept.length;
-  log(`araştırma: ${verifiedCount} olgu alıntısıyla doğrulandı (ana makaleler ${main.kept.length}, kadro ${castKept.length})${wikidata ? ` + Wikidata ${wikidata.facts.length}` : ""}, ${rejected} olgu alıntısı makalede bulunamadığı için atıldı`);
+  // The open web (owner, 12 Nov 2026): what reputable history sites add to Wikipedia; optional and fail-soft as well.
+  let web: { pages: WebPage[]; facts: ResearchFact[]; rejected: number } | undefined;
+  const env = input.env ?? process.env;
+  const webOff = webSkipReason(input.web, input.model, env);
+  if (webOff) log(`araştırma: açık web araştırması atlandı (${webOff})`);
+  else {
+    const opts = input.web || {};
+    try {
+      web = await researchWeb({
+        konu: input.konu,
+        donem: input.donem,
+        dil: input.dil,
+        ...(input.seconds !== undefined ? { seconds: input.seconds } : {}),
+        budget: input.budget,
+        model: input.model,
+        searchModel: opts.model ?? env.ATOLYE_V3_WEB_SEARCH_MODEL ?? "gpt-4.1-mini",
+        names: cast.map((c) => c.article.title),
+        known: [...main.kept, ...castKept, ...(wikidata?.facts ?? [])].map((f) => f.metin),
+        wikiTexts: [...articles, ...cast.map((c) => c.article)].map((a) => a.text),
+        search: opts.search ?? openAIWebSearch(fetch, env),
+        fetchPage: opts.fetchPage ?? safePageFetch(),
+        cacheDir: opts.cacheDir ?? path.join(path.dirname(input.cacheDir), "web"),
+        today: opts.today ?? new Date().toISOString().slice(0, 10),
+        log,
+      });
+    } catch (e) {
+      log(`araştırma: açık web olguları çıkarılamadı (${(e as Error).message.slice(0, 120)}); atlandı`);
+    }
+  }
+
+  const webKept = web?.facts ?? [];
+  const rejected = main.rejected + castRejected + (web?.rejected ?? 0);
+  const verifiedCount = main.kept.length + castKept.length + webKept.length;
+  log(`araştırma: ${verifiedCount} olgu alıntısıyla doğrulandı (ana makaleler ${main.kept.length}, kadro ${castKept.length}${web ? `, web ${webKept.length}` : ""})${wikidata ? ` + Wikidata ${wikidata.facts.length}` : ""}, ${rejected} olgu alıntısı kaynağında bulunamadığı için atıldı`);
   if (verifiedCount < 5) throw new Error(`V3_RESEARCH_THIN: yalnız ${verifiedCount} doğrulanmış olgu (en az 5 gerekli)`);
   const seen = new Set([...main.kept, ...castKept].map((f) => f.metin));
-  const kept = [...main.kept, ...(wikidata?.facts ?? []).filter((f) => !seen.has(f.metin)), ...castKept];
+  const kept = [...main.kept, ...(wikidata?.facts ?? []).filter((f) => !seen.has(f.metin)), ...castKept, ...webKept];
   const used = new Set(kept.map((f) => f.kaynak));
   return {
     bank: {
-      aciklama: `Otomatik kaynak bankası (${new Date().toISOString().slice(0, 10)}): olgular okunan Wikipedia revizyonlarından çıkarıldı; her olgunun alıntısı makale metninde birebir bulundu${wikidata ? "; tarih/yer/sayı olguları Wikidata'dan (CC0)" : ""}. Alıntılar yalnız doğrulama içindir, metne kopyalanmaz.`,
-      kaynaklar: [...articles, ...cast.map((c) => c.article)].filter((a) => used.has(sourceId(a.title))).map(articleSource).concat(wikidata && used.has(wikidata.source.id) ? [wikidata.source] : []),
+      aciklama: `Otomatik kaynak bankası (${new Date().toISOString().slice(0, 10)}): olgular okunan Wikipedia revizyonlarından çıkarıldı; her olgunun alıntısı makale metninde birebir bulundu${wikidata ? "; tarih/yer/sayı olguları Wikidata'dan (CC0)" : ""}${webKept.length ? "; açık webdeki tarih sitelerinden okunan sayfaların olguları da aynı kuralla (alıntısı sayfa metninde birebir) alındı, görselleri alınmadı" : ""}. Alıntılar yalnız doğrulama içindir, metne kopyalanmaz.`,
+      kaynaklar: [...articles, ...cast.map((c) => c.article)].filter((a) => used.has(sourceId(a.title))).map(articleSource).concat(wikidata && used.has(wikidata.source.id) ? [wikidata.source] : []).concat((web?.pages ?? []).filter((p) => used.has(p.id)).map(webSource)),
       olgular: kept.map((f) => ({ metin: f.metin, kaynak: f.kaynak })),
       reddedilen: rejected,
       alintilar: kept,
