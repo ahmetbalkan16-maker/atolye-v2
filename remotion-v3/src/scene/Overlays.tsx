@@ -6,6 +6,7 @@ import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilt
 import { BUBBLE_FONT } from "./fonts";
 import { yer } from "./LayoutProbe";
 import { insertOpacity } from "./transitions";
+import { wrappedLines } from "./textWrap";
 
 /** Where a speaking character's head is on screen (after camera and shake), in output pixels. */
 export interface HeadAnchor {
@@ -46,8 +47,11 @@ export function SpeechBubble({ bubble, anchor, language, size = 1, plate = false
   const fs = (shout ? SHOUT_PX : SPEECH_PX) * k;
   const stroke = (shout ? 13 : 11) * k;
   const charW = fs * (shout ? 0.6 : 0.52);
-  const lines = Math.max(1, Math.ceil((text.length * charW) / (SPEECH_MAX_W * k)));
-  const w = Math.min(SPEECH_MAX_W * k, (text.length * charW) / lines + 24 * k);
+  const guess = Math.max(1, Math.ceil((text.length * charW) / (SPEECH_MAX_W * k)));
+  const w = Math.min(SPEECH_MAX_W * k, (text.length * charW) / guess + 24 * k);
+  // The lines the words really break into at that width (a long word does not split): the guess from the letter count
+  // was one short for "WHY IS THAT DESTROYER DANGEROUSLY CLOSE?!" and the top line stood above the frame (12 Nov 2026).
+  const lines = Math.max(guess, wrappedLines(text, w, charW));
   const tick = 30 * k;
   const lean = anchor.neighbourX === undefined ? 0 : anchor.neighbourX < anchor.x ? 0.18 : -0.18;
   const margin = 30 * k;

@@ -38,6 +38,7 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
+import { wrappedLines } from "../remotion-v3/src/scene/textWrap";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
 import { exitFrames, FLASH_PEAK, insertOpacity, transitionLook, transitionProgress } from "../remotion-v3/src/scene/transitions";
 import { CAMERA_MOVE_S, cameraAt as mapCameraAt } from "../remotion-v3/src/scene/mapCamera";
@@ -2823,6 +2824,13 @@ async function main() {
     assert.equal(insertOpacity(30 + 12, 30, 120, fps), 1);
     assert.ok(insertOpacity(119, 30, 120, fps) < 0.1 && insertOpacity(120, 30, 120, fps) === 0);
     assert.ok(insertOpacity(12, 10, 19, fps) > 0, "a short window fades within a third of itself");
+  });
+
+  await scenario("a speech's height counts the lines its words really break into (Guadalcanal hook stood above the frame)", () => {
+    const charW = 64 * 0.6;
+    assert.equal(wrappedLines("WHY IS THAT DESTROYER DANGEROUSLY CLOSE?!", 549, charW), 4, "the letter count guessed 3");
+    assert.equal(wrappedLines("Well, there goes my ride home.", 2000, 26), 1);
+    assert.equal(wrappedLines("Supercalifragilistic", 100, 26), 1, "a word wider than the line keeps its own line");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
