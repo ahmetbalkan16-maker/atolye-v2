@@ -7,7 +7,9 @@
  *        [--dil en|tr] [--dogrula] [--onizleme] [--dikey] [--cikti <klasör>]
  *
  * Satır süreleri kelime sayısından (dakikada ~155 kelime) tahmin edilir. Varsayılan: her satırın sonuna yakın birer
- * kare (o satırla gelen her şey ekranda). --dikey: Short olarak (1080×1920, haritanın üstünde dikey pencere). Örnek:
+ * kare (o satırla gelen her şey ekranda). --dikey: Short olarak 1080×1920 — üretimdeki gibi: varsayılan "dondur" düzeninde
+ * 16:9 çizilip çeyrek tur döndürülür (Format.shortsLayout, owner 12 Kas 2026); ATOLYE_V3_SHORTS_BICIM=dikey ile eski dikey
+ * pencere. Örnek:
  * content/v3/ornekler/harita-nigbolu-1396.json.
  */
 import { promises as fs } from "node:fs";
@@ -25,10 +27,11 @@ import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../../src/lib/v3/maps/CloseSite";
 import { periodEndYear } from "../../src/lib/v3/backgrounds/HistorySources";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
-import { SHORTS_SIZE } from "../../src/lib/v3/render/Format";
+import { rotatedShortArgs, SHORTS_SIZE, shortsLayout } from "../../src/lib/v3/render/Format";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
+import { runChecked } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
 const FPS = 30;
@@ -107,6 +110,7 @@ async function main() {
   const audio = real ?? scene.satirlar.map((l): LineAudio => ({ file: "sessiz.wav", duration: estimatedSeconds(l.metin), visemes: [{ t: 0, v: "X" }], words: [], lipSync: "rms" }));
   const timeline = buildTimeline(episode, [audio], { ...DEFAULT_TIMELINE, introS: 0 });
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
+  const vertical = process.argv.includes("--dikey");
   const plan = buildRenderPlan({
     ...(relief ? { reliefs: new Map([[scene.id, relief]]) } : {}),
     ...(ground.coast ? { coasts: new Map([[scene.id, ground.coast]]) } : {}),
@@ -124,8 +128,16 @@ async function main() {
     height: 1080,
     showCaptions: false,
     endCard: false,
-    ...(process.argv.includes("--dikey") ? { output: SHORTS_SIZE } : {}),
+    // The old vertical window only in its own layout; a "dondur" Short is the 16:9 picture turned afterwards (below).
+    ...(vertical && shortsLayout() === "dikey" ? { output: SHORTS_SIZE } : {}),
   });
+  // A "dondur" Short as production makes it: the finished 16:9 file turned a quarter clockwise (Format.rotatedShortArgs).
+  const turn = async (file: string, still: boolean) => {
+    if (!vertical || shortsLayout() === "dikey") return;
+    const tmp = `${file}.don${path.extname(file)}`;
+    await runChecked(paths.ffmpeg, still ? ["-v", "error", "-y", "-i", file, "-vf", "transpose=clock", tmp] : rotatedShortArgs(file, tmp));
+    await fs.rename(tmp, file);
+  };
   const planFile = path.join(out, "plan.json");
   await fs.writeFile(planFile, JSON.stringify({ plan }));
   const scale = process.argv.includes("--onizleme") ? { scale: PREVIEW_SCALE } : {};
@@ -137,6 +149,7 @@ async function main() {
       if (m && m[1] !== last && Number(m[1]) % 150 === 0) console.log(`  render ${m[1]}/${m[2]}`);
       if (m) last = m[1]!;
     } });
+    await turn(mp4, false);
     console.log(`video (${(plan.durationInFrames / FPS).toFixed(1)} sn, sessiz): ${mp4}`);
   }
   const asked = arg("--kare")?.split(",").map(Number).filter((s) => Number.isFinite(s));
@@ -144,6 +157,7 @@ async function main() {
   for (const fr of frames) {
     const png = path.join(out, `${scene.id}-${String(fr).padStart(5, "0")}.png`);
     await renderWithRemotion(paths, { planFile, publicDir: pub, out: png, kind: "still", frame: Math.min(plan.durationInFrames - 1, Math.max(0, fr)), ...scale });
+    await turn(png, true);
     console.log(`kare ${(fr / FPS).toFixed(1)} sn: ${png}`);
   }
 }
