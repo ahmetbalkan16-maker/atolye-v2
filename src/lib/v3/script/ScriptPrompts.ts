@@ -32,6 +32,39 @@ export type ScriptLanguage = "tr" | "en";
 export interface SourceBank {
   readonly kaynaklar: readonly EpisodeSource[];
   readonly olgular: readonly { readonly metin: string; readonly kaynak: string }[];
+  /**
+   * A researched bank's facts with the source's own words that prove each (SourceResearch, ≤300 chars). Shown beside
+   * the facts as evidence only; a hand-made bank has none.
+   */
+  readonly alintilar?: readonly { readonly metin: string; readonly kaynak: string; readonly alinti: string }[];
+}
+
+/** Characters of evidence quotes the writer and the fact checker see (a 45-fact Short's quotes ≈ 9,000). */
+export const EVIDENCE_CHARS = { writer: 14_000, checker: 12_000 } as const;
+/** Longest quote shown; a longer one is cut (what is shown is still the source's text, for `dayanak`). */
+const EVIDENCE_QUOTE_CHARS = 240;
+
+/**
+ * The bank's facts as prompt lines, each with its evidence quote while `evidenceChars` lasts (then the fact alone).
+ * `shown` tells whether any quote was given.
+ */
+export function bankFactLines(bank: SourceBank, evidenceChars: number): { text: string; shown: boolean } {
+  const quotes = new Map((bank.alintilar ?? []).map((a) => [`${a.kaynak}\u0000${a.metin}`, a.alinti]));
+  let left = evidenceChars;
+  let shown = false;
+  const text = bank.olgular
+    .map((o) => {
+      const line = `- [${o.kaynak}] ${o.metin}`;
+      const q = quotes.get(`${o.kaynak}\u0000${o.metin}`)?.replace(/\s+/g, " ").replace(/"/g, "'").trim();
+      if (!q) return line;
+      const quote = q.length > EVIDENCE_QUOTE_CHARS ? `${q.slice(0, EVIDENCE_QUOTE_CHARS).replace(/\s+\S*$/, "")}…` : q;
+      if (quote.length > left) return line;
+      left -= quote.length;
+      shown = true;
+      return `${line}\n  evidence: "${quote}"`;
+    })
+    .join("\n");
+  return { text, shown };
 }
 
 export interface ScriptBrief {
@@ -248,6 +281,7 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
 
 function bankText(bank: SourceBank | undefined): string {
   if (!bank) return "";
+  const facts = bankFactLines(bank, EVIDENCE_CHARS.writer);
   return `
 
 SOURCE BANK — cite ONLY these ids in "kaynaklar" and "kaynak", copy their "kunye" exactly, add no other source:
@@ -255,7 +289,14 @@ ${bank.kaynaklar.map((k) => `- ${k.id}: ${k.kunye}`).join("\n")}
 
 VERIFIED FACTS — every factual narrator claim must come from this list and cite its source id. Anything else is
 dramatisation ("kurgu": true) or carries a hedge; never present it as fact:
-${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}`;
+${facts.text}${
+    facts.shown
+      ? `
+A fact's "evidence" is the source's own sentence, shown only so you know exactly what the fact rests on (names, ranks,
+ships, dates, numbers). Tell every fact in YOUR OWN words: never copy an evidence sentence, or a run of more than eight
+of its words, into a line — the sources are other authors' writing. A real person's short famous saying may be quoted.`
+      : ""
+  }`;
 }
 
 const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
@@ -745,8 +786,9 @@ Return ONLY JSON: {"iliski":"celisir|sessiz|ekler|uyumlu","neden":"one short sen
 
 export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank, order?: string): string {
   const lang = dil === "tr" ? "Turkish" : "American English";
+  const facts = bank ? bankFactLines(bank, EVIDENCE_CHARS.checker) : undefined;
   const truth = bank
-    ? `\nVERIFIED FACTS (ground truth, checked against the cited works): a line that agrees with one of these is "dogru" — never rewrite it or hedge it.\n${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}\n`
+    ? `\nVERIFIED FACTS (ground truth, checked against the cited works): a line that agrees with one of these is "dogru" — never rewrite it or hedge it.\n${facts!.text}\n${facts!.shown ? `A fact's "evidence" is the source's own sentence: judge exact names, ranks, ships, dates and numbers by it; "dayanak" may copy the fact or its evidence.\n` : ""}`
     : "";
   const ordered = order?.trim()
     ? `\nTHE OWNER'S ORDER (written from the sources): a line that contradicts it is "yanlis" unless the verified facts say otherwise.\n${order.trim()}\n`

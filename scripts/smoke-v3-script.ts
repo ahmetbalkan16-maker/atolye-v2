@@ -10,9 +10,9 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { articleSource, factPrompt, readTopic, researchDepth, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
-import { applyFactCheck, callsByName, changesPerson, confirmSupport, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
-import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
+import { articleExcerpt, articleSource, castCandidates, castExcerpt, factPrompt, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
@@ -515,13 +515,189 @@ async function main() {
   });
 
   await scenario("N2 a long video is researched deeper: more articles, three times the facts, the whole story in order", () => {
-    assert.deepEqual(researchDepth(180), { articles: 3, search: 4, facts: "15–30", maxTokens: 6_000, long: false });
-    assert.deepEqual(researchDepth(1200), { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true });
+    assert.deepEqual(researchDepth(180), { articles: 4, search: 6, facts: "25–45", maxTokens: 9_000, long: false, mainChars: 40_000, otherChars: 14_000, cast: 6, castChars: 5_000, castFacts: "1–3", castTokens: 2_500 });
+    assert.deepEqual(researchDepth(1200), { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true, mainChars: 40_000, otherChars: 20_000, cast: 8, castChars: 8_000, castFacts: "2–4", castTokens: 4_500 });
     const article = { title: "Fall of Constantinople", revid: 1, timestamp: "2026-01-01T00:00:00Z", text: "The city fell on 29 May 1453." };
     const long = factPrompt("Fall of Constantinople", "1453", [article], "en", 1200);
     assert.ok(long.includes("long documentary (20 minutes") && long.includes("list 40–90 atomic facts") && long.includes("Cover the WHOLE story in depth"));
     const short = factPrompt("Fall of Constantinople", "1453", [article], "en", 60);
-    assert.ok(short.includes("short documentary") && short.includes("list 15–30") && !short.includes("Cover the WHOLE story"));
+    assert.ok(short.includes("short documentary") && short.includes("list 25–45") && !short.includes("Cover the WHOLE story"));
+    assert.match(short, /evidence for checking only — "metin" says the fact in your own words/, "the quote is evidence, the fact is told anew");
+    // A 3-minute Short's worst case stays well under a tenth of its $1 (gpt-4.1-mini, V3Budget's chars × 1.4 / 4 rule).
+    const ceiling = (chars: number, out: number) => ((chars * 1.4) / 4) * 0.4e-6 + out * 1.6e-6;
+    const d = researchDepth(180);
+    const usd = ceiling(2_000 + d.mainChars + (d.articles - 1) * d.otherChars, d.maxTokens) + ceiling(1_500 + d.cast * d.castChars, d.castTokens);
+    assert.ok(usd < 0.04, `Short research ceiling $${usd.toFixed(4)}`);
+  });
+
+  await scenario("N3 an article is read whole up to its limit, without the reference tail, and a long one keeps its aftermath", () => {
+    const para = (s: string, n: number) => Array.from({ length: n }, (_, i) => `${s} paragraph ${i} tells what happened on the night of 13 November 1942 near Savo Island.`).join("\n");
+    const text = [`The Naval Battle of Guadalcanal was fought from 12 to 15 November 1942.\n${para("Lead", 3)}`, `Background\n\n${para("Background", 60)}`, `Battle\n\n${para("Battle", 120)}`, `Aftermath\n\n${para("Aftermath", 20)}`, "See also\n\nIron Bottom Sound", "References\n\nFrank, Richard (1990). Guadalcanal."].join("\n\n\n");
+    const whole = articleExcerpt(text, 100_000);
+    assert.ok(whole.includes("Aftermath paragraph 19") && !whole.includes("Frank, Richard") && !whole.includes("See also"), "the whole body, no reference tail");
+    const cut = articleExcerpt(text, 9_000);
+    assert.ok(cut.length <= 9_000, `${cut.length}`);
+    assert.ok(cut.startsWith("The Naval Battle of Guadalcanal was fought") && cut.includes("\n\n\nAftermath\n") && cut.includes("Aftermath paragraph 0") && cut.includes("Background paragraph 0"), "lead, the start, and how it ended");
+    assert.ok(!cut.includes("Battle paragraph 119"), "the middle gives way");
+  });
+
+  await scenario("N4 the cast: the people and ships the main article names most are read where they mention the topic", () => {
+    const main = { title: "Naval Battle of Guadalcanal", revid: 10, timestamp: "2026-11-01T00:00:00Z", text: "The battle saw Rear Admiral Daniel J. Callaghan and Vice Admiral Hiroaki Abe clash; Hiei was crippled.\n\n\nBattle\n\nCallaghan died on the bridge. Abe withdrew. Hiei sank. Callaghan was hit. Willis A. Lee led South Dakota and Washington; Lee sank Kirishima. Washington fired. The United States Navy and Japan fought in World War II. Guadalcanal campaign. Iron Bottom Sound took the wrecks; Iron Bottom Sound grew. A Rear Admiral fell too. ISBN (identifier) ISBN" };
+    const links = ["Daniel J. Callaghan", "Hiroaki Abe", "Japanese battleship Hiei", "Willis A. Lee", "USS Washington (BB-56)", "United States Navy", "Japan", "World War II", "Guadalcanal campaign", "Guadalcanal", "Iron Bottom Sound", "Battle of Savo Island", "Naval Battle of Guadalcanal", "1942", "Pacific War", "Rear Admiral", "ISBN (identifier)"];
+    const picked = castCandidates(main, links, [main.title], 6);
+    assert.deepEqual(picked.slice(0, 3), ["Daniel J. Callaghan", "Hiroaki Abe", "Japanese battleship Hiei"], "named in the lead and most often");
+    assert.ok(picked.includes("Willis A. Lee") && picked.includes("USS Washington (BB-56)") && picked.includes("Iron Bottom Sound"), picked.join(" | "));
+    for (const generic of ["United States Navy", "Japan", "World War II", "Guadalcanal campaign", "Guadalcanal", "Battle of Savo Island", "1942", "Pacific War", "Naval Battle of Guadalcanal", "Rear Admiral", "ISBN (identifier)"]) assert.ok(!picked.includes(generic), generic);
+    assert.equal(topicPhrase("Naval Battle of Guadalcanal"), "Guadalcanal");
+    assert.equal(topicPhrase("Attack on Pearl Harbor"), "Pearl Harbor");
+    assert.equal(topicPhrase("Crossing the Rubicon"), "Rubicon");
+    assert.equal(topicPhrase("Anglo-Zanzibar War"), "Anglo-Zanzibar");
+    const callaghan = { title: "Daniel J. Callaghan", revid: 11, timestamp: "2026-10-01T00:00:00Z", text: "Daniel Judson Callaghan (July 26, 1890 – November 13, 1942) was an officer of the United States Navy.\n\n\nEarly life\n\nHe was born in San Francisco and studied at the Naval Academy, where he rowed and sailed every summer.\n\n\nWorld War II\n\nHe was killed in action on the bridge of San Francisco during the Naval Battle of Guadalcanal on 13 November 1942, and was awarded the Medal of Honor." };
+    const ex = castExcerpt(callaghan, "Guadalcanal", 5_000)!;
+    assert.ok(ex.startsWith("Daniel Judson Callaghan") && ex.includes("killed in action on the bridge") && !ex.includes("rowed and sailed"), ex);
+    assert.equal(castExcerpt({ ...callaghan, title: "Japan", text: "Japan is an island country in East Asia.\n\n\nHistory\n\nIts history is long and has many periods across the centuries of its islands." } as typeof callaghan, "Guadalcanal", 5_000), undefined, "an article that never mentions the topic is not part of it");
+  });
+
+  await scenario("N5 Wikidata (CC0): dates to their precision, the place, counts and participants, cited by item and revision", () => {
+    const time = (t: string, precision: number, rank = "normal") => ({ rank, mainsnak: { snaktype: "value", datavalue: { type: "time", value: { time: t, precision, calendarmodel: "http://www.wikidata.org/entity/Q1985727" } } } });
+    const item = (id: string) => ({ rank: "normal", mainsnak: { snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id } } } });
+    const entity = {
+      id: "Q1065588",
+      lastrevid: 2_300_000_001,
+      modified: "2026-09-01T10:00:00Z",
+      labels: { en: { value: "Naval Battle of Guadalcanal" } },
+      claims: {
+        P580: [time("+1942-11-12T00:00:00Z", 11), time("+1942-11-01T00:00:00Z", 11, "deprecated")],
+        P582: [time("+1942-11-15T00:00:00Z", 11)],
+        P625: [{ rank: "normal", mainsnak: { snaktype: "value", datavalue: { type: "globecoordinate", value: { latitude: -9.25, longitude: 159.75 } } } }],
+        P361: [item("Q1052327")],
+        P710: [item("Q11220"), item("Q188842"), item("Q999")],
+        P1120: [{ rank: "normal", mainsnak: { snaktype: "value", datavalue: { type: "quantity", value: { amount: "+1732", unit: "1" } } }, qualifiers: { P642: [{ snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id: "Q11220" } } }] } }],
+      },
+    };
+    assert.deepEqual(wikidataItemIds(entity), ["Q1052327", "Q11220", "Q188842", "Q999"]);
+    const labels = new Map([["Q1052327", "Guadalcanal campaign"], ["Q11220", "United States Navy"], ["Q188842", "Imperial Japanese Navy"]]);
+    const facts = wikidataFacts(entity, labels, "en");
+    assert.deepEqual(facts.map((f) => f.metin), [
+      "Naval Battle of Guadalcanal began on 12 November 1942.",
+      "Naval Battle of Guadalcanal ended on 15 November 1942.",
+      "Naval Battle of Guadalcanal is placed at 9.25° S, 159.75° E.",
+      "Naval Battle of Guadalcanal was part of Guadalcanal campaign.",
+      "Participants in Naval Battle of Guadalcanal included United States Navy, Imperial Japanese Navy.",
+      "Naval Battle of Guadalcanal: 1,732 (of United States Navy) deaths.",
+    ], "the deprecated start date and the unlabelled participant are left out");
+    assert.ok(facts.every((f) => f.kaynak === "wikidata-q1065588" && f.alinti.startsWith("Q1065588 P") && f.alinti.length >= 20));
+    assert.equal(wikidataFacts(entity, labels, "tr")[0]!.metin, "Naval Battle of Guadalcanal 12 Kasım 1942 tarihinde başladı.");
+    assert.deepEqual(wikidataSource(entity), { id: "wikidata-q1065588", kunye: 'Wikidata, Q1065588 "Naval Battle of Guadalcanal" (revision 2300000001, 2026-09-01; CC0)', url: "https://www.wikidata.org/w/index.php?title=Q1065588&oldid=2300000001" });
+    assert.equal(wikidataTime({ time: "-0049-01-10T00:00:00Z", precision: 9, calendarmodel: "http://www.wikidata.org/entity/Q1985786" }, "en"), "49 BC (Julian calendar)");
+    assert.equal(wikidataTime({ time: "+1942-11-00T00:00:00Z", precision: 10 }, "tr"), "Kasım 1942");
+    assert.equal(wikidataTime({ time: "+1900-00-00T00:00:00Z", precision: 7 }, "en"), undefined, "a century is no date");
+  });
+
+  await scenario("N6 research reads the main article, the cast and Wikidata; a fact still needs its quote; Wikidata offline is skipped", async () => {
+    const mainText = [
+      "The Naval Battle of Guadalcanal took place from 12 to 15 November 1942. Rear Admiral Daniel J. Callaghan led the American cruisers against Vice Admiral Hiroaki Abe, whose battleship Hiei was crippled.",
+      `Battle\n\nCallaghan was killed on the bridge of San Francisco. Abe withdrew his force. Hiei sank on 14 November. Callaghan's ships fought at close range. On the night of 14 November Rear Admiral Willis A. Lee sank Kirishima. Lee commanded Washington. ${"Iron Bottom Sound filled with wrecks of many ships. ".repeat(40)}`,
+      "Aftermath\n\nThe Japanese never again tried to bring battleships into the waters off Guadalcanal.",
+      "References\n\nHammel, Eric (1988).",
+    ].join("\n\n\n");
+    const pages: Record<string, { text: string; revid: number; links?: string[]; qid?: string }> = {
+      "Naval Battle of Guadalcanal": { text: mainText, revid: 100, links: ["Daniel J. Callaghan", "Hiroaki Abe", "Willis A. Lee", "World War II", "Japan"], qid: "Q1065588" },
+      "Guadalcanal campaign": { text: `The Guadalcanal campaign was fought from August 1942 to February 1943 in the Solomon Islands. ${"It was a long campaign. ".repeat(40)}`, revid: 101 },
+      "Daniel J. Callaghan": { text: "Daniel Judson Callaghan (1890 – 13 November 1942) was a rear admiral of the United States Navy.\n\n\nWorld War II\n\nCallaghan was killed in action aboard San Francisco during the Naval Battle of Guadalcanal and received the Medal of Honor posthumously.", revid: 102 },
+      "Hiroaki Abe": { text: "Hiroaki Abe (1889 – 1949) was an admiral in the Imperial Japanese Navy.\n\n\nCareer\n\nAt the Naval Battle of Guadalcanal his force lost the battleship Hiei, and he was relieved of his command and forced to retire.", revid: 103 },
+      "Willis A. Lee": { text: "Willis Augustus Lee Jr. (1888 – 1945) was a vice admiral of the United States Navy and an Olympic shooter.\n\n\nCareer\n\nHe commanded the shooting team at the 1920 Olympics, where he won five gold medals in a single meet.", revid: 104 },
+    };
+    const urls: string[] = [];
+    let wikidataUp = true;
+    const fetchJson = async (url: string): Promise<unknown> => {
+      urls.push(url);
+      const q = new URL(url).searchParams;
+      if (url.startsWith("https://www.wikidata.org/")) {
+        if (!wikidataUp) throw new Error("fetch failed");
+        if (q.get("props") === "labels") return { entities: { Q1052327: { id: "Q1052327", labels: { en: { value: "Guadalcanal campaign" } } } } };
+        return { entities: { Q1065588: { id: "Q1065588", lastrevid: 7, modified: "2026-09-01T00:00:00Z", labels: { en: { value: "Naval Battle of Guadalcanal" } }, claims: { P580: [{ rank: "normal", mainsnak: { snaktype: "value", datavalue: { type: "time", value: { time: "+1942-11-12T00:00:00Z", precision: 11 } } } }], P361: [{ rank: "normal", mainsnak: { snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id: "Q1052327" } } } }] } } } };
+      }
+      if (q.get("list") === "search") return { query: { search: [{ title: "Naval Battle of Guadalcanal" }, { title: "Guadalcanal campaign" }] } };
+      const page = pages[q.get("titles") ?? ""];
+      if (!page) return { query: { pages: { "-1": { title: q.get("titles"), missing: "" } } } };
+      if (q.get("prop") === "links") return { query: { pages: { "1": { title: q.get("titles"), links: (page.links ?? []).map((title) => ({ ns: 0, title })) } } } };
+      if (q.get("prop") === "pageprops") return { query: { pages: { "1": { title: q.get("titles"), ...(page.qid ? { pageprops: { wikibase_item: page.qid } } : {}) } } } };
+      return { query: { pages: { "1": { title: q.get("titles"), extract: page.text, revisions: [{ revid: page.revid, timestamp: "2026-11-01T00:00:00Z" }] } } } };
+    };
+    const id = sourceId;
+    const mainAnswer = JSON.stringify({ olgular: [
+      { metin: "The battle lasted from 12 to 15 November 1942.", kaynak: id("Naval Battle of Guadalcanal"), alinti: "The Naval Battle of Guadalcanal took place from 12 to 15 November 1942." },
+      { metin: "Callaghan died on his flagship's bridge.", kaynak: id("Naval Battle of Guadalcanal"), alinti: "Callaghan was killed on the bridge of San Francisco." },
+      { metin: "Lee's force sank Kirishima.", kaynak: id("Naval Battle of Guadalcanal"), alinti: "On the night of 14 November Rear Admiral Willis A. Lee sank Kirishima." },
+      { metin: "Japan never again sent battleships there.", kaynak: id("Naval Battle of Guadalcanal"), alinti: "The Japanese never again tried to bring battleships into the waters off Guadalcanal." },
+      { metin: "The campaign ran until February 1943.", kaynak: id("Guadalcanal campaign"), alinti: "The Guadalcanal campaign was fought from August 1942 to February 1943" },
+      { metin: "Invented: Abe had four battleships.", kaynak: id("Naval Battle of Guadalcanal"), alinti: "Abe led four battleships into Iron Bottom Sound." },
+    ] });
+    const castAnswer = JSON.stringify({ olgular: [
+      { metin: "Callaghan received the Medal of Honor after his death.", kaynak: id("Daniel J. Callaghan"), alinti: "received the Medal of Honor posthumously" },
+      { metin: "Abe was relieved of his command after losing Hiei.", kaynak: id("Hiroaki Abe"), alinti: "he was relieved of his command and forced to retire" },
+    ] });
+    const openai = new FakeProvider([mainAnswer, castAnswer, mainAnswer, castAnswer], { promptTokens: 20_000, completionTokens: 4_000 });
+    const budget = new V3Budget({ providers: { openai } });
+    const logs: string[] = [];
+    const out = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, fetchJson, log: (s) => logs.push(s) });
+    assert.deepEqual(budget.ledger.map((e) => e.step), ["arastirma", "arastirma-kadro"]);
+    const castPrompt = openai.calls[1]!.prompt;
+    assert.ok(castPrompt.includes('title="Daniel J. Callaghan"') && castPrompt.includes('title="Hiroaki Abe"') && !castPrompt.includes("Olympic shooter"), "Lee's article never mentions the battle, so it is not read for the cast");
+    assert.ok(!openai.calls[0]!.prompt.includes("Hammel, Eric"), "no reference tail in the read");
+    assert.deepEqual(out.bank.olgular.map((o) => o.kaynak), [
+      "wikipedia-naval-battle-of-guadalcanal", "wikipedia-naval-battle-of-guadalcanal", "wikipedia-naval-battle-of-guadalcanal", "wikipedia-naval-battle-of-guadalcanal", "wikipedia-guadalcanal-campaign",
+      "wikidata-q1065588", "wikidata-q1065588", "wikipedia-daniel-j-callaghan", "wikipedia-hiroaki-abe",
+    ]);
+    assert.equal(out.bank.reddedilen, 1, "the invented quote is still thrown out");
+    assert.deepEqual(out.bank.kaynaklar.map((k) => k.id), ["wikipedia-naval-battle-of-guadalcanal", "wikipedia-guadalcanal-campaign", "wikipedia-daniel-j-callaghan", "wikipedia-hiroaki-abe", "wikidata-q1065588"]);
+    assert.ok(out.bank.kaynaklar.find((k) => k.id === "wikidata-q1065588")!.kunye.includes("CC0"));
+    assert.equal(out.bank.alintilar.length, out.bank.olgular.length, "every fact keeps its evidence");
+    assert.ok(logs.some((l) => l.includes("kadro makaleleri \"Daniel J. Callaghan\" (rev 102)")) && logs.some((l) => l.includes("ana makaleler 5, kadro 2) + Wikidata 2")), logs.join("\n"));
+    assert.ok(urls.every((u) => u.startsWith("https://en.wikipedia.org/w/api.php?") || u.startsWith("https://www.wikidata.org/w/api.php?")));
+    // Offline Wikidata and a broken link list: a line in the log, the research goes on.
+    wikidataUp = false;
+    const offline = await researchTopic({ cacheDir: os.tmpdir(), konu: "Naval Battle of Guadalcanal", donem: "1942", dil: "en", budget, model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 180, fetchJson: async (u) => { if (new URL(u).searchParams.get("prop") === "links") throw new Error("COMMONS_HTTP_503"); return fetchJson(u); }, log: (s) => logs.push(s) });
+    assert.ok(logs.some((l) => l.startsWith("araştırma: Wikidata okunamadı (fetch failed)")) && logs.some((l) => l.startsWith("araştırma: kadro makaleleri okunamadı (COMMONS_HTTP_503)")), logs.slice(-4).join("\n"));
+    assert.equal(offline.bank.olgular.length, 5);
+    assert.ok(!offline.bank.kaynaklar.some((k) => k.id.startsWith("wikidata-")));
+  });
+
+  await scenario("N7 the writer and the fact checker see each fact's evidence, told to paraphrase; a hand-made bank reads as before", () => {
+    const bank = {
+      kaynaklar: [{ id: "wikipedia-x", kunye: 'Wikipedia, "X" (revision 1, 2026-11-01)' }],
+      olgular: [{ metin: "Callaghan died on his flagship's bridge.", kaynak: "wikipedia-x" }, { metin: "Lee sank Kirishima.", kaynak: "wikipedia-x" }],
+      alintilar: [{ metin: "Callaghan died on his flagship's bridge.", kaynak: "wikipedia-x", alinti: 'Callaghan was killed on the bridge of "San Francisco".' }, { metin: "Lee sank Kirishima.", kaynak: "wikipedia-x", alinti: `On the night of 14 November ${"Lee's battleships fought on. ".repeat(20)}` }],
+    };
+    const prompt = writingPrompt({ konu: "Naval Battle of Guadalcanal", donem: "1942", hedefSureSn: 180, ton: "mizahi", dil: "en", kaynakBankasi: bank }, CATALOG);
+    assert.ok(prompt.includes(`- [wikipedia-x] Callaghan died on his flagship's bridge.\n  evidence: "Callaghan was killed on the bridge of 'San Francisco'."`), "the quote beside its fact");
+    assert.match(prompt, /Tell every fact in YOUR OWN words: never copy an evidence sentence, or a run of more than eight\nof its words/);
+    assert.ok(/evidence: "On the night of 14 November[^"]*…"/.test(prompt) && !prompt.includes("Lee's battleships fought on. ".repeat(20)), "a long quote is cut");
+    const check = factCheckPrompt("{}", "en", bank);
+    assert.ok(check.includes('evidence: "Callaghan was killed') && check.includes('"dayanak" may copy the fact or its evidence'));
+    // The checker's dayanak copied from the shown evidence counts as support.
+    assert.equal(correctionSupported(`evidence: "Callaghan was killed on the bridge of 'San Francisco'."`, { bank }), true);
+    assert.equal(correctionSupported("On the night of 14 November Lee's battleships fought on", { bank }), true);
+    // A hand-made bank (no quotes) is shown exactly as before.
+    const plain = { kaynaklar: bank.kaynaklar, olgular: bank.olgular };
+    const old = writingPrompt({ konu: "x", donem: "1942", hedefSureSn: 180, ton: "mizahi", dil: "en", kaynakBankasi: plain }, CATALOG);
+    assert.ok(old.includes("- [wikipedia-x] Callaghan died on his flagship's bridge.\n- [wikipedia-x] Lee sank Kirishima.") && !old.includes("evidence") && !factCheckPrompt("{}", "en", plain).includes("evidence"));
+    // The evidence share is bounded: past it, facts are listed alone.
+    const many = { kaynaklar: bank.kaynaklar, olgular: Array.from({ length: 200 }, (_, i) => ({ metin: `Fact ${i}.`, kaynak: "wikipedia-x" })), alintilar: Array.from({ length: 200 }, (_, i) => ({ metin: `Fact ${i}.`, kaynak: "wikipedia-x", alinti: `${"word ".repeat(40)}${i}` })) };
+    const lines = bankFactLines(many, EVIDENCE_CHARS.checker);
+    assert.ok(lines.text.length < EVIDENCE_CHARS.checker + 200 * 40, `${lines.text.length}`);
+    assert.ok(lines.text.includes("- [wikipedia-x] Fact 199.") && !lines.text.includes(" 199\""));
+  });
+
+  await scenario("N8 a line that copies a source sentence word for word is sent back to be told in its own words", () => {
+    const bank = { kaynaklar: [], olgular: [], alintilar: [{ metin: "f", kaynak: "wikipedia-x", alinti: "The Japanese never again tried to bring battleships into the waters off Guadalcanal during the campaign." }] };
+    const ep = { sahneler: [{ id: "s3", satirlar: [{ metin: "And after that, the Japanese never again tried to bring battleships into the waters off Guadalcanal!" }, { metin: "Tokyo kept its battleships away from Guadalcanal after that." }] }] };
+    const found = copiedFromSources(ep, bank);
+    assert.equal(found.length, 1);
+    assert.match(found[0]!, /^scene "s3" line 0 copies a source sentence word for word/);
+    assert.deepEqual(copiedFromSources(ep, { kaynaklar: [], olgular: [] }), [], "a hand-made bank has no quotes to compare");
+    assert.equal(COPY_RUN_WORDS, 12);
   });
 
   await scenario("L2 a Short under its word budget but well over half its ceiling is not sent to a paid expansion round", async () => {

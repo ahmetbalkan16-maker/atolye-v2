@@ -94,6 +94,41 @@ export function bankProblems(episode: unknown, bank: SourceBank | undefined): st
     .map((k) => `$.kaynaklar: "${String(k.id)}" is not in the source bank; use only: ${[...allowed].join(", ")}`);
 }
 
+/** Words in a row a line may share with a source quote before it counts as copied rather than told. */
+export const COPY_RUN_WORDS = 12;
+
+const wordsOf = (s: string) => normalizeForMatch(s).replace(/"/g, "'").split(/[^\p{L}\p{N}']+/u).filter(Boolean);
+
+/**
+ * Lines that copy a source's sentence word for word (`COPY_RUN_WORDS` or more in a row of a research quote), as
+ * repair asks. The writer sees each fact's evidence quote since 12 Nov 2026 (owner: "telif haklarına dikkat edilsin"):
+ * a fact is free to tell, the article's wording is its authors'.
+ */
+export function copiedFromSources(episode: unknown, bank: SourceBank | undefined, run = COPY_RUN_WORDS): string[] {
+  if (!bank?.alintilar?.length || typeof episode !== "object" || episode === null) return [];
+  const grams = new Set<string>();
+  for (const a of bank.alintilar) {
+    const w = wordsOf(a.alinti);
+    for (let i = 0; i + run <= w.length; i++) grams.add(w.slice(i, i + run).join(" "));
+  }
+  if (!grams.size) return [];
+  const scenes = Array.isArray((episode as { sahneler?: unknown }).sahneler) ? ((episode as { sahneler: { id?: unknown; satirlar?: { metin?: unknown }[] }[] }).sahneler) : [];
+  const out: string[] = [];
+  for (const s of scenes) {
+    (Array.isArray(s.satirlar) ? s.satirlar : []).forEach((l, i) => {
+      if (typeof l.metin !== "string") return;
+      const w = wordsOf(l.metin);
+      for (let j = 0; j + run <= w.length; j++) {
+        if (grams.has(w.slice(j, j + run).join(" "))) {
+          out.push(`scene "${String(s.id)}" line ${i} copies a source sentence word for word ("${w.slice(j, j + run).join(" ")}…"): tell the fact in your own words — keep the names, dates and numbers, change the wording`);
+          return;
+        }
+      }
+    });
+  }
+  return out;
+}
+
 /** Bank sources replace the written ones, so the citation text is exactly the verified one. */
 function withBankSources(episode: Episode, bank: SourceBank | undefined): Episode {
   if (!bank) return episode;
@@ -247,7 +282,8 @@ const SUPPORT_MIN_CHARS = 20;
  * April to August; Zanzibar's royal yacht "did not return fire") — owner, 11 Nov 2026: "ölçerek düzelt".
  */
 export function correctionSupported(dayanak: string | undefined, support: CorrectionSupport): boolean {
-  const clean = (s: string) => normalizeForMatch(s).replace(/^[-•*\s]*(\[[^\]]*\]\s*)?/u, "").replace(/^["'\s]+|["'\s.…]+$/gu, "");
+  // The prompt shows a quote as `evidence: "…"` with its own double quotes made single (ScriptPrompts.bankFactLines).
+  const clean = (s: string) => normalizeForMatch(s).replace(/"/g, "'").replace(/^[-•*\s]*(\[[^\]]*\]\s*)?(evidence:\s*)?/u, "").replace(/^['\s]+|['\s.…]+$/gu, "");
   const quote = dayanak ? clean(dayanak) : "";
   if (quote.length < SUPPORT_MIN_CHARS) return false;
   const texts = [...(support.bank?.olgular ?? []).map((o) => o.metin), ...(support.bank?.alintilar ?? []).map((a) => a.alinti), ...(support.order ? [support.order] : [])].map(clean).filter((t) => t.length >= SUPPORT_MIN_CHARS);
@@ -527,7 +563,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...crowdProblems(value, isShorts(brief.hedefSureSn))] };
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -583,7 +619,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written, shortShares).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length;
+    const before = mapProblems(written).length + shareProblems(written, shortShares).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
     if (revised.quality.length > before) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
       continue;
