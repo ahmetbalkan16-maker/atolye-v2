@@ -14,8 +14,9 @@ import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
-import { cleanObjectName, type CommonsCandidate, politeFetch, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
-import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
+import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { aliasQueries, findPeriodCandidates, insertCaption, keepShareAlike, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
+import { judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
 let scenarios = 0;
@@ -348,14 +349,14 @@ async function main() {
         titles: titles.join("|"),
         prop: "imageinfo",
         iiprop: "url|size|mime|extmetadata",
-        iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+        iiextmetadatafilter: EXTMETADATA,
         iiurlwidth: "3840",
       })}`;
     const seed = (url: string, json: unknown) => writeFileSync(path.join(cacheDir, `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`), JSON.stringify(json));
-    const info = (name: string, license: string, repo?: string) => ({
+    const info = (name: string, license: string, repo?: string, more: Record<string, string> = {}) => ({
       title: `File:${name}`,
       ...(repo ? { imagerepository: repo } : {}),
-      imageinfo: [{ url: `https://upload.wikimedia.org/x/${name}`, descriptionurl: `https://x/File:${name}`, mime: "image/jpeg", width: 1304, height: 1794, extmetadata: { LicenseShortName: { value: license }, DateTimeOriginal: { value: "circa 1890's" } } }],
+      imageinfo: [{ url: `https://upload.wikimedia.org/x/${name}`, descriptionurl: `https://x/File:${name}`, mime: "image/jpeg", width: 1304, height: 1794, extmetadata: { LicenseShortName: { value: license }, DateTimeOriginal: { value: "circa 1890's" }, ...Object.fromEntries(Object.entries(more).map(([k, value]) => [k, { value }])) } }],
     });
     const titles = ["File:Lloyd_mathews.JPG", "File:Poster.jpg", "File:Zanzibar_palace.jpg", "File:Rejected_on_commons.jpg"];
     const norm = titles.filter((t) => t.includes("_")).map((t) => ({ from: t, to: t.replace(/_/g, " ") }));
@@ -374,7 +375,7 @@ async function main() {
     seed(ask("https://en.wikipedia.org/w/api.php", rest), {
       query: {
         normalized: rest.filter((t) => t.includes("_")).map((t) => ({ from: t, to: t.replace(/_/g, " ") })),
-        pages: { "1": info("Lloyd mathews.JPG", "PD-US", "local"), "2": info("Poster.jpg", "Fair use", "local"), "3": info("Rejected on commons.jpg", "CC BY 4.0", "shared") },
+        pages: { "1": info("Lloyd mathews.JPG", "PD-US", "local", { License: "pd", Copyrighted: "False" }), "2": info("Poster.jpg", "Fair use", "local"), "3": info("Rejected on commons.jpg", "CC BY 4.0", "shared") },
       },
     });
     const got = await wikiFilesByTitles(cacheDir, titles);
@@ -437,6 +438,94 @@ async function main() {
       else process.env.ATOLYE_V3_WIKIMEDIA_CONTACT = prev;
     }
     assert.deepEqual(sent, ["AtolyeV3/0.1 (personal documentary studio; owner@example.org)", USER_AGENT]);
+  });
+
+  await scenario("X licence names, not free text: BY-SA is recognised but kept off screen without the owner's yes; 'no restrictions' and a stray 'attribution' are no licence (owner, 12 Nov 2026)", () => {
+    assert.deepEqual(judgeLicense("CC BY-SA 4.0"), { ok: true, family: "CC-BY-SA", attributionRequired: true });
+    assert.deepEqual(judgeLicense("cc-by-sa-3.0"), { ok: true, family: "CC-BY-SA", attributionRequired: true });
+    const family = (s: string) => {
+      const v = judgeLicense(s);
+      return v.ok ? v.family : v.reason;
+    };
+    assert.deepEqual(["CC BY 2.0", "by 4.0", "Attribution", "cc0 1.0", "pdm 1.0", "PD-US", "Public domain", "GFDL", "No restrictions"].map(family), ["CC-BY", "CC-BY", "CC-BY", "CC0", "PD", "PD", "PD", "UNKNOWN", "UNKNOWN"], "Flickr Commons' 'no restrictions' is a statement, not a licence");
+    assert.deepEqual(judgeLicense(undefined, "Attribution required; see the source"), { ok: false, reason: "UNKNOWN" }, "a usage-terms sentence is not CC BY");
+    assert.deepEqual(judgeLicense("CC BY 4.0", "Attribution-NonCommercial"), { ok: false, reason: "NC" }, "the terms can still refuse");
+    const credit = (license: string, author = "Someone") => ({ assetId: "a", kind: "image" as const, title: "t", author, license, attributionRequired: true });
+    assert.match(shownLicenceProblem(credit("CC BY-SA 4.0"), {}) ?? "", /BY-SA/);
+    assert.equal(shownLicenceProblem(credit("CC BY-SA 4.0"), { ATOLYE_V3_BYSA_IZIN: "1" }), undefined, "the owner's yes");
+    assert.match(shownLicenceProblem(credit("bölümde belirtilmedi", "bölüm dosyası"), {}) ?? "", /kabul edilmiyor/, "an episode-given file without a licence");
+    assert.equal(shownLicenceProblem(credit("CC BY 4.0"), {}), undefined);
+    assert.equal(shownLicenceProblem(credit("Atölye'nin kendi çizimi", "Atölye (kodla çizilen sahne)"), {}), undefined, "our own drawing");
+    const sa = { ...candidate("Siege map"), credit: { title: "Siege map", author: "x", license: "CC BY-SA 4.0", attributionRequired: true } };
+    assert.equal(keepShareAlike(sa, "screen", {}), false);
+    assert.equal(keepShareAlike(sa, "reference", {}), true, "a costume reference is only looked at");
+    assert.equal(keepShareAlike(sa, "screen", { ATOLYE_V3_BYSA_IZIN: "1" }), true);
+    assert.equal(keepShareAlike(candidate("pd"), "screen", {}), true);
+  });
+
+  await scenario("Y search without the network: BY-SA stays off screen, NonFree and 'no restrictions' never pass, Openverse only CC0/PD from institutions, a Wikipedia's own upload needs a machine-readable PD/CC0 field", async () => {
+    const cacheDir = mkdtempSync(path.join(os.tmpdir(), "v3-lisans-"));
+    const seed = (url: string, json: unknown) => writeFileSync(path.join(cacheDir, `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`), JSON.stringify(json));
+    const meta = (license: string, more: Record<string, string> = {}) => ({ LicenseShortName: { value: license }, ...Object.fromEntries(Object.entries(more).map(([k, value]) => [k, { value }])) });
+    const page = (name: string, i: number, m: Record<string, { value: string }>) => ({ title: `File:${name}`, index: i, imageinfo: [{ url: `https://upload.wikimedia.org/x/${name}`, thumburl: `https://upload.wikimedia.org/x/3840px-${name}`, descriptionurl: `https://commons.wikimedia.org/wiki/File:${name}`, mime: "image/jpeg", width: 2000, height: 1500, extmetadata: m }] });
+    const commonsSearch = (q: string) =>
+      `https://commons.wikimedia.org/w/api.php?${new URLSearchParams({ action: "query", format: "json", generator: "search", gsrsearch: `filetype:bitmap ${q}`, gsrnamespace: "6", gsrlimit: "12", prop: "imageinfo", iiprop: "url|size|mime|extmetadata", iiextmetadatafilter: EXTMETADATA, iiurlwidth: "3840" })}`;
+    seed(commonsSearch("Zanzibar harbour"), {
+      query: {
+        pages: {
+          "1": page("Map BY-SA.jpg", 1, meta("CC BY-SA 4.0")),
+          "2": page("Harbour 1890.jpg", 2, meta("Public domain")),
+          "3": page("Poster nonfree.jpg", 3, meta("Public domain", { NonFree: "true" })),
+          "4": page("Flickr commons.jpg", 4, meta("No restrictions")),
+        },
+      },
+    });
+    seed(`https://api.openverse.org/v1/images/?${new URLSearchParams({ q: "Zanzibar harbour", license: "cc0,pdm", page_size: "8", mature: "false" })}`, {
+      results: [
+        { id: "a", title: "Holiday snap", creator: null, url: "https://live.staticflickr.com/a.jpg", thumbnail: "https://api.openverse.org/a/thumb", license: "cc0", source: "flickr", width: 2000, height: 1500 },
+        { id: "b", title: "Zanzibar harbour, 1895", creator: null, url: "https://ids.si.edu/b.jpg", thumbnail: "https://api.openverse.org/b/thumb", foreign_landing_url: "https://collections.si.edu/b", license: "pdm", license_version: "1.0", source: "smithsonian_national_museum_of_african_art", width: 2000, height: 1500 },
+        { id: "c", title: "Dhow", creator: "R. Roe", url: "https://images.nypl.org/c.jpg", thumbnail: "https://api.openverse.org/c/thumb", license: "by", license_version: "4.0", source: "nypl", width: 2000, height: 1500 },
+      ],
+    });
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error("no network in a smoke");
+    }) as typeof fetch;
+    try {
+      const shown = await findPeriodCandidates(cacheDir, { query: "Zanzibar harbour" }, undefined, { env: {} });
+      assert.deepEqual(shown.candidates.map((c) => c.title), ["Openverse smithsonian_national_museum_of_african_art: Zanzibar harbour, 1895", "File:Harbour 1890.jpg"], "no BY-SA, no NonFree, no 'no restrictions', no Flickr, no CC BY via Openverse");
+      assert.ok(shown.report.some((r) => /CC BY-SA: 1 aday/.test(r)), shown.report.join(" | "));
+      const ov = shown.candidates[0]!;
+      assert.deepEqual([ov.credit.author, ov.credit.license, ov.credit.attributionRequired, ov.provider], ["unknown — Smithsonian Institution", "Public domain", false, "Smithsonian Institution"]);
+      assert.equal(insertCaption(ov, "en"), "Zanzibar harbour, 1895 · Source: Smithsonian Institution via Openverse", "the real source, no 'unknown' author");
+      const refs = await findPeriodCandidates(cacheDir, { query: "Zanzibar harbour" }, undefined, { use: "reference", env: {} });
+      assert.ok(refs.candidates.some((c) => c.title === "File:Map BY-SA.jpg"), "a reference may be BY-SA");
+      const yes = await findPeriodCandidates(cacheDir, { query: "Zanzibar harbour" }, undefined, { env: { ATOLYE_V3_BYSA_IZIN: "1" } });
+      assert.ok(yes.candidates.some((c) => c.title === "File:Map BY-SA.jpg"), "the owner's yes");
+    } finally {
+      globalThis.fetch = real;
+    }
+    // A Wikipedia's own uploads: PD/CC0 by name and by a machine field, never NonFree; a local CC BY would be on Commons.
+    assert.equal(freeLocalFile({ extmetadata: meta("PD-US", { License: "pd" }) }), true);
+    assert.equal(freeLocalFile({ extmetadata: meta("Public domain", { Copyrighted: "False" }) }), true);
+    assert.equal(freeLocalFile({ extmetadata: meta("PD-US") }), false, "no machine-readable field");
+    assert.equal(freeLocalFile({ extmetadata: meta("Public domain", { License: "pd", NonFree: "true" }) }), false);
+    assert.equal(freeLocalFile({ extmetadata: meta("CC BY 4.0", { License: "cc-by-4.0" }) }), false);
+    // Captions name the museum the picture came from, and a Wikipedia's own file as Wikipedia.
+    const aic = { ...candidate("x"), source: "aic" as const, credit: { title: "The Harbour", author: "Winslow Homer — Art Institute of Chicago", license: "CC0", attributionRequired: false } };
+    assert.equal(insertCaption(aic, "en"), "The Harbour, Winslow Homer · Source: Art Institute of Chicago");
+    assert.equal(sourceName({ ...candidate("x"), source: "cleveland" }), "Cleveland Museum of Art");
+    assert.equal(sourceName({ ...candidate("x"), source: "wikipedia", descriptionUrl: "https://en.wikipedia.org/wiki/File:Lloyd_mathews.JPG" }), "Wikipedia");
+    assert.equal(sourceName({ ...candidate("x"), source: "wikipedia", descriptionUrl: "https://commons.wikimedia.org/wiki/File:x.jpg" }), "Wikimedia Commons");
+    rmSync(cacheDir, { recursive: true, force: true });
+  });
+
+  await scenario("Z the OpenStreetMap servers get the contact only with their own yes; mirrors never", () => {
+    const env = { ATOLYE_V3_WIKIMEDIA_CONTACT: "owner@example.org" };
+    assert.equal(userAgentFor("https://nominatim.openstreetmap.org/search", env), USER_AGENT);
+    const yes = { ...env, ATOLYE_V3_OSM_CONTACT: "1" };
+    for (const u of ["https://nominatim.openstreetmap.org/search", "https://overpass-api.de/api/interpreter", "https://overpass-api.openhistoricalmap.org/api/interpreter"]) assert.ok(userAgentFor(u, yes).includes("owner@example.org"), u);
+    for (const u of ["https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://api.artic.edu/x"]) assert.equal(userAgentFor(u, yes), USER_AGENT, u);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

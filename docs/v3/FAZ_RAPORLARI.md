@@ -629,3 +629,34 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   süvari) olduğu için amblem çizilmez; haç sanılan büyük olasılıkla kılıçlıların dik kılıç işaretiydi — kalite beyninin
   "kusur değil" listesine blokların birlik işaretleri (✕, kabzalı dik kılıç, mızrak, yay, at başı, top) ve düşen pulun
   ✕'i eklendi; binadaki dönem dışı haç kusur olmaya devam eder.
+
+### Telif hakkı sıkılaştırması (12 Kasım 2026, owner: "araştırmalar genişletilsin ama telif haklarına dikkat edilsin")
+
+- **CC BY-SA ekrana çıkmaz** (owner onayı olmadan): ShareAlike bütün videoyu bağlayabilir. `findPeriodCandidates`
+  (varsayılan kullanım "screen") BY-SA adayları eler ve raporuna yazar; yalnız `.env.v3.local` içinde
+  `ATOLYE_V3_BYSA_IZIN=1` iken alınır. Kostüm referansları (`WardrobeBrain`, `use: "reference"`) ve portreler yalnız
+  çizime bakılır, gösterilmez: BY-SA kalabilir. `scripts/v3/commons-ara.ts --indir` BY-SA dosyayı (çoğu hazır harita)
+  aynı onay olmadan indirmez. BY-SA arşiv filmi zaten alınmıyordu.
+- **Lisans adı, serbest metin değil** (`LicenseFilter.judgeLicense`): kabul kısa addan, baştan eşleşen bilinen adlarla
+  (Public domain/PD-…, CC0, CC BY, CC BY-SA, Commons'un {{Attribution}} şablonu); kullanım koşulu metni yalnız reddeder
+  (NC/ND/non-free). Flickr'ın "no restrictions" ifadesi lisans değildir, artık reddedilir.
+- **Commons/Wikipedia**: `NonFree`, `Restrictions`, `License`, `Copyrighted` alanları da istenir (`EXTMETADATA`);
+  NonFree hiç alınmaz, kısıtlama (ticari marka, kişilik hakkı) kredi kaydına not düşülür. Bir Wikipedia'nın kendi yüklemesi (Commons'ta olmayan) yalnız
+  PD/CC0 adı ve makine alanıyla (`License` pd/cc0 ya da `Copyrighted` False) alınır (`freeLocalFile`).
+- **Openverse** yalnız CC0 ve kamu malı işareti, yalnız kurum kaynaklarından (`OPENVERSE_INSTITUTIONS`: Smithsonian,
+  NYPL, Rijksmuseum…): Flickr gibi kullanıcı yüklemelerinin lisansı yanlış olabilir ve yaratıcısı "unknown" olabilir.
+- **Ekran plakası gerçek kaynağı yazar** (`sourceName`): The Met, Art Institute of Chicago, Cleveland Museum of Art,
+  "<kurum> via Openverse", Wikipedia; önceden hepsi "Wikimedia Commons" diyordu.
+- **YouTube açıklaması zorunlu atfı kesmez** (`fitDescriptionReport`, `REQUIRED_CREDIT`): CC BY/BY-SA, Creative Commons
+  müzik, ODbL, GPL satırları, başlıklar ve boş satırlar kalır; önce serbest satırlar gider. Açıklama 5000 baytı aşacaksa
+  kamu malı görseller tek sayım satırına iner (`descriptionImageLines`, CREDITS.md hepsini tutar); müzik atfı tek satır.
+  Zorunlu satırlar yine sığmıyorsa QC satırı kırmızı ve `uploadMeta` yüklemeyi reddeder.
+- **Bölüm dosyası** (`arka_plan_sorgusu.dosya`): `lisans`, `yazar`, `kaynak_url` alanları eklendi; lisansı verilmemiş
+  ya da tanınmayan dosya QC'nin lisans satırında SORUN olarak çıkar (`shownLicenceProblem`).
+- **İletişimli User-Agent**: `commons-ara.ts` ayarları üretim gibi yükler. Yakın haritanın Nominatim/Overpass
+  istekleri `userAgentFor` üzerinden gider; owner'ın 11 Kasım onayı Wikimedia içindi, bu yüzden iletişim OSM'in kendi
+  sunucularına (nominatim.openstreetmap.org, overpass-api.de, OpenHistoricalMap Overpass) yalnız `ATOLYE_V3_OSM_CONTACT=1`
+  iken gider; ayna sunuculara hiç gitmez.
+- Kapak yalnız setlerden çizilir; setin kredisi (`backgrounds`) jeneriğe ve açıklamaya zaten girer. Müzik "lisans
+  bilinmiyor" ile kullanılabiliyor (`Mixer.ts`) — açık konu.
+- Doğrulama: `smoke-v3-backgrounds` 26, `smoke-v3-youtube-yukleme` 12, `smoke-v3-youtube` 6 senaryo PASS; `tsc` ve lint 0/0.

@@ -30,7 +30,7 @@ import { commonsPreview, downloadCommons, searchCommonsVideos } from "../src/lib
 import { cutFilmClip, designedCaption, filmCaption, maxDesignedPictures, pictureRequests } from "../src/lib/v3/backgrounds/MomentPictures";
 import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
-import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
+import { attributionLine, type CreditRecord, descriptionImageLines, judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
@@ -74,6 +74,7 @@ import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
 import { isShorts, lengthOk, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
+import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -315,7 +316,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const q = scene.arka_plan_sorgusu;
     if (q.dosya) {
       await fs.copyFile(path.resolve(work, q.dosya), path.join(pub, path.basename(q.dosya)));
-      sets[si] = { src: `bg/${path.basename(q.dosya)}`, kind: q.tur ?? "set", kaynak: "bolum", credit: { assetId: `bg-${scene.id}`, kind: "image", title: path.basename(q.dosya), author: "bölüm dosyası", license: "bölümde belirtilen", attributionRequired: false } };
+      sets[si] = { src: `bg/${path.basename(q.dosya)}`, kind: q.tur ?? "set", kaynak: "bolum", credit: { assetId: `bg-${scene.id}`, kind: "image", title: path.basename(q.dosya), author: q.yazar ?? "bölüm dosyası", license: q.lisans ?? "bölümde belirtilmedi", ...(q.kaynak_url ? { sourceUrl: q.kaynak_url } : {}), attributionRequired: (() => { const v = judgeLicense(q.lisans); return !v.ok || v.attributionRequired; })() } };
       durum[si] = "bolum";
       notlar[si] = "arka plan bölüm dosyasında verilmiş";
       continue;
@@ -1235,8 +1236,14 @@ async function main() {
     // OpenHistoricalMap is credited when the close maps' walls or castles came from it (yakin-harita.json's sources).
     const siteSources = existsSync(f("yakin-harita.json")) ? ((await readJson<{ kaynaklar?: string[] }>(f("yakin-harita.json")).catch(() => ({}))) as { kaynaklar?: string[] }).kaynaklar ?? [] : [];
     const mapCredits = [...(maps.some((km) => km > CLOSE_MAP_MAX_KM) && reliefAvailable(paths) ? [RELIEF_CREDIT] : []), ...(maps.some((km) => km <= CLOSE_MAP_MAX_KM) ? [OSM_CREDIT, CLOSE_RELIEF_CREDIT] : []), ...(siteSources.includes("ohm") ? [OHM_CREDIT] : [])];
-    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...mapCredits];
     const en = dil === "en";
+    // The description's picture credits (12 Nov 2026): the ones a licence requires and the map data first, never cut;
+    // public-domain ones fold into a count line when the description would not fit (CREDITS.md keeps every one).
+    const imageCredits = (compact: boolean) => {
+      const d = descriptionImageLines(images, compact, en);
+      const mapLines = [...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...mapCredits];
+      return { required: [...d.required, ...mapLines], lines: [...d.required, ...mapLines, ...d.lines.slice(d.required.length)] };
+    };
     // The engines that voiced the lines; an older ses.json without them keeps the language's usual engine.
     const engines = voiced.flat().flatMap((l) => (l.provider ? [l.provider] : []));
     const voiceLine = voiceCredit(engines.length ? engines : [en ? "kokoro" : "chatterbox"], dil);
@@ -1261,7 +1268,18 @@ async function main() {
     const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
     const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
     const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";
-    await fs.writeFile(f("aciklama.txt"), `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceLine}\n\n${H.note}\n${hashtags}`);
+    // One line per music credit (its three attribution lines joined, as in CREDITS.md), so no cut can split one.
+    const musicLines = mix.credits.map((c) => c.replace(/\n/g, " · "));
+    const describe = (compact: boolean) => {
+      const imageLines = imageCredits(compact).lines;
+      return `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${musicLines.join("\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceLine}\n\n${H.note}\n${hashtags}`;
+    };
+    // What uploadMeta sends: everything after the title line.
+    const bodyOf = (t: string) => t.split("\n").slice(1).join("\n");
+    const compactCredits = Buffer.byteLength(bodyOf(describe(false)).trim()) > DESCRIPTION_MAX_BYTES;
+    const aciklama = describe(compactCredits);
+    const descFit = fitDescriptionReport(bodyOf(aciklama), [...imageCredits(true).required, ...musicLines.filter((l) => REQUIRED_CREDIT.test(l))]);
+    await fs.writeFile(f("aciklama.txt"), aciklama);
 
     const durationS = Number((await runChecked(paths.ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f(final)])).stdout.trim());
     const loud = await measureLoudness(paths, f(final));
@@ -1320,7 +1338,9 @@ async function main() {
       row(visible.length >= 3 && new Set(visible.map((c) => voices[c.id])).size === visible.length, `${visible.length} görünür karakter, ${new Set(visible.map((c) => voices[c.id])).size} farklı ses`),
       row(dialogScenes >= 0.3, `Diyaloglu sahne oranı %${Math.round(dialogScenes * 100)} (hedef ≥ %30)`),
       row(lipsync.every((l) => l.lipSync === "rhubarb"), `Ağız senkronu: ${lipsync.filter((l) => l.lipSync === "rhubarb").length}/${lipsync.length} satır Rhubarb, ${lipsync.filter((l) => l.lipSync === "rms").length} RMS yedeği`),
-      row(images.every((c) => !/NC|ND/.test(c.license)), `Görsel lisansları: ${[...new Set(images.map((c) => c.license))].join(", ")} (NC/ND yok)`),
+      // Every shown picture's licence judged again (12 Nov 2026): an episode-given file without a stated licence, BY-SA
+      // without the owner's yes, or anything unrecognised is a fault, not a pass.
+      ((problems) => row(!problems.length, `Görsel lisansları: ${[...new Set(images.map((c) => c.license))].join(", ")}${problems.length ? ` — SORUN: ${problems.join("; ")}` : " (NC/ND/belirsiz yok; BY-SA yalnız owner onayıyla)"}`))(images.flatMap((c) => shownLicenceProblem(c) ?? [])),
       row(
         periodShown.every((v) => passes(v.arsiv!.secim)) && new Set(periodShown.map((v) => v.arsiv!.credit.sha256)).size === periodShown.length,
         `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı; tasarlanan an resmi ${shownPictures.filter((g) => g.tasarim).length}, arşiv filmi ${shownPictures.filter((g) => g.video).length}, sahne ara görseli ${visuals.reduce((a, v) => a + (v.gorseller?.length ?? 0), 0)}`,
@@ -1333,6 +1353,7 @@ async function main() {
       row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`, false),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
+      row(!descFit.requiredDropped.length, `YouTube açıklaması: ${Buffer.byteLength(bodyOf(aciklama).trim())} bayt${compactCredits ? ", kamu malı görseller tek satırda sayıldı" : ""}; zorunlu atıf satırları ${descFit.requiredDropped.length ? `— ${descFit.requiredDropped.length} SATIR 5000 BAYTA SIĞMIYOR, yükleme reddedilir` : "hepsi açıklamada"}`, false),
       row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(target / 2)} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
       ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%50 / ~%30 / ~%20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),

@@ -13,7 +13,7 @@ export const MOVES = ["yuru", "kos", "dur", "gir", "cik"] as const;
 export const EFFECTS: readonly V3Effect[] = ["ter", "unlem", "soru", "ofke", "parilti", "kalp"];
 export const GARMENTS: readonly V3Garment[] = ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"];
 export const PROP_KINDS: readonly V3Prop["kind"][] = ["taht", "top", "kule_iskelesi", "gemi", "masa", "sancak"];
-export const TRANSITIONS: readonly V3Transition[] = ["kes", "kaydir", "murekkep", "beyaz"];
+export const TRANSITIONS: readonly V3Transition[] = ["kes", "kaydir", "murekkep", "beyaz", "cozul"];
 export const TIMES_OF_DAY: readonly V3TimeOfDay[] = ["gun", "aksam", "gece", "safak"];
 export const LANDSCAPES: readonly V3Landscape[] = ["nehir_kiyisi", "nehir_gecidi", "ova", "tepeler", "orman", "sahil", "sokak", "meydan", "saray_ici", "meclis", "ordugah", "sur_onu", "cadir_ici", "gemi_guvertesi", "gemi_kamarasi"];
 export const ARCH_STYLES: readonly V3ArchStyle[] = ["roma", "yunan", "misir", "pers", "bizans", "osmanli", "ortacag", "cin", "japon", "erken_modern", "modern"];
@@ -112,6 +112,13 @@ export interface SceneBackgroundQuery {
   readonly yerel_tema?: string;
   /** Explicit asset already resolved (relative to the episode work dir), e.g. a Commons map. */
   readonly dosya?: string;
+  /**
+   * The licence of `dosya` by its short name ("Public domain", "CC0", "CC BY 4.0"), with its author and page when a
+   * credit is owed: without a recognised one QC flags the file (12 Nov 2026; a CC BY-SA one also needs ATOLYE_V3_BYSA_IZIN=1).
+   */
+  readonly lisans?: string;
+  readonly yazar?: string;
+  readonly kaynak_url?: string;
   readonly tur?: "set" | "archival";
 }
 

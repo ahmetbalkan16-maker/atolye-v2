@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { USER_AGENT } from "../backgrounds/CommonsProvider";
+import { userAgentFor } from "../backgrounds/CommonsProvider";
 import { CLOSE_MAP_MAX_KM } from "../episode/EpisodeTypes";
 import type { V3Paths } from "../V3Paths";
 import { inOutline } from "./AdminUnits";
@@ -29,7 +29,7 @@ let ohmDownUntil = 0;
 export async function ohmOverpass(query: string, timeoutMs = 60_000): Promise<{ elements?: OsmElement[] }> {
   if (Date.now() < ohmDownUntil) throw new Error("OHM yanıt vermedi; bir süre sorulmayacak");
   try {
-    const res = await fetch(OHM_OVERPASS, { method: "POST", headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(OHM_OVERPASS, { method: "POST", headers: { "User-Agent": userAgentFor(OHM_OVERPASS), Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) throw new Error(`HTTP_${res.status}`);
     return (await res.json()) as { elements?: OsmElement[] };
   } catch (e) {
@@ -382,7 +382,7 @@ export async function overpass(query: string, timeoutMs = 120_000): Promise<{ el
   const failures: string[] = [];
   for (const url of OVERPASS) {
     try {
-      const res = await fetch(url, { method: "POST", headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
+      const res = await fetch(url, { method: "POST", headers: { "User-Agent": userAgentFor(url), Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
       if (!res.ok) throw new Error(`HTTP_${res.status}`);
       return (await res.json()) as { elements?: OsmElement[] };
     } catch (e) {

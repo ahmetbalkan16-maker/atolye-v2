@@ -15,7 +15,8 @@ import { approvePublish, awaitingApproval } from "../src/lib/v3/publish/PublishA
 import { nextSlot, slotText, videoKind } from "../src/lib/v3/publish/PublishCalendar";
 import { MAX_UPLOAD_PASSES, publishApproved } from "../src/lib/v3/publish/PublishOrder";
 import { consentUrl, type Fetcher, readClient, tokenSource, YOUTUBE_SCOPES, youtubeSettings } from "../src/lib/v3/publish/YoutubeAuth";
-import { fitDescription, fitTags, sameTitle, uploadMeta } from "../src/lib/v3/publish/YoutubeUpload";
+import { descriptionImageLines } from "../src/lib/v3/backgrounds/LicenseFilter";
+import { fitDescription, fitDescriptionReport, fitTags, sameTitle, uploadMeta } from "../src/lib/v3/publish/YoutubeUpload";
 import type { YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 
 let scenarios = 0;
@@ -129,6 +130,35 @@ async function main() {
     assert.ok(Buffer.byteLength(d) <= 5000);
     assert.ok(d.startsWith("Hook.\n\nChapters:\n0:00 A"));
     assert.ok(d.endsWith("…\nNote.\n\n#Tag"));
+  });
+
+  await scenario("B2 credits a licence requires are never cut: public-domain lines go first, required ones stay, and a description they alone overflow is refused (owner, 12 Nov 2026)", () => {
+    const pd = Array.from({ length: 120 }, (_, i) => `"Old print ${i}" — Unknown (Public domain) https://commons.wikimedia.org/wiki/File:${i}.png`);
+    const ccBy = [`"Harbour 1890" — J. Smith (CC BY 2.0, https://creativecommons.org/licenses/by/2.0) https://commons.wikimedia.org/wiki/File:h.jpg`, `"Fort" — A. Jones (Attribution) https://commons.wikimedia.org/wiki/File:f.jpg`];
+    const music = '"Hitman" Kevin MacLeod (incompetech.com) · Licensed under Creative Commons: By Attribution 4.0 · http://creativecommons.org/licenses/by/4.0/';
+    const osm = "Map data (coast, walls, castles): © OpenStreetMap contributors (ODbL)";
+    const text = ["Hook.", "", "Chapters:", "0:00 A", "", "Music:", music, "", "Images:", ...pd.slice(0, 60), ccBy[0]!, osm, ...pd.slice(60), ccBy[1]!, "", "Voices: Kokoro", "", "Note.", "", "#Tag"].join("\n");
+    const fit = fitDescriptionReport(text, [ccBy[1]!]);
+    assert.ok(Buffer.byteLength(fit.text) <= 5000);
+    for (const line of [...ccBy, music, osm, "Images:", "Music:"]) assert.ok(fit.text.includes(line), `kept: ${line.slice(0, 40)}`);
+    assert.ok(fit.dropped > 0 && !fit.requiredDropped.length);
+    assert.ok(fit.text.endsWith("…\nNote.\n\n#Tag") && fit.text.startsWith("Hook.\n\nChapters:\n0:00 A"));
+    assert.equal(fitDescription(text, [ccBy[1]!]), fit.text);
+    // Required lines alone over 5000 bytes: reported, and the upload is refused rather than sent without them.
+    const many = Array.from({ length: 80 }, (_, i) => `"Photo ${i}" — Someone (CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0) https://commons.wikimedia.org/wiki/File:p${i}.jpg`);
+    const over = ["Hook.", "", "Images:", ...many, "", "Note.", "", "#Tag"].join("\n");
+    assert.ok(fitDescriptionReport(over).requiredDropped.length > 0);
+    assert.throws(() => uploadMeta({ paket, aciklama: `${paket.basliklar[0]}\n\n${over}`, dil: "en" }), /zorunlu atıf/);
+    // The description's picture lines: required first; public-domain ones fold into one count line when asked.
+    const credit = (title: string, license: string, req: boolean) => ({ assetId: title, kind: "image" as const, title, author: "x", license, sourceUrl: `https://x/${title}`, attributionRequired: req });
+    const imgs = [credit("pd1", "Public domain", false), credit("by1", "CC BY 4.0", true), credit("pd2", "CC0", false)];
+    const full = descriptionImageLines(imgs, false, true);
+    assert.equal(full.required.length, 1);
+    assert.ok(full.lines[0]!.includes("by1") && full.lines.length === 3);
+    const compact = descriptionImageLines(imgs, true, true);
+    assert.equal(compact.lines.length, 2);
+    assert.match(compact.lines[1]!, /2 public-domain\/CC0 images/);
+    assert.match(descriptionImageLines(imgs, true, false).lines[1]!, /2 kamu malı/);
   });
 
   await scenario("C the weekly calendar: Shorts Tue + Sat, the long video Thu, 15:00 New York (EST and EDT), two hours ahead", () => {

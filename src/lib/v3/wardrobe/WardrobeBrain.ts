@@ -41,7 +41,8 @@ export async function findPartReference(order: PartOrder, donem: string, deps: B
   // Beards and moustaches have no museum pieces worth looking up; their description is enough.
   if (order.slot === "beard" || order.slot === "mustache") return undefined;
   const query = order.tarif.replace(/^(a|an|the)\s+/i, "");
-  const found = await findPeriodCandidates(deps.cacheDir, { query, alternatives: [`${query} museum`] }, periodEndYear(donem)).catch(() => undefined);
+  // Only looked at for drawing, never shown: a CC BY-SA museum photo may be the reference (findPeriodCandidates' "reference").
+  const found = await findPeriodCandidates(deps.cacheDir, { query, alternatives: [`${query} museum`] }, periodEndYear(donem), { use: "reference" }).catch(() => undefined);
   if (!found?.candidates.length) return undefined;
   const scene = { konu: order.tarif, donem, mekan: order.slot, tr: order.tarif, en: order.tarif, anlatim: "" };
   const pick = await pickBackground(found.candidates, scene, deps.judge, (c) => commonsPreview(deps.cacheDir, c), deps.log, { mode: "referans", max: 6 });

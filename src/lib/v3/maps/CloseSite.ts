@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { USER_AGENT } from "../backgrounds/CommonsProvider";
+import { userAgentFor } from "../backgrounds/CommonsProvider";
 import { CLOSE_MAP_MAX_KM, type Episode, type MapWall, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3Paths } from "../V3Paths";
 import { castleStyleFor, fitWall, joinPieces, kmBetween, lineKm, type Pt, roundness, stripCentreline } from "./CastleShapes";
@@ -321,7 +321,7 @@ export function closeSiteLookup(paths: Pick<V3Paths, "workRoot">, log: (s: strin
         const results = await kept(keyOf({ nominatim: name, b }), async () => {
           await new Promise((r) => setTimeout(r, 1100));
           const params = new URLSearchParams({ q: name, format: "jsonv2", polygon_geojson: "1", polygon_threshold: "0.00003", limit: "5", "accept-language": "en", viewbox: `${b.west},${b.north},${b.east},${b.south}`, bounded: "1" });
-          const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+          const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": userAgentFor(NOMINATIM), Accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
           if (!res.ok) throw new Error(`NOMINATIM_HTTP_${res.status}`);
           return (await res.json()) as Parameters<typeof siteFromNominatim>[0];
         });

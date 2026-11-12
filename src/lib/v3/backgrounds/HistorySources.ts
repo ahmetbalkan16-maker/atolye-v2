@@ -1,6 +1,6 @@
 import { type CommonsCandidate, cachedJson, searchCommons, wikiFilesByTitles } from "./CommonsProvider";
 import { type Era, eraOf, periodEndYear } from "../episode/Period";
-import { judgeLicense } from "./LicenseFilter";
+import { judgeLicense, shareAlikeAllowed } from "./LicenseFilter";
 
 /**
  * Where V3 looks for a period image of a scene, in order: the images of the subject's Wikipedia article (the
@@ -173,24 +173,59 @@ interface OpenverseImage {
 }
 
 /**
+ * Openverse sources that are museums, archives and libraries publishing their own collections, with the name shown in
+ * the caption. A user upload site (Flickr, WordPress photos, DeviantArt) is not among them: an uploader can mark another
+ * person's work as free, and Openverse only passes the licence on.
+ */
+export const OPENVERSE_INSTITUTIONS: Readonly<Record<string, string>> = {
+  smithsonian: "Smithsonian Institution",
+  nypl: "New York Public Library",
+  rijksmuseum: "Rijksmuseum",
+  brooklynmuseum: "Brooklyn Museum",
+  clevelandmuseum: "Cleveland Museum of Art",
+  met: "The Met",
+  museumsvictoria: "Museums Victoria",
+  sciencemuseum: "Science Museum Group",
+  statensmuseum: "SMK – National Gallery of Denmark",
+  europeana: "Europeana",
+  wellcome_collection: "Wellcome Collection",
+  digitaltmuseum: "DigitaltMuseum",
+  finnish_museums: "Finnish Heritage Agency",
+  mccordmuseum: "McCord Stewart Museum",
+  thorvaldsensmuseum: "Thorvaldsens Museum",
+  biodiversity: "Biodiversity Heritage Library",
+  nasa: "NASA",
+};
+
+/** The institution behind an Openverse source id ("smithsonian_american_art_museum" is the Smithsonian's), or undefined. */
+export function openverseInstitution(source: string | null | undefined): string | undefined {
+  const s = (source ?? "").toLowerCase();
+  return OPENVERSE_INSTITUTIONS[s] ?? (s.startsWith("smithsonian_") ? OPENVERSE_INSTITUTIONS.smithsonian : undefined);
+}
+
+/**
  * Openly licensed images from Openverse (owner approval 20 Oct 2026: WordPress's search engine for CC and public-domain
- * media — Flickr manuscripts, museum photos, libraries — beyond Wikipedia, The Met and Commons). Only licences that allow
- * commercial use and changes are asked for, and every result passes the same licence judge (no NC, no ND, nothing
- * unknown). Wikimedia results are left out (Commons is searched directly). Anonymous use: 20 requests a minute, 200 a
- * day — one cached query per search.
+ * media — museum photos, libraries — beyond Wikipedia, The Met and Commons). Openverse is an aggregator: it repeats the
+ * licence its source gave, and a Flickr user's upload can carry a wrong one with an "unknown" creator. Since 12 Nov 2026
+ * only CC0 and the public-domain mark are asked for, and only from an institution of OPENVERSE_INSTITUTIONS (owner:
+ * "araştırmalar genişletilsin ama telif haklarına dikkat edilsin"); every result passes the licence judge too.
+ * Wikimedia results are left out (Commons is searched directly). Anonymous use: 20 requests a minute, 200 a day — one
+ * cached query per search.
  */
 export async function openverseCandidates(cacheDir: string, query: string, limit = 8): Promise<CommonsCandidate[]> {
-  const params = new URLSearchParams({ q: query, license_type: "commercial,modification", page_size: String(limit), mature: "false" });
+  const params = new URLSearchParams({ q: query, license: "cc0,pdm", page_size: String(limit), mature: "false" });
   const json = (await cachedJson(cacheDir, `https://api.openverse.org/v1/images/?${params}`)) as { results?: readonly OpenverseImage[] };
   const out: CommonsCandidate[] = [];
   for (const r of json.results ?? []) {
-    if (!r.url || !r.thumbnail || /wikimedia/i.test(r.source ?? "")) continue;
-    const licence = judgeLicense(`${r.license ?? ""} ${r.license_version ?? ""}`.trim());
+    const provider = openverseInstitution(r.source);
+    if (!r.url || !r.thumbnail || !provider || (r.license !== "cc0" && r.license !== "pdm")) continue;
+    const licence = judgeLicense(`${r.license} ${r.license_version ?? ""}`.trim());
     if (!licence.ok) continue;
-    const name = r.license === "pdm" ? "Public domain" : r.license === "cc0" ? "CC0" : `CC ${(r.license ?? "").toUpperCase()} ${r.license_version ?? ""}`.trim();
+    const name = r.license === "pdm" ? "Public domain" : "CC0";
     out.push({
       title: `Openverse ${r.source ?? ""}: ${(r.title ?? "untitled").slice(0, 120)}`,
       source: "openverse",
+      provider,
       url: r.url,
       downloadUrl: r.url,
       previewUrl: r.thumbnail,
@@ -199,7 +234,7 @@ export async function openverseCandidates(cacheDir: string, query: string, limit
       height: r.height ?? 0,
       mime: "image/jpeg",
       descriptionUrl: r.foreign_landing_url ?? r.url,
-      credit: { title: r.title ?? "untitled", author: `${r.creator ?? "unknown"} (${r.source ?? "Openverse"})`, license: name, ...(r.license_url ? { licenseUrl: r.license_url } : {}), sourceUrl: r.foreign_landing_url ?? r.url, attributionRequired: licence.attributionRequired },
+      credit: { title: r.title ?? "untitled", author: `${r.creator?.trim() || "unknown"} — ${provider}`, license: name, ...(r.license_url ? { licenseUrl: r.license_url } : {}), sourceUrl: r.foreign_landing_url ?? r.url, attributionRequired: false },
     });
   }
   return out;
@@ -264,11 +299,19 @@ export function periodRank(year: number | undefined, periodEnd: number | undefin
   return year < Math.max(1900, periodEnd + 30) ? 1 : 2;
 }
 
+/** Whether a CC BY-SA candidate stays: in a reference (only looked at for drawing, never shown) always, on screen only with the owner's yes. */
+export function keepShareAlike(c: CommonsCandidate, use: "screen" | "reference", env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  if (use === "reference" || shareAlikeAllowed(env)) return true;
+  const v = judgeLicense(c.credit.license);
+  return !(v.ok && v.family === "CC-BY-SA");
+}
+
 /**
  * Candidates from every source, de-duplicated, in judging order (see periodRank), so the judge's limited looks go
- * to period works first.
+ * to period works first. `use` "screen" (the default: the picture is shown in the video) leaves CC BY-SA out unless
+ * ATOLYE_V3_BYSA_IZIN=1 — ShareAlike could bind the whole video; "reference" (a costume piece looked at for drawing) keeps it.
  */
-export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, periodEnd?: number): Promise<PeriodCandidates> {
+export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, periodEnd?: number, opts: { readonly use?: "screen" | "reference"; readonly env?: Readonly<Record<string, string | undefined>> } = {}): Promise<PeriodCandidates> {
   const report: string[] = [];
   const lists: CommonsCandidate[][] = [];
   const take = async (name: string, run: () => Promise<CommonsCandidate[]>) => {
@@ -301,7 +344,11 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   }
   for (const q of [...new Set(extra)].filter((q) => fold(q) !== fold(s.query)).slice(0, 4)) await take(`Commons "${q}"`, () => commons(q));
   const seen = new Set<string>();
+  const use = opts.use ?? "screen";
+  const shareAlike = lists.flat().filter((c) => !keepShareAlike(c, use, opts.env));
+  if (shareAlike.length) report.push(`CC BY-SA: ${new Set(shareAlike.map((c) => c.url)).size} aday gösterilmez (owner onayı: ATOLYE_V3_BYSA_IZIN=1)`);
   const all = lists.flat().filter((c) => {
+    if (!keepShareAlike(c, use, opts.env)) return false;
     const key = c.url;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -322,14 +369,33 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
 // The period readers live with the episode (the validator needs them too); re-exported for the existing importers.
 export { type Era, eraOf, periodEndYear };
 
+/** Where a candidate really comes from, as its caption names it (until 12 Nov 2026 every non-Met picture said Commons). */
+export function sourceName(c: CommonsCandidate): string {
+  if (c.source === "met") return "The Met";
+  if (c.source === "aic") return "Art Institute of Chicago";
+  if (c.source === "cleveland") return "Cleveland Museum of Art";
+  if (c.source === "openverse") return c.provider ? `${c.provider} via Openverse` : "Openverse";
+  // A Wikipedia's own upload, not a Commons file the article shows.
+  let host = "";
+  try {
+    host = new URL(c.descriptionUrl).hostname;
+  } catch {
+    // no address: Commons, as before
+  }
+  return /(^|\.)wikipedia\.org$/.test(host) ? "Wikipedia" : "Wikimedia Commons";
+}
+
 /** Short source plate for a cutaway: title, author/year, where it is from. */
 export function insertCaption(c: CommonsCandidate, language: "tr" | "en"): string {
-  const where = c.source === "met" ? "The Met" : "Wikimedia Commons";
-  const author = c.credit.author.replace(/\s*—\s*The Metropolitan Museum of Art$/, "").replace(/\s+/g, " ").trim();
+  const where = sourceName(c);
+  // A museum's or Openverse's author ends with the institution ("Gentile Bellini — The Metropolitan Museum of Art"): the
+  // plate names it as the source, the author keeps the artist alone.
+  const museum = c.source === "met" || c.source === "aic" || c.source === "cleveland" || c.source === "openverse";
+  const author = (museum ? c.credit.author.replace(/\s*—\s*[^—]+$/, "") : c.credit.author).replace(/\s+/g, " ").trim();
   const head = c.credit.title.replace(/^File:/, "").replace(/\.(jpe?g|png)$/i, "").replace(/\s*\(\d{6,}\)\s*$/, "").trim();
   // A title that already names the artist or the year ("Jules-César arrivé au Rubicon, 1854, Musée Picardie, Gustave
   // Boulanger, 1854") does not get them again.
   const named = (s: string) => head.toLowerCase().includes(s.toLowerCase());
-  const parts = [head.slice(0, 70), author && author.length <= 50 && !/wikimedia/i.test(author) && !named(author) ? author : "", c.year && !named(String(c.year)) ? String(c.year) : ""].filter(Boolean);
+  const parts = [head.slice(0, 70), author && author.length <= 50 && !/wikimedia|^unknown$/i.test(author) && !named(author) ? author : "", c.year && !named(String(c.year)) ? String(c.year) : ""].filter(Boolean);
   return `${parts.join(", ")} · ${language === "en" ? "Source" : "Kaynak"}: ${where}`;
 }

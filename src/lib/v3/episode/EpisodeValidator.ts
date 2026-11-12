@@ -215,6 +215,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       if (extra !== undefined && (!Array.isArray(extra) || extra.length > 3 || extra.some((x) => typeof x !== "string" || !x.trim() || x.length > 80))) err("ARKA_PLAN_ARA", `${p}.arka_plan_sorgusu.ara`, "en fazla 3 arama metni (her biri ≤ 80 karakter)");
       str(s.arka_plan_sorgusu, "tasarim", `${p}.arka_plan_sorgusu`, { optional: true, max: 700 });
       str(s.arka_plan_sorgusu, "an", `${p}.arka_plan_sorgusu`, { optional: true, max: 600 });
+      for (const k of ["lisans", "yazar", "kaynak_url"] as const) str(s.arka_plan_sorgusu, k, `${p}.arka_plan_sorgusu`, { optional: true, max: 300 });
       oneOf(s.arka_plan_sorgusu, "tur", `${p}.arka_plan_sorgusu`, ["set", "archival"] as const, true);
     }
     if (s.ortam !== undefined) {

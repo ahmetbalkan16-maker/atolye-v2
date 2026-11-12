@@ -50,17 +50,56 @@ export function fitTags(tags: readonly string[]): string[] {
   return out;
 }
 
+/** YouTube's description limit, in bytes. */
+export const DESCRIPTION_MAX_BYTES = 5000;
+
 /**
- * The description within YouTube's 5000 bytes. aciklama.txt ends with the dramatization note and the hashtags; when
- * a long episode's credits run over, lines go from the end of the credits, never the hook, chapters or that ending.
+ * A credit line a licence obliges us to keep (CC BY, CC BY-SA, a Creative Commons music credit, OpenStreetMap's ODbL,
+ * the GPL borders): never cut to fit the description.
  */
-export function fitDescription(text: string): string {
+export const REQUIRED_CREDIT = /\bCC[ -]?BY\b|\bBY-SA\b|Creative Commons|creativecommons\.org\/licenses\/by|\bODbL\b|\bGPL-?\d/i;
+
+export interface DescriptionFit {
+  readonly text: string;
+  /** Lines cut to fit. */
+  readonly dropped: number;
+  /** Required credit lines that still had to go: the description cannot be published like this. */
+  readonly requiredDropped: readonly string[];
+}
+
+/**
+ * The description within YouTube's 5000 bytes. aciklama.txt ends with the dramatization note and the hashtags; when a
+ * long episode runs over, lines go from the end upward — never the ending, a section heading, a blank line, or a credit
+ * line the licence requires (REQUIRED_CREDIT, or one of `required`). Until 12 Nov 2026 the image and voice credits,
+ * which come last, were the first to go. If the required lines alone do not fit, they go too and are reported.
+ */
+export function fitDescriptionReport(text: string, required: readonly string[] = []): DescriptionFit {
   const lines = noAngles(text).trim().split(/\r?\n/);
-  if (Buffer.byteLength(lines.join("\n")) <= 5000) return lines.join("\n");
+  const whole = lines.join("\n");
+  if (Buffer.byteLength(whole) <= DESCRIPTION_MAX_BYTES) return { text: whole, dropped: 0, requiredDropped: [] };
+  const must = new Set(required.map((l) => noAngles(l).trim()));
+  const isRequired = (l: string) => must.has(l.trim()) || REQUIRED_CREDIT.test(l);
+  const isFrame = (l: string) => !l.trim() || /^[^\s:]{1,30}( [^\s:]{1,30})?:$/.test(l.trim());
   const tail = lines.slice(-3);
-  let head = lines.slice(0, -3);
-  while (head.length && Buffer.byteLength([...head, "…", ...tail].join("\n")) > 5000) head = head.slice(0, -1);
-  return [...head, "…", ...tail].join("\n");
+  const head = lines.slice(0, -3);
+  const keep = head.map(() => true);
+  let size = Buffer.byteLength([...head, "…", ...tail].join("\n"));
+  const cut = (i: number) => {
+    keep[i] = false;
+    size -= Buffer.byteLength(head[i]!) + 1;
+  };
+  for (let i = head.length - 1; i >= 0 && size > DESCRIPTION_MAX_BYTES; i--) if (!isRequired(head[i]!) && !isFrame(head[i]!)) cut(i);
+  const requiredDropped: string[] = [];
+  for (let i = head.length - 1; i >= 0 && size > DESCRIPTION_MAX_BYTES; i--) {
+    if (!keep[i]) continue;
+    if (isRequired(head[i]!)) requiredDropped.push(head[i]!);
+    cut(i);
+  }
+  return { text: [...head.filter((_, i) => keep[i]), "…", ...tail].join("\n"), dropped: keep.filter((k) => !k).length, requiredDropped };
+}
+
+export function fitDescription(text: string, required: readonly string[] = []): string {
+  return fitDescriptionReport(text, required).text;
 }
 
 /** A scheduled upload waits private until `publishAt`; without one it is public at once (the owner's "hemen"). */
@@ -72,8 +111,11 @@ export function uploadMeta(o: { readonly paket: YoutubePackage; readonly aciklam
   const lines = o.aciklama.split(/\r?\n/);
   const body = lines[0]?.trim() === first ? lines.slice(1).join("\n") : o.aciklama;
   const fixed = { selfDeclaredMadeForKids: false, containsSyntheticMedia: false, license: "youtube", embeddable: true } as const;
+  // A video whose required credits do not fit is not uploaded without them (the licence's condition, not a style rule).
+  const fit = fitDescriptionReport(body);
+  if (fit.requiredDropped.length) throw new Error(`YOUTUBE_META: zorunlu atıf satırları 5000 bayta sığmıyor (${fit.requiredDropped.length} satır) — açıklamayı kısaltın`);
   return {
-    snippet: { title, description: fitDescription(body), tags: fitTags(o.paket.etiketler), categoryId: YOUTUBE_CATEGORY_EDUCATION, defaultLanguage: o.dil, defaultAudioLanguage: o.dil === "en" ? "en-US" : "tr" },
+    snippet: { title, description: fit.text, tags: fitTags(o.paket.etiketler), categoryId: YOUTUBE_CATEGORY_EDUCATION, defaultLanguage: o.dil, defaultAudioLanguage: o.dil === "en" ? "en-US" : "tr" },
     status: o.publishAt ? { privacyStatus: "private", publishAt: o.publishAt, ...fixed } : { privacyStatus: "public", ...fixed },
   };
 }

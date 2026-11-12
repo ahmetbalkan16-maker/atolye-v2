@@ -24,13 +24,24 @@ export function userAgentFor(url: string, env: Readonly<Record<string, string | 
   } catch {
     return USER_AGENT;
   }
-  return contact && /(^|\.)(wikimedia|wikipedia|wikidata)\.org$/.test(host) ? `AtolyeV3/0.1 (personal documentary studio; ${contact})` : USER_AGENT;
+  // OpenStreetMap's own Nominatim and the main Overpass servers (the close maps' coasts, walls and castles) get the same
+  // contact only with the owner's separate yes, ATOLYE_V3_OSM_CONTACT=1: the approval of 11 Nov 2026 named Wikimedia.
+  const osm = env.ATOLYE_V3_OSM_CONTACT === "1" && /^(nominatim\.openstreetmap\.org|overpass-api\.de|overpass-api\.openhistoricalmap\.org)$/.test(host);
+  return contact && (osm || /(^|\.)(wikimedia|wikipedia|wikidata)\.org$/.test(host)) ? `AtolyeV3/0.1 (personal documentary studio; ${contact})` : USER_AGENT;
 }
+
+/**
+ * The metadata asked of every file. NonFree marks a Wikipedia's fair-use upload; License and Copyrighted are the
+ * machine-readable fields a local Wikipedia file must show before it is taken (see commonsByTitles).
+ */
+export const EXTMETADATA = "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal|NonFree|Restrictions|License|Copyrighted";
 
 export interface CommonsCandidate {
   readonly title: string;
   /** Where it was found: a Wikipedia article about the subject, a Commons search, or a museum collection. */
   readonly source?: "wikipedia" | "commons" | "met" | "openverse" | "aic" | "cleveland";
+  /** The institution an Openverse result really comes from ("Smithsonian Institution"), for its on-screen caption. */
+  readonly provider?: string;
   /** Year the image was made, when the metadata says (a 2013 photo of a 1452 fortress is not a period image). */
   readonly year?: number;
   readonly url: string;
@@ -131,8 +142,10 @@ export function yearOf(text: string | undefined): number | undefined {
 
 function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["source"] = "commons"): CommonsCandidate | undefined {
   const m = info.extmetadata ?? {};
+  if (/^true$/i.test(stripHtml(m.NonFree?.value))) return undefined;
   const verdict = judgeLicense(stripHtml(m.LicenseShortName?.value), stripHtml(m.UsageTerms?.value));
   if (!verdict.ok) return undefined;
+  const restrictions = stripHtml(m.Restrictions?.value);
   const year = yearOf(stripHtml(m.DateTimeOriginal?.value));
   return {
     title,
@@ -155,6 +168,8 @@ function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["s
       ...(m.LicenseUrl?.value ? { licenseUrl: stripHtml(m.LicenseUrl.value) } : {}),
       sourceUrl: info.descriptionurl,
       attributionRequired: verdict.attributionRequired || m.AttributionRequired?.value === "true",
+      // Non-copyright restrictions (trademark, personality rights, insignia) are kept with the credit for the reader.
+      ...(restrictions ? { note: `kısıtlama: ${restrictions.slice(0, 120)}` } : {}),
     },
   };
 }
@@ -170,7 +185,7 @@ export async function searchCommons(cacheDir: string, query: string, opts: { min
     gsrlimit: String(opts.limit ?? 30),
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiextmetadatafilter: EXTMETADATA,
     iiurlwidth: "3840",
   });
   const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; index?: number; imageinfo?: ImageInfo[] }> } };
@@ -205,7 +220,7 @@ export async function searchCommonsVideos(cacheDir: string, query: string, limit
     gsrlimit: String(limit),
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiextmetadatafilter: EXTMETADATA,
     iiurlwidth: "960",
   });
   const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; index?: number; imageinfo?: (ImageInfo & { size?: number })[] }> } };
@@ -232,7 +247,7 @@ export async function commonsByTitle(cacheDir: string, title: string): Promise<C
     titles: title,
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiextmetadatafilter: EXTMETADATA,
     iiurlwidth: "3840",
   });
   const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; imageinfo?: ImageInfo[] }> } };
@@ -253,7 +268,7 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
     titles: titles.slice(0, 50).join("|"),
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiextmetadatafilter: EXTMETADATA,
     iiurlwidth: "3840",
   });
   const json = (await cachedJson(cacheDir, `${api}?${params}`)) as {
@@ -266,11 +281,24 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
     const page = byTitle.get(norm.get(t) ?? t);
     const info = page?.imageinfo?.[0];
     if (!page || !info || !/^image\/(jpeg|png)$/.test(info.mime)) continue;
-    if (api !== API && page.imagerepository !== "local") continue;
+    if (api !== API && (page.imagerepository !== "local" || !freeLocalFile(info))) continue;
     const c = toCandidate(page.title, info, source);
     if (c) out.push(c);
   }
   return out;
+}
+
+/**
+ * A Wikipedia's own upload (not on Commons) is taken only when clearly free: public domain or CC0 by its short name AND
+ * by a machine-readable field (License "pd…"/"cc0", or Copyrighted "False"), never NonFree. Files kept off Commons are
+ * mostly fair use or free in the United States only; a CC BY one would be on Commons.
+ */
+export function freeLocalFile(info: Pick<ImageInfo, "extmetadata">): boolean {
+  const m = info.extmetadata ?? {};
+  if (/^true$/i.test(stripHtml(m.NonFree?.value))) return false;
+  const v = judgeLicense(stripHtml(m.LicenseShortName?.value), stripHtml(m.UsageTerms?.value));
+  if (!v.ok || (v.family !== "PD" && v.family !== "CC0")) return false;
+  return /^(pd|cc0)/i.test(stripHtml(m.License?.value)) || /^false$/i.test(stripHtml(m.Copyrighted?.value));
 }
 
 /** A file title as MediaWiki compares it ("File:Lloyd_mathews.JPG" is "File:Lloyd mathews.JPG"). */
@@ -280,7 +308,7 @@ const titleKey = (t: string) => t.replace(/_/g, " ").trim().toLowerCase();
  * Files a Wikipedia article names: from Commons, then the ones uploaded to that Wikipedia itself, which Commons does not
  * have. "Lloyd mathews.JPG" — the only portrait of Zanzibar's army commander, the lead image of his article, PD-US — is
  * such a local en.wikipedia file: the Zanzibar Short of 3 Nov 2026 asked only Commons, found nothing and drew him from a
- * description. The licence check is the same for both.
+ * description. The licence check is the same for both; a local file must also pass freeLocalFile (12 Nov 2026).
  */
 export async function wikiFilesByTitles(cacheDir: string, titles: readonly string[], lang = "en", source: CommonsCandidate["source"] = "wikipedia"): Promise<CommonsCandidate[]> {
   const fromCommons = await commonsByTitles(cacheDir, titles, source);
