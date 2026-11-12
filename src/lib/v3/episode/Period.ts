@@ -4,6 +4,9 @@
  * search (period images).
  */
 
+/** From this year on a period's warships are steel steamers: no sails, no rigging (set painter and picture judge). */
+export const MODERN_SHIPS_FROM = 1900;
+
 /** Last year of an episode period ("1452", "1451–1453", "MÖ 44", "44 BC", "1919-1922"); BCE years are negative. */
 export function periodEndYear(donem: string): number | undefined {
   // \b is ASCII-only in JavaScript, so it would never see the edge of "MÖ".

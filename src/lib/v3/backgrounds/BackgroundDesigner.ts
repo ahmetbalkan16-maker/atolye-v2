@@ -3,6 +3,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { hasSimilarLesson, recall, remember } from "../council/ExperienceMemory";
 import type { Episode, EpisodeScene } from "../episode/EpisodeTypes";
+import { MODERN_SHIPS_FROM } from "../episode/Period";
 import { sideProcessEnv } from "../tts/Tts";
 import { periodEndYear } from "./HistorySources";
 import { freeGpuMemory, GPU_PAUSE_C, GPU_START_C, waitForCoolGpu } from "../util/Gpu";
@@ -52,8 +53,7 @@ export function periodNegatives(donem: string): string[] {
   return out;
 }
 
-/** From this year on a period's warships are steel steamers: no sails, no rigging. */
-export const MODERN_SHIPS_FROM = 1900;
+export { MODERN_SHIPS_FROM };
 
 const SHIP_WORDS = /\b(ships?|fleets?|navy|naval|battleships?|cruisers?|destroyers?|carriers?|warships?|harbou?rs?|torpedo(?:es)?|vessels?|boats?|submarines?|minelayers?)\b/i;
 
@@ -209,8 +209,11 @@ export function momentText(an: string | undefined, en: string, narration: string
  * first the Trojan Horse trial (23 Oct 2026) painted warriors round a bronze drum — the subject fell off the end.
  */
 export function momentDesign(text: string, episode: Pick<Episode, "donem">): SetDesign {
+  // The first encoder reads only 77 tokens: a steel-ship moment says so at the very start, before "history painting"
+  // pulls SDXL to square-riggers (Guadalcanal, 12 Nov 2026: the ship look sat only in the second prompt).
+  const steel = periodShipLook(text, episode.donem) ? "Grey steel warships with funnels and gun turrets, no sails: " : "";
   return {
-    prompt: `${text}, ${MOMENT_STYLE}`,
+    prompt: `${steel}${text}, ${MOMENT_STYLE}`,
     prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}${periodShipLook(text, episode.donem) ? ` ${periodShipLook(text, episode.donem)}` : ""}${periodNavyLook(text, episode.donem) ? ` ${periodNavyLook(text, episode.donem)}` : ""}`,
     negative: [MOMENT_NEGATIVE, ...periodNegatives(episode.donem)].join(", "),
   };

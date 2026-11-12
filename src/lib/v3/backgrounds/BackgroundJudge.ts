@@ -1,4 +1,5 @@
 import type { AIProvider } from "../../ai/providers/AIProvider";
+import { MODERN_SHIPS_FROM } from "../episode/Period";
 import { periodEndYear } from "./HistorySources";
 
 /**
@@ -302,6 +303,20 @@ Is there anywhere in it: ${things}?
 Answer ONLY JSON: {"var": true or false, "ne": "<what and where, at most 10 words>"}`;
 }
 
+/**
+ * The same plain question the other way round, for a period of steel ships (from MODERN_SHIPS_FROM): a sailing ship in
+ * a picture of 1900 or later. The Guadalcanal Short (12 Nov 2026) showed a designed "moment" of Hiei's end with three
+ * burning square-riggers that the judge passed with period 10/10 — the scoring answer had rejected three such drawings
+ * just before, so asked plainly the judge sees them. Undefined before 1900.
+ */
+export function earlierShipQuestion(donem: string): string | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined || year < MODERN_SHIPS_FROM) return undefined;
+  return `Look carefully at every ship and boat in the picture, if there are any.
+Does any of them have sails, tall wooden masts with crossing yards, or rope rigging — a sailing ship or an old wooden warship?
+Answer ONLY JSON: {"var": true or false, "ne": "<what and where, at most 10 words>"}`;
+}
+
 const LATER_ERA_SCHEMA = { type: "object", properties: { var: { type: "boolean" }, ne: { type: "string" } }, required: ["var", "ne"] } as const;
 
 /** The answer to laterEraQuestion: what was seen, or undefined for "nothing" and for an unreadable answer (no penalty). */
@@ -367,6 +382,13 @@ export async function pickBackground<T extends JudgeCandidate>(
         const out = await judge.generate(question, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
         const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;
         if (seen) v = { ...v, donem: 3, sonrakiCag: seen, sorun: `${v.sorun ? `${v.sorun}; ` : ""}sonraki çağ: ${seen}`.slice(0, 220) };
+      }
+      // A designed moment or set of a steel-ship period, and a period image that passes: no sailing ship in it.
+      const ships = ((opts.mode === "an" || opts.mode === "set") && !v.okunamadi) || ((opts.mode ?? "arsiv") === "arsiv" && passes(v)) ? earlierShipQuestion(scene.donem) : undefined;
+      if (ships) {
+        const out = await judge.generate(ships, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
+        const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;
+        if (seen) v = { ...v, donem: Math.min(v.donem ?? 10, 2), sorun: `${v.sorun ? `${v.sorun}; ` : ""}önceki çağın gemisi: ${seen}`.slice(0, 220) };
       }
     } catch (e) {
       log(`aday değerlendirilemedi (${c.title.slice(0, 60)}): ${(e as Error).message.slice(0, 120)}`);

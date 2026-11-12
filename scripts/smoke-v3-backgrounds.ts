@@ -11,7 +11,7 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -272,6 +272,26 @@ async function main() {
     assert.ok(pick.verdicts[0]!.sorun.includes("cross on a tower") && pick.verdicts[0]!.sonrakiCag === "cross on a tower");
     assert.equal(pick.verdicts[2]!.sonrakiCag, undefined);
     assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["hacli.jpg", "zayif.jpg", "temiz.jpg"], "every readable set is asked: a failing one may still become the best attempt");
+  });
+
+  await scenario("N2 Guadalcanal (12 Nov 2026): a designed moment of 1942 with a sailing ship fails the period, asked plainly; the painter is told steel first", async () => {
+    assert.ok(earlierShipQuestion("12–15 November 1942")!.includes("sails"));
+    assert.equal(earlierShipQuestion("1805"), undefined, "a period of sailing ships is not asked");
+    const judge: AIProvider = {
+      generate: async (prompt, o) => {
+        const img = Buffer.from(o?.images?.[0] ?? "", "base64").toString();
+        if (prompt.includes("sailing ship or an old wooden warship")) return { content: img.includes("yelkenli") ? '{"var": true, "ne": "three-masted ships burning"}' : '{"var": false, "ne": "none"}', finishReason: "stop", refused: false, complete: true, truncated: false };
+        // The scoring answer passes both, as it passed the square-riggers of Hiei's end with period 10/10.
+        return { content: JSON.stringify({ puan: 7, donem: 10, modern: false, tur: "eser", gosterilen: "yanan savaş gemileri", sorun: "" }), finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const naval: SceneForJudge = { ...SCENE, donem: "12–15 November 1942", konu: "Naval Battle of Guadalcanal", mekan: "Ironbottom Sound" };
+    const pick = await pickBackground(["yelkenli", "celik"].map(candidate), naval, judge, preview, () => {}, { mode: "an" });
+    assert.equal(pick.chosen?.title, "File:celik.jpg");
+    assert.ok(pick.verdicts[0]!.donem! <= 2 && pick.verdicts[0]!.sorun.includes("three-masted"), JSON.stringify(pick.verdicts[0]));
+    const hiei = momentDesign("Battleship Hiei burns under air attack north of Savo Island", { donem: "12–15 November 1942" });
+    assert.ok(hiei.prompt.startsWith("Grey steel warships with funnels and gun turrets, no sails: Battleship Hiei"), hiei.prompt);
+    assert.ok(!momentDesign("Caesar crosses the Rubicon", { donem: "49 BC" }).prompt.startsWith("Grey steel"));
   });
 
   await scenario("O a place drawn in a later era is rewritten for its period without castle words; the last resort is its countryside", () => {
