@@ -16,7 +16,7 @@ import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, colourFamily, uniformColourFromNote, withNoteUniform, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -305,6 +305,16 @@ async function main() {
     assert.equal(withNoteCloak(base, note).pelerin, "#b3262e");
     assert.equal(withNoteCloak({ ...base, pelerin: "#123456" }, note).pelerin, "#123456", "the designer's cloak wins");
     assert.deepEqual(noteColours("white toga with a broad purple stripe"), ["#f3f3f3", "#6b2d7b"]);
+    // The Guadalcanal Short (12 Nov 2026): Willis Lee kept the script's olive drab although the note said navy blue.
+    const lee = { gorunus: "", giyim: "Standard U.S. Navy rear admiral's uniform in dark navy blue with gold shoulder boards and sleeve stripes; white combination cap with gold insignia.", simge: "", fark: "" };
+    const olive = { ...base, giysi: "uniforma" as const, renkler: { ana: "#5f5f34", ikincil: "#8f8456", ic: "#d8c08a", sus: "#e1ad3e" } };
+    assert.equal(uniformColourFromNote(lee.giyim), "#232a36", "lower-case navy is the colour; the service name is not");
+    assert.equal(withNoteUniform(olive, lee).renkler.ana, "#232a36");
+    assert.equal(withNoteUniform({ ...olive, renkler: { ...olive.renkler, ana: "#1e2a44" } }, lee).renkler.ana, "#1e2a44", "a shade of the right family stays");
+    assert.equal(uniformColourFromNote("U.S. Navy khaki working uniform with a garrison cap"), "#b8a575", "U.S. Navy names the service, khaki the colour");
+    assert.equal(uniformColourFromNote("a white toga"), undefined, "no uniform named");
+    assert.equal(withNoteUniform({ ...olive, giysi: "tunik" as const }, lee).renkler.ana, "#5f5f34", "only a uniform is recoloured");
+    assert.deepEqual(["#232a36", "#2f5fa0", "#5f5f34", "#b3262e", "#2a2630"].map(colourFamily), ["blue", "blue", "olive", "red", "grey"]);
     const ep = episode();
     const caped = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "caesar" ? { ...c, kostum: { ...c.kostum!, pelerin: "#b3262e" } } : c)) };
     assert.ok(validateEpisode(caped).ok);

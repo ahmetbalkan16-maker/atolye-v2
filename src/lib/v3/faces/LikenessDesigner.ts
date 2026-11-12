@@ -157,6 +157,57 @@ export function withNoteCloak(k: CastCostume, note: PeriodNote | undefined): Cas
   return cape ? { ...k, pelerin: cape } : k;
 }
 
+/** Uniform colours a historian's note names, in its own order: lower-case "navy" is a colour, "U.S. Navy" a service. */
+const UNIFORM_WORDS: readonly (readonly [RegExp, string])[] = [
+  [/\bnavy\b(?! blue)|\bnavy blue\b/, "#232a36"],
+  [/\b(khaki|tan)\b/i, "#b8a575"],
+  [/\b(olive|field grey|field gray|feldgrau)\b/i, "#5f5f34"],
+  [/\b(scarlet|crimson|red)\b/i, "#b3262e"],
+  [/\b(blue|azure)\b/i, "#2f5fa0"],
+  [/\bgreen\b/i, "#3e7b3a"],
+  [/\bbrown\b/i, "#7a4b2a"],
+  [/\b(grey|gray)\b/i, "#8a8a8a"],
+  [/\bblack\b/i, "#2a2630"],
+  [/\bwhite\b/i, "#f3f3f3"],
+];
+
+/** A colour's family (hue bucket; greys and near-blacks one family), so "dark navy" and "#2f5fa0" agree. */
+export function colourFamily(hex: string): "grey" | "red" | "brown" | "olive" | "green" | "blue" | "purple" {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+  if (s < 0.12 || l < 0.08 || l > 0.94) return "grey";
+  const d = max - min;
+  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  return h < 15 || h >= 340 ? "red" : h < 45 ? "brown" : h < 75 ? "olive" : h < 165 ? "green" : h < 260 ? "blue" : "purple";
+}
+
+/**
+ * The uniform's main colour the note names (the clause that names the uniform, before "with"), undefined when it names
+ * none or only white (a cap, a shirt).
+ */
+export function uniformColourFromNote(giyim: string): string | undefined {
+  const clause = giyim.split(/[;.]/).find((p) => /\buniform\b/i.test(p))?.split(/\bwith\b/i)[0];
+  if (!clause) return undefined;
+  const hit = UNIFORM_WORDS.map(([re, hex]) => ({ hex, at: clause.search(re) })).filter((x) => x.at >= 0 && x.hex !== "#f3f3f3").sort((a, b) => a.at - b.at)[0];
+  return hit?.hex;
+}
+
+/**
+ * A uniform in the colour the historian's note gives it. The Guadalcanal Short (12 Nov 2026): the note said "U.S. Navy
+ * rear admiral's uniform in dark navy blue", the designer kept the script's olive drab for Willis Lee alone (the other
+ * three admirals were turned navy) and the side-by-side judge marked it down to 6/10. Only a uniform, and only when the
+ * colour families differ: a shade the designer chose within the right family stays.
+ */
+export function withNoteUniform(k: CastCostume, note: PeriodNote | undefined): CastCostume {
+  if (!note || k.giysi !== "uniforma") return k;
+  const want = uniformColourFromNote(note.giyim);
+  return want && colourFamily(want) !== colourFamily(k.renkler.ana) ? { ...k, renkler: { ...k.renkler, ana: want } } : k;
+}
+
 /**
  * A part reference as plain words (Cannae, 9 Nov 2026: the sheet named "gardirop/hannibal-s-bronze-helmet-with-engraved-b-c72c59",
  * which became the order "Hannibal's hannibal s bronze helmet with engraved b c72c59"; the chief read the id's hash as a
@@ -457,7 +508,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       }
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
-      const next = withCostume(current, c.id, { ...withNoteCloak(stored.kostum, stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
+      const next = withCostume(current, c.id, { ...withNoteUniform(withNoteCloak(stored.kostum, stored.not), stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
       if (!found && resolvable && validateEpisode(next).ok) {
         current = next;
         records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), ...(stuck && best.benzerlik !== undefined ? { benzerlik: best.benzerlik, farklar: best.farklar } : {}), siparisler: [], sorunlar: [] });
@@ -492,7 +543,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       continue;
     }
     const sheetApplied = applySheet(c.kostum!, sheet);
-    const applied = { ...sheetApplied, kostum: withNoteCloak(sheetApplied.kostum, note) };
+    const applied = { ...sheetApplied, kostum: withNoteUniform(withNoteCloak(sheetApplied.kostum, note), note) };
     // Catalog refs the sheet named but the wardrobe lacks become orders, like the script normalizer does.
     const rec = applied.kostum as unknown as Record<string, unknown>;
     for (const f of SHEET_PARTS) {
