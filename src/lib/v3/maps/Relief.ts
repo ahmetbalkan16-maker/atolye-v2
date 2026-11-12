@@ -46,7 +46,7 @@ export function reliefSize(world: Pick<MapWorld, "view" | "bounds">): { width: n
 
 export const CLOSE_RELIEF_CREDIT = "Elevation: Terrain Tiles on AWS Open Data (Mapzen; SRTM, GMTED, ETOPO1 and others)";
 const TERRARIUM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
-const CLOSE_RELIEF_VERSION = 1;
+const CLOSE_RELIEF_VERSION = 2;
 /** SRTM's ~30 m: closer tiles add nothing. */
 const MAX_TILE_ZOOM = 13;
 const MAX_TILES = 160;
