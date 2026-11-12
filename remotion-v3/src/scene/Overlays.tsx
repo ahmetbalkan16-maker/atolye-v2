@@ -56,17 +56,26 @@ export function SpeechBubble({ bubble, anchor, language, size = 1, plate = false
   const lean = anchor.neighbourX === undefined ? 0 : anchor.neighbourX < anchor.x ? 0.18 : -0.18;
   const margin = 30 * k;
   const left = Math.min(W - margin - w, Math.max(margin, anchor.x - w / 2 + lean * w));
-  const bottom = Math.max(margin + lines * fs * 1.1, anchor.top - tick);
-  const tickX = Math.min(left + w - 30 * k, Math.max(left + 30 * k, anchor.x + lean * w * 0.3));
   // `plate`: words over the map stand on a dark see-through plate (owner, 11 Nov 2026: thin white words on the land and
   // sea could not be read), padded outwards so the lines break as before.
   const pad = { x: 16 * k, y: 6 * k };
+  const textH = lines * fs * 1.08 + (plate ? 2 * pad.y : 0);
+  // A badge near the top of the map has no room for its words above it: they go under the badge and its name ribbon
+  // (pushed down to the frame's edge they covered the badge itself — Guadalcanal's "Well, there goes my ride home.",
+  // 48 % of Abe's badge, 12 Nov 2026).
+  const under = plate && anchor.top - tick - textH < margin;
+  const badgeFoot = anchor.top + 2.9 * anchor.r;
+  const bottom = under ? Math.min(H - margin, badgeFoot + tick + textH) : Math.max(margin + lines * fs * 1.1, anchor.top - tick);
+  const tickX = Math.min(left + w - 30 * k, Math.max(left + 30 * k, anchor.x + lean * w * 0.3));
+  const tickPath = under
+    ? `M${tickX - 8 * k} ${bottom - textH - 4 * k} L${anchor.x + (tickX - anchor.x) * 0.25} ${badgeFoot + 4 * k}`
+    : `M${tickX - 8 * k} ${bottom + 4 * k} L${anchor.x + (tickX - anchor.x) * 0.25} ${bottom + tick - 4 * k}`;
   const plated = plate ? { left: left - pad.x, padding: `${pad.y}px ${pad.x}px`, backgroundColor: "rgba(14,17,24,0.66)", borderRadius: 14 * k } : { left };
   return (
-    <div style={{ position: "absolute", inset: 0, opacity: out, transform: `scale(${0.6 + 0.4 * pop})`, transformOrigin: `${tickX}px ${bottom + tick}px` }}>
+    <div style={{ position: "absolute", inset: 0, opacity: out, transform: `scale(${0.6 + 0.4 * pop})`, transformOrigin: `${tickX}px ${under ? badgeFoot : bottom + tick}px` }}>
       <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-        <path d={`M${tickX - 8 * k} ${bottom + 4 * k} L${anchor.x + (tickX - anchor.x) * 0.25} ${bottom + tick - 4 * k}`} stroke={INK} strokeWidth={13 * k} strokeLinecap="round" />
-        <path d={`M${tickX - 8 * k} ${bottom + 4 * k} L${anchor.x + (tickX - anchor.x) * 0.25} ${bottom + tick - 4 * k}`} stroke="#ffffff" strokeWidth={5 * k} strokeLinecap="round" />
+        <path d={tickPath} stroke={INK} strokeWidth={13 * k} strokeLinecap="round" />
+        <path d={tickPath} stroke="#ffffff" strokeWidth={5 * k} strokeLinecap="round" />
       </svg>
       <div
         {...yer("balon")}
