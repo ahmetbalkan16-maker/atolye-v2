@@ -1,3 +1,26 @@
+## 12 Kasım 2026 (3) — V3 video kalitesi: akıcı geçişler, internetten araştırma, telif; sistem taraması; Guadalcanal Short
+
+Owner: "daha iyi kalitede video, daha akıcı geçişler, araştırmalar genişletilsin ama telif haklarına dikkat edilsin",
+"sadece wikipedia dahil internetten araştırma", "sistemde açık veya atlanan bir şey varsa düzelt". İş dört ajana
+paylaştırıldı (Opus 5.5), her paket ayrı commit (feature/cop-adam-v3):
+- 4c70b5ce yarım kalan iş: Shorts = 16:9 videonun çeyrek tur döndürülmüşü (Format.shortsLayout "dondur"); tam kadrajda
+  frameLineAction yalnız resim dışındaki eylemi alır (Kosovo O29 kırılmıştı), clearAtEveryStop, seawardStart, harita.zaman.
+- 4c3c621d araştırma: ana makale 40 bin karakter, kadro makaleleri, Wikidata (CC0), yazara kanıt alıntısı + kopya bekçisi.
+- 1a6d3b3f açık internet: OpenAI web_search → sayfayı stüdyo okur (robots, https, SSRF korumalı), olgu yalnız sayfada
+  birebir alıntıyla; Wikipedia aynası atlanır; Short ~$0.05. history.navy.mil araç istemcilerine 404 (taklit yok).
+- 47fbe43b telif: gösterilen görselde BY-SA yalnız ATOLYE_V3_BYSA_IZIN=1; zorunlu atıf açıklamadan kesilmez (sığmazsa
+  yükleme reddi); Openverse yalnız kurum CC0/PD; yerel en.wiki dosyası makine alanıyla; kaynak plakası gerçek kaynak.
+  Owner kararı: lisansı bilinmeyen müzik olduğu gibi kalır.
+- f7529c34 geçişler: önceki çekim yenisinin altında kalır (cozul/kaydir/murekkep/beyaz, TRANSITION_S tek yerde), harita
+  kamerası zıplamaz (mapCamera.cameraAt), drift yumuşatma, JPEG 95, qsin ses geçişleri, kesintisiz ortam, dikişsiz döngü.
+- 8ad4e21e tam tarama (645 suite: 603 PASS) gerçek hatası: release-provenance canlıda da kırıktı (Wrangler güncellemesi
+  esbuild 0.28.2 / workerd 1.20261109.1; install.js incelendi, yalnız inceleme kaydı taşındı). Diğer 9: ortam (STT/wake/
+  espeak ASCII TEMP, f16 gerçek veri), çakışma (research-loop) ve süre (129-28: 337 sn PASS).
+- Set kalitesi işi ortam-62: dünkü onay STALE → sabah yeniden yapıldı → owner yeniden onayladı → 1a8cb14d uygulandı
+  (Graphify kapanışı ETIMEDOUT, toplu canlıya almada yenilendi).
+Sıradaki: toplu canlıya alma + izleyici yeniden başlatma, ardından "1942 – Guadalcanal Deniz Muharebesi" Short
+siparişi (3 dk, $1) — izlenecek, müdahaleler Ders- satırlarıyla beyinlere.
+
 ## 12 Kasım 2026 (2) — owner kararları kapandı; ertelenen harita işleri, güvenlik açıkları; beyinler her commit'i maliyetsiz öğrenir
 
 Owner kararları (11 Kasım'da sorulanlar): giriş yavaşlığı KAPANDI — (a) yeterli, (b)/(c)/(d) yapılmayacak; giriş
