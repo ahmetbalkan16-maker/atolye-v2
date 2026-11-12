@@ -9,6 +9,7 @@ import { performerState, type PerformerState } from "../remotion-v3/src/characte
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
+import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -534,6 +535,45 @@ async function main() {
       assert.ok(off < 60, `its fallen lie where it fell (${off.toFixed(0)} px)`);
       assert.deepEqual(fallenRest(map, 0, l, 30, 1), rest, "the same place whichever frame asks first");
     }
+  });
+
+  await scenario("S the close map's ground lives: cloud shadows drift smoothly as a pure function of the frame, woods are dense masses, rivers bend (owner, 12 Nov 2026: \"harita ortamı daha gerçekçi\")", () => {
+    const world = { width: 1920, height: 1080 };
+    const u = 26.2;
+    // Pure: the same frame gives the same shadows whatever was asked before (Remotion renders frames out of order).
+    const late = cloudShadowsAt(900, 30, world, u);
+    cloudShadowsAt(3, 30, world, u);
+    assert.deepEqual(cloudShadowsAt(900, 30, world, u), late, "frame 900 is the same whenever it is rendered");
+    const outside = (c: { x: number; y: number; rx: number }) => c.x + c.rx < 0 || c.x - c.rx > world.width || c.y + c.rx < 0 || c.y - c.rx > world.height;
+    let prev = cloudShadowsAt(0, 30, world, u);
+    let moved = 0;
+    for (let f = 1; f <= 30 * 600; f++) {
+      const now = cloudShadowsAt(f, 30, world, u);
+      assert.equal(now.length, prev.length, "the same clouds every frame");
+      assert.ok(now.some((c) => !outside(c)), `frame ${f}: some shadow over the world`);
+      now.forEach((c, i) => {
+        const p = prev[i]!;
+        const step = Math.hypot(c.x - p.x, c.y - p.y);
+        // A cloud wraps round only where it cannot be seen: wholly outside the world on both frames.
+        if (step > 1) assert.ok(outside(c) && outside(p), `frame ${f}: cloud ${i} jumped ${step.toFixed(1)} px in sight`);
+        else moved = Math.max(moved, step);
+        assert.ok(c.opacity >= 0.06 && c.opacity <= 0.15, "a shadow, not a dark blot");
+      });
+      prev = now;
+    }
+    assert.ok(moved > 0.05 && moved < 0.5, `a few px a second (${(moved * 30).toFixed(1)} px/s)`);
+    // A wood is one mass of many overlapping crowns, the same every time, drawn back to front.
+    const wood = woodLayout(1000, 400, 128, 12, u);
+    assert.deepEqual(woodLayout(1000, 400, 128, 12, u), wood);
+    assert.ok(wood.trees.length >= 20, `${wood.trees.length} trees in a 5-house wood`);
+    assert.ok(wood.trees.every((t, i) => i === 0 || t.y >= wood.trees[i - 1]!.y), "back to front");
+    const field = fieldLayout(147, 3, u);
+    assert.ok(field.strips.length >= 3 && field.strips.every((s) => s.furrows.length > 0), "strips with furrows");
+    // A river's corners are rounded, its ends kept, and it never leaves its line by more than the reach.
+    const river = smoothRiver("M0 0 L100 0 L100 100 L200 100", 20);
+    assert.ok(river.startsWith("M0 0") && river.endsWith("L200 100") && river.includes("Q100 0"), river);
+    assert.ok(river.includes("L80 0") && river.includes("100 20"), "the bend starts 20 px before the corner");
+    assert.equal(smoothRiver("M0 0 C10 10 20 20 30 30", 20), "M0 0 C10 10 20 20 30 30", "a curve is left as it is");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

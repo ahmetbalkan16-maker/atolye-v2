@@ -2,6 +2,7 @@ import React from "react";
 import { interpolate } from "remotion";
 import type { V3GeoMap, V3LabelSpot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Burst } from "./MapUnits";
+import { cloudShadowsAt, FIELD_TONES, fieldLayout, WOOD_TONES, woodLayout } from "./mapNature";
 
 /**
  * The close battle map's ground (owner, 22 Oct 2026, after DFT Tarih's Osman Bey documentary: "the ground there, the
@@ -27,45 +28,72 @@ function rand(seed: number): number {
   return x - Math.floor(x);
 }
 
-/** A clump of trees: shadows first, then crowns with a lit side. */
-function Woods({ x, y, size, seed, u }: { x: number; y: number; size: number; seed: number; u: number }) {
-  const n = 5 + Math.floor(rand(seed) * 5);
-  const trees = Array.from({ length: n }, (_, i) => {
-    const a = rand(seed + i * 3) * Math.PI * 2;
-    const d = Math.sqrt(rand(seed + i * 5)) * size * 0.42;
-    return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8, r: u * (0.45 + rand(seed + i * 7) * 0.3) };
-  }).sort((a, b) => a.y - b.y);
+/**
+ * A wood as one natural mass (owner, 12 Nov 2026: "harita ortamı daha gerçekçi" — the old 5–9 round trees read as clip
+ * art): its soft shadow on the ground, a dark underside under the crowns, the crowns' own shadows between them, then
+ * many lobed crowns of several greens back to front, each lit from the north-west. Memoised: it never changes with the
+ * frame.
+ */
+const Woods = React.memo(function Woods({ x, y, size, seed, u, gid }: { x: number; y: number; size: number; seed: number; u: number; gid: string }) {
+  const { outline, shade, trees } = woodLayout(x, y, size, seed, u);
+  const disc = (x: number, y: number, r: number) => `M${x - r} ${y} a${r} ${r} 0 1 0 ${r * 2} 0 a${r} ${r} 0 1 0 ${-r * 2} 0`;
+  const shadows = trees.map((t) => disc(t.x + t.r * 0.3, t.y + t.r * 0.4, t.r)).join(" ");
+  // The sunlit sides in one path per green (they sit on each crown's north-west, which the trees in front of it — lower
+  // on the map — hardly cover): a few elements a wood instead of one more per tree.
+  const lit = WOOD_TONES.map((_, ti) =>
+    trees
+      .filter((t) => t.tone === ti)
+      .map((t) => disc(t.x - t.r * 0.28, t.y - t.r * 0.3, t.r * 0.5))
+      .join(" "),
+  );
   return (
     <g>
+      <path d={shade} transform={`translate(${u * 0.45} ${u * 0.55})`} fill={`url(#${gid}-woodshade)`} />
+      <path d={outline} fill="#2d4219" opacity={0.85} />
+      <path d={shadows} fill="#16230b" opacity={0.32} />
       {trees.map((t, i) => (
-        <ellipse key={`s${i}`} cx={t.x + t.r * 0.35} cy={t.y + t.r * 0.45} rx={t.r} ry={t.r * 0.7} fill="#1f2a12" opacity={0.3} />
+        <path key={i} d={t.crown} fill={WOOD_TONES[t.tone]!.crown} stroke="#1f2f12" strokeOpacity={0.35} strokeWidth={u * 0.035} />
       ))}
-      {trees.map((t, i) => (
-        <g key={i}>
-          <circle cx={t.x} cy={t.y} r={t.r} fill={i % 3 ? "#4b6a2c" : "#3e5a24"} stroke="#26361a" strokeWidth={u * 0.06} />
-          <circle cx={t.x - t.r * 0.3} cy={t.y - t.r * 0.32} r={t.r * 0.45} fill="#6f9440" opacity={0.85} />
-        </g>
-      ))}
+      {lit.map((d, ti) => (d ? <path key={`l${ti}`} d={d} fill={WOOD_TONES[ti]!.lit} opacity={0.7} /> : null))}
     </g>
   );
-}
+});
 
-/** A patch of fields: strips in two or three crops with their furrows. */
-function Fields({ x, y, size, seed, u }: { x: number; y: number; size: number; seed: number; u: number }) {
+/**
+ * A plot of fields that belongs to the ground (owner, 12 Nov 2026; the old striped rectangles with dark outlines looked
+ * pasted on): a crooked plot of crop strips in tones close to the grass, laid on half-transparent with a feathered
+ * edge, faint furrows and a soft hedge of bushes along some of its sides.
+ */
+const Fields = React.memo(function Fields({ x, y, size, seed, u }: { x: number; y: number; size: number; seed: number; u: number }) {
   const angle = (rand(seed) - 0.5) * 50;
-  const strips = 3 + Math.floor(rand(seed + 1) * 3);
-  const w = size;
-  const h = size * 0.68;
-  const tones = ["#cdb96c", "#b9a85c", "#a3b061", "#d6c47f"];
+  const plot = fieldLayout(size, seed, u);
   return (
-    <g transform={`translate(${x} ${y}) rotate(${angle})`} opacity={0.82}>
-      {Array.from({ length: strips }, (_, i) => (
-        <g key={i}>
-          <rect x={-w / 2 + (w / strips) * i} y={-h / 2} width={w / strips} height={h} fill={tones[(i + Math.floor(rand(seed + 2) * 4)) % 4]} stroke="#7c6d3c" strokeWidth={u * 0.05} />
-          {[0.25, 0.5, 0.75].map((f) => (
-            <path key={f} d={`M${-w / 2 + (w / strips) * i + u * 0.12} ${-h / 2 + h * f} h${w / strips - u * 0.24}`} stroke="#8a7a45" strokeWidth={u * 0.04} opacity={0.6} />
-          ))}
-        </g>
+    <g transform={`translate(${x} ${y}) rotate(${angle})`}>
+      <path d={plot.outline} fill="none" stroke={FIELD_TONES[plot.strips[0]!.tone]} strokeOpacity={0.16} strokeWidth={u * 0.7} strokeLinejoin="round" />
+      <g opacity={0.72}>
+        {plot.strips.map((st, i) => (
+          <g key={i}>
+            <path d={st.d} fill={FIELD_TONES[st.tone]} />
+            <path d={st.furrows} stroke="#6f6236" strokeOpacity={0.16} strokeWidth={u * 0.04} fill="none" />
+          </g>
+        ))}
+      </g>
+      {/* A hedge: a thin row of shrubs with bushes of uneven length along it, not a dotted border. */}
+      <path d={plot.hedge} fill="none" stroke="#4d6a2c" strokeOpacity={0.22} strokeWidth={u * 0.12} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={plot.hedge} fill="none" stroke="#4d6a2c" strokeOpacity={0.32} strokeWidth={u * 0.26} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={`${u * 0.7} ${u * 0.1} ${u * 0.3} ${u * 0.2} ${u * 1.1} ${u * 0.12} ${u * 0.4} ${u * 0.3}`} />
+    </g>
+  );
+});
+
+/**
+ * Cloud shadows drifting over the close map (owner, 12 Nov 2026: something alive besides the units): soft dark patches
+ * filled with a radial gradient — a blur filter over the whole frame each frame would cost too much.
+ */
+function CloudShadows({ frame, fps, world, u, gid }: { frame: number; fps: number; world: { width: number; height: number }; u: number; gid: string }) {
+  return (
+    <g pointerEvents="none">
+      {cloudShadowsAt(frame, fps, world, u).map((c, i) => (
+        <ellipse key={i} cx={c.x} cy={c.y} rx={c.rx} ry={c.ry} transform={`rotate(${c.angle} ${c.x} ${c.y})`} fill={`url(#${gid}-cloud)`} opacity={c.opacity} />
       ))}
     </g>
   );
@@ -274,6 +302,8 @@ export function CloseGround({
   label,
   k,
   nameShown,
+  gid,
+  clouds,
 }: {
   close: Close;
   frame: number;
@@ -283,8 +313,13 @@ export function CloseGround({
   k: number;
   /** How much of a name shows (1 = all) at its centre: a speaking badge over it makes it give way (MapView). */
   nameShown?: (text: string, size: number, cx: number, cy: number) => number;
+  /** The map's own id prefix (MapView's): its `-land` mask keeps woods and fields on land; this ground's gradients. */
+  gid?: string;
+  /** The world's size, over which cloud shadows drift; none without it (and none on a night map). */
+  clouds?: { width: number; height: number };
 }) {
   const u = close.unit;
+  const gradId = gid ?? "close";
   const xy = (spot: Spot, x: number, y: number) => (spot ? { x: spot.x + spot.dx * k, y: spot.y + spot.dy * k } : { x, y });
   const at = (spot: Spot, x: number, y: number) => {
     const p = xy(spot, x, y);
@@ -294,9 +329,36 @@ export function CloseGround({
     const p = xy(spot, x, y);
     return nameShown ? nameShown(text, size, p.x, p.y) : 1;
   };
+  // Names go last, over the ground's shapes and the cloud shadows (a shadow must never dim a name).
+  const names: React.ReactNode[] = [];
+  (close.roadNames ?? []).forEach((rn, i) => {
+    const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
+    if (!p) return;
+    names.push(
+      <g key={`rn${i}`} transform={`${at(rn.labelSpot, p.x, p.y)} rotate(${rn.angle})`}>
+        <RoadName text={rn.label} k={k} />
+      </g>,
+    );
+  });
   return (
     <g>
-      {close.ground.map((g, i) => (g.kind === "orman" ? <Woods key={`g${i}`} {...g} u={u} /> : g.kind === "tarla" ? <Fields key={`g${i}`} {...g} u={u} /> : <Hill key={`g${i}`} {...g} u={u} />))}
+      <defs>
+        {/* A wood's shadow on the ground and a cloud's: dark in the middle, fading to nothing at the edge. */}
+        <radialGradient id={`${gradId}-woodshade`}>
+          <stop offset="0%" stopColor="#141c0b" stopOpacity={0.42} />
+          <stop offset="70%" stopColor="#141c0b" stopOpacity={0.3} />
+          <stop offset="100%" stopColor="#141c0b" stopOpacity={0} />
+        </radialGradient>
+        <radialGradient id={`${gradId}-cloud`}>
+          <stop offset="0%" stopColor="#0d1710" stopOpacity={1} />
+          <stop offset="45%" stopColor="#0d1710" stopOpacity={0.85} />
+          <stop offset="100%" stopColor="#0d1710" stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      {/* On land only (MapView's land mask): a wood or a field placed by its centre spilled over the sea's edge. */}
+      <g mask={gid ? `url(#${gid}-land)` : undefined}>
+        {close.ground.map((g, i) => (g.kind === "orman" ? <Woods key={`g${i}`} {...g} u={u} gid={gradId} /> : g.kind === "tarla" ? <Fields key={`g${i}`} {...g} u={u} /> : <Hill key={`g${i}`} {...g} u={u} />))}
+      </g>
       {close.roads.map((r, i) => {
         const d = `M${r.map((p) => `${p.x} ${p.y}`).join(" L")}`;
         return (
@@ -306,25 +368,16 @@ export function CloseGround({
           </g>
         );
       })}
-      {(close.roadNames ?? []).map((rn, i) => {
-        const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
-        if (!p) return null;
-        return (
-          <g key={`rn${i}`} transform={`${at(rn.labelSpot, p.x, p.y)} rotate(${rn.angle})`}>
-            <RoadName text={rn.label} k={k} />
-          </g>
-        );
-      })}
       {close.settlements.map((s, si) => {
         const a = interpolate(frame, [s.start, s.start + Math.round(fps * 0.8)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
+        if (s.label) names.push(<g key={`sn${si}`} transform={at(s.labelSpot, s.x, s.y)} opacity={a * shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g>);
         return (
           <g key={`s${si}`} opacity={a}>
             {s.items.map((it) => (s.kind === "ordugah" ? <Tent key={it.seed} {...it} u={u} /> : <House key={it.seed} {...it} u={u} />))}
             {burning(s, frame, fps).map(({ it, grow }) => (
               <Flames key={`f${it.seed}`} x={it.x} y={it.y} u={u} frame={frame} seed={it.seed} grow={grow} />
             ))}
-            {s.label ? <g transform={at(s.labelSpot, s.x, s.y)} opacity={shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g> : null}
           </g>
         );
       })}
@@ -334,6 +387,14 @@ export function CloseGround({
         const d = `M${w.points.map((p) => `${p.x} ${p.y}`).join(" L")}`;
         const broken = w.breach !== undefined && frame >= w.breach.start;
         const id = `wall-breach-${wi}`;
+        if (w.label) {
+          const near = wallLabelAt(w, close.settlements, u);
+          names.push(
+            <g key={`wn${wi}`} transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${near.x} ${near.y})`} opacity={shown(w.label, 26, w.labelSpot, near.x, near.y)}>
+              {label(w.label, 26)}
+            </g>,
+          );
+        }
         return (
           <g key={`w${wi}`}>
             {broken ? (
@@ -372,29 +433,24 @@ export function CloseGround({
                 <Burst x={w.breach!.x} y={w.breach!.y} r={u * 2.2} p={(frame - w.breach!.start) / (fps * 1.6)} era={era} seed={wi + 77} />
               </g>
             ) : null}
-            {w.label ? (
-              <g
-                transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${wallLabelAt(w, close.settlements, u).x} ${wallLabelAt(w, close.settlements, u).y})`}
-                opacity={shown(w.label, 26, w.labelSpot, wallLabelAt(w, close.settlements, u).x, wallLabelAt(w, close.settlements, u).y)}
-              >
-                {label(w.label, 26)}
-              </g>
-            ) : null}
           </g>
         );
       })}
       {close.buildings.map((b, i) => {
         const a = interpolate(frame, [b.start, b.start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-        return a > 0 ? (
+        if (a <= 0) return null;
+        if (b.label) names.push(<g key={`bn${i}`} transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={a * shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g>);
+        return (
           <g key={`b${i}`} opacity={a}>
             <ellipse cx={b.x + u * 0.3} cy={b.y + u * 0.15} rx={u * 2} ry={u * 0.45} fill="#1c140c" opacity={0.3} />
             <g transform={`translate(${b.x} ${b.y})`}>
               <Building kind={b.kind} u={u} />
             </g>
-            {b.label ? <g transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g> : null}
           </g>
-        ) : null;
+        );
       })}
+      {clouds ? <CloudShadows frame={frame} fps={fps} world={clouds} u={u} gid={gradId} /> : null}
+      {names}
     </g>
   );
 }

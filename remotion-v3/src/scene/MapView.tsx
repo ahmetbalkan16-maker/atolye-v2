@@ -14,6 +14,7 @@ import { badgeEdgeFits, badgeExtent, hudBoxes, labelSpot } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { MapNight } from "./MapNight";
 import { isNightMap } from "./mapEffects";
+import { smoothRiver } from "./mapNature";
 import { yer } from "./LayoutProbe";
 
 const OCEAN = "#22406a";
@@ -512,15 +513,31 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               })}
             </g>
             {/* Rivers over the colours (the reference maps name and draw them), thin and light — on the close map as
-                wide as they are, water with a dark bank (a front, a crossing, a fleet's road). */}
+                wide as they are (a front, a crossing, a fleet's road), drawn as a real river (owner, 12 Nov 2026:
+                "harita ortamı daha gerçekçi"): grassy then sandy banks, darker water at the edges, a lighter channel,
+                and glints drifting slowly downstream instead of the old cartoon dark outline. */}
             {map.close?.rivers?.length ? (
-              map.close.rivers.map((r, i) => (
-                <g key={`rv${i}`}>
-                  <path d={r.d} fill="none" stroke="rgba(8,20,38,0.7)" strokeWidth={r.width + 3.6 * k} strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={r.d} fill="none" stroke={OCEAN} strokeWidth={r.width} strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={r.d} fill="none" stroke="#a6dcea" strokeOpacity={0.18} strokeWidth={Math.max(1, r.width * 0.35)} strokeLinecap="round" strokeLinejoin="round" />
-                </g>
-              ))
+              ((u) => {
+                // Layer by layer over all rivers, so a tributary's bank never covers the water it joins; on land only
+                // (a river's last stretch reached into the sea with its sandy bank).
+                const rivers = map.close!.rivers!.map((r) => ({ d: smoothRiver(r.d, Math.max(r.width, u) * 1.2), w: r.width }));
+                const round = { fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+                const bank = Math.max(u * 0.32, 4 * k);
+                const sand = Math.max(u * 0.12, 1.6 * k);
+                const layer = (key: string, stroke: string, width: (w: number) => number, extra: React.SVGProps<SVGPathElement> = {}) =>
+                  rivers.map((r, i) => <path key={`${key}${i}`} d={r.d} {...round} stroke={stroke} strokeWidth={width(r.w)} {...extra} />);
+                return (
+                  <g mask={`url(#${id}-land)`}>
+                    {layer("gb", "#4f6d34", (w) => w + 2 * bank, { strokeOpacity: 0.14 })}
+                    {layer("gn", "#4f6d34", (w) => w + bank, { strokeOpacity: 0.14 })}
+                    {layer("sd", "#c9bb8a", (w) => w + 2 * sand, { strokeOpacity: 0.75 })}
+                    {layer("we", "#2f5a7e", (w) => w)}
+                    {layer("wm", "#3b6b91", (w) => w * 0.75)}
+                    {layer("wc", "#4a7ea3", (w) => w * 0.45)}
+                    {layer("gl", "#e4f3f7", (w) => Math.max(0.8 * k, w * 0.22), { strokeOpacity: 0.13, strokeDasharray: `${u * 1.6} ${u * 1.1} ${u * 0.6} ${u * 2.3}`, strokeDashoffset: -(frame / fps) * u * 0.3 })}
+                  </g>
+                );
+              })(map.close.unit)
             ) : (
               <path d={map.rivers} fill="none" stroke="#7cc3ea" strokeOpacity={0.85} strokeWidth={2.2 * k} strokeLinecap="round" strokeLinejoin="round" />
             )}
@@ -549,8 +566,16 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
         )}
         {relief ? (
           <>
-            {/* Lakes drawn too, now that the terrain image carries no water of its own. */}
-            <path d={map.lakes} fill={OCEAN} stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} fillRule="evenodd" />
+            {/* Lakes drawn too, now that the terrain image carries no water of its own; on the close map with a sandy
+                shore and a soft edge like its rivers', not a dark outline. */}
+            {map.close ? (
+              <>
+                <path d={map.lakes} fill="none" stroke="#c9bb8a" strokeOpacity={0.8} strokeWidth={2 * Math.max(map.close.unit * 0.11, 1.6 * k)} strokeLinejoin="round" mask={`url(#${id}-land)`} />
+                <path d={map.lakes} fill={OCEAN} stroke="rgba(20,50,64,0.35)" strokeWidth={1 * k} fillRule="evenodd" />
+              </>
+            ) : (
+              <path d={map.lakes} fill={OCEAN} stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} fillRule="evenodd" />
+            )}
             {/* A thin dark coastline: the coloured states end cleanly at the sea. */}
             <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
             {/* Sea names like an atlas (owner's example map): pale spaced italic capitals. */}
@@ -573,7 +598,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           </>
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} gid={id} clouds={isNightMap(map) ? undefined : world} /> : null}
         {map.cities.map((c, i) =>
           relief ? null : (
             <g key={`c${i}`}>
