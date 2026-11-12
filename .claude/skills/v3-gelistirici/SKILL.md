@@ -62,6 +62,26 @@ your change. Run: `npx tsc --noEmit`, `npx tsx scripts/smoke-v3-<area>.ts`, and 
 - A new store under `data/` must be git-ignored, or the observer sees a dirty tree and pauses.
 - Windows paths: compare repo paths with forward slashes (`f.replace(/\\/g, "/")`).
 
+## Teach the brains (every change, no exceptions)
+
+The developer brain reads every commit's code by itself (Git only: files, functions, added code, tests — the
+development branch too, before it goes live). What it cannot read from code is *why*, and what the other brains must
+do differently. Put that in the commit message as lesson lines — the brains' idle cycle writes each into that brain's
+memory once, without a model (`src/lib/v3/council/CommitLessons.ts`):
+
+```
+Ders-<beyin>[<konu: a few English words the lesson is about>]: <one English sentence, at most 300 characters>
+```
+
+- `kurgu` — the writer/story critic (map data, scene rules, pacing); `arastirma` — facts and sources; `mizah` —
+  jokes; `kalite` — what a viewer would see as a fault (the critic; a frame example still needs
+  `scripts/v3/kalite-sinavi.ts ogret`); `kostum` — costumes and likeness; `gelistirici` — how such code is written
+  here (which file, which function, which smoke). `ses` and `sef` are read by no code: don't use them.
+- General, not episode-specific ("a plane route ends where its target ship is drawn"), never a person's private data.
+- One line per thing a brain must learn; none when nothing changes for any brain. In an unattended build, end your
+  summary with these lines: the summary becomes the commit message.
+
 ## Before you finish
 
-Summarise in Turkish what changed, in which files, and how it was tested. Keep the change to the task.
+Summarise in Turkish what changed, in which files, and how it was tested, followed by the `Ders-…` lines above. Keep
+the change to the task.

@@ -7,6 +7,7 @@ import {
   changedSymbols,
   type CodeExperience,
   codeExperience,
+  type CodeScope,
   codeExperienceLines,
   declarationSpans,
   devBrainDir,
@@ -18,7 +19,6 @@ import {
   hasSentenceInstincts,
   type Instinct,
   instinctFiles,
-  isV3Smoke,
   lastGuess,
   learnInstincts,
   listChanges,
@@ -39,6 +39,7 @@ import {
   say,
   similarChanges,
   taskWords,
+  V3_CODE_SCOPE,
   writeInstincts,
 } from "./DevBrain";
 import { scopeOf } from "./DevQueue";
@@ -70,6 +71,11 @@ export interface ResearchDeps {
    * 2026): the 5 past changes nearest in meaning held 63 % of a change's files, the 5 sharing most words 17 %.
    */
   readonly meaning?: Embedder;
+  /**
+   * The revisions whose commits it learns (default HEAD). The brains' cycle adds the development branch (`learnRefs`):
+   * a commit is learned once it is committed there, not only after it went live (owner, 12 Nov 2026).
+   */
+  readonly refs?: readonly string[];
 }
 
 /** Past changes nearest in meaning to a task (before a date, never the task's own), or none without meaning search. */
@@ -128,17 +134,17 @@ const DECLARATIONS_SHOWN = 14;
  * The code of a change at `rev` (a commit, or the tip of a build's branch): its graded files' diff with two lines of
  * context, each code file's post-image for the declaration spans, the V3 smoke suites it touched as its tests.
  */
-export async function readCodeExperience(repoRoot: string, rev: string, meta: { readonly id: string; readonly tarih: string; readonly gorev: string }): Promise<CodeExperience> {
+export async function readCodeExperience(repoRoot: string, rev: string, meta: { readonly id: string; readonly tarih: string; readonly gorev: string }, scope: CodeScope = V3_CODE_SCOPE): Promise<CodeExperience> {
   const files = (await commitFiles(repoRoot, rev)).map((f) => f.replace(/\\/g, "/"));
-  const wanted = [...gradedFiles(files), ...files.filter(isV3Smoke)];
+  const wanted = [...scope.graded(files), ...files.filter(scope.isTest)];
   if (!wanted.length) return { ...meta, dosyalar: [], testler: [] };
   const diff = await git(repoRoot, ["show", "--format=", "--no-color", "--no-renames", "-U2", rev, "--", ...wanted]);
   const postImages: Record<string, string | undefined> = {};
-  for (const f of gradedFiles(files).filter((x) => /\.(?:m?[jt]sx?)$/.test(x))) {
+  for (const f of scope.graded(files).filter((x) => /\.(?:m?[jt]sx?)$/.test(x))) {
     const r = await git(repoRoot, ["show", `${rev}:${f}`]);
     postImages[f] = r.code === 0 ? r.stdout : undefined;
   }
-  return codeExperience({ ...meta, diff: diff.stdout, postImages });
+  return codeExperience({ ...meta, diff: diff.stdout, postImages }, scope);
 }
 
 /** Recipes written per learning pass (the newest changes without one first; ~0.1 cent each). */
@@ -342,8 +348,8 @@ export async function researchQueue(proposals: readonly DevProposal[], d: Resear
 }
 
 /** The V3 commits on HEAD, oldest first. */
-export async function v3Commits(repoRoot: string, limit = 400): Promise<{ sha: string; tarih: string; konu: string }[]> {
-  const r = await git(repoRoot, ["log", "--no-merges", "-n", String(limit), "--format=%H%x09%cI%x09%s", "HEAD", "--", ...SEARCH_PATHS]);
+export async function v3Commits(repoRoot: string, limit = 400, refs: readonly string[] = ["HEAD"]): Promise<{ sha: string; tarih: string; konu: string }[]> {
+  const r = await git(repoRoot, ["log", "--no-merges", "-n", String(limit), "--format=%H%x09%cI%x09%s", ...(refs.length ? refs : ["HEAD"]), "--", ...SEARCH_PATHS]);
   return r.stdout
     .split(/\r?\n/)
     .filter(Boolean)
@@ -372,7 +378,7 @@ export const commitTask = (subject: string) => subject.replace(/^(feat|fix|docs|
 export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS, recipes = RECIPES_PER_PASS): Promise<{ okunan: number; sinav: number; kod: number; tarif: number; ozet: string }> {
   const seen = new Set((await listChanges(d.workRoot)).map((c) => c.id));
   const coded = new Set((await listCodeExperience(d.workRoot)).map((x) => x.id));
-  const commits = await v3Commits(d.repoRoot);
+  const commits = await v3Commits(d.repoRoot, 400, d.refs);
   const fresh = commits.filter((c) => !seen.has(c.sha));
   let instincts = await currentInstincts(d.workRoot);
   const examFrom = Math.max(0, fresh.length - exams);

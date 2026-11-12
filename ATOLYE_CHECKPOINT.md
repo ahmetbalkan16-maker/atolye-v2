@@ -1,3 +1,37 @@
+## 12 Kasım 2026 (2) — owner kararları kapandı; ertelenen harita işleri, güvenlik açıkları; beyinler her commit'i maliyetsiz öğrenir
+
+Owner kararları (11 Kasım'da sorulanlar): giriş yavaşlığı KAPANDI — (a) yeterli, (b)/(c)/(d) yapılmayacak; giriş
+şifresi uzun ve rastgele (owner); güvenlik duvarı: owner `Remove-NetFirewallRule -DisplayName "Node.js JavaScript
+Runtime"` çalıştırdı, doğrulandı (0 kural; "AYAS HTTPS (LAN)" izin + "AYAS - node.exe ag girisini engelle" engel
+duruyor); çırak sınav tavanı ($1 → $1,10) owner sonra karar verecek; canlıya alma toplu yapılacak ("canlıya alma
+toplu alırız") — bu oturumun commit'leri yalnız feature/cop-adam-v3'e push edildi, canlı dal ve canonical'a alınmadı.
+
+- Yanlış hız dersleri silindi: `v3-runtime/_kutuphane/deneyim/kurgu.jsonl`'dan Cannae/Çanakkale/Taranto
+  "words/min" dersleri (3 satır; yedek `D:\ÜRETİM\private\yedek\kurgu.jsonl.2026-11-12-hiz-dersleri-oncesi`).
+- 3c2ac468 harita canlandırma (ajanlar: Opus harita mantığı + Opus görseller + Sonnet Director): uçak rotası çizilen
+  gemide (atDrawnShip, aimPlanesAtShips), gemi ilk atıştan sonra batar, açılış haritası 0. satırda hareket eder,
+  PlaceCheck gemileri savaşın Wikipedia koordinatına taşır (Taranto: Mar Grande), rozet kayması kadrajda, her kamera
+  durağında "karakter arkasında" denetimi, torpido izi + su sütunu + fişek, gece görünümü (`harita.zaman: "gece"`),
+  harita konuşması Short'ta tam boy koyu zeminde, tek karakter kayıp/atışa döner. Açık: s3 0,3 sn'de gemiler de
+  Pignati'nin arkasında (HEAD'de de vardı; Director.ts:785 tek kamera görünümüne bakıyor, her durağa bakmalı);
+  uçakların başlangıç noktaları hâlâ karada; ScriptPrompts yazara `harita.zaman`ı henüz söylemiyor. Kareler:
+  `D:\ÜRETİM\private\temp\harita-gece-torpido\` (gun-0250.png, gece-0266.png).
+- 8dea8835 güvenlik: AyasCheckEnv tek kural (runner + V3), claude -p izin listeli ortam (ilk kuyruk işini izle),
+  telefon anahtarı `#ayasPhoneKey=` (eski `?` link çalışır), çıkış yönlendirmesi göreli, iki belge düzeltildi.
+- Otomatik öğrenme (owner: "burda yapılan her şeyi gerekli beyinler öğrensin", "otomatikleştir", "maliyetsiz olsun"):
+  `src/lib/v3/council/CommitLessons.ts` + beyin döngüsünün "ogren" adımı (scripts/v3/gelisim.ts):
+  1. `learnRefs`: HEAD + `feature/cop-adam-v3` (aynı Git deposu; `ATOLYE_V3_OGREN_DALLARI`) — geliştirici beyni commit'i
+     canlıya geçmeden öğrenir; tarif sayısı geçiş başına aynı (ek maliyet yok).
+  2. `learnAyasCode`: ana AYAS commit'leri (src/lib/ayas, src/lib/brain, app, src/components) Git'ten okunur →
+     `gelisim/gelistirici/kod-ayas.jsonl` (geçiş başına 30, model yok); V3 hafızasına/sınavına karışmaz; AYAS işi
+     paketine en yakın 3 değişiklik eklenir (`ayasPastChanges`).
+  3. `learnCommitLessons`: commit mesajındaki `Ders-<kurgu|arastirma|mizah|kalite|kostum|gelistirici>[konu]: …`
+     satırları o beynin hafızasına bir kez yazılır (benzer ders tekrar yazılmaz; `aktarilan-dersler.jsonl`).
+  Kural CLAUDE.md'ye ve v3-gelistirici / ayas-gelistirici skill'lerine eklendi (gözetimsiz derlemenin özeti commit
+  mesajı olduğundan onların dersleri de akar). Bugünkü 3 commit'in dersleri yazıldı; yeni kod canlıya alınınca beyin
+  döngüsü onları kendisi aktarır. smoke-v3-commit-lessons 6 PASS; self-improvement 11, cirak 5, developer-check-env 7,
+  brains-report 4, evolution-jobs 2, code-change-lane 12, firewall-closure 13 PASS.
+
 ## 12 Kasım 2026 — GPU durma sınırı 85 → 80 °C (owner kararı, PC sağlığı)
 
 Owner: "pc sağlığı görevini bulamadıysan 85 dereceden 80 dereceye indiricez sınırı". Kayıtlarda bu adla açık bir

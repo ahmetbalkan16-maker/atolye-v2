@@ -27,6 +27,7 @@ import { apprenticePolicy, examCandidates, examCapUsd, examSpendToday, writeExam
 import { listGrades, listWriteExams, readiness, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
+import { learnAyasCode, learnCommitLessons, learnRefs } from "../../src/lib/v3/council/CommitLessons";
 import { learnFromCommits, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
 import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
@@ -160,10 +161,17 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
   if (task === "ogren") {
     // The developer brain sits its exam on the new V3 commits and adds them to what it knows; then it writes one past
     // commit's change itself (the writing exam: graded by that commit's own new scenarios).
-    const r = await learnFromCommits(research);
+    // Since 12 Nov 2026 (owner: "burda yapılan her şeyi gerekli beyinler öğrensin", "maliyetsiz olsun") it also learns
+    // the development branch's commits before they go live, main AYAS's code (Git only) and every commit's lesson
+    // trailers (`Ders-<beyin>[konu]: …`, written into that brain's memory without a model).
+    const learn = { ...research, refs: await learnRefs(paths.repoRoot) };
+    const r = await learnFromCommits(learn);
+    const taught = await learnCommitLessons(learn);
+    const ayas = await learnAyasCode(learn);
     const exam = await writingExam(paths, research);
-    if (!r.okunan && !exam.yapildi) return skip(`${r.ozet}; yazma sınavı: ${exam.satir}`);
-    return ok(`${r.okunan ? `${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}` : r.ozet}; yazma sınavı: ${exam.satir}`);
+    const extra = `; ${taught.ozet}; ${ayas.ozet}`;
+    if (!r.okunan && !taught.ders && !ayas.kod && !exam.yapildi) return skip(`${r.ozet}${extra}; yazma sınavı: ${exam.satir}`);
+    return ok(`${r.okunan ? `${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}` : r.ozet}${extra}; yazma sınavı: ${exam.satir}`);
   }
   if (task === "arastir") {
     // By day the developer brain researches what waits for the evening (its guess is written before Claude builds).

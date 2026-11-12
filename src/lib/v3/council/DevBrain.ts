@@ -402,17 +402,37 @@ export function touchedDeclarations(fd: FileDiff, postImage?: string): string[] 
 /** A smoke suite of the V3 studio (what proved a change). */
 export const isV3Smoke = (f: string) => /^scripts\/smoke-v3-[\w-]+\.ts$/.test(f.replace(/\\/g, "/"));
 
+/** Which files a change's code experience keeps (its graded code) and which prove it (its tests). */
+export interface CodeScope {
+  readonly graded: (files: readonly string[]) => string[];
+  readonly isTest: (f: string) => boolean;
+}
+export const V3_CODE_SCOPE: CodeScope = { graded: gradedFiles, isTest: isV3Smoke };
+
+/**
+ * Main AYAS's code (owner, 12 Nov 2026: "burda yapılan her şeyi gerekli beyinler öğrensin", "maliyetsiz olsun"): the
+ * developer brain reads these changes too — files, declarations, added code, tests, from Git alone, no model — into its
+ * own store (`kod-ayas.jsonl`), never into the V3 memory its exams and instincts are graded on.
+ */
+export const AYAS_CODE_PATHS = ["src/lib/ayas", "src/lib/brain", "app", "src/components"] as const;
+export function ayasGradedFiles(files: readonly string[]): string[] {
+  return [...new Set(files.map((f) => f.replace(/\\/g, "/")))].filter((f) => /^(src\/lib\/ayas\/|src\/lib\/brain\/|app\/|src\/components\/)/.test(f) && !/\.md$/i.test(f)).sort();
+}
+/** A main-AYAS smoke suite (every smoke suite that is not V3's). */
+export const isAyasSmoke = (f: string) => /^scripts\/smoke-(?!v3-)[\w.-]+\.ts$/.test(f.replace(/\\/g, "/"));
+export const AYAS_CODE_SCOPE: CodeScope = { graded: ayasGradedFiles, isTest: isAyasSmoke };
+
 /** A change's code experience from its diff and the post-images of its files (graded files only; suites as tests). */
-export function codeExperience(input: { readonly id: string; readonly tarih: string; readonly gorev: string; readonly diff: string; readonly postImages: Readonly<Record<string, string | undefined>> }): CodeExperience {
+export function codeExperience(input: { readonly id: string; readonly tarih: string; readonly gorev: string; readonly diff: string; readonly postImages: Readonly<Record<string, string | undefined>> }, scope: CodeScope = V3_CODE_SCOPE): CodeExperience {
   const files = parseDiff(input.diff);
-  const graded = new Set(gradedFiles(files.map((f) => f.dosya)));
+  const graded = new Set(scope.graded(files.map((f) => f.dosya)));
   const touches = files
     .filter((f) => graded.has(f.dosya))
     .map((f) => ({ dosya: f.dosya, semboller: touchedDeclarations(f, input.postImages[f.dosya]), eklenen: f.eklenen, silinen: f.silinen, ornek: f.ornek }))
     // The biggest changes first: they say most about how it was done.
     .sort((a, b) => b.eklenen + b.silinen - (a.eklenen + a.silinen))
     .slice(0, MAX_TOUCHED_FILES);
-  return { id: input.id, tarih: input.tarih, gorev: input.gorev, dosyalar: touches, testler: [...new Set(files.map((f) => f.dosya).filter(isV3Smoke))].sort() };
+  return { id: input.id, tarih: input.tarih, gorev: input.gorev, dosyalar: touches, testler: [...new Set(files.map((f) => f.dosya).filter(scope.isTest))].sort() };
 }
 
 /** All the declarations a change touched, its biggest files first. */
@@ -488,6 +508,18 @@ export const listGrades = (workRoot: string) => readLines<DevGrade>(file(workRoo
 export const listChanges = (workRoot: string) => readLines<PastChange>(file(workRoot, "gecmis.jsonl"));
 
 export const recordCodeExperience = (workRoot: string, x: CodeExperience) => append(workRoot, "kod.jsonl", x);
+export const recordAyasCodeExperience = (workRoot: string, x: CodeExperience) => append(workRoot, "kod-ayas.jsonl", x);
+export const listAyasCodeExperience = (workRoot: string) => readLines<CodeExperience>(file(workRoot, "kod-ayas.jsonl"));
+
+/** Past main-AYAS changes nearest to a task, as a job packet section (empty when none is close): Git-made, no model. */
+export async function ayasPastChanges(workRoot: string, task: string, limit = 3): Promise<string> {
+  const all = (await listAyasCodeExperience(workRoot)).filter((x) => x.dosyalar.length);
+  const byId = new Map(all.map((x) => [x.id, x]));
+  const near = similarChanges(all.map((x) => ({ id: x.id, tarih: x.tarih, mesaj: x.gorev, dosyalar: x.dosyalar.map((t) => t.dosya) })), task, { limit });
+  if (!near.length) return "";
+  const lines = near.flatMap((c, k) => [`- "${c.mesaj}" (${c.id.slice(0, 10)})`, ...codeExperienceLines(byId.get(c.id)!, k === 0 ? { ornek: 500 } : {})]);
+  return `\n\nSIMILAR PAST AYAS CHANGES (how such work was done before — reuse their places and style):\n${lines.join("\n")}`;
+}
 
 /** The code experiences, one per change: a later line for the same change (its recipe written afterwards) wins. */
 export async function listCodeExperience(workRoot: string): Promise<CodeExperience[]> {

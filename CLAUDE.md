@@ -139,6 +139,11 @@ This project is developed across many sequential AI sessions under strict, check
   `grep -n "^## Sprint" ATOLYE_CHECKPOINT.md` or `grep -n "^### Sprint" ATOLYE_CHECKPOINT.md` to
   jump to entries rather than reading it start to end. Check it before assuming a feature is
   unimplemented, and before starting work in `src/lib/production/`.
+- **Teach the brains in every commit message (owner 2026-11-12: "burda yapılan her şeyi gerekli beyinler öğrensin",
+  free of cost).** The developer brain reads every V3 and main-AYAS commit's code from Git by itself (the development
+  branch too, before go-live). What code cannot say goes in as lesson lines, one English sentence each (≤300 chars):
+  `Ders-<kurgu|arastirma|mizah|kalite|kostum|gelistirici>[<konu>]: <lesson>` — written into that brain's memory once,
+  without a model (`src/lib/v3/council/CommitLessons.ts`; details in the `v3-gelistirici` skill).
 - Don't `git commit` or `git push` without explicit user approval, even after a change is verified
   — this holds regardless of how confident the change is.
   - **Standing exception (M18.1, user policy):** a human clicking **"BATCH ONAYLA VE UYGULA"** in

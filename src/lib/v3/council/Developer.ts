@@ -5,6 +5,7 @@ import { type AyasCodeBuild, type AyasCodeScope, ayasCodeBuildHash, ayasCodeCont
 import { ayasCheckEnv, isAyasCheckEnvDenied } from "../../brain/autonomy/AyasCheckEnv";
 import { runProcess } from "../util/Proc";
 import { BRAIN_NAMES } from "./Council";
+import { ayasPastChanges } from "./DevBrain";
 import { AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
 
@@ -257,7 +258,8 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     await linkShared(d.repoRoot, dir);
     const taban = (await git(dir, ["rev-parse", "HEAD"])).stdout.trim();
     let packet: string;
-    if (kapsam === "ayas") packet = ayasTaskPacket(p, p.is);
+    // An AYAS job also gets how the nearest past AYAS changes were done (the developer brain's Git-read code memory).
+    if (kapsam === "ayas") packet = ayasTaskPacket(p, p.is) + (await ayasPastChanges(d.workRoot, `${p.baslik} ${p.neden}`).catch(() => ""));
     else {
       // The exact faults behind the idea: what its productions measured for this brain (their KURUL.md).
       const kurul = await Promise.all(p.kaynaklar.map((id) => fs.readFile(path.join(d.workRoot, "bolumler", id, "KURUL.md"), "utf8").catch(() => "")));

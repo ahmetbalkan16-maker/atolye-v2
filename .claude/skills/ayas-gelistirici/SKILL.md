@@ -92,7 +92,22 @@ owner's click on your tested change is their review. Be extra careful there.
 - `scripts/smoke-ayas-observer-autostart.ts` registers a real Windows scheduled task: never run it.
 - PowerShell `.ps1` files with non-ASCII text need a UTF-8 BOM (you may not change them anyway).
 
+## Teach the brains
+
+The developer brain reads main AYAS's commits from Git by itself (files, functions, added code, tests) and hands the
+nearest ones to the next AYAS job. What code cannot say — why it was done this way, the trap to avoid — goes into the
+commit message as a lesson line, written into the brain's memory once, without a model
+(`src/lib/v3/council/CommitLessons.ts`):
+
+```
+Ders-gelistirici[<konu: a few English words>]: <one English sentence, at most 300 characters>
+```
+
+General, not one-off; none when there is nothing to learn. In an unattended build, end your summary with it: the
+summary becomes the commit message.
+
 ## Finish
 
-End with a short Turkish summary for the owner: what you changed, in which files, how you tested it. If AYAS already
-does it, or it cannot be done inside these limits, change nothing and say why — an empty build is a fine answer.
+End with a short Turkish summary for the owner: what you changed, in which files, how you tested it, followed by the
+`Ders-…` line if any. If AYAS already does it, or it cannot be done inside these limits, change nothing and say why —
+an empty build is a fine answer.
