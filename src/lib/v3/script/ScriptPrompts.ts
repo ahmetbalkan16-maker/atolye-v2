@@ -576,6 +576,11 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
     with "tufekci" lines and "topcu" batteries in front. One move per line, the line naming the unit by the words of its
     "ad" ("the Gauls and Spaniards bulge forward"): the unit sets off on that word, and a unit the line does not tell of
     stands still — while the narrator tells one move, nothing else moves on the map.
+    Every battle, anywhere on Earth, is drawn from what you give: each unit's real kind ("okcu" archers loose volleys
+    and "topcu"/"tufekci" fire while the fight is on — no other kind shoots), each side's strength with its number of
+    men in "etiket" ("50,000 men": the blocks are drawn as dense regiments by it), and the field as it was — "arazi"
+    woods, fields and hills at their places, the river by its course. Losses fall on their narrator line and need the
+    seconds after it: put at least one more line after a fight's losses, never the losses on a scene's last line.
 
 CROWDS — a group the narrator tells is SEEN as a group (owner): a scene whose lines tell of soldiers, troops, an army,
   pirates, guards, sailors, rebels or a mob carries a "kalabalik" of them — several figures, never one character standing

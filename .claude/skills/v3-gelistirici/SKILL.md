@@ -25,6 +25,23 @@ watcher is `scripts/v3/yapim.ts`, one production is `scripts/atolye-v3.ts`. Stat
   `content/v3/`, `docs/v3/`. Never `package.json`, lock files, `.env*`, `app/`, `src/lib/ayas/`, or
   `src/lib/v3/council/BrainCouncilFeed.ts` (it feeds AYAS's homepage; only the owner changes the homepage).
 
+## The close battle map (any battle, anywhere)
+
+Built 12 Nov 2026 for the owner's "more realistic close battles, bigger-looking armies"; every battle uses it from the
+writer's data alone, so improve these files rather than adding a second path:
+- Writer data → map: `src/lib/v3/maps/Tactics.ts` (orders of battle, moves), `NarratedMoves.ts` (each move on the word that
+  names the unit), `MapBuilder.ts` (`buildGeoMap`; `fitLossDelaysS` keeps a fight's falls inside its scene — the Mixer
+  uses the same function so every sword lands on a fall).
+- Units: `remotion-v3/src/scene/MapUnits.tsx` (`placeTokens` = positions and motion — never change it for looks; the
+  meter `scripts/v3/hareket-olcer.ts` must stay ≤ 28.6 px/frame on Cannae), `unitCrowd.ts` (soldiers inside a block,
+  density from the strength label, per-block facing), archer volleys `volleysAt`, the fallen `lostTokens`/`fallenRest`.
+- Ground: `scripts/v3/terrain_close.py` bakes the painted relief once per place (bump `Relief.CLOSE_RELIEF_VERSION`
+  after a change); `MapCloseGround.tsx` + `mapNature.ts` draw woods, fields, hills, rivers' banks and cloud shadows.
+- Anything that moves is a pure function of the frame (Remotion renders frames in any order, in parallel); no per-frame
+  blur filters. Proof: `smoke-v3-motion` (J–S), `smoke-v3-episode-director`, `smoke-v3-mix`, and stills from
+  `npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> --sahne <id> --kare 4,10` looked at before and after.
+- Period photos move only as one flat picture (Ken Burns); the depth warp is off (`ATOLYE_V3_DERINLIK=1` to try).
+
 ## House style (match the file you are in)
 
 - TypeScript, strict. Code, identifiers and comments in English; every log line and text for the owner in Turkish;

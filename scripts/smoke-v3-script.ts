@@ -352,6 +352,10 @@ async function main() {
     }
     const en = writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 240, ton: "epik", dil: "en" }, CATALOG);
     assert.ok(en.includes("American English") && en.includes("legend has it") && !en.includes("ANLATIM KURALLARI"));
+    // The close battle's drawing is only as good as the writer's data (owner, 12 Nov 2026: "başka haritalarda konularda
+    // yapabilsinler"): real kinds (only archers and guns shoot), each side's men in "etiket", the field's woods and
+    // river, and a line after the losses.
+    for (const needle of ["no other kind shoots", "number of\n    men in \"etiket\"", "\"arazi\"\n    woods, fields and hills", "never the losses on a scene's last line"]) assert.ok(en.includes(needle), `battle drawing rule missing: ${needle}`);
     assert.ok(factCheckPrompt("{}", "en").includes("legend has it"));
     // A Short (60 s or less, owner 2 Nov 2026): hook in 2 s, one moment, no subscribe line, a loop; longer has none of it.
     const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);

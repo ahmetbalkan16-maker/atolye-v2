@@ -58,7 +58,9 @@ export async function listSkills(repoRoot: string): Promise<SkillDoc[]> {
 /** Task signals that call for a skill (Turkish folded and English words, or the files the task is expected to touch). */
 const RULES: readonly { readonly id: string; readonly kelime?: RegExp; readonly dosya?: RegExp }[] = [
   { id: "remotion-best-practices", dosya: /^remotion-v3\/src\//, kelime: /remotion|render|frame|kare|interpolat|spring|composition/ },
-  { id: "remotion-maps", kelime: /harita|\bmap|rozet|badge|sinir|border|kiyi|coast/, dosya: /MapView|MapUnits|maps\// },
+  // The close battle map (owner, 12 Nov 2026: what was built for it must be found again for any battle): its units, soldiers,
+  // ground and nature live in these files too.
+  { id: "remotion-maps", kelime: /harita|\bmap|rozet|badge|sinir|border|kiyi|coast|birlik|asker|soldier|savas|battle|zemin|terrain|orman|forest/, dosya: /MapView|MapUnits|MapCloseGround|unitCrowd|unitLayout|mapNature|terrain_close|maps\// },
   { id: "remotion-markup", kelime: /animasyon|animation|gecis|transition|efekt|effect|hareket|motion/, dosya: /^remotion-v3\/src\/scene\// },
   { id: "remotion-captions", kelime: /altyazi|caption|subtitle|balon|bubble/ },
   { id: "ayas/scene-direction", kelime: /sahne|scene|jest|gesture|oyun|aksesuar|prop|anlatilan|told|mekan|setting/ },
