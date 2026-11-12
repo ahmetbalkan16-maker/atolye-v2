@@ -87,11 +87,11 @@ async function main(): Promise<void> {
     const load = measure(nextBrief);
     assert.ok(load.sourceReads > 0, "nothing to reuse yet: the load scans");
     firstBrief = load.value;
-    assert.deepEqual(firstBrief.affectedFiles, ["app/page.tsx", "next.config.ts", "scripts/smoke-shell.ts", "src/app-shell.tsx"]);
+    assert.deepEqual(firstBrief.affectedFiles, ["app/page.tsx", "next.config.ts", "scripts/smoke-shell.ts", "src/app-shell.tsx"], "assert.deepEqual(firstBrief.affectedFiles, [\"app/page.tsx\", \"next.config.ts\", \"scripts/smoke-shell.ts\", \"src/app-shell.tsx\"])");
     assert.ok(fs.existsSync(cacheFile), "the scan result is kept for the next process");
     assert.match(cached().key, new RegExp(HEAD_A));
     assert.deepEqual(cached().users, uncachedMap(), "the kept map is the uncached scan's map");
-    assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap());
+    assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap(), "assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap())");
   });
 
   await scenario("a new process with a valid cache file reads no source file and starts no rescan", () => {
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
     assert.equal(load.sourceReads, 0, `source files read: ${load.sourceReads}`);
     assert.equal(load.sourceDirs, 0, `source directories listed: ${load.sourceDirs}`);
     assert.deepEqual(load.value, firstBrief, "the homepage shows the same brief");
-    assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined);
+    assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined, "assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined)");
   });
 
   await scenario("a changed lock file invalidates the cache: the load stays non-blocking and one async rescan replaces it", async () => {
@@ -117,10 +117,10 @@ async function main(): Promise<void> {
     assert.notEqual(cached().key, before, "the cache was rewritten under the new key");
     forgetAyasPackageUsersMemory();
     const after = measure(nextBrief);
-    assert.equal(after.sourceReads, 0);
+    assert.equal(after.sourceReads, 0, "assert.equal(after.sourceReads, 0)");
     assert.ok(after.value.affectedFiles.includes("src/new-next-user.ts"), JSON.stringify(after.value.affectedFiles));
-    assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap());
-    assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined);
+    assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap(), "assert.deepEqual(Object.fromEntries(loadAyasRootPackageUsers(repo)), uncachedMap())");
+    assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined, "assert.equal(ayasPackageUsersRefreshInFlight(repo), undefined)");
   });
 
   await scenario("a new HEAD (a worktree's gitdir pointer, a packed ref) invalidates the cache likewise", async () => {
@@ -131,12 +131,12 @@ async function main(): Promise<void> {
     write("git-meta/packed-refs", `# pack-refs with: peeled fully-peeled sorted\n${"c".repeat(40)} refs/heads/main\n${HEAD_B} refs/heads/feature\n`);
     write("scripts/smoke-head.ts", "import { notFound } from \"next/navigation\";\nvoid notFound;\n");
     forgetAyasPackageUsersMemory();
-    assert.equal(measure(nextBrief).sourceReads, 0);
+    assert.equal(measure(nextBrief).sourceReads, 0, "assert.equal(measure(nextBrief).sourceReads, 0)");
     const refresh = ayasPackageUsersRefreshInFlight(repo);
     assert.ok(refresh, "the new HEAD started a rescan");
     await refresh;
     assert.match(cached().key, new RegExp(HEAD_B));
-    assert.ok(cached().users.next!.includes("scripts/smoke-head.ts"));
+    assert.ok(cached().users.next!.includes("scripts/smoke-head.ts"), "assert.ok(cached().users.next!.includes(\"scripts/smoke-head.ts\"))");
   });
 
   await scenario("a copy older than 10 minutes is served once and refreshed in the background (uncommitted edits)", async () => {
@@ -144,12 +144,12 @@ async function main(): Promise<void> {
     const old = cached();
     fs.writeFileSync(cacheFile, JSON.stringify({ schema: "ayas-update-radar-package-users:v1", ...old, computedAt: Date.now() - 11 * 60_000 }));
     forgetAyasPackageUsersMemory();
-    assert.equal(measure(nextBrief).sourceReads, 0);
+    assert.equal(measure(nextBrief).sourceReads, 0, "assert.equal(measure(nextBrief).sourceReads, 0)");
     const refresh = ayasPackageUsersRefreshInFlight(repo);
     assert.ok(refresh, "the old copy started a rescan");
     await refresh;
-    assert.ok(Date.now() - cached().computedAt < 60_000);
-    assert.ok(cached().users.next!.includes("src/edited.ts"));
+    assert.ok(Date.now() - cached().computedAt < 60_000, "assert.ok(Date.now() - cached().computedAt < 60_000)");
+    assert.ok(cached().users.next!.includes("src/edited.ts"), "assert.ok(cached().users.next!.includes(\"src/edited.ts\"))");
   });
 
   await scenario("an unreadable or foreign cache file is never trusted: the load scans as before", () => {
@@ -159,13 +159,13 @@ async function main(): Promise<void> {
       forgetAyasPackageUsersMemory();
       const load = measure(() => loadAyasRootPackageUsers(repo));
       assert.ok(load.sourceReads > 0, "scanned instead");
-      assert.deepEqual(Object.fromEntries(load.value), uncachedMap());
+      assert.deepEqual(Object.fromEntries(load.value), uncachedMap(), "assert.deepEqual(Object.fromEntries(load.value), uncachedMap())");
       assert.deepEqual(cached().users, uncachedMap(), "and rewritten valid");
     }
   });
 
   await scenario("the cache file lives in a Git-ignored folder of this repository (an unignored store stops the observer)", () => {
-    assert.equal(path.relative(repo, cacheFile).split(path.sep).join("/"), "data/brain/autonomy/update-radar-package-users.json");
+    assert.equal(path.relative(repo, cacheFile).split(path.sep).join("/"), "data/brain/autonomy/update-radar-package-users.json", "assert.equal(path.relative(repo, cacheFile).split(path.sep).join(\"/\"), \"data/brain/autonomy/update-radar-package-users.json\")");
     const ignored = spawnSync("git", ["check-ignore", "-q", "--no-index", "data/brain/autonomy/update-radar-package-users.json"], { cwd: process.cwd(), windowsHide: true });
     assert.equal(ignored.status, 0, "data/brain/autonomy/update-radar-package-users.json must be ignored");
   });
@@ -179,9 +179,9 @@ async function main(): Promise<void> {
     // not trusted, so the second version is read rather than the first one's parse reused.
     const tick = new Date(Math.floor(Date.now() / 1000) * 1000);
     writeLock({ next: "16.3.9", eslint: "9.39.4", typescript: "5.9.3" }, tick);
-    assert.equal(radar().find((item) => item.sourceId === "nextjs")!.installedVersion, "16.3.9");
+    assert.equal(radar().find((item) => item.sourceId === "nextjs")!.installedVersion, "16.3.9", "assert.equal(radar().find((item) => item.sourceId === \"nextjs\")!.installedVersion, \"16.3.9\")");
     writeLock({ next: "16.4.0", eslint: "9.39.4", typescript: "5.9.3" }, tick);
-    assert.equal(radar().find((item) => item.sourceId === "nextjs")!.installedVersion, "16.4.0");
+    assert.equal(radar().find((item) => item.sourceId === "nextjs")!.installedVersion, "16.4.0", "assert.equal(radar().find((item) => item.sourceId === \"nextjs\")!.installedVersion, \"16.4.0\")");
   });
 
   const pending = ayasPackageUsersRefreshInFlight(repo);
