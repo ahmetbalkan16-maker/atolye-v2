@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { hasSimilarLesson, recall, remember } from "../council/ExperienceMemory";
 import type { Episode, EpisodeScene } from "../episode/EpisodeTypes";
 import { sideProcessEnv } from "../tts/Tts";
 import { periodEndYear } from "./HistorySources";
@@ -102,9 +103,11 @@ const LATER_ERA_WORDS = /\b(towers?|castles?|fortress(?:es)?|keeps?|battlements?
  * Italic hill town: whitewashed stone houses with terracotta tile roofs, a low wall of large fitted stones with a simple
  * arched gate…" gave ancient villages, while only dropping "towers" did not (21 Oct 2026).
  */
-export function periodRewritePrompt(place: string, mekan: string, donem: string, reasons: readonly string[]): string {
+export function periodRewritePrompt(place: string, mekan: string, donem: string, reasons: readonly string[], examples: readonly string[] = [], laterEra = true): string {
+  const why = laterEra ? `Its drawings came out from a later era: ${reasons.slice(0, 4).join("; ") || "later-era buildings"}.` : `The history judge rejected its drawings: ${reasons.slice(0, 4).join("; ") || "they did not show the place"}.`;
+  const shown = examples.length ? `\nDescriptions of similar places whose drawings the judge passed before — follow their kind of concrete detail, not their place:\n${examples.slice(0, MAX_SET_EXAMPLES).map((e) => `- "${e}"`).join("\n")}` : "";
   return `An image model draws flat cartoon backgrounds for a history show. It must draw this place as it looked in ${donem}: "${place}" (${mekan}).
-Its drawings came out from a later era: ${reasons.slice(0, 4).join("; ") || "later-era buildings"}.
+${why}${shown}
 Rewrite the description in English, at most 45 words: name concrete things of ${donem} at this place (the typical houses, roofs, walls and gates, public buildings, landscape, season) and keep what the scene needs. Do not use words that make image models draw later eras: tower, castle, fortress, keep, battlements, turret, church, spire, steeple, cathedral, medieval.
 Return ONLY JSON: {"tasarim": "<the new description>"}`;
 }
@@ -120,6 +123,39 @@ export function readPeriodRewrite(content: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** How many worked examples the setting brain is shown at once. */
+export const MAX_SET_EXAMPLES = 3;
+
+/**
+ * Concrete examples for the setting brain (the Taranto Short's proposal, approved 12 Nov 2026: "give the designer
+ * concrete examples so sets stop falling under the judge's bar"). Until now it only heard why similar sets had failed
+ * (`ders`); a description whose drawing the judge passed is now kept as its worked example ("ilac", ise_yaradi) under
+ * the place and period, once. Returns whether it was written.
+ */
+export async function rememberSetExample(workRoot: string, bolum: string, konu: string, place: string): Promise<boolean> {
+  const text = place.replace(/\s+/g, " ").trim();
+  if (text.length < 20 || (await hasSimilarLesson(workRoot, "ortam", text, 0.9, (l) => l.tur === "ilac"))) return false;
+  await remember(workRoot, { bolum, beyin: "ortam", tur: "ilac", sonuc: "ise_yaradi", konu, metin: text });
+  return true;
+}
+
+/** The worked examples closest to a place and period, the place's own description left out. */
+export async function setExamples(workRoot: string, konu: string, place: string): Promise<string[]> {
+  const own = place.replace(/\s+/g, " ").trim();
+  const found = await recall(workRoot, "ortam", { konu, tur: "ilac", limit: MAX_SET_EXAMPLES + 1, filter: (l) => l.sonuc === "ise_yaradi" });
+  return found.map((l) => l.metin).filter((m) => m !== own).slice(0, MAX_SET_EXAMPLES);
+}
+
+/**
+ * Whether a failing set's description is rewritten before the second round: always when its drawings came out from a
+ * later era (period ≤ 3), and also when they missed the subject while worked examples of similar places exist.
+ */
+export function setRewriteKind(failed: readonly { readonly donem?: number }[], examples: number): "donem" | "ornek" | undefined {
+  if (!failed.length) return undefined;
+  if (failed.some((v) => (v.donem ?? 10) <= 3)) return "donem";
+  return examples > 0 ? "ornek" : undefined;
 }
 
 /**
