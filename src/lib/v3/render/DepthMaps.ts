@@ -11,8 +11,15 @@ import type { V3RenderPlan } from "./RenderPlanTypes";
  * seconds each and once per picture (the map stays beside it in the public folder); the renderer moves the picture by it
  * along its Ken Burns drift, so near things travel further than far ones (remotion-v3 DepthFilter). The card is never
  * used. A picture whose map cannot be made keeps the flat drift; nothing here stops a production.
- * `ATOLYE_V3_DERINLIK=0` turns it off.
+ *
+ * OFF by default since 12 Nov 2026 (owner, after watching the Guadalcanal Short: "fotoğraflarda hala kayma var … sonraki
+ * videolarda olmasın"): one picture displaced by its depth stretches what stands in front — a mast's shadow grew a third
+ * wider and bent over the shot — which reads as the photo sliding and warping. Pictures keep their plain Ken Burns drift.
+ * `ATOLYE_V3_DERINLIK=1` turns the depth move back on (for a trial).
  */
+
+/** Whether period pictures move by their depth: only when asked (`ATOLYE_V3_DERINLIK=1`), see above. */
+export const depthMoveOn = (env: Readonly<Record<string, string | undefined>> = process.env): boolean => /^(1|acik|açık|on)$/i.test(env.ATOLYE_V3_DERINLIK?.trim() ?? "");
 
 /** The map's size: a background's is cut to the stage's shape at this width, a still's longer side is this long. */
 export const DEPTH_MAP_PX = 960;
@@ -82,7 +89,7 @@ export function depthDeps(paths: Pick<V3Paths, "repoRoot" | "toolsRoot" | "genPy
  */
 export async function addDepthMaps<P extends PlanPart>(plan: P, d: DepthDeps): Promise<{ plan: P; yeni: number; hazir: number; hata: number }> {
   const env = d.env ?? process.env;
-  if (/^(0|kapali|off)$/i.test(env.ATOLYE_V3_DERINLIK ?? "")) return { plan, yeni: 0, hazir: 0, hata: 0 };
+  if (!depthMoveOn(env)) return { plan, yeni: 0, hazir: 0, hata: 0 };
   const targets = depthTargets(plan);
   if (!targets.length) return { plan, yeni: 0, hazir: 0, hata: 0 };
   const full = (rel: string) => path.join(d.publicDir, ...rel.split("/"));

@@ -186,7 +186,7 @@ async function main() {
       return { code: 0, stdout: lines.join("\n"), stderr: "" };
     };
     const logs: string[] = [];
-    const deps = { publicDir: pub, python: "yok", script: "yok", model: "yok", log: (s: string) => logs.push(s), run, env: {} };
+    const deps = { publicDir: pub, python: "yok", script: "yok", model: "yok", log: (s: string) => logs.push(s), run, env: { ATOLYE_V3_DERINLIK: "1" } };
     const first = await addDepthMaps(plan, deps);
     assert.deepEqual([first.yeni, first.hazir, first.hata], [2, 0, 1]);
     assert.deepEqual(runs[0], [{ en: 960, boy: 540, mod: "kapla" }, { en: 960, boy: 960, mod: "sigdir" }, { en: 960, boy: 960, mod: "sigdir" }], "a background cut to the stage, a still whole");
@@ -198,10 +198,12 @@ async function main() {
     // The next render reuses the maps and asks only for the one still missing.
     const second = await addDepthMaps(plan, deps);
     assert.deepEqual([second.yeni, second.hazir, runs.length, runs[1]!.length], [0, 2, 2, 1]);
-    // Switched off, or without the model: the plan as it was.
-    const off = await addDepthMaps(plan, { ...deps, env: { ATOLYE_V3_DERINLIK: "0" } });
-    assert.equal(off.plan, plan);
-    const noModel = await addDepthMaps(plan, { publicDir: path.join(tmp, "bos"), python: "yok", script: "yok", model: "yok", log: () => {} });
+    // Off unless asked (owner, 12 Nov 2026: "fotoğraflarda hala kayma var" — the depth move warped the photos), or
+    // without the model: the plan as it was, the map maker never run.
+    const ran = runs.length;
+    for (const env of [{}, { ATOLYE_V3_DERINLIK: "0" }, { ATOLYE_V3_DERINLIK: "" }]) assert.equal((await addDepthMaps(plan, { ...deps, env })).plan, plan);
+    assert.equal(runs.length, ran, "switched off, no map is made");
+    const noModel = await addDepthMaps(plan, { publicDir: path.join(tmp, "bos"), python: "yok", script: "yok", model: "yok", log: () => {}, env: { ATOLYE_V3_DERINLIK: "1" } });
     assert.deepEqual([noModel.yeni, noModel.plan.shots[0]!.background.depth], [0, undefined]);
   });
 
