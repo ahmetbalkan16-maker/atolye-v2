@@ -1,3 +1,28 @@
+## 12 Kasım 2026 (7) — sistem taraması: kuyruk, güncelleme radarı, Guadalcanal kalanları (yalnız feature dalı, canlı DEĞİL)
+
+Owner: "sistemi tara güncellemelere bak … geliştir". Canlıya alma toplu yapılacak (owner 12 Kas); hepsi `feature/cop-adam-v3`'te.
+- **Geliştirme kuyruğu:** iki `hazır` yapı aynı kusuru (top sarsıntısında üstte 36 px koyu şerit) düzeltiyordu. kalite-68
+  uygulandı (5b36393e, `camera.coverShake`: gereken kadar büyütür + merkezi kaydırır; formül elle doğrulandı, motion 15/15);
+  kalite-69 (yalnız büyütüyordu) gerekçeyle kapatıldı.
+- **Güncelleme radarı:** Remotion 4.0.538 → 4.0.542 denemesi (10 Kas) RENDER'da `EAI_AGAIN remotion.media` ile düşmüş,
+  onay geri çekilmişti. Kök: 4.0.542 Chrome 157 → 158'e geçti, Windows'ta 303 MB'ı remotion.media'dan indiriyor; o an DNS
+  düştü. Ayrı kopyada 4.0.543 doğrulandı (tsc temiz, Chrome 158 indi, 15 kare render). afcafdd9: deneme `BROWSER` adımında
+  `remotion browser ensure` (3 deneme; ağ hatası "güncelleme bozuk değil" diye ayrı), uygulama eşitlemesi yeni Chrome'u
+  takastan ÖNCE stage'de indirir (düşerse eski node_modules yerinde kalır; önceden ilk üretim render'ı indirecekti).
+  **Öneri:** önce toplu canlıya alma, sonra Remotion 4.0.543 için "Onayla ve dene" (canlı kod bu düzeltmeyi taşımadan da
+  geçer, ama uygulamadan sonra ilk V3 render'ı 303 MB indirir). next/wrangler/tailwind güncel.
+- **Rozet çakışması (Guadalcanal 40–46 sn, %14 ve söz %32):** 1cef9c15 `spaceBadges` artık çizilen boyutlarla (uç süsleri,
+  konuşanın %14 büyümesi, alttakinin üstündeki söz payı, rölyef/düz ayrı) ve tüm rozetlerden birden ayırır; tek geçişli çift
+  itme Callaghan'ı Scott'tan kaçırırken Abe'ye geri itiyordu.
+- **Boş şafak haritası (s5, 9 sn tek gemi):** 602e7755 `MapRules.vehiclesOnToldLine`: anlatıcının adını andığı uçak/tank/
+  süvari/denizaltı/fil o satırda yola çıkar, o satırın söylediği batış onda olur, "Dawn" tarihli gece haritası şafak olur;
+  "scuttled" batış kelimesi. Gerçek bölümlerde kuru çalıştırma yalnız Guadalcanal s5'i düzeltir.
+- Doğrulama: tsc kök + remotion-v3, lint 0/0, 22 smoke-v3 suite'inin hepsi PASS, ayas-update-trial 13, -apply 14, radar,
+  approval, firewall-closure, auto-live-publish, observer-autostart (ASCII TEMP) PASS.
+- Açık: Guadalcanal yükleme kararı owner'da (bu düzeltmeler mevcut final.mp4'ü değiştirmez); çöp adam payı %11 (Short hedefi
+  ~%30); Lee benzerliği 8/10; s3'te de Pignati arkası gemiler (Director.ts:785); uçak başlangıçları karada; çırak sınav
+  tavanı $1 → $1,10 owner'da. Watcher yeniden başlatma + canlı yayın toplu canlıya almayı bekler.
+
 ## 12 Kasım 2026 (6) — Guadalcanal Short TESLİM EDİLDİ (tur 2, yeniden render) — yüklemeyi owner bekliyor
 
 `final.mp4` = final-tur2 (107,5 sn, −14,3 LUFS, ses bozukluğu yok; ilk tur 2 kopyası `private/temp/guadal-final-tur2-ilk.mp4`).
