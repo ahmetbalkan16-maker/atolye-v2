@@ -968,6 +968,14 @@ async function main() {
     // The director's pass runs both.
     const directed = directBattleMaps(ep);
     assert.ok(directed.episode.sahneler[1]!.harita!.araclar![0]!.hedef && directed.episode.sahneler[0]!.harita!.vurgular?.length === 1);
+    // 12 Nov 2026: the writer is told the map's time of day (the night raid was drawn in daylight), and a model's own word
+    // for it is mapped, not refused.
+    const prompt = writingPrompt({ konu: "Taranto", donem: "1940", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
+    assert.ok(prompt.includes(`"zaman": "gece"`) && /searchlights/.test(prompt), "the map's night is in the writer's prompt");
+    const night = normalizeDraft({ ...ep, sahneler: [{ ...raid, harita: { ...raid.harita, zaman: "night" } }] }, []);
+    assert.equal((night.value as Episode).sahneler[0]!.harita!.zaman, "gece");
+    assert.ok(night.fixes.includes(`sahneler[0].harita.zaman "night" → gece`), night.fixes.join(" | "));
+    assert.ok(validateEpisode(night.value).ok);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

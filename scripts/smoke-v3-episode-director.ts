@@ -25,7 +25,7 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
-import { behindFigure, besideAction, frameLineAction, framesAction, lineAction, loneWindowCentre, shortWindow } from "../src/lib/v3/maps/UnitFraming";
+import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
@@ -2559,7 +2559,8 @@ async function main() {
     const ship = drawn.araclar![1]!.konum;
     assert.ok(ship[0] > 29.003, `the ships in clear water (${ship})`);
     assert.deepEqual([drawn.araclar![0]!.yol![1], drawn.araclar![0]!.hedef, drawn.rozetler![0]!.konum], [ship, ship, ship]);
-    assert.deepEqual(drawn.araclar![0]!.konum, [28.97, 41.05], "the planes set out where the writer put them");
+    // (W7: the planes, written on land, now come in over the water and their route starts there.)
+    assert.deepEqual(drawn.araclar![0]!.yol![0], drawn.araclar![0]!.konum, "the planes' route starts where they are drawn");
     const geo = buildGeoMap(harbour, data, 1920, 1080, (index, order) => (index !== undefined ? index * 90 : order * 36), { fps: 30 });
     const [planes, ships] = geo.vehicles!;
     assert.deepEqual([planes!.path[planes!.path.length - 1], planes!.target], [ships!.path[0], ships!.path[0]], "the planes fly to the ships as drawn and aim at them");
@@ -2659,6 +2660,101 @@ async function main() {
     // An offline Wikipedia moves nothing and says so.
     const offline = await checkEpisodePlaces(story, async (q) => (q.startsWith("Battle of") ? Promise.reject(new Error("offline")) : lookup(q)));
     assert.deepEqual([offline.episode.sahneler[1]!.harita!.araclar![1]!.konum, offline.unchecked.includes("Battle of Taranto")], [taranto, true]);
+  });
+
+  await scenario("W7 the Taranto Short's last map faults (12 Nov 2026): a lone character clear at every camera stop, planes that attack a ship come in over the water", () => {
+    // Land west of 29.0, open water east of it (as the close map's coast).
+    const square = [[[[28, 40], [29, 40], [29, 42], [28, 42], [28, 40]]]];
+    const data = withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: square as never, water: [] });
+    const ships: [number, number] = [29.01, 41.04];
+    const raid: SceneMap = {
+      merkez: [29.0, 41.04],
+      genislik_km: 10,
+      araclar: [
+        { tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [28.98, 41.05], satir: 0, yol: [[28.98, 41.05], ships], yol_satir: 1, hedef: ships },
+        { tur: "gemi", renk: "#b3263a", sayi: 3, konum: ships, satir: 0 },
+      ],
+    };
+    const { onLand } = landTest(raid, data, mapView(raid.merkez!, 10, 1920, 1080));
+    // Item 2: the planes the writer set out on land come in over the water, no nearer the ships than they were written.
+    const [start] = shipStarts(raid, onLand, true, 1920);
+    const km = (p: readonly number[], q: readonly number[]) => Math.hypot((p[0]! - q[0]!) * 111.32 * Math.cos((41.04 * Math.PI) / 180), (p[1]! - q[1]!) * 110.57);
+    assert.ok(onLand([28.98, 41.05]) && !onLand([start![0], start![1]]), `over the water (${start})`);
+    assert.ok(km(start!, ships) >= km([28.98, 41.05], ships) - 1e-9 && km(start!, [28.98, 41.05]) < 5, `from the nearest water no nearer the ships (${start})`);
+    const geo = buildGeoMap(raid, data, 1920, 1080, (index, order) => (index !== undefined ? index * 90 : order * 36), { fps: 30 });
+    const route = geo.vehicles![0]!.path;
+    assert.equal(route.length, 2, `the written first point on land is dropped, not flown over (${JSON.stringify(route)})`);
+    // A carrier the writer drew, an airfield drawn on the map, a raid on a town inland, a wide map: left where written.
+    const carrier = { ...raid, araclar: [...raid.araclar!, { tur: "gemi" as const, renk: "#2e4a7d", konum: [28.98, 41.05] as [number, number], satir: 0 }] };
+    assert.deepEqual(shipStarts(carrier, onLand, true, 1920)[0], [28.98, 41.05], "from the carrier");
+    assert.deepEqual(shipStarts({ ...raid, sehirler: [{ ad: "Yesilkoy airfield", konum: [28.98, 41.05] }] }, onLand, true, 1920)[0], [28.98, 41.05], "from the airfield");
+    const inland: SceneMap = { ...raid, araclar: [{ ...raid.araclar![0]!, yol: [[28.98, 41.05], [28.97, 41.03]], hedef: [28.97, 41.03] }] };
+    assert.deepEqual(shipStarts(inland, onLand, true, 1920)[0], [28.98, 41.05], "a raid on land sets out where written");
+    assert.deepEqual(shipStarts(raid, onLand, false, 1920)[0], [28.98, 41.05], "no known water: as written");
+
+    // Item 1: s3 at 0.3 s — the narrator's line 0 brings the camera in on the six ships, the lone character speaks line 1
+    // over the wide view: placed for that view he stood in front of the ships when the camera closed in.
+    const ep = sampleEpisode();
+    const cast: Episode["oyuncu_kadrosu"] = [ep.oyuncu_kadrosu[0]!, { ...castBase, id: "officer", ad: "Luigi", rol: "Italian officer", ses_id: "officer" }];
+    const scene: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "t-savunma",
+      mekan: "Close map: the harbour's defences",
+      harita: { merkez: [28.99, 41.04], genislik_km: 30, araclar: [{ tur: "gemi", renk: "#b3263a", sayi: 6, konum: ships, satir: 0 }], kamera: [{ satir: 1, merkez: [28.99, 41.04], genislik_km: 17 }] },
+      satirlar: [
+        { karakter: "anlatici", metin: "The harbour is heavily defended.", duygu: "notr" },
+        { karakter: "officer", metin: "Except the balloons blew away.", duygu: "uzgun", balon: "The balloons blew away." },
+        { karakter: "anlatici", metin: "Only a third of the nets are in place.", duygu: "notr" },
+      ],
+    };
+    const episode: Episode = { ...ep, donem: "1940", oyuncu_kadrosu: cast, sahneler: [scene] };
+    const plan = buildRenderPlan({
+      episode,
+      timeline: buildTimeline(episode, [[fakeAudio(4), fakeAudio(3), fakeAudio(3)]]),
+      cast: toRenderCast(cast, "kukla"),
+      accessories: [],
+      backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }],
+      mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never,
+      coasts: new Map([["t-savunma", { land: square as never, water: [] }]]),
+      fps: 30,
+      ...STAGE_SIZE,
+      output: SHORTS_SIZE,
+      endCard: false,
+      showCaptions: false,
+    });
+    const shot = plan.shots[0]!;
+    assert.ok((shot.geoMap!.camera ?? []).length >= 3, `the camera closes in and goes wide again (${JSON.stringify(shot.geoMap!.camera)})`);
+    assert.deepEqual(mapFramingFaults(plan), [], JSON.stringify(mapFramingFaults(plan)));
+    const win = shortWindow(STAGE_SIZE, SHORTS_SIZE);
+    assert.equal(loneMisses(shot.geoMap!, shot.performers[0]!.x, shot.duration, STAGE_SIZE.width, STAGE_SIZE.height, win), 0);
+    // A spot already clear at every stop is kept.
+    assert.equal(clearAtEveryStop(shot.geoMap!, shot.performers[0]!.x, shot.duration, STAGE_SIZE.width, STAGE_SIZE.height, win), shot.performers[0]!.x);
+    // The same scene on the full 16:9 frame (a long video, or a Short laid out whole, 12 Nov 2026): no window, and the
+    // fleet the camera closes in on is never behind him either.
+    const wide = buildRenderPlan({
+      episode,
+      timeline: buildTimeline(episode, [[fakeAudio(4), fakeAudio(3), fakeAudio(3)]]),
+      cast: toRenderCast(cast, "kukla"),
+      accessories: [],
+      backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }],
+      mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never,
+      coasts: new Map([["t-savunma", { land: square as never, water: [] }]]),
+      fps: 30,
+      ...STAGE_SIZE,
+      endCard: false,
+      showCaptions: false,
+    }).shots[0]!;
+    const m = wide.geoMap!;
+    assert.ok((m.camera ?? []).some((k) => k.frame > 0), `the camera moves (${JSON.stringify(m.camera)})`);
+    const stops = [...new Set([...actionFrames(m), ...(m.camera ?? []).map((k) => k.frame)])].filter((f) => f > 0 && f < wide.duration);
+    const behind = stops.flatMap((f) => standingAt(m, f, STAGE_SIZE.width, STAGE_SIZE.height).filter((k) => behindFigure(k, wide.performers[0]!.x, STAGE_SIZE.width, STAGE_SIZE.height)).map((k) => `${(f / 30).toFixed(1)} s ${k.name}`));
+    assert.deepEqual(behind, [], `at ${wide.performers[0]!.x}`);
+    assert.equal(loneMisses(m, wide.performers[0]!.x, wide.duration, STAGE_SIZE.width, STAGE_SIZE.height), 0);
+    // Moved off the fleet, a character does not stand on a name instead (what mapStageX kept them off): the nearer clear
+    // spot, right of the ships, is on "Taranto"; the one left of them is free.
+    const named = { cities: [{ label: "Taranto", x: 680, y: 700 }], armies: [], territories: [], arrows: [], vehicles: [{ kind: "gemi", color: "#b3263a", count: 3, start: 9, path: [{ x: 500, y: 600 }] }] } as unknown as NonNullable<typeof shot.geoMap>;
+    assert.ok(loneMisses(named, 0.36, 300, 1920, 1080) > 0 && loneMisses(named, 0.16, 300, 1920, 1080) === 0, "the name counts");
+    assert.equal(clearAtEveryStop(named, 0.27, 300, 1920, 1080), 0.16);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

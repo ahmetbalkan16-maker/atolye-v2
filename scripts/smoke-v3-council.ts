@@ -387,8 +387,16 @@ async function main() {
     // In front of the ships: behind the character.
     const hidden = { ...plan, shots: [shot("s6", 0, [{ ...sailor, x: 0.53 }], { ...base, vehicles: [ships] })] } as unknown as typeof plan;
     assert.ok(mapFramingFaults(hidden)[0]?.ayrinti.includes("karakterin arkasında"), JSON.stringify(mapFramingFaults(hidden)));
-    // A 16:9 plan has no window: not judged here.
-    assert.deepEqual(mapFramingFaults({ ...plan, width: 1920, height: 1080, stage: undefined } as typeof plan), []);
+    // A 16:9 plan (a long video, or a Short laid out whole, 12 Nov 2026: "every scene fully visible") is judged against
+    // its whole frame: the sailor's ships and badge are in it, the planes' wedge is still cut at the top.
+    const wide = { ...plan, width: 1920, height: 1080, stage: undefined } as typeof plan;
+    assert.deepEqual(mapFramingFaults(wide).map((f) => [f.shot, f.at, f.ayrinti]), [["s5", 10.3, "ucak ×6 kadraj kenarında kesik"]]);
+    // A badge set at the frame's left edge is cut; set inside, nothing is reported.
+    const edgeBadge = (x: number) => ({ ...wide, shots: [shot("s6", 0, [sailor], { ...base, vehicles: [ships], badges: [{ ...badge, path: [{ x, y: 300 }] }] })] }) as unknown as typeof plan;
+    assert.deepEqual(mapFramingFaults(edgeBadge(30)).map((f) => f.ayrinti), ["Admiral Inigo Campioni kadraj kenarında kesik"]);
+    assert.deepEqual(mapFramingFaults(edgeBadge(400)), []);
+    // Behind the character on the whole frame too.
+    assert.ok(mapFramingFaults({ ...wide, shots: [shot("s6", 0, [{ ...sailor, x: 0.53 }], { ...base, vehicles: [ships] })] } as unknown as typeof plan)[0]?.ayrinti.includes("karakterin arkasında"));
     // Counted with the layout faults even when the render wrote no boxes, each a quality finding with its time.
     const council = new CouncilLog();
     const n = await layoutReview({ file: path.join(os.tmpdir(), "v3-yok", "yerlesim.json"), plan, council });

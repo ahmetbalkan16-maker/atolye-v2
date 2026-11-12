@@ -1,6 +1,6 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type MapVehicle, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap, V3StrengthSide } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { castleRing, castleStyleFor, kmBetween } from "./CastleShapes";
@@ -640,6 +640,21 @@ function alongPoints(points: readonly { x: number; y: number }[], f: number): { 
 }
 
 /**
+ * A map's names as boxes on the stage (px, at the map's own view — mapOnScreen for a camera stop): cities with their
+ * labels, armies, state names, arrow heads and arrow names. What a character standing on the map must not cover.
+ */
+export function mapNameBoxes(m: V3GeoMap, height: number): { x0: number; x1: number; y: number }[] {
+  const k = height / 1080;
+  return [
+    ...m.cities.map((c) => ({ x0: c.x - 12 * k, x1: c.x + (18 + c.label.length * 17) * k, y: c.y })),
+    ...m.armies.map((a) => ({ x0: a.x - ARMY_HALF_W * k, x1: a.x + ARMY_HALF_W * k, y: a.y })),
+    ...m.territories.flatMap((t) => (t.labelX !== undefined && t.labelY !== undefined ? [{ x0: t.labelX - t.label.length * 14 * k, x1: t.labelX + t.label.length * 14 * k, y: t.labelY }] : [])),
+    ...m.arrows.flatMap((ar) => (ar.points.length ? [{ x0: ar.points[ar.points.length - 1]!.x - 20 * k, x1: ar.points[ar.points.length - 1]!.x + 20 * k, y: ar.points[ar.points.length - 1]!.y }] : [])),
+    ...m.arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [{ x0: ar.labelX - ar.label.length * 10 * k, x1: ar.labelX + ar.label.length * 10 * k, y: ar.labelY }] : [])),
+  ];
+}
+
+/**
  * Where a lone character stands on a map (stage x 0..1): the place that hides the fewest names, cities and armies
  * (the Rubicon map's character stood on "Rome"). The figure covers about a fifth of the width and the lower 60% of
  * the frame; the middle wins a tie.
@@ -647,15 +662,11 @@ function alongPoints(points: readonly { x: number; y: number }[], f: number): { 
 export function mapStageX(m: V3GeoMap, width: number, height: number): number {
   const k = height / 1080;
   const marks: { x0: number; x1: number; y: number }[] = [
-    ...m.cities.map((c) => ({ x0: c.x - 12 * k, x1: c.x + (18 + c.label.length * 17) * k, y: c.y })),
-    ...m.armies.map((a) => ({ x0: a.x - ARMY_HALF_W * k, x1: a.x + ARMY_HALF_W * k, y: a.y })),
-    ...m.territories.flatMap((t) => (t.labelX !== undefined && t.labelY !== undefined ? [{ x0: t.labelX - t.label.length * 14 * k, x1: t.labelX + t.label.length * 14 * k, y: t.labelY }] : [])),
-    ...m.arrows.flatMap((ar) => (ar.points.length ? [{ x0: ar.points[ar.points.length - 1]!.x - 20 * k, x1: ar.points[ar.points.length - 1]!.x + 20 * k, y: ar.points[ar.points.length - 1]!.y }] : [])),
+    ...mapNameBoxes(m, height),
     // The living map's own marks (the Mongol test's Kublai stood on his badge and the fleet's name): badges where they
-    // start and arrive, battles, arrow names.
+    // start and arrive, battles.
     ...(m.badges ?? []).flatMap((b) => [b.path[0], b.path[b.path.length - 1]].flatMap((p) => (p ? [{ x0: p.x - 70 * k, x1: p.x + 70 * k, y: p.y }] : []))),
     ...(m.battles ?? []).map((b) => ({ x0: b.x - 60 * k, x1: b.x + 60 * k, y: b.y })),
-    ...m.arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [{ x0: ar.labelX - ar.label.length * 10 * k, x1: ar.labelX + ar.label.length * 10 * k, y: ar.labelY }] : [])),
   ];
   const hidden = (x: number) => marks.filter((p) => p.y > height * 0.38 && p.x1 > (x - 0.11) * width && p.x0 < (x + 0.11) * width).length;
   let best = 0.5;
@@ -1059,7 +1070,8 @@ export function landTest(map: SceneMap, data: MapData, v: MapView): { onLand: (p
  * inland the writer pointed at a place, and it is left there. A group of ships stands in a wedge round its leader
  * (MapVehicles), so it needs water that far round its point: the Taranto Short (11 Nov 2026) set three battleships at
  * the town's centre, the nearest water was a dock's mouth and two of the three hulls were drawn on the quay. Clear water
- * is sought first (a group already in clear water stays), the nearest water only when there is none.
+ * is sought first (a group already in clear water stays), the nearest water only when there is none. Planes that set
+ * out on land to attack a ship come in over the water (seawardStart).
  */
 export function shipStarts(map: SceneMap, onLand: (p: [number, number]) => boolean, knownWater: boolean, width: number): (readonly [number, number])[] {
   const floatKm = Math.max(1.5, (map.genislik_km ?? 0) * 0.08);
@@ -1082,7 +1094,46 @@ export function shipStarts(map: SceneMap, onLand: (p: [number, number]) => boole
       }
     return land ? (water ?? p) : p;
   };
-  return (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum, Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)))) : a.konum));
+  const ships = (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum, Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)))) : a.konum));
+  return knownWater ? ships.map((s, i) => seawardStart(map, map.araclar![i]!, ships, onLand) ?? s) : ships;
+}
+
+/**
+ * Where a plane raid on a close map whose water is known sets out (lon/lat), when the writer started it on land: a route
+ * that attacks a ship (its end or "hedef" at one) or ends over the water comes in over the water, from the water nearest
+ * its written start that is no nearer its end, a little past the shore (the Taranto Short, 11 Nov 2026: both waves of
+ * torpedo planes took off from the town's streets). A start at a ship (the carrier) or at a place drawn on the map (the
+ * airfield the story names) is kept, and so is one with no water within half the map's width: undefined then.
+ */
+export function seawardStart(map: SceneMap, a: MapVehicle, ships: readonly (readonly [number, number])[], onLand: (p: [number, number]) => boolean): readonly [number, number] | undefined {
+  const way = a.yol ?? [];
+  if (a.tur !== "ucak" || !way.length || !map.genislik_km || !onLand([a.konum[0], a.konum[1]])) return undefined;
+  const kx = 111.32 * Math.max(0.2, Math.cos((a.konum[1] * Math.PI) / 180));
+  const km = (p: readonly [number, number], q: readonly [number, number]) => Math.hypot((p[0] - q[0]) * kx, (p[1] - q[1]) * 110.57);
+  const baseKm = Math.max(AT_SHIP_KM, map.genislik_km * 0.02);
+  const atShip = (p: readonly [number, number]) => (map.araclar ?? []).some((o, oi) => SHIPS.has(o.tur) && (km(o.konum, p) < baseKm || km(ships[oi] ?? o.konum, p) < baseKm));
+  if (atShip(a.konum) || (map.sehirler ?? []).some((c) => km(c.konum, a.konum) < baseKm)) return undefined;
+  const end = atDrawnShip(map, ships)(way[way.length - 1]!);
+  if (onLand([end[0], end[1]]) && !atShip(end) && !(a.hedef && atShip(a.hedef))) return undefined;
+  const from = km(a.konum, end);
+  const at = (r: number, j: number): [number, number] => [a.konum[0] + (Math.cos((j * Math.PI) / 12) * r) / kx, a.konum[1] + (Math.sin((j * Math.PI) / 12) * r) / 110.57];
+  const reach = map.genislik_km / 2;
+  const step = reach / 50;
+  let nearest: [number, number] | undefined;
+  for (let r = step; r <= reach + 1e-9; r += step)
+    for (let j = 0; j < 24; j++) {
+      const past = at(r + step * 0.6, j);
+      if (onLand(at(r, j)) || onLand(past)) continue;
+      if (km(past, end) >= from) return past;
+      nearest ??= past;
+    }
+  return nearest;
+}
+
+/** A plane's route from `start`: the writer's first point, where it stood at the plane's written place, moves with it. */
+function routeFrom(a: MapVehicle, start: readonly [number, number], way: readonly (readonly [number, number])[]): readonly (readonly [number, number])[] {
+  const kx = 111.32 * Math.max(0.2, Math.cos((a.konum[1] * Math.PI) / 180));
+  return start !== a.konum && way.length > 1 && Math.hypot((way[0]![0] - a.konum[0]) * kx, (way[0]![1] - a.konum[1]) * 110.57) < AT_SHIP_KM ? way.slice(1) : way;
 }
 
 /** A point this near (km) a ship's written place points at that ship. */
@@ -1119,7 +1170,7 @@ export function withShipsAfloat(map: SceneMap, data: MapData, width: number, hei
     araclar: map.araclar.map((a, i) => ({
       ...a,
       konum: [starts[i]![0], starts[i]![1]] as [number, number],
-      ...(a.tur === "ucak" && a.yol?.length ? { yol: a.yol.map((p, k) => (k === a.yol!.length - 1 ? xy(p) : p)) } : {}),
+      ...(a.tur === "ucak" && a.yol?.length ? { yol: (starts[i] !== a.konum ? [starts[i]!, ...routeFrom(a, starts[i]!, a.yol)] : a.yol).map((p, k, all) => (k === all.length - 1 ? xy(p) : ([p[0], p[1]] as [number, number]))) } : {}),
       ...(a.hedef ? { hedef: xy(a.hedef) } : {}),
     })),
     ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: xy(r.konum) })) } : {}),
@@ -1571,7 +1622,7 @@ function projectGeoMap(
   const aimAt = atDrawnShip(map, starts);
   const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: lineStart(r.x_satir, i) } : {}), path: [aimAt(r.konum), ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const written = (map.araclar ?? []).map((a, i) => {
-    const route = [starts[i]!, ...(a.tur === "ucak" ? (a.yol ?? []).map((p, k, all) => (k === all.length - 1 ? aimAt(p) : p)) : (a.yol ?? []))];
+    const route = [starts[i]!, ...(a.tur === "ucak" ? routeFrom(a, starts[i]!, a.yol ?? []).map((p, k, all) => (k === all.length - 1 ? aimAt(p) : p)) : (a.yol ?? []))];
     // A haul goes from water to water (1453: the Bosphorus to the Golden Horn). A ship's route that starts or ends on
     // land is the writer pointing at the place it sails for (the Belgrade run sent its fleet to the fortress itself):
     // the ship keeps to the water and stops at the shore, with no haul.

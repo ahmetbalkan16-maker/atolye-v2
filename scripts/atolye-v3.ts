@@ -72,7 +72,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
-import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
@@ -654,7 +654,8 @@ async function main() {
   const baseCapUsd = videoCapUsd(targetS);
   // 60 s or less: a vertical YouTube Short (Format) — no cover, no subscribe card, no chapters, "#Shorts" in the title.
   const shorts = isShorts(targetS);
-  if (shorts) log(`Shorts: ${targetS} sn, dikey ${SHORTS_SIZE.width}×${SHORTS_SIZE.height} (kapak ve abone kartı yok)`);
+  const layout = shortsLayout();
+  if (shorts) log(`Shorts: ${targetS} sn, dikey ${SHORTS_SIZE.width}×${SHORTS_SIZE.height}, ${layout === "dondur" ? "yatay video bütün olarak çeyrek tur döndürülür" : "yatay sahnede kayan dikey pencere"} (kapak ve abone kartı yok)`);
   // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
   const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
@@ -668,6 +669,14 @@ async function main() {
   const work = path.resolve(arg("--cikti") ?? path.join(paths.workRoot, "bolumler", `${slug(konu)}-${dil}`));
   await fs.mkdir(work, { recursive: true });
   const f = (name: string) => path.join(work, name);
+  // The file to upload: the same bytes as the cut (a hard link), or for a Short in the "dondur" layout the whole 16:9 cut
+  // turned a quarter clockwise into 1080×1920 (Format.rotatedShortArgs; owner, 12 Nov 2026).
+  const rotateUpload = shorts && layout === "dondur";
+  const writeUploadFile = async (cut: string, upload: string) => {
+    await fs.rm(upload, { force: true });
+    if (rotateUpload) await runChecked(paths.ffmpeg, rotatedShortArgs(cut, upload), { timeoutMs: 30 * 60_000 });
+    else await fs.link(cut, upload).catch(() => fs.copyFile(cut, upload));
+  };
   // An owner-granted extra for this one video (ek-tavan.json in its folder; owner, 23 Oct 2026: "only this one may spend
   // again, but not more than $1"): added to the ceiling, never more than EXTRA_CAP_MAX_USD, logged.
   const extra = existsSync(f("ek-tavan.json")) ? await readJson<{ ekUsd?: unknown; neden?: unknown }>(f("ek-tavan.json")).catch((): { ekUsd?: unknown; neden?: unknown } => ({ ekUsd: 0 })) : undefined;
@@ -1081,9 +1090,10 @@ async function main() {
     pictures: visuals.map((v) => v.gorseller?.map((g) => ({ satir: g.satir, src: g.src, ...(g.caption ? { caption: g.caption } : {}), ...(g.video ? { video: true } : {}) }))),
     language: dil,
     fps,
-    // Every shot is laid out on the 16:9 stage; a Short is its vertical window (ShotView).
+    // Every shot is laid out on the 16:9 stage. A Short is made whole like a 16:9 video and only its upload file is
+    // turned (Format.shortsLayout "dondur", owner 12 Nov 2026); the old vertical window only with "dikey".
     ...STAGE_SIZE,
-    ...(shorts ? { output: SHORTS_SIZE, endCard: false } : {}),
+    ...(shorts ? { endCard: false, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}) } : {}),
     // No burned-in subtitles (owner, 20 Oct 2026; for Shorts too, 2 Nov 2026): speech on screen, altyazi.srt for CC.
     showCaptions: process.argv.includes("--altyazi-gom"),
   });
@@ -1213,9 +1223,8 @@ async function main() {
     // second 200 MB copy), which AYAS and the retouch round keep using. Made again on every run.
     const upload = preview ? undefined : uploadFileName(episode, dil);
     if (upload) {
-      await fs.rm(f(upload), { force: true });
-      await fs.link(f(final), f(upload)).catch(() => fs.copyFile(f(final), f(upload)));
-      log(`  YouTube dosyası: ${upload}`);
+      await writeUploadFile(f(final), f(upload));
+      log(`  YouTube dosyası: ${upload}${rotateUpload ? " (Short: yatay video çeyrek tur döndürüldü, 1080×1920)" : ""}`);
     }
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => [...(v.arsiv ? [v.arsiv.credit] : []), ...(v.gorseller ?? []).map((g) => g.credit)])].map((c) => [c.sha256 ?? c.assetId, c])).values()];
@@ -1542,10 +1551,7 @@ async function main() {
       const best = await deliverAfterFailedRound(work, finalName, retouchPlan.tur, `çıkış ${r.code}; ayrıntı uret.log`);
       if (!best) throw new Error(`rötuş turu başarısız (çıkış ${r.code}); ilk kesim ${finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)} olarak duruyor`);
       const upload = preview ? undefined : uploadFileName(episode, dil);
-      if (upload) {
-        await fs.rm(f(upload), { force: true });
-        await fs.link(f(finalName), f(upload)).catch(() => fs.copyFile(f(finalName), f(upload)));
-      }
+      if (upload) await writeUploadFile(f(finalName), f(upload));
       log(`rötuş turu ${retouchPlan.tur} başarısız (çıkış ${r.code}) → tur ${best.tur} uyarıyla teslim edildi`);
     }
   }

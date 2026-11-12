@@ -33,7 +33,7 @@ import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast, withShipsAfloat } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
-import { actionAt, besideAction, frameLineAction, recentAction, shortWindow } from "../maps/UnitFraming";
+import { actionAt, besideAction, clearAtEveryStop, frameLineAction, fullStage, recentAction, shortWindow } from "../maps/UnitFraming";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
@@ -748,12 +748,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       squeezeForWindow(slots);
     }
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
-    // A Short's map is framed on what acts in each line, its ships where they are drawn: its window is a third of the
-    // stage (UnitFraming).
+    // A map is framed on what acts in each line, its ships where they are drawn (UnitFraming): a vertical Short's window
+    // is a third of the stage, any other video's frame is the whole stage (a long video, a Short laid out on the whole
+    // frame — 12 Nov 2026, "every scene fully visible").
     const shortWin = vertical ? shortWindow({ width: input.width, height: input.height }, input.output!) : undefined;
     const sceneMap = mapped ? withNamedHighlights(scene).harita! : undefined;
     const mapData = mapped ? withCoast(input.mapData!, input.coasts?.get(scene.id)) : undefined;
-    const kamera = sceneMap && shortWin ? frameLineAction(withShipsAfloat(sceneMap, mapData!, input.width, input.height), shortWin).map.kamera : undefined;
+    const kamera = sceneMap ? frameLineAction(withShipsAfloat(sceneMap, mapData!, input.width, input.height), shortWin ?? fullStage(input.width, input.height)).map.kamera : undefined;
     const geo = mapped
       ? buildGeoMap(kamera ? { ...sceneMap!, kamera } : sceneMap!, mapData!, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
@@ -775,7 +776,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const talks = new Map<string, { speaking: { start: number; end: number }[]; visemes: V3VisemeKey[]; faces: V3FaceEvent[] }>();
     const talkOf = (id: string) => talks.get(id) ?? talks.set(id, { speaking: [], visemes: [], faces: [{ start: 0, emotion: "notr" }] }).get(id)!;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.
-    // On a moving map it is judged where the marks stand on the screen when that character first speaks.
+    // On a moving map it is judged where the marks stand on the screen when that character first speaks, and again at
+    // every camera stop of the shot (clearAtEveryStop).
     const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
     if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
       const speaks = lines.find((l) => l.speaker === lone[0]);
@@ -784,7 +786,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       // In a Short the window holds the character: they stand beside what acts on the map then, not away from it.
       const marks = shortWin ? recentAction(geo!, at, fps, input.width, input.height) : [];
       const beside = shortWin ? besideAction(marks, free, input.width, input.height, shortWin) : undefined;
-      const x = beside ?? free;
+      // A placement judged at that one moment must hold at every camera stop while they stand there (MapFramingCheck):
+      // in a vertical Short's window, else over the whole 16:9 frame.
+      const x = clearAtEveryStop(geo!, beside ?? free, duration, input.width, input.height, shortWin);
       // Beside the action they face it.
       const toward = beside !== undefined ? marks.reduce((a, m) => a + m.x, 0) / marks.length / input.width : 0.5;
       slots.set(lone[0], { ...lone[1], x, facing: x < toward ? "right" : "left" });

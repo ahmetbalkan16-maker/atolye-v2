@@ -182,7 +182,7 @@ export interface CouncilContext {
 }
 
 export function criticPrompt(beyin: Critic, script: string, ctx: CouncilContext, lessons: readonly string[], example = "s1"): string {
-  return `You are ${CRITIC_ROLES[beyin]} in the council of an animated history video studio. AYAS, the director, will decide what to fix in this first cut of "${ctx.baslik}" (${Math.round(ctx.sureSn)} s, ${ctx.shorts ? "a vertical YouTube Short" : "a YouTube video"}). Judge it ONLY from your discipline; another brain covers the rest.
+  return `You are ${CRITIC_ROLES[beyin]} in the council of an animated history video studio. AYAS, the director, will decide what to fix in this first cut of "${ctx.baslik}" (${Math.round(ctx.sureSn)} s, ${ctx.shorts ? "a YouTube Short, watched on a phone and shown as the whole 16:9 picture" : "a YouTube video"}). Judge it ONLY from your discipline; another brain covers the rest.
 
 ${((m) => (m.length ? `\nWHAT WAS MEASURED IN THE CUT:\n${m.map((x) => `- ${x}`).join("\n")}\n` : ""))([...(CRITIC_SEES[beyin].includes("tempo") ? (ctx.tempo ?? []) : []), ...(CRITIC_SEES[beyin].includes("qc") ? (ctx.qc ?? []).map((q) => `QC failed: ${q}`) : []), ...(CRITIC_SEES[beyin].includes("bulgular") ? (ctx.bulgular ?? []) : [])])}${lessons.length ? `\nYOUR LESSONS (earlier episodes, studied reference videos, the owner's rules):\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : ""}
 SCRIPT (#n = line number; "on stage" = who can act; acts = what characters do while a line is said):

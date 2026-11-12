@@ -216,7 +216,7 @@ export function shortsShape(targetS: number): { readonly min: number; readonly m
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `
 
-YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da daha kısa DİKEY bir video. Bu kurallar yukarıdakilerle ya da aşağıdakilerle çeliştiğinde bunlar geçerlidir:
+YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da daha kısa bir YouTube Short; her sahne 16:9 resmin tamamıyla gösterilir (dar dikey pencere yok). Bu kurallar yukarıdakilerle ya da aşağıdakilerle çeliştiğinde bunlar geçerlidir:
 - İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
   ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
@@ -231,7 +231,7 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
 - Son satır ilk satıra bağlanır: video başa döndüğünde cümle akıp gider (döngü).`,
   en: (b, words) => `
 
-YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, watched on a phone in a feed. Where these rules differ from the rules above or below, these win:
+YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, watched on a phone in a feed and shown as the whole 16:9 picture (no narrow vertical window). Where these rules differ from the rules above or below, these win:
 - The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
   "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
@@ -398,6 +398,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     "yanginlar": [{"konum": [lon, lat], "satir": 3, "km": 20}]   // flames over a raided, sacked or burning place
     "teslim": [{"konum": [lon, lat], "satir": 5, "ad": "Belgrade surrenders"}]   // a white flag raised where a side gives up
     "rozetler": [… "x_satir": 6]   // a red X struck over a ruler's badge from that line: beaten, captured or dead
+    "zaman": "gece"   // on the "harita" itself, when the map's events happen at night (a night raid, a night crossing,
+        // an attack in the dark): the map darkens, searchlights sweep it and an air raid drops flares. Leave it out
+        // for a daytime map — a night attack told on a daylight map looks wrong.
   INFO CARDS — while the narrator explains politics, reasons or a striking number, the picture dims and a card comes up
   ("bilgi_kartlari" on the scene, map or character scene; one or two per chapter of a long video, one at a time):
     {"tur": "sema", "baslik": "Rome's two camps", "satir": 1, "dugumler": [{"ad": "Roman Senate"},

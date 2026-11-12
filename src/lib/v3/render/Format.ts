@@ -25,3 +25,26 @@ export const STAGE_SIZE = { width: 1920, height: 1080 } as const;
 
 /** A Short's frame. */
 export const SHORTS_SIZE = { width: 1080, height: 1920 } as const;
+
+/**
+ * How a Short fills its vertical frame. "dondur" (owner, 12 Nov 2026: "shorts videosu hazırlarken bütün sahnelerin
+ * gözüktüğünden emin ol, çok yakın duruyor video; yatay videoyu sadece döndürülmüş gibi shorts videoyu ayarla"): the
+ * Short is made exactly like a 16:9 video — every scene whole, every check on the full frame — and only the file to
+ * upload is turned a quarter clockwise into 1080×1920, so a viewer who turns the phone sees the whole picture full
+ * screen. "dikey" (2 Nov – 12 Nov 2026): a vertical window slides over the 16:9 stage (ShotView) — it showed about a
+ * third of the stage's width. `ATOLYE_V3_SHORTS_BICIM=dikey` brings the window back.
+ */
+export type ShortsLayout = "dondur" | "dikey";
+export const shortsLayout = (env: Readonly<Record<string, string | undefined>> = process.env): ShortsLayout => (env.ATOLYE_V3_SHORTS_BICIM?.trim() === "dikey" ? "dikey" : "dondur");
+
+/** The frame the director lays a video out for: a Short's vertical window only in the "dikey" layout. */
+export const outputFrame = (shorts: boolean, layout: ShortsLayout): { readonly width: number; readonly height: number } | undefined => (shorts && layout === "dikey" ? SHORTS_SIZE : undefined);
+
+/**
+ * FFmpeg arguments turning a finished 16:9 video a quarter clockwise into the Short's 1080×1920 upload file: the top of
+ * the picture goes to the right edge, so it stands upright when the phone is turned to the left (the usual landscape
+ * hold). The sound is copied; the picture is encoded once more (H.264, high quality, YouTube's 4:2:0).
+ */
+export function rotatedShortArgs(input: string, output: string): string[] {
+  return ["-v", "error", "-y", "-i", input, "-vf", "transpose=clock", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", output];
+}

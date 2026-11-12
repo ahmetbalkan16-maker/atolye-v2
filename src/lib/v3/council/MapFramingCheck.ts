@@ -1,4 +1,4 @@
-import { actionAt, actionFrames, type ActionMark, behindFigure, type FrameWindow, loneWindowCentre, shortWindow, standingAt } from "../maps/UnitFraming";
+import { actionAt, actionFrames, type ActionMark, behindFigure, type FrameWindow, fullStage, loneWindowCentre, shortWindow, standingAt } from "../maps/UnitFraming";
 import type { V3Performer, V3RenderPlan, V3Shot } from "../render/RenderPlanTypes";
 
 /**
@@ -6,7 +6,9 @@ import type { V3Performer, V3RenderPlan, V3Shot } from "../render/RenderPlanType
  * a map — a fleet appears, planes set out, a ship goes down, a unit moves, a badge comes on — is it inside the frame's
  * window, clear of its edges? The Taranto Short (11 Nov 2026) passed every check while its attack showed empty sea: the
  * planes' wedge was cut at the top corner, the second wave stood off the stage, and in the ships' sinking scene the
- * window held the sailor in front of the map and never the ships. Owner: a fix must also teach the brains.
+ * window held the sailor in front of the map and never the ships. Owner: a fix must also teach the brains. A 16:9 plan (a
+ * long video, or a Short laid out on the whole frame since 12 Nov 2026: "every scene fully visible") is judged the same
+ * way against the whole frame.
  */
 
 export interface MapFramingFault {
@@ -42,12 +44,13 @@ export function windowLeft(shot: Pick<V3Shot, "performers">, marks: readonly Act
 /**
  * Each moment something acts on a Short's map outside its window, cut at its edge, or behind a character standing in
  * front of the map; and each camera move that brings what stands on the map behind such a character (a move may leave
- * things out of the picture on purpose, never under a character). Empty for a plan that is not a Short.
+ * things out of the picture on purpose, never under a character). A vertical Short through its window over the stage, any
+ * other plan through its whole frame (fullStage).
  */
 export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "height" | "stage" | "shots">): MapFramingFault[] {
-  if (!plan.stage || plan.height <= plan.width) return [];
-  const stage = plan.stage;
-  const win = shortWindow(stage, plan);
+  const vertical = !!plan.stage && plan.height > plan.width;
+  const stage = plan.stage ?? { width: plan.width, height: plan.height };
+  const win = vertical ? shortWindow(stage, plan) : fullStage(stage.width, stage.height);
   const winW = win.width * stage.width;
   const faults: MapFramingFault[] = [];
   const names = (l: readonly ActionMark[]) => [...new Set(l.map((m) => m.name))].join(", ");

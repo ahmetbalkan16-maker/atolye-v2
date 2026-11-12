@@ -37,7 +37,7 @@ export function packagePrompt(episode: Episode, shorts = false): string {
   const scenes = long
     ? marked.map((m, i) => `${i + 1}. ${m.baslik}: ${chapterWords(m.index, marked[i + 1]?.index ?? episode.sahneler.length)}`).join("\n")
     : episode.sahneler.map((s, i) => `${i + 1}. ${s.mekan}: ${s.satirlar.map((l) => l.metin).join(" ").slice(0, 220)}`).join("\n");
-  return `You publish an animated history ${shorts ? "YouTube Short (vertical, under a minute)" : "video on YouTube"} for an American audience (in the style of OverSimplified).
+  return `You publish an animated history ${shorts ? "YouTube Short (watched on a phone, the whole 16:9 picture, up to three minutes)" : "video on YouTube"} for an American audience (in the style of OverSimplified).
 VIDEO: "${episode.baslik}" — ${episode.konu} (${episode.donem})
 ${long ? "CHAPTERS" : "SCENES"}:
 ${scenes}

@@ -1,6 +1,6 @@
 import { CLOSE_MAP_MAX_KM, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
-import { BADGE_STEP_PX, shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
+import { BADGE_STEP_PX, mapNameBoxes, mapOnScreen, shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
 import { CLOSE_MIN_ZOOM_KM } from "./RouteZoom";
 
 /**
@@ -15,6 +15,11 @@ import { CLOSE_MIN_ZOOM_KM } from "./RouteZoom";
 export interface FrameWindow {
   readonly width: number;
   readonly aspect: number;
+}
+
+/** The whole 16:9 stage as a frame window (a long video, or a Short laid out on the full frame). */
+export function fullStage(width: number, height: number): FrameWindow {
+  return { width: 1, aspect: height / width };
 }
 
 /** A Short's window over the 1920×1080 stage: 1080 px of 1080·1920/1080 ≈ 607 stage px, a 0.316 share. */
@@ -135,11 +140,14 @@ export function viewFor(places: readonly ActingPlace[], win: FrameWindow, minKm:
  * Each line's acting places framed in `win` (a Short's window): where the camera in effect when the line is told (the
  * writer's or RouteZoom's stop, else the map's own view) would leave one outside the window or at its edge — or, on a
  * close map, would show them as a speck — the camera moves to them with that line. A stop that already frames them is
- * kept; a stop on such a line is replaced. Returns the map and the lines whose camera moved.
+ * kept; a stop on such a line is replaced. Returns the map and the lines whose camera moved. Over the whole 16:9 frame
+ * (fullStage: a long video, a Short laid out on the full frame) the camera only brings in what would stand outside it —
+ * it never closes in on a "speck" there (owner, 12 Nov 2026: "çok yakın duruyor video … bütün sahnelerin gözüktüğünden
+ * emin ol"; the Kosovo s7 close map zoomed past its arrow's name).
  */
 export function frameLineAction(map: SceneMap, win: FrameWindow): { map: SceneMap; lines: number[] } {
   if (!map.merkez || !map.genislik_km) return { map, lines: [] };
-  const close = map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const close = map.genislik_km <= CLOSE_MAP_MAX_KM && win.width < 1;
   const used = [
     ...(map.araclar ?? []).flatMap((a) => [a.satir, a.yol_satir, a.kayip_satir, a.ates_satir]),
     ...(map.ordular ?? []).flatMap((o) => [o.satir, o.yol_satir]),
@@ -155,7 +163,11 @@ export function frameLineAction(map: SceneMap, win: FrameWindow): { map: SceneMa
     if (!points.length) continue;
     const last = keys.filter((k) => k.satir <= line).sort((a, b) => b.satir - a.satir)[0];
     const km = last?.genislik_km ?? map.genislik_km;
-    if (framesAction(points, last?.merkez ?? map.merkez, km, win, close)) continue;
+    const centre = last?.merkez ?? map.merkez;
+    // On the whole frame only a place off the picture moves the camera; one near an edge is kept whole by the
+    // director's own nudges (badges, names), which a camera move would undo (Kosovo s7's arrow name).
+    const onStage = win.width >= 1 && points.every((p) => Math.abs((p.at[0] - centre[0]) * kmX(centre[1])) <= km / 2 && Math.abs((p.at[1] - centre[1]) * KM_Y) <= (km * win.aspect) / 2);
+    if (onStage || framesAction(points, centre, km, win, close)) continue;
     // A close map moves in on its action (a few streets at the closest); a wide one pans at its width, widening only
     // when the action needs it (its states and seas are the story's ground).
     const view = viewFor(points, win, close ? CLOSE_MIN_ZOOM_KM : km);
@@ -296,4 +308,45 @@ export function besideAction(marks: readonly ActionMark[], x: number, width: num
   const gap = LONE_HALF + Math.max(...marks.map((m) => m.reach)) / width + 0.01;
   const sides = [Math.min(...xs) - gap, Math.max(...xs) + gap].map((at) => Math.min(0.84, Math.max(0.16, at)));
   return sides.sort((a, b) => shown(b) - shown(a) || Math.abs(a - 0.5) - Math.abs(b - 0.5))[0]!;
+}
+
+/**
+ * How much of a map a lone character standing at stage share `x` spoils over a shot of `duration` frames, as
+ * MapFramingCheck reads it: at each action frame what acts outside the window round them (loneWindowCentre), cut at its
+ * edge or behind them; at each camera stop what stands behind them (standingAt). The Taranto Short's s3 (11 Nov 2026):
+ * de Pignati was placed for the wide view of his own line, and the camera's close-in on the six ships at 0.3 s set them
+ * behind him. Also each name they would cover at the shot's first view and at each camera stop (mapNameBoxes: cities,
+ * armies, state and arrow names — what mapStageX keeps them off), so a character moved clear of the action does not
+ * stand on a name instead. `win`: a vertical Short's window, else the whole 16:9 stage (a long video, a Short laid out
+ * on the full frame) — the figure is the same size on the stage either way.
+ */
+export function loneMisses(m: V3GeoMap, x: number, duration: number, width: number, height: number, win: FrameWindow = fullStage(width, height)): number {
+  const winW = win.width * width;
+  let misses = 0;
+  const acts = actionFrames(m).filter((f) => f < duration);
+  for (const frame of acts) {
+    const marks = actionAt(m, frame, width, height);
+    if (!marks.length) continue;
+    const mid = (Math.min(...marks.map((k) => k.x)) + Math.max(...marks.map((k) => k.x))) / 2;
+    const x0 = Math.min(width - winW, Math.max(0, loneWindowCentre(x, mid / width, win) * width - winW / 2));
+    misses += marks.filter((k) => k.x - k.reach < x0 || k.x + k.reach > x0 + winW || k.y - k.reach < 0 || k.y + k.reach > height || behindFigure(k, x, width, height)).length;
+  }
+  for (const key of m.camera ?? []) {
+    if (key.frame <= 0 || key.frame >= duration || acts.includes(key.frame)) continue;
+    misses += standingAt(m, key.frame, width, height).filter((k) => k.x + k.reach > 0 && k.x - k.reach < width && behindFigure(k, x, width, height)).length;
+  }
+  const views = [0, ...(m.camera ?? []).map((k) => k.frame).filter((f) => f > 0 && f < duration)];
+  for (const frame of new Set(views)) misses += mapNameBoxes(mapOnScreen(m, frame, width, height), height).filter((b) => b.y > FIGURE_TOP * height && b.y < height && b.x1 > (x - LONE_HALF) * width && b.x0 < (x + LONE_HALF) * width).length;
+  return misses;
+}
+
+/**
+ * Where a lone character stands on a map so that nothing is spoilt at any camera stop while they are on it
+ * (loneMisses): `x` when it is as clear as any spot, else the clearest spot on the stage (0.16–0.84), the nearest to
+ * `x` on a tie — so a placement judged at one moment (besideAction, mapStageX) holds over the whole camera move.
+ */
+export function clearAtEveryStop(m: V3GeoMap, x: number, duration: number, width: number, height: number, win: FrameWindow = fullStage(width, height)): number {
+  const spots = [x, ...Array.from({ length: 35 }, (_, i) => Math.round((0.16 + i * 0.02) * 100) / 100)];
+  const scored = spots.map((at) => ({ at, misses: loneMisses(m, at, duration, width, height, win) }));
+  return scored.sort((a, b) => a.misses - b.misses || Math.abs(a.at - x) - Math.abs(b.at - x))[0]!.at;
 }

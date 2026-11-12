@@ -284,6 +284,13 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         fixes.push(`sahneler[${si}].ortam.${field} "${v}" → ${mapped}`);
         s.ortam[field] = mapped;
       }
+    // A map's time of day by the same words ("night" for a night raid), never a refused draft.
+    if (isObj(s.harita) && typeof s.harita.zaman === "string" && !SET_ALIASES.zaman!.list.includes(s.harita.zaman)) {
+      const v = s.harita.zaman;
+      const mapped = SET_ALIASES.zaman!.words.find(([re]) => re.test(v))?.[1] ?? SET_ALIASES.zaman!.fallback;
+      fixes.push(`sahneler[${si}].harita.zaman "${v}" → ${mapped}`);
+      s.harita.zaman = mapped;
+    }
     // A scene aboard a ship the writer set on land (Caesar and the pirates, 2 Nov 2026: "Pirate ship cabin" drawn as a
     // plain with a village). A ship set the writer chose stays.
     const aboard = isObj(s.ortam) && typeof s.mekan === "string" ? shipboardSet(s.mekan) : undefined;
