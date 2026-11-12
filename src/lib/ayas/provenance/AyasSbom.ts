@@ -53,12 +53,12 @@ export interface AyasNpmLockfile {
  * reported as changed, and a package that is not here is reported as unreviewed.
  */
 export const AYAS_REVIEWED_INSTALL_SCRIPTS: readonly { readonly name: string; readonly version: string; readonly note: string }[] = Object.freeze([
-  { name: "esbuild", version: "0.28.1", note: "development build tool; has a registry binary-download fallback" },
+  { name: "esbuild", version: "0.28.2", note: "development build tool; has a registry binary-download fallback; the 0.28.2 install.js is byte-identical to the reviewed 0.28.1 one (2026-11-12, tarball sha512 = lockfile integrity)" },
   { name: "fsevents", version: "2.3.3", note: "optional, macOS only, development tree" },
   { name: "onnxruntime-node", version: "1.30.0", note: "postinstall fetches native packages from NuGet; the 1.30.0 install script differs from the reviewed 1.24.3 one by a comment line only" },
   { name: "protobufjs", version: "7.6.6", note: "declares a lifecycle script" },
   { name: "unrs-resolver", version: "1.12.2", note: "development tree; declares a lifecycle script" },
-  { name: "workerd", version: "1.20261001.1", note: "development tree; registry binary-download fallback; the 1.20261001.1 install.js differs from the reviewed 1.20260910.1 one in its own version constants only" },
+  { name: "workerd", version: "1.20261109.1", note: "development tree; registry binary-download fallback; the 1.20261109.1 install.js differs from the reviewed 1.20261001.1 one (itself version-constant-only from 1.20260910.1) in its own version constants only (2026-11-12, tarball sha512 = lockfile integrity)" },
 ]);
 
 export type AyasInstallScriptClass = "NONE" | "REVIEWED" | "REVIEWED_AT_ANOTHER_VERSION" | "UNREVIEWED";
