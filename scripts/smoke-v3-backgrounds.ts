@@ -11,10 +11,10 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
-import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, findPeriodCandidates, insertCaption, keepShareAlike, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
 import { judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
@@ -576,6 +576,24 @@ async function main() {
     const yes = { ...env, ATOLYE_V3_OSM_CONTACT: "1" };
     for (const u of ["https://nominatim.openstreetmap.org/search", "https://overpass-api.de/api/interpreter", "https://overpass-api.openhistoricalmap.org/api/interpreter"]) assert.ok(userAgentFor(u, yes).includes("owner@example.org"), u);
     for (const u of ["https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://api.artic.edu/x"]) assert.equal(userAgentFor(u, yes), USER_AGENT, u);
+  });
+
+  await scenario("Z2 a credit drops Commons' hidden template copy (Unknown author read twice on Guadalcanal)", () => {
+    assert.equal(stripHtml('Unknown author<span style="display: none;">Unknown author</span>'), "Unknown author");
+    assert.equal(stripHtml('<div class="fn value">\nUnknown author<span style="display: none;">Unknown author</span> or not provided</div>'), "Unknown author or not provided");
+    assert.equal(stripHtml('<a href="x">Winslow Homer</a> <span>(1836)</span>'), "Winslow Homer (1836)");
+  });
+
+  await scenario("Z3 a photo of a named ship the scene never names is not its picture (Washington over the first night)", () => {
+    assert.deepEqual(namedShips("USS Washington (BB-56) firing during the Second Naval Battle of Guadalcanal"), ["Washington"]);
+    assert.deepEqual(namedShips("File:USS_Atlanta_(CL-51)_underway_at_sea.jpg"), ["Atlanta"]);
+    assert.deepEqual(namedShips("Japanese training ship Hiei"), [], "no navy prefix, no claim");
+    const firstNight = { anlatim: "Atlanta is wrecked and later scuttled. Hours after the fight, a Japanese sub torpedoes the damaged Juneau.", tr: "", en: "night melee off Savo", mekan: "Ironbottom Sound" };
+    const v = { title: "USS Washington (BB-56) firing during the Second Naval Battle of Guadalcanal", puan: 9, donem: 10, gosterilen: "", sorun: "" };
+    assert.equal(namedShipCheck(v, firstNight).puan, 2);
+    assert.equal(passes(namedShipCheck(v, firstNight)), false);
+    assert.equal(namedShipCheck({ ...v, title: "USS Atlanta (CL-51) underway at sea" }, firstNight).puan, 9, "the ship the scene names passes");
+    assert.equal(namedShipCheck(v, { ...firstNight, anlatim: "The next night Washington catches Kirishima." }).puan, 9);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

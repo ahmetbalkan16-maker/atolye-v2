@@ -6,7 +6,8 @@ import { yer } from "./LayoutProbe";
 const FONT = "'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif";
 
 /** Place/date stamps, chapter cards and info boxes; frames are relative to the shot. */
-export function TitleCard({ card }: { card: V3TitleCard }) {
+/** `low`: the place-and-date stamp stands bottom-left instead (a character speaks while it is up; see ShotView). */
+export function TitleCard({ card, low = false }: { card: V3TitleCard; low?: boolean }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < card.start || frame >= card.end) return null;
@@ -170,13 +171,13 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
       style={{
         position: "absolute",
         left: 60 * k,
-        top: 80 * k,
+        ...(low ? { bottom: 70 * k } : { top: 80 * k }),
         padding: `${14 * k}px ${30 * k}px`,
         borderRadius: 14 * k,
         border: `${6 * k}px solid #1d1b26`,
         background: "linear-gradient(#f6e6bd, #ecd49c)",
         boxShadow: `${8 * k}px ${8 * k}px 0 rgba(29,27,38,0.85)`,
-        transform: `translateY(${(1 - enter) * -90 * k}px) rotate(${-2 + (1 - enter) * -8}deg)`,
+        transform: `translateY(${(1 - enter) * (low ? 90 : -90) * k}px) rotate(${-2 + (1 - enter) * -8}deg)`,
         opacity: exit,
       }}
     >

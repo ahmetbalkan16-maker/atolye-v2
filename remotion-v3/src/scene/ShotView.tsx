@@ -376,8 +376,11 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
       {(shot.infoCards ?? []).map((c, i) => (
         <InfoCardView key={`ic-${i}`} card={c} cast={cast} accessories={accessories} language={language} />
       ))}
+      {/* Words float over the heads, high in the frame, where the place-and-date stamp stands: on a stage where a
+          character speaks while the stamp is up, it goes bottom-left (Guadalcanal, 12 Nov 2026: the stamp covered Abe's
+          opening line for its first 2.7 s). Decided once per card, so it never jumps. */}
       {shot.titleCards.map((c, i) => (
-        <TitleCard key={i} card={c} />
+        <TitleCard key={i} card={c} low={c.style === "yer_tarih" && !shot.geoMap && (shot.bubbles ?? []).some((b) => !badgeHeads.has(b.castId) && b.start < c.end && b.end > c.start)} />
       ))}
       {/* No "DRAMATIZATION" corner label (owner, 23 Oct 2026: "kaldır o yazılar gözükmesin"); the plan still marks it. */}
     </AbsoluteFill>

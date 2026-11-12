@@ -288,6 +288,27 @@ export function periodWordsCheck(v: CandidateVerdict, donem: string): CandidateV
   return v;
 }
 
+/** A commissioned ship named in a file title by its navy's prefix: "USS Washington (BB-56) firing during …" → Washington. */
+const NAMED_SHIP = /\b(?:USS|USNS|HMS|HMAS|HMCS|HMNZS|IJN|SMS|KMS|RMS|SS)\s+([A-Z][A-Za-z'’-]+)/g;
+
+/** The ships a file title names (their first name word), e.g. ["Washington"]. */
+export function namedShips(title: string): string[] {
+  return [...new Set([...title.replace(/^File:/, "").replace(/_/g, " ").matchAll(NAMED_SHIP)].map((m) => m[1]!))];
+}
+
+/**
+ * A period photo of a named ship that the scene never names is another ship's picture (Guadalcanal, 12 Nov 2026: "USS
+ * Washington (BB-56) firing during the Second Naval Battle" stood over the first night's melee, where Washington never
+ * was — the judge gave it the subject score of a battleship at night). Subject score 2; a ship the scene names passes.
+ */
+export function namedShipCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, "anlatim" | "tr" | "en" | "mekan">): CandidateVerdict {
+  if (v.okunamadi || v.puan <= 3) return v;
+  const said = `${scene.anlatim} ${scene.tr} ${scene.en} ${scene.mekan}`.toLocaleLowerCase("en-US");
+  const missing = namedShips(v.title).filter((s) => !new RegExp(`\\b${s.toLocaleLowerCase("en-US").replace(/[’'-]/g, ".")}\\b`, "u").test(said));
+  if (!missing.length) return v;
+  return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}dosyadaki gemi sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
+}
+
 /**
  * One plain question about later-era buildings and symbols, for a drawn set of an early period (undefined when the
  * period needs none). The scoring answer misses small things: the Rubicon's Corfinium set (49 BC) had a cross on a
@@ -369,7 +390,7 @@ export async function pickBackground<T extends JudgeCandidate>(
         return parseVerdict(typeof out === "string" ? out : out.content);
       };
       const parsed = (await ask(VERDICT_TOKENS)) ?? (await ask(VERDICT_RETRY_TOKENS));
-      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
+      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : (opts.mode ?? "arsiv") === "arsiv" ? namedShipCheck({ title: c.title, ...parsed }, scene) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
       if (!parsed) {
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);

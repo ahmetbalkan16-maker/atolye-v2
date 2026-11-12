@@ -68,7 +68,11 @@ interface ImageInfo {
   extmetadata?: Record<string, { value?: string }>;
 }
 
-export const stripHtml = (s: string | undefined) => (s ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+/** Commons' {{Unknown|author}} template repeats its text in a hidden span ("Unknown author<span style="display:
+ *  none;">Unknown author</span>") — hidden elements are dropped before the tags, or the credit reads the name twice. */
+const HIDDEN_ELEMENT = /<(\w+)\b[^>]*\bstyle\s*=\s*["'][^"']*display\s*:\s*none[^"']*["'][^>]*>[\s\S]*?<\/\1\s*>/gi;
+export const stripHtml = (s: string | undefined) =>
+  (s ?? "").replace(HIDDEN_ELEMENT, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 
 export async function cachedJson(cacheDir: string, url: string): Promise<unknown> {
   const key = createHash("sha256").update(url).digest("hex").slice(0, 24);

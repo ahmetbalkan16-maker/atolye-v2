@@ -73,7 +73,12 @@ export function DepthFilter({ id, href, width, height, fit, shift }: { id: strin
     <svg width={0} height={0} style={{ position: "absolute" }} aria-hidden>
       <defs>
         <filter id={id} filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x={0} y={0} width={width} height={height} colorInterpolationFilters="sRGB">
-          <feImage href={href} x={0} y={0} width={width} height={height} preserveAspectRatio={`xMidYMid ${fit}`} result="derinlik" />
+          {/* A contained (meet) map leaves bands beside the picture where the feImage is transparent black, i.e. red and
+              green 0 = the full −0.5 × scale shift sideways AND down: the picture's edge was dragged into the band and
+              swam there (Guadalcanal, 12 Nov 2026: "fotoğraf kayıyor bozuluyor"). Neutral grey under the map = no shift. */}
+          <feFlood floodColor="rgb(128,128,128)" floodOpacity={1} x={0} y={0} width={width} height={height} result="notr" />
+          <feImage href={href} x={0} y={0} width={width} height={height} preserveAspectRatio={`xMidYMid ${fit}`} result="harita" />
+          <feComposite in="harita" in2="notr" operator="over" result="derinlik" />
           <feDisplacementMap in="SourceGraphic" in2="derinlik" scale={shift} xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </defs>

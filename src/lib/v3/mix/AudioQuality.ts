@@ -188,3 +188,60 @@ export function whineLine(lines: readonly WhineLine[]): string {
     .map((l) => `${(l.hz / 1000).toFixed(1).replace(".", ",")} kHz +${Math.round(l.db)} dB`)
     .join(", ")}${lines.length > 4 ? ", …" : ""})`;
 }
+
+/** A stretch of the mix that is a stuck signal or a drone, not sound (start/end in seconds, its level and crest). */
+export interface BrokenStretch {
+  readonly start: number;
+  readonly end: number;
+  readonly rmsDb: number;
+  readonly crestDb: number;
+}
+
+/** Windows of this length are measured; a broken stretch is at least BROKEN_MIN_S long. */
+export const BROKEN_WINDOW_S = 0.25;
+export const BROKEN_MIN_S = 1;
+/** Peak over RMS of a window: speech, music and effects stay far above this; a sine is 3 dB, DC or a clipped drone 0–2. */
+export const BROKEN_CREST_DB = 4;
+/** Only loud windows count (a quiet hum under the narration is the whine check's business). */
+export const BROKEN_MIN_RMS_DB = -20;
+
+/**
+ * The ear's check before delivery (Guadalcanal, 12 Nov 2026): a voiced line that came back as a full-scale constant
+ * became 3.5 s of a loud low roar with a click at each end, 12 dB over the rest of the mix, and the delivery checks
+ * passed it (loudness and whine were fine). Loud windows whose peak hardly rises over their RMS, for a second or more.
+ */
+export function brokenStretches(samples: Float32Array, rate: number): BrokenStretch[] {
+  const win = Math.max(1, Math.round(rate * BROKEN_WINDOW_S));
+  const out: BrokenStretch[] = [];
+  let run: { from: number; rms: number[]; crest: number[] } | undefined;
+  const close = (at: number) => {
+    if (run && (at - run.from) * BROKEN_WINDOW_S >= BROKEN_MIN_S) {
+      out.push({ start: run.from * BROKEN_WINDOW_S, end: at * BROKEN_WINDOW_S, rmsDb: Math.max(...run.rms), crestDb: Math.min(...run.crest) });
+    }
+    run = undefined;
+  };
+  const n = Math.floor(samples.length / win);
+  for (let w = 0; w < n; w++) {
+    let sq = 0, peak = 0;
+    for (let i = w * win; i < (w + 1) * win; i++) {
+      const x = samples[i]!;
+      sq += x * x;
+      if (Math.abs(x) > peak) peak = Math.abs(x);
+    }
+    const rms = Math.sqrt(sq / win);
+    const rmsDb = 20 * Math.log10(Math.max(rms, 1e-9));
+    const crestDb = 20 * Math.log10(Math.max(peak, 1e-9) / Math.max(rms, 1e-9));
+    if (rmsDb >= BROKEN_MIN_RMS_DB && crestDb < BROKEN_CREST_DB) {
+      run ??= { from: w, rms: [], crest: [] };
+      run.rms.push(rmsDb);
+      run.crest.push(crestDb);
+    } else close(w);
+  }
+  close(n);
+  return out;
+}
+
+/** The broken stretches of a file (the mix before delivery). */
+export async function measureBroken(paths: Pick<V3Paths, "ffmpeg" | "asciiTemp">, file: string): Promise<BrokenStretch[]> {
+  return brokenStretches(await decodeMono(paths, file), 48_000);
+}

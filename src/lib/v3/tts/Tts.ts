@@ -312,6 +312,45 @@ export function postProcessFilter(voice: VoiceProfile, speed: number): string {
   return parts.join(",");
 }
 
+/** Longest stuck stretch a spoken line may hold (speech never keeps one loud sample value for this long). */
+export const STUCK_MAX_S = 0.05;
+
+/**
+ * The longest stretch, in seconds, where a 16-bit PCM WAV holds one loud sample value (above about −30 dBFS, moving by
+ * at most 2 steps): a model output gone wrong. Guadalcanal, 12 Nov 2026: VoxCPM2 gave Abe's last line 0.25 s of
+ * speech and then 3.3 s of a full-scale constant, which the mix turned into a low roar with a click at each end — the
+ * line itself was never heard. Not a 16-bit PCM WAV: 0 (nothing to judge).
+ */
+export function stuckSeconds(wav: Buffer): number {
+  if (wav.length < 44 || wav.toString("ascii", 0, 4) !== "RIFF" || wav.toString("ascii", 8, 12) !== "WAVE") return 0;
+  let pos = 12;
+  let channels = 1, rate = 0, bits = 0;
+  while (pos + 8 <= wav.length) {
+    const id = wav.toString("ascii", pos, pos + 4);
+    const size = wav.readUInt32LE(pos + 4);
+    const body = pos + 8;
+    if (id === "fmt ") {
+      channels = wav.readUInt16LE(body + 2);
+      rate = wav.readUInt32LE(body + 4);
+      bits = wav.readUInt16LE(body + 14);
+    } else if (id === "data") {
+      if (bits !== 16 || !rate || !channels) return 0;
+      const end = Math.min(wav.length, body + size) - 1;
+      const step = 2 * channels;
+      let run = 0, best = 0, prev = 0;
+      for (let i = body; i < end; i += step) {
+        const x = wav.readInt16LE(i);
+        run = Math.abs(x) > 1000 && Math.abs(x - prev) <= 2 ? run + 1 : 0;
+        if (run > best) best = run;
+        prev = x;
+      }
+      return best / rate;
+    }
+    pos = body + size + (size % 2);
+  }
+  return 0;
+}
+
 export class TtsService {
   private engines = new Map<TtsProviderId, TtsEngine>();
   private readonly cacheDir: string;
@@ -380,18 +419,35 @@ export class TtsService {
       .digest("hex")
       .slice(0, 32);
     const file = path.join(this.cacheDir, `${key}.wav`);
-    if (existsSync(file)) return { file, duration: await audioDuration(this.paths, file), provider, cached: true, speechText: speech };
+    if (existsSync(file)) {
+      const stuck = stuckSeconds(await fs.readFile(file));
+      if (stuck <= STUCK_MAX_S) return { file, duration: await audioDuration(this.paths, file), provider, cached: true, speechText: speech };
+      // A broken clip kept from an earlier run is made again, never reused (it went into every retouch round).
+      this.log(`  ⚠ önbellekteki ses bozuk (${stuck.toFixed(2)} sn takılı sinyal), yeniden üretiliyor: "${speech.slice(0, 60)}"`);
+      await fs.rm(file, { force: true });
+    }
 
     await fs.mkdir(this.cacheDir, { recursive: true });
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const raw = path.join(this.paths.asciiTemp, `tts-${key}-raw.wav`);
     const seed = parseInt(key.slice(0, 8), 16) % 1_000_000;
-    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language, req.emotion, directions);
     const tmp = `${file}.tmp.wav`;
-    await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
-    await fs.rename(tmp, file);
-    await fs.rm(raw, { force: true });
-    return { file, duration: await audioDuration(this.paths, file), provider, cached: false, speechText: speech };
+    let stuck = 0;
+    // A take whose signal sticks is tried once more with other seeds; a second broken take fails the line (VoxCPM's
+    // failure code sends the whole episode to the voices' own engines).
+    for (const s of [seed, seed + 1000]) {
+      await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, s, language, req.emotion, directions);
+      await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
+      await fs.rm(raw, { force: true });
+      stuck = stuckSeconds(await fs.readFile(tmp));
+      if (stuck <= STUCK_MAX_S) {
+        await fs.rename(tmp, file);
+        return { file, duration: await audioDuration(this.paths, file), provider, cached: false, speechText: speech };
+      }
+      this.log(`  ⚠ ${provider} bozuk ses verdi (${stuck.toFixed(2)} sn takılı sinyal, tohum ${s}): "${speech.slice(0, 60)}"`);
+      await fs.rm(tmp, { force: true });
+    }
+    throw new TtsError(provider === "voxcpm" ? "V3_VOXCPM_LINE" : "V3_TTS_BROKEN", `iki denemede de bozuk ses (${stuck.toFixed(2)} sn takılı sinyal)`);
   }
 
   async close(): Promise<void> {

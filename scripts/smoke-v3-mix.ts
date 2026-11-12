@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
-import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
+import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
@@ -18,7 +18,7 @@ import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, p
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
-import { voiceCredit } from "../src/lib/v3/tts/Tts";
+import { STUCK_MAX_S, stuckSeconds, voiceCredit } from "../src/lib/v3/tts/Tts";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
@@ -578,6 +578,41 @@ async function main() {
     assert.equal(splitDirections("(sighs) ").speech, "", "a line of only a direction says nothing");
     assert.equal(voxcpmText("Retreat is a bold strategy!", "korkmus", ["off map, panicked"]), "(scared, trembling voice, off map, panicked)Retreat is a bold strategy!");
     assert.equal(voxcpmText("The die is cast.", "notr", ["raising hand"]), "(raising hand)The die is cast.");
+  });
+
+  await scenario("a voiced line whose signal sticks is caught (Guadalcanal: Abe's last line was 3.3 s of a full-scale constant)", () => {
+    const wav = (samples: number[], rate = 48000) => {
+      const data = Buffer.alloc(samples.length * 2);
+      samples.forEach((x, i) => data.writeInt16LE(x, i * 2));
+      const head = Buffer.alloc(44);
+      head.write("RIFF", 0, "ascii"); head.writeUInt32LE(36 + data.length, 4); head.write("WAVE", 8, "ascii");
+      head.write("fmt ", 12, "ascii"); head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22);
+      head.writeUInt32LE(rate, 24); head.writeUInt32LE(rate * 2, 28); head.writeUInt16LE(2, 32); head.writeUInt16LE(16, 34);
+      head.write("data", 36, "ascii"); head.writeUInt32LE(data.length, 40);
+      return Buffer.concat([head, data]);
+    };
+    const speech = Array.from({ length: 48000 }, (_, i) => Math.round(12000 * Math.sin(i * 0.05) * Math.sin(i * 0.0007)));
+    const broken = [...speech.slice(0, 12000), ...Array.from({ length: 160000 }, () => 32767)];
+    assert.ok(stuckSeconds(wav(speech)) <= STUCK_MAX_S, "speech passes");
+    assert.ok(Math.abs(stuckSeconds(wav(broken)) - 160000 / 48000) < 0.01, "the stuck stretch is measured in seconds");
+    assert.ok(stuckSeconds(wav(Array.from({ length: 48000 }, () => 0))) <= STUCK_MAX_S, "silence is not a stuck signal");
+    assert.equal(stuckSeconds(Buffer.from("not a wav")), 0);
+  });
+
+  await scenario("the ear finds a stuck stretch in the mix before delivery; speech and silence pass", () => {
+    const rate = 8000;
+    const speechLike = (n: number, seed: number) => Float32Array.from({ length: n }, (_, i) => 0.3 * Math.sin(i * 0.31 + seed) * Math.abs(Math.sin(i * 0.0021)) + 0.05 * Math.sin(i * 1.7));
+    const mix = new Float32Array(rate * 10);
+    mix.set(speechLike(rate * 4, 1), 0);
+    mix.fill(0.9, rate * 4, rate * 7); // 3 s of a loud constant
+    mix.set(speechLike(rate * 3, 2), rate * 7);
+    const found = brokenStretches(mix, rate);
+    assert.equal(found.length, 1);
+    assert.ok(Math.abs(found[0]!.start - 4) <= 0.25 && Math.abs(found[0]!.end - 7) <= 0.25, JSON.stringify(found));
+    assert.deepEqual(brokenStretches(speechLike(rate * 6, 3), rate), []);
+    assert.deepEqual(brokenStretches(new Float32Array(rate * 3), rate), [], "silence is not broken");
+    const blip = new Float32Array(rate * 3); blip.fill(0.9, rate, rate + rate / 2); // half a second: under BROKEN_MIN_S
+    assert.deepEqual(brokenStretches(blip, rate), []);
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);

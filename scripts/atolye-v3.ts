@@ -64,7 +64,7 @@ import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type Epis
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
-import { measureWhine, whineLine } from "../src/lib/v3/mix/AudioQuality";
+import { measureBroken, measureWhine, whineLine } from "../src/lib/v3/mix/AudioQuality";
 import { battleCredit, battleWindows, renderBattleBed } from "../src/lib/v3/mix/BattleBed";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
@@ -1296,6 +1296,10 @@ async function main() {
     // the cleaning missed is a finding, never a pass.
     const whine = await measureWhine(paths, f("miks.wav"));
     if (whine.length) council.find({ beyin: "ses", onem: "uyari", baslik: "miksde sabit tiz vızıltı", ayrinti: `${whineLine(whine)} — müzik/efekt üreticisinin izi; temizlik bunları almadı`, tur: "kod", yer: "miks" });
+    // A stuck voice or effect (Guadalcanal, 12 Nov 2026: Abe's last line was 3.5 s of a loud roar) is a fault, never a pass.
+    const broken = await measureBroken(paths, f("miks.wav"));
+    const brokenLine = broken.map((b) => `${b.start.toFixed(1)}–${b.end.toFixed(1)} sn (tepe/ortalama ${b.crestDb.toFixed(1)} dB)`).join(", ");
+    if (broken.length) council.find({ beyin: "ses", onem: "eksik", baslik: "miksde bozuk ses (takılı sinyal / uğultu)", ayrinti: `${brokenLine} — o andaki seslendirme ya da efekt dosyası bozuk`, oneri: "o andaki satırın ses dosyasını sil, yeniden seslendir", tur: "veri", yer: "miks" });
     const events = visualEvents(plan);
     const gaps = events.slice(1).map((t, i) => t - events[i]!);
     const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : Infinity;
@@ -1360,6 +1364,7 @@ async function main() {
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`, false),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
+      row(!broken.length, `Ses bozukluğu: ${broken.length ? `BOZUK — ${brokenLine}` : "takılı sinyal ya da uğultu yok"}`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`, false),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(!descFit.requiredDropped.length, `YouTube açıklaması: ${Buffer.byteLength(bodyOf(aciklama).trim())} bayt${compactCredits ? ", kamu malı görseller tek satırda sayıldı" : ""}; zorunlu atıf satırları ${descFit.requiredDropped.length ? `— ${descFit.requiredDropped.length} SATIR 5000 BAYTA SIĞMIYOR, yükleme reddedilir` : "hepsi açıklamada"}`, false),
