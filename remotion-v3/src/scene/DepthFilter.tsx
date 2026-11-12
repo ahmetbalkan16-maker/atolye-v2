@@ -13,8 +13,8 @@ import { continueRender, delayRender, staticFile } from "remotion";
 export const DEPTH_SHIFT = 0.0375;
 
 /**
- * The displacement's scale at `progress` (0..1, linear like the Ken Burns drift): near things go the way the picture
- * drifts, a little further each frame; a zoom-only drift gets a gentle sideways move to the right.
+ * The displacement's scale at `progress` (0..1, the Ken Burns drift's eased progress, rig.drift): near things go the way
+ * the picture drifts, a little further each frame; a zoom-only drift gets a gentle sideways move to the right.
  */
 export function depthShift(progress: number, kb: { readonly fromX: number; readonly toX: number } | undefined, width: number): number {
   const dir = kb && kb.toX !== kb.fromX ? Math.sign(kb.toX - kb.fromX) : 1;

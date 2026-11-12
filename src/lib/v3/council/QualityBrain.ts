@@ -1,7 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
-import type { V3RenderPlan } from "../render/RenderPlanTypes";
+import { transitionFrames, type V3RenderPlan } from "../render/RenderPlanTypes";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { type CouncilLog, readJsonAnswer } from "./Council";
@@ -192,16 +192,13 @@ export async function frameExamples(lessons: readonly Lesson[], dir: string, kin
   return Promise.all(picked.map(async (l) => ({ image: (await fs.readFile(path.join(dir, l.ornek!))).toString("base64"), kusurlu: !l.konu.startsWith(FALSE_ALARM), metin: l.metin })));
 }
 
-/** A shot's transition in lasts this long (ShotView). */
-const TRANSITION_IN_S = 0.32;
-
-/** What the frame at `t` seconds shows, by the plan: a shot's first 0.32 s are its transition in (ShotView). */
+/** What the frame at `t` seconds shows, by the plan: a shot's first frames are its transition in (transitionFrames, ShotView). */
 export function frameKindAt(plan: Pick<V3RenderPlan, "fps" | "shots">, t: number): FrameKind | undefined {
   const f = Math.round(t * plan.fps);
   const shot = plan.shots.find((s) => f >= s.start && f < s.start + s.duration);
   if (!shot) return undefined;
   const local = f - shot.start;
-  if (shot.transitionIn !== "kes" && local < Math.round(plan.fps * TRANSITION_IN_S)) return "gecis";
+  if (local < transitionFrames(shot, plan.fps)) return "gecis";
   if ((shot.inserts ?? []).some((i) => local >= i.start && local < i.end)) return "resim";
   if (shot.geoMap) return shot.geoMap.close ? "yakin-harita" : "harita";
   return "sahne";
@@ -220,8 +217,8 @@ const DESIGNED_DARK: ReadonlySet<string> = new Set(["kelime", "kapak", "bolum", 
 
 /**
  * Moments the pixel check does not judge, dark or changing by design: a white-flash or ink transition, a full-screen word,
- * the cover, a chapter scroll, the end card, a period picture (archive film comes letterboxed). A sliding transition is
- * judged: its dark band down the edge was a real fault (Kosovo 1389, Rubicon).
+ * the cover, a chapter scroll, the end card, a period picture (archive film comes letterboxed). A slide or a dissolve is
+ * judged: the old slide's dark band down the edge was a real fault (Kosovo 1389, Rubicon).
  */
 export function pixelSkip(plan: Pick<V3RenderPlan, "fps" | "shots">): (t: number) => boolean {
   return (t) => {
@@ -229,7 +226,7 @@ export function pixelSkip(plan: Pick<V3RenderPlan, "fps" | "shots">): (t: number
     const shot = plan.shots.find((s) => f >= s.start && f < s.start + s.duration);
     if (!shot) return false;
     const local = f - shot.start;
-    if ((shot.transitionIn === "beyaz" || shot.transitionIn === "murekkep") && local < Math.round(plan.fps * TRANSITION_IN_S)) return true;
+    if ((shot.transitionIn === "beyaz" || shot.transitionIn === "murekkep") && local < transitionFrames(shot, plan.fps)) return true;
     if ((shot.inserts ?? []).some((i) => local >= i.start && local < i.end)) return true;
     return shot.titleCards.some((c) => DESIGNED_DARK.has(c.style) && local >= c.start && local < c.end);
   };

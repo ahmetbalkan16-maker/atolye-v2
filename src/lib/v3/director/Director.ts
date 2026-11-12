@@ -714,6 +714,21 @@ export function toldWordAt(lines: readonly Pick<LineTiming, "start" | "words">[]
   return undefined;
 }
 
+/** A place name compared the way Turkish text is folded (ı/İ, marks, case, spaces). */
+const placeKey = (mekan: string) => mekan.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * The transition into a scene whose script gave none: a cut into the first; an ink iris when the mood changes; a soft
+ * dissolve while the story stays in one place and mood (the same place, or map to map) — the heavy slide there read as
+ * a jump (owner, 12 Nov 2026: "daha akıcı geçişler"); a slide over the last picture when it moves on to another place.
+ */
+export function autoTransition(prev: Pick<EpisodeScene, "duygu" | "mekan" | "harita"> | undefined, scene: Pick<EpisodeScene, "duygu" | "mekan" | "harita">): V3Transition {
+  if (!prev) return "kes";
+  if (prev.duygu !== scene.duygu) return "murekkep";
+  const maps = Boolean(prev.harita?.merkez) && Boolean(scene.harita?.merkez);
+  return maps || placeKey(prev.mekan) === placeKey(scene.mekan) ? "cozul" : "kaydir";
+}
+
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const { episode, timeline, fps } = input;
   const f = (sec: number) => Math.round(sec * fps);
@@ -1183,8 +1198,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       };
     });
 
-    const prevMood = si > 0 ? episode.sahneler[si - 1]!.duygu : undefined;
-    const transitionIn: V3Transition = scene.gecis ?? (si === 0 ? "kes" : prevMood !== scene.duygu ? "murekkep" : "kaydir");
+    const transitionIn: V3Transition = scene.gecis ?? autoTransition(si > 0 ? episode.sahneler[si - 1] : undefined, scene);
     const period = input.inserts?.[si];
     // On a living set the moment itself is on screen (owner, 22 Oct 2026; the quality brain's story score on the
     // benchmark): no cutaway while anyone moves on stage — the legion wading the Rubicon was hidden behind an

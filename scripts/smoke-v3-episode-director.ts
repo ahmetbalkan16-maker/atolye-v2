@@ -15,9 +15,9 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
-import type { V3GeoMap, V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
+import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
@@ -38,7 +38,10 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
-import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, slideIn, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
+import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
+import { exitFrames, FLASH_PEAK, insertOpacity, transitionLook, transitionProgress } from "../remotion-v3/src/scene/transitions";
+import { CAMERA_MOVE_S, cameraAt as mapCameraAt } from "../remotion-v3/src/scene/mapCamera";
+import { drift } from "../remotion-v3/src/character/rig";
 import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes, labelSpot } from "../remotion-v3/src/scene/hudLayout";
 import { checkEpisodePlaces, checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
@@ -2198,19 +2201,11 @@ async function main() {
     assert.equal(pairAim(800, 125, [{ x: 800 - 0.85 * winW }], winW), lo, "too far for both: the speaker stays whole at the window's edge");
     for (let d = 200; d < 1000; d += 5) assert.ok(Math.abs(pairAim(800, 125, [{ x: 800 + d + 5 }], winW) - pairAim(800, 125, [{ x: 800 + d }], winW)) < 12, `jump at ${d}`);
     assert.equal(pairAim(800, 125, [], winW), 800);
-    // A shot sliding in: on the 16:9 frame as before; in a Short the window keeps showing its own part of the stage and
-    // stays filled (the Taranto Short's window showed another part of the map: sea 49% → 2% for the slide).
-    const slide169 = slideIn(0, 1920);
-    assert.ok(Math.abs(slide169.dx - 672) < 1e-9 && Math.abs(slide169.scale - 1.4) < 1e-9 && slide169.originX === 1920, JSON.stringify(slide169));
-    assert.deepEqual(slideIn(1, 1920, { x: 700, width: winW }), { dx: 0, scale: 1, originX: 700 + winW });
-    assert.ok(Math.abs(slideIn(0, 1920, { x: 700, width: winW }).dx - 0.35 * winW) < 1e-9, "a Short slides by its window, not by the stage");
-    for (const x of [0, 700, 1920 - winW]) {
-      for (let t = 0; t <= 1; t += 0.1) {
-        const s = slideIn(t, 1920, { x, width: winW });
-        // The stage x seen at a window edge: back through the slide and the growth about its origin.
-        const seen = (p: number) => s.originX + (p - s.dx - s.originX) / s.scale;
-        assert.ok(seen(x) >= x - 1e-9 && seen(x + winW) <= x + winW + 1e-9, `window at ${x}, t ${t.toFixed(1)}: ${seen(x)}–${seen(x + winW)}`);
-      }
+    // A shot sliding in moves the whole frame, a Short's window with it, measured on the frame's own width: the window
+    // keeps showing its own part of the stage (the Taranto Short's window showed another part of the map: sea 49% → 2%).
+    for (let t = 0.05; t < 1; t += 0.1) {
+      const s = transitionLook("kaydir", t, 1080, 1920).incoming;
+      assert.ok(s.dx >= 0 && s.dx <= 1080 && !s.iris, JSON.stringify(s));
     }
     // ...with whom they talk, fixed for the line (Caesar between his friend and the pirate flipped mid-line); and the
     // narration's actor in turn (the chaser here).
@@ -2755,6 +2750,79 @@ async function main() {
     const named = { cities: [{ label: "Taranto", x: 680, y: 700 }], armies: [], territories: [], arrows: [], vehicles: [{ kind: "gemi", color: "#b3263a", count: 3, start: 9, path: [{ x: 500, y: 600 }] }] } as unknown as NonNullable<typeof shot.geoMap>;
     assert.ok(loneMisses(named, 0.36, 300, 1920, 1080) > 0 && loneMisses(named, 0.16, 300, 1920, 1080) === 0, "the name counts");
     assert.equal(clearAtEveryStop(named, 0.27, 300, 1920, 1080), 0.16);
+  });
+
+  await scenario("X1 smoother transitions (owner, 12 Nov 2026: \"daha akıcı geçişler\"): the last shot stays under the next one's transition, a dissolve within one place, the map camera never jumps, drifts and pictures ease", () => {
+    // One timing rule for the renderer and the quality brain; a dissolve takes longest, never longer than its shot.
+    assert.deepEqual((["kes", "kaydir", "murekkep", "beyaz", "cozul"] as V3Transition[]).map((k) => transitionFrames({ transitionIn: k, duration: 90 }, 30)), [0, 12, 14, 12, 15]);
+    assert.equal(transitionFrames({ transitionIn: "cozul", duration: 8 }, 30), 8);
+    assert.ok(TRANSITION_S.cozul > TRANSITION_S.kaydir);
+    // The outgoing shot is drawn for exactly the next one's transition, and only when the next one follows straight on.
+    const prev = { start: 0, duration: 90 };
+    assert.equal(exitFrames(prev, { start: 90, duration: 60, transitionIn: "cozul" }, 30), 15);
+    assert.equal(exitFrames(prev, { start: 90, duration: 60, transitionIn: "kes" }, 30), 0);
+    assert.equal(exitFrames(prev, { start: 96, duration: 60, transitionIn: "cozul" }, 30), 0);
+    // No transition frame is all old or all new picture.
+    assert.ok(transitionProgress(0, 12) > 0 && transitionProgress(11, 12) < 1);
+    const W = 1920, H = 1080;
+    for (let f = 0; f < 15; f++) {
+      const t = transitionProgress(f, 15);
+      // A slide meets the picture it covers: the dark ground never shows between them.
+      const s = transitionLook("kaydir", t, W, H);
+      assert.ok(s.incoming.dx <= W + s.outgoing.dx + 1e-9 && s.incoming.opacity === 1 && s.outgoing.opacity === 1, `slide gap at ${f}`);
+      // A dissolve: the old picture stays whole under the new one, which comes in a little more each frame.
+      const d = transitionLook("cozul", t, W, H);
+      assert.ok(d.outgoing.opacity === 1 && d.incoming.opacity > 0 && d.incoming.opacity < 1 && d.incoming.dx === 0 && d.incoming.blur === 0);
+      if (f) assert.ok(d.incoming.opacity > transitionLook("cozul", transitionProgress(f - 1, 15), W, H).incoming.opacity);
+      // The white flash never covers the picture whole and opens over the last one, not on a white frame.
+      const b = transitionLook("beyaz", t, W, H);
+      assert.ok(b.flash <= FLASH_PEAK && FLASH_PEAK < 1);
+      assert.equal(b.incoming.opacity, t < 0.5 ? 0 : 1);
+    }
+    assert.ok(transitionLook("beyaz", transitionProgress(0, 12), W, H).flash < 0.1, "the old flash opened fully white");
+    // The ink iris has passed every corner when it ends.
+    const iris = transitionLook("murekkep", 1, W, H).incoming.iris!;
+    const corner = Math.max(...[[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => Math.hypot(x! - iris.cx, y! - iris.cy)));
+    assert.ok(iris.r - iris.feather >= corner - 1e-6, JSON.stringify(iris));
+    assert.equal(transitionLook("murekkep", 0, W, H).incoming.iris!.r, 0);
+
+    // The director's own choice: a cut into the first scene, an iris on a mood change, a dissolve within one place (its
+    // name folded the Turkish way) or from map to map, a slide to another place.
+    const sc = (duygu: string, mekan: string, map = false) => ({ duygu, mekan, ...(map ? { harita: { merkez: [28.9, 41] } } : {}) }) as unknown as Pick<EpisodeScene, "duygu" | "mekan" | "harita">;
+    assert.equal(autoTransition(undefined, sc("merak", "Topkapı")), "kes");
+    assert.equal(autoTransition(sc("merak", "Topkapı"), sc("gerilim", "Topkapı")), "murekkep");
+    assert.equal(autoTransition(sc("merak", "İSTANBUL  Sarayı"), sc("merak", "istanbul sarayı ")), "cozul");
+    assert.equal(autoTransition(sc("merak", "Kosovo", true), sc("merak", "Balkanlar", true)), "cozul");
+    assert.equal(autoTransition(sc("merak", "Roma"), sc("merak", "Rubicon")), "kaydir");
+
+    // The map camera: a key that comes while the camera is still moving turns it from where it is, never jumps back to
+    // the last key (the move restarted from the previous target).
+    const fps = 30;
+    const keys = [{ frame: 0, x: 0, y: 0, zoom: 1 }, { frame: 30, x: 1000, y: 500, zoom: 2 }, { frame: 60, x: 2000, y: 0, zoom: 1.2 }];
+    let last = mapCameraAt(keys, 0, fps, W, H);
+    for (let fr = 1; fr < 200; fr++) {
+      const c = mapCameraAt(keys, fr, fps, W, H);
+      assert.ok(Math.abs(c.x - last.x) < 90 && Math.abs(c.y - last.y) < 30 && Math.abs(Math.log(c.zoom / last.zoom)) < 0.05, `camera jump at frame ${fr}: ${JSON.stringify(last)} → ${JSON.stringify(c)}`);
+      last = c;
+    }
+    assert.deepEqual(mapCameraAt(keys, 60 + Math.round(fps * CAMERA_MOVE_S), fps, W, H), { x: 2000, y: 0, zoom: 1.2 });
+    // Keys far apart move as before: the last one reached, then the new one.
+    const apart = [keys[0]!, keys[1]!, { ...keys[2]!, frame: 300 }];
+    const rest = mapCameraAt(apart, 300, fps, W, H);
+    assert.ok(Math.abs(rest.x - 1000) < 1e-9 && Math.abs(rest.y - 500) < 1e-9 && Math.abs(rest.zoom - 2) < 1e-9);
+
+    // Ken Burns and depth drift ease in and out gently and go on past the end (under the next shot's dissolve).
+    assert.equal(drift(0), 0);
+    assert.ok(Math.abs(drift(1) - 1) < 1e-12 && Math.abs(drift(0.5) - 0.5) < 1e-12);
+    assert.ok(drift(0.05) < 0.05 && drift(0.95) > 0.95, "slower than linear at both ends");
+    for (let p = 0; p < 1.2; p += 0.01) assert.ok(drift(p + 0.01) > drift(p), `drift stops at ${p}`);
+    // A period picture fades in and out eased, over 0.4 s (it was 6 frames, linear); one the scene opens on is there.
+    assert.equal(insertOpacity(0, 0, 90, fps), 1);
+    assert.ok(insertOpacity(30, 30, 120, fps) > 0 && insertOpacity(30, 30, 120, fps) < 0.1);
+    assert.ok(insertOpacity(36, 30, 120, fps) < 0.9, "still fading where the old fade had ended");
+    assert.equal(insertOpacity(30 + 12, 30, 120, fps), 1);
+    assert.ok(insertOpacity(119, 30, 120, fps) < 0.1 && insertOpacity(120, 30, 120, fps) === 0);
+    assert.ok(insertOpacity(12, 10, 19, fps) > 0, "a short window fades within a third of itself");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

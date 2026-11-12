@@ -283,6 +283,9 @@ async function main() {
       { start: 180, duration: 60, transitionIn: "kes", geoMap: {} },
     ] } as unknown as Parameters<typeof frameKindAt>[0];
     assert.deepEqual([0.5, 3.1, 4.5, 5.5, 6.5, 9].map((t) => frameKindAt(plan, t)), ["yakin-harita", "gecis", "resim", "sahne", "harita", undefined]);
+    // A transition is a transition for as long as the renderer draws it (transitionFrames): a dissolve half a second.
+    const soft = { fps: 30, shots: [{ start: 0, duration: 90, transitionIn: "kes" }, { start: 90, duration: 90, transitionIn: "cozul" }] } as unknown as Parameters<typeof frameKindAt>[0];
+    assert.deepEqual([89, 90, 104, 105].map((f) => frameKindAt(soft, f / 30)), ["sahne", "gecis", "gecis", "sahne"]);
     assert.deepEqual(frameChecks("resim").map((c) => c.key), ["bos"], "a period picture is not judged on badges or beards");
     assert.deepEqual(frameChecks("sahne").map((c) => c.key), ["kenar", "ustuste", "bos", "bozuk"]);
     const pointed = qualityPrompt("1389", [], undefined, undefined, { kind: "yakin-harita", examples: [{ kusurlu: true, metin: "rozet kesik" }, { kusurlu: false, metin: "kaynak satırı" }] });

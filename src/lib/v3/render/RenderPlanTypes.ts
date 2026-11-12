@@ -1,7 +1,7 @@
 /**
  * Atölye V3 — the render plan contract between the director (root, `src/lib/v3`) and the Remotion
- * renderer (`remotion-v3/`). Pure types only: the Remotion package imports this file by relative path,
- * so it must not import anything.
+ * renderer (`remotion-v3/`). Types, and the one timing rule both sides must agree on (how long a transition
+ * lasts): the Remotion package imports this file by relative path, so it must not import anything.
  *
  * Every time is an integer frame at `fps`. Every position is in stage units: x in 0..1 across the frame,
  * depth 0 (front) .. 1 (back).
@@ -265,7 +265,22 @@ export interface V3Prop {
   readonly flip?: boolean;
 }
 
-export type V3Transition = "kes" | "kaydir" | "murekkep" | "beyaz";
+/**
+ * How a shot comes in over the one before it: a hard cut, a slide over it, an ink iris, a white flash, or a soft
+ * dissolve ("cozul", owner 12 Nov 2026: "daha akıcı geçişler").
+ */
+export type V3Transition = "kes" | "kaydir" | "murekkep" | "beyaz" | "cozul";
+
+/**
+ * Seconds each transition takes (the incoming shot's first frames; the outgoing shot stays drawn under them). A
+ * dissolve is the slowest; a slide the quickest that still reads as motion, not a jump.
+ */
+export const TRANSITION_S: Readonly<Record<V3Transition, number>> = { kes: 0, kaydir: 0.4, murekkep: 0.45, beyaz: 0.4, cozul: 0.5 };
+
+/** Frames of a shot's transition in (never more than the shot): the renderer draws it, the quality brain skips it. */
+export function transitionFrames(shot: { readonly transitionIn: V3Transition; readonly duration: number }, fps: number): number {
+  return Math.max(0, Math.min(shot.duration, Math.round(fps * TRANSITION_S[shot.transitionIn])));
+}
 
 /** A crowd member: a costume copy standing still with a little life (sway, blinks, a cheer). Never speaks. */
 export interface V3Extra {

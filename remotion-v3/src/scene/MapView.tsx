@@ -6,6 +6,7 @@ import { extraState } from "../character/extras";
 import { performerState } from "../character/motion";
 import { HEAD_CY, INK } from "../character/rig";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
+import { CAMERA_MOVE_S, cameraAt } from "./mapCamera";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
@@ -167,8 +168,7 @@ function labelLines(text: string): string[] {
   const cut = spaces.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a));
   return [t.slice(0, cut), t.slice(cut + 1)];
 }
-/** How long the camera takes to reach a new view (seconds), and a badge to travel its route. */
-const CAMERA_MOVE_S = 2.4;
+/** How long a badge takes to travel its route (seconds; the camera's move: mapCamera.CAMERA_MOVE_S). */
 const BADGE_TRAVEL_S = 3;
 
 /**
@@ -206,21 +206,8 @@ export function talkSwell(b: V3MapBadge, frame: number): number {
   return 1 + 0.14 * a;
 }
 
-type Key = NonNullable<V3GeoMap["camera"]>[number];
-
-/** The camera at a frame: it rests on the last key reached and glides to a new one as its line begins. */
-export function cameraAt(keys: readonly Key[] | undefined, frame: number, fps: number, width: number, height: number): { x: number; y: number; zoom: number } {
-  if (!keys?.length) return { x: width / 2, y: height / 2, zoom: 1 };
-  let i = 0;
-  while (i + 1 < keys.length && keys[i + 1]!.frame <= frame) i++;
-  const to = keys[i]!;
-  const from = keys[Math.max(0, i - 1)]!;
-  if (i === 0) return { x: to.x, y: to.y, zoom: to.zoom };
-  const t = interpolate(frame, [to.frame, to.frame + fps * CAMERA_MOVE_S], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
-  // Zoom in log space, so zooming out and in feel equally fast.
-  const zoom = Math.exp(Math.log(from.zoom) + (Math.log(to.zoom) - Math.log(from.zoom)) * t);
-  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, zoom };
-}
+// The camera at a frame (pure, in mapCamera.ts for the smoke).
+export { cameraAt };
 
 /**
  * A drawn map in the reference channels' manner: OverSimplified's flat blue sea and green land, or — with a relief

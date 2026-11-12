@@ -13,7 +13,7 @@ import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whine
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
-import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
+import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
@@ -195,6 +195,26 @@ async function main() {
     assert.deepEqual([dst[at - 1], dst[at], dst[at + 2], dst[at + 3]], [0, 0.5, 0.5, 0]);
     placeSamples(dst, new Float32Array(10).fill(1), (SAMPLE_RATE - 2) / SAMPLE_RATE);
     assert.equal(dst[SAMPLE_RATE - 1], 1);
+  });
+
+  await scenario("F3 smoother sound across cuts (owner, 12 Nov 2026: \"daha akıcı geçişler\"): one place's bed carries on, places cross equal-power, loops have no seam, no whoosh under a dissolve", () => {
+    // Two scenes in a row in one place: one bed, no dip to silence at the cut; another place crosses into it.
+    const runs = ambienceRuns([{ start: 10, end: 20, file: "saray.wav" }, { start: 0, end: 10, file: "saray.wav" }, { start: 20, end: 30, file: "nehir.wav" }, { start: 40, end: 50, file: "saray.wav" }], 50);
+    assert.deepEqual(runs, [
+      { start: 0, end: 20 + AMBIENCE_FADE_S / 2, file: "saray.wav" },
+      { start: 20 - AMBIENCE_FADE_S / 2, end: 30 + AMBIENCE_FADE_S / 2, file: "nehir.wav" },
+      { start: 40 - AMBIENCE_FADE_S / 2, end: 50, file: "saray.wav" },
+    ]);
+    // Every bed fades equal-power (the triangular default dipped 3 dB in the middle of a crossfade).
+    assert.equal(FADE_CURVE, "qsin");
+    assert.equal((ambienceChain(3, "o0", 0, 10).match(/curve=qsin/g) ?? []).length, 2);
+    assert.match(ambienceChain(3, "o0", 0, 1), /afade=t=in:d=0\.5:curve=qsin,afade=t=out:st=0\.500:d=0\.5:/, "a short bed fades over half of itself at most");
+    // A looped bed: its head crossed into its tail, so the loop runs on with no jump.
+    assert.equal(loopSeamFilter(LOOP_SEAM_S), "[0:a]asplit=2[a][b];[a]atrim=start=1.200,asetpts=PTS-STARTPTS[body];[b]atrim=end=1.200,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1.200:c1=qsin:c2=qsin[loop]");
+    // A dissolve is soft: no whoosh under it (a slide, an iris and a flash keep theirs).
+    const ep = { sahneler: [{ id: "a", satirlar: [] }, { id: "b", gecis: "cozul", satirlar: [] }, { id: "c", gecis: "kaydir", satirlar: [] }] } as unknown as Episode;
+    const tl = { duration: 9, scenes: [{ sceneIndex: 0, start: 0, end: 3 }, { sceneIndex: 1, start: 3, end: 6 }, { sceneIndex: 2, start: 6, end: 9 }], lines: [] } as unknown as EpisodeTimeline;
+    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["whoosh", 5.88]]);
   });
 
   await scenario("F2 every bed gives way under the effects; the ambience stays steady under speech; no link left open", () => {
@@ -387,7 +407,7 @@ async function main() {
     assert.equal(long.ambience[0]!.start, 400, "the shortest four places (0–3) carry music only");
     assert.ok(long.report.some((l) => l.startsWith("ortam p0: yalnız müzik")));
     const chain = ambienceChain(5, "o0", 3, 15);
-    assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.6,afade=t=out:st=11\.400:d=0\.6,adelay=3000\|3000\[o0\]$/);
+    assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.8:curve=qsin,afade=t=out:st=11\.200:d=0\.8:curve=qsin,adelay=3000\|3000\[o0\]$/);
     assert.ok(AMBIENCE_LUFS < -26, "ambience sits under the music");
   });
 

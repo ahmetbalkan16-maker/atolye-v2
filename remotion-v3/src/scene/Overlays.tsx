@@ -1,10 +1,11 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, OffthreadVideo, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { V3Bubble, V3Insert, V3NameTag, V3Strip } from "../../../src/lib/v3/render/RenderPlanTypes";
-import { INK } from "../character/rig";
+import { drift, INK } from "../character/rig";
 import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { BUBBLE_FONT } from "./fonts";
 import { yer } from "./LayoutProbe";
+import { insertOpacity } from "./transitions";
 
 /** Where a speaking character's head is on screen (after camera and shake), in output pixels. */
 export interface HeadAnchor {
@@ -147,20 +148,20 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
  */
 export function InsertView({ insert }: { insert: V3Insert }) {
   const frame = useCurrentFrame();
-  const { width: W, height: H } = useVideoConfig();
+  const { width: W, height: H, fps } = useVideoConfig();
   // A still with a depth map moves in 2.5D (DepthFilter); a Short's tall frame pans the picture instead, as before.
   const depthHref = useDepthMap(!insert.video && H <= W ? insert.depth : undefined);
   const depthId = depthFilterId("ara", insert.src, insert.start);
   if (frame < insert.start || frame >= insert.end) return null;
   const k = Math.min(W, H) / 1080;
   const len = Math.max(1, insert.end - insert.start);
-  const p = (frame - insert.start) / len;
+  // The drift eases in and out gently; the picture fades in and out eased, over 0.4 s (it was 6 frames, linear).
+  const p = drift((frame - insert.start) / len);
   const kb = insert.kenBurns;
   const zoom = kb.fromZoom + (kb.toZoom - kb.fromZoom) * p;
   const dx = (kb.fromX + (kb.toX - kb.fromX) * p) * W;
   // A scene that opens on the picture cuts straight to it (the shot transition handles the change).
-  const fadeIn = insert.start === 0 ? 1 : interpolate(frame, [insert.start, insert.start + 6], [0, 1], { extrapolateRight: "clamp" });
-  const fade = Math.min(fadeIn, interpolate(frame, [insert.end - 6, insert.end], [1, 0], { extrapolateLeft: "clamp" }));
+  const fade = insertOpacity(frame, insert.start, insert.end, fps);
   const src = staticFile(insert.src);
   if (insert.video) {
     // Archive film (DFT Tarih's newsreels): the clip plays muted from the window's start under the narration, with a

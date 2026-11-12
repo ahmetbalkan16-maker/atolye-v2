@@ -1,12 +1,12 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import type { V3CastMember, V3Performer, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
+import { transitionFrames, type V3CastMember, type V3Performer, type V3Shot, type V3Transition } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { Effect } from "../character/Effects";
 import { extraState } from "../character/extras";
 import { Horse, RiderLeg, SADDLE_X, SADDLE_Y } from "../character/Horse";
 import { headCenter, type PerformerState, performerState, turnStretch } from "../character/motion";
-import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
+import { drift, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
@@ -17,7 +17,8 @@ import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } f
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
-import { type AimX, beatAim, beatAt, BODY_PER_HEAD, MAP_BEAT_ID, mapBeats, pairAim, slideIn, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "./verticalWindow";
+import { type AimX, beatAim, beatAt, BODY_PER_HEAD, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "./verticalWindow";
+import { layerStyle, transitionLook, transitionProgress } from "./transitions";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -49,7 +50,11 @@ export function stageTransform(x: number, depth: number, width: number, height: 
   return { px: x * width, py: height * (0.955 - 0.2 * depth), scale: 0.86 * k * (1 - 0.34 * depth) };
 }
 
-export function ShotView({ shot, cast, accessories, language = "tr", stage }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number } }) {
+/**
+ * One shot. `exit`: the next shot's transition, for the frames past this shot's end that it stays drawn under the next
+ * one (Episode) — pushed aside by a slide, dimmed under an iris.
+ */
+export function ShotView({ shot, cast, accessories, language = "tr", stage, exit }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number }; exit?: { kind: V3Transition; frames: number } }) {
   const frame = useCurrentFrame();
   const { fps, width: OW, height: OH } = useVideoConfig();
   // W × H: the stage the shot is laid out on — the frame itself, or for a Short (OW × OH = 1080 × 1920) the 16:9 stage
@@ -70,7 +75,8 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   // A drawn living set (no image): composed and animated here; while a period image is cut in it is not drawn at all.
   const drawn = bg.kind === "drawn" ? bg.drawn : undefined;
   const kb = bg.kenBurns;
-  const progress = frame / Math.max(1, shot.duration);
+  // The drift eases in and out gently (a linear one started and stopped with a jolt at every cut).
+  const progress = drift(frame / Math.max(1, shot.duration));
   const kbZoom = kb ? kb.fromZoom + (kb.toZoom - kb.fromZoom) * progress : 1;
   const kbX = kb ? kb.fromX + (kb.toX - kb.fromX) * progress : 0;
   // An archival picture with a depth map moves in 2.5D along its drift (DepthFilter); without one, as before.
@@ -175,25 +181,19 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   // While a period image is cut in, the set and everything on it is hidden.
   const insertOn = (shot.inserts ?? []).some((i) => frame >= i.start && frame < i.end);
 
-  // Transition in.
-  let wrapStyle: React.CSSProperties = {};
-  let flash = 0;
-  const tf = Math.round(fps * 0.32);
-  if (frame < tf) {
-    const t = easeInOut(frame / tf);
-    // Slides in from the right, grown about its right edge just enough to keep the frame filled (Kosovo 1389: the plain
-    // slide left a dark band down the left edge between two close maps). A Short's slide stays inside its window.
-    const slide = slideIn(t, W, vertical ? { x: winX, width: winW } : undefined);
-    if (shot.transitionIn === "kaydir") wrapStyle = { transform: `translateX(${slide.dx}px) scale(${slide.scale})`, transformOrigin: `${slide.originX}px 50%`, filter: `blur(${(1 - t) * 18}px)` };
-    if (shot.transitionIn === "murekkep") wrapStyle = { clipPath: `circle(${t * 120}% at 50% 55%)` };
-    if (shot.transitionIn === "beyaz") flash = 1 - t;
-  }
+  // The transition in, over the last shot still drawn underneath (Episode); or this shot's own exit under the next one.
+  // The whole frame moves (a Short's window with it), its words and cards too.
+  const tf = transitionFrames(shot, fps);
+  const entering = frame < tf ? transitionLook(shot.transitionIn, transitionProgress(frame, tf), OW, OH) : undefined;
+  const look = entering ? entering.incoming : exit && frame >= shot.duration ? transitionLook(exit.kind, transitionProgress(frame - shot.duration, exit.frames), OW, OH).outgoing : undefined;
+  const flash = entering?.flash ?? 0;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#15121c", overflow: "hidden" }}>
+    <AbsoluteFill>
+    <AbsoluteFill style={{ backgroundColor: "#15121c", overflow: "hidden", ...(look ? layerStyle(look) : {}) }}>
       {/* The stage; for a Short, scaled to the frame's height and slid to the window. */}
       <div style={vertical ? { position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translate(${-winX * fit}px, 0px) scale(${fit})`, transformOrigin: "0 0" } : { position: "absolute", inset: 0 }}>
-      <AbsoluteFill style={wrapStyle}>
+      <AbsoluteFill>
         <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0" }}>
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
             {shot.geoMap ? (
@@ -380,6 +380,8 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
         <TitleCard key={i} card={c} />
       ))}
       {/* No "DRAMATIZATION" corner label (owner, 23 Oct 2026: "kaldır o yazılar gözükmesin"); the plan still marks it. */}
+    </AbsoluteFill>
+      {/* The white flash lies over this shot and the last one under it, also while this one is still hidden. */}
       {flash > 0 ? <AbsoluteFill style={{ backgroundColor: "#ffffff", opacity: flash }} /> : null}
     </AbsoluteFill>
   );

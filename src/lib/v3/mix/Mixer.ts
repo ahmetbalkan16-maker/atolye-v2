@@ -109,7 +109,8 @@ export function sfxLibraryFiles(sfxDir: string, id: SfxId): string[] {
 /**
  * Effects from the script (`sfx` on a line, at its start) and automatic ones, so the picture never moves in
  * silence even when the writer gave none (the reference channel lands a sound on almost every beat): a whoosh into
- * every scene that does not open on a hard cut, a thud under a one-word card, footsteps when someone walks in, a
+ * every scene the script opens with a slide, an ink iris or a white flash (none on a cut or a soft dissolve), a thud under
+ * a one-word card, footsteps when someone walks in, a
  * whoosh when someone runs, a pop on a surprise or an exclamation mark over the head, a boing on a question mark, and
  * the success sting under the closing subscribe invitation. A line's own effect replaces its automatic one.
  */
@@ -118,7 +119,7 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
   const lastScene = episode.sahneler.length - 1;
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si];
-    if (si > 0 && st && scene.gecis && scene.gecis !== "kes") cues.push({ t: Math.max(0, st.start - 0.12), id: "whoosh" });
+    if (si > 0 && st && scene.gecis && scene.gecis !== "kes" && scene.gecis !== "cozul") cues.push({ t: Math.max(0, st.start - 0.12), id: "whoosh" });
     const lineAt = (li: number) => timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li);
     for (const card of scene.yazi_karti ?? []) {
       const lt = lineAt(Math.min(card.satir ?? 0, scene.satirlar.length - 1));
@@ -270,12 +271,47 @@ export const EFFECT_DUCK_THRESHOLD = 0.03;
 
 /** Level of the ambience beds (well under the music's −26 before the final loudness pass). */
 export const AMBIENCE_LUFS = -38;
+/** How long one place's ambience takes to give way to the next one's (both heard, equal power). */
+export const AMBIENCE_FADE_S = 0.8;
+/**
+ * Fades between beds and at a loop's seam are equal-power (a quarter sine in and out): two beds crossing keep their
+ * loudness, where the triangular default dipped by 3 dB in the middle of every crossfade.
+ */
+export const FADE_CURVE = "qsin";
 
-/** FFmpeg chain of one ambience bed (input `input`), looped to the scene, faded at both ends, delayed to its start. */
+/** FFmpeg chain of one ambience bed (input `input`), looped to its time, faded at both ends, delayed to its start. */
 export function ambienceChain(input: number, label: string, start: number, end: number): string {
   const len = Math.max(0.5, end - start);
   const ms = Math.round(start * 1000);
-  return `[${input}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=${AMBIENCE_LUFS}:TP=-9:LRA=11,afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, len - 0.6).toFixed(3)}:d=0.6,adelay=${ms}|${ms}[${label}]`;
+  const d = Math.min(AMBIENCE_FADE_S, len / 2);
+  return `[${input}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=${AMBIENCE_LUFS}:TP=-9:LRA=11,afade=t=in:d=${d}:curve=${FADE_CURVE},afade=t=out:st=${Math.max(0, len - d).toFixed(3)}:d=${d}:curve=${FADE_CURVE},adelay=${ms}|${ms}[${label}]`;
+}
+
+/**
+ * The ambience beds as they are played: scenes in a row with one bed (the same place) carry it on as one, never dipping
+ * to silence at the cut between them; each bed overhangs its time by half a fade on both sides (within the episode), so
+ * one place's sound crosses into the next one's instead of each fading out alone.
+ */
+export function ambienceRuns(beds: readonly { readonly start: number; readonly end: number; readonly file: string }[], duration: number): { start: number; end: number; file: string }[] {
+  const runs: { start: number; end: number; file: string }[] = [];
+  for (const b of [...beds].sort((a, c) => a.start - c.start)) {
+    const last = runs[runs.length - 1];
+    if (last && last.file === b.file && b.start - last.end <= 0.05) last.end = Math.max(last.end, b.end);
+    else runs.push({ start: b.start, end: b.end, file: b.file });
+  }
+  return runs.map((r) => ({ ...r, start: Math.max(0, r.start - AMBIENCE_FADE_S / 2), end: Math.min(duration, r.end + AMBIENCE_FADE_S / 2) }));
+}
+
+/** The crossfade at a looped bed's seam (seconds). */
+export const LOOP_SEAM_S = 1.2;
+
+/**
+ * FFmpeg graph that makes a file loop without a jump: its first `seam` seconds are crossed (equal power) into its end,
+ * so played again and again the end runs into the start (from `seam` s in) with no click and no restart heard.
+ */
+export function loopSeamFilter(seam: number): string {
+  const s = seam.toFixed(3);
+  return `[0:a]asplit=2[a][b];[a]atrim=start=${s},asetpts=PTS-STARTPTS[body];[b]atrim=end=${s},asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=${s}:c1=${FADE_CURVE}:c2=${FADE_CURVE}[loop]`;
 }
 
 /** `[main]` ducked under `[key]` into `[out]` (sidechain compression with the music's attack and release). */
@@ -366,6 +402,20 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   await fs.writeFile(sfxFile, wavFloat32(effects));
 
   const args: string[] = ["-v", "error", "-y", "-i", dlgFile, "-i", sfxFile];
+  // A bed longer than its file loops: through a seamless copy (loopSeamFilter), made once per file. A file too short for
+  // the seam, or one FFmpeg cannot read the length of, loops as before.
+  const seamless = new Map<string, string>();
+  const loopable = async (file: string, len: number): Promise<string> => {
+    const probe = await runChecked(paths.ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]).catch(() => undefined);
+    const own = Number(probe?.stdout.trim());
+    if (!(own > 4 * LOOP_SEAM_S) || own >= len) return file;
+    const known = seamless.get(file);
+    if (known) return known;
+    const out = path.join(tmp, `dongu-${seamless.size}.wav`);
+    const made = await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", file, "-filter_complex", loopSeamFilter(LOOP_SEAM_S), "-map", "[loop]", "-c:a", "pcm_f32le", out]).then(() => true, () => false);
+    seamless.set(file, made ? out : file);
+    return made ? out : file;
+  };
   const beds: string[] = [];
   for (const [i, m] of input.music.entries()) {
     // Each bed overhangs its scenes by half a crossfade on both sides, so neighbours overlap by a full one.
@@ -373,16 +423,17 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
     const to = Math.min(input.duration, m.end + CROSSFADE_S / 2);
     const len = Math.max(0.5, to - from);
     const fadeIn = i === 0 ? 0.8 : CROSSFADE_S;
-    args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", await clean(m.track.absolutePath, "muzik"));
+    args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", await loopable(await clean(m.track.absolutePath, "muzik"), len));
     const ms = Math.round(from * 1000);
     beds.push(
-      `[${i + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=-26:TP=-8:LRA=11,afade=t=in:d=${fadeIn},afade=t=out:st=${Math.max(0, len - CROSSFADE_S).toFixed(3)}:d=${CROSSFADE_S},adelay=${ms}|${ms}[m${i}]`,
+      `[${i + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=-26:TP=-8:LRA=11,afade=t=in:d=${fadeIn}:curve=${FADE_CURVE},afade=t=out:st=${Math.max(0, len - CROSSFADE_S).toFixed(3)}:d=${CROSSFADE_S}:curve=${FADE_CURVE},adelay=${ms}|${ms}[m${i}]`,
     );
   }
-  const ambience = input.ambience ?? [];
+  const ambience = ambienceRuns(input.ambience ?? [], input.duration);
   const places: string[] = [];
   for (const [i, a] of ambience.entries()) {
-    args.push("-stream_loop", "-1", "-t", Math.max(0.5, a.end - a.start).toFixed(3), "-i", await clean(a.file, "ortam"));
+    const len = Math.max(0.5, a.end - a.start);
+    args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", await loopable(await clean(a.file, "ortam"), len));
     places.push(ambienceChain(input.music.length + 2 + i, `o${i}`, a.start, a.end));
   }
   let battle: string | undefined;

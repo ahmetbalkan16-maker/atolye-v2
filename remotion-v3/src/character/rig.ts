@@ -209,6 +209,11 @@ export function seededRandom(seed: string): () => number {
 export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 /** Quintic ease: zero velocity and acceleration at both ends, half the peak acceleration of `easeInOut`. */
 export const smootherstep = (t: number) => t * t * t * (t * (6 * t - 15) + 10);
+/**
+ * A slow drift's progress (Ken Burns, depth): eased in and out gently — half speed at both ends, never stopping — and
+ * past the end going on at that half speed, so a picture still under the next shot's dissolve keeps moving.
+ */
+export const drift = (p: number) => (p <= 0 ? p * 0.5 : p >= 1 ? 1 + (p - 1) * 0.5 : p - (0.5 * Math.sin(2 * Math.PI * p)) / (2 * Math.PI));
 export const easeOutBack = (t: number) => {
   const c1 = 1.70158;
   const c3 = c1 + 1;
