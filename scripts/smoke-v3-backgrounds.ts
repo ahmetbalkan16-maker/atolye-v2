@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
@@ -287,6 +287,36 @@ async function main() {
     const ancient = ancientPlace("Corfinium, Italy", "49 BC")!;
     assert.ok(ancient.includes("terracotta tile roofs") && readPeriodRewrite(JSON.stringify({ tasarim: ancient })) === ancient, "the fallback wording passes its own check");
     assert.equal(ancientPlace("Istanbul", "1453"), undefined);
+  });
+
+  await scenario("O2 a set description the judge passed becomes the setting brain's worked example; a failing one is rewritten with the closest (Taranto proposal, 12 Nov 2026)", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-set-ornek-"));
+    try {
+      const deck = "The flight deck of a grey steel aircraft carrier at sea in 1940: biplane torpedo bombers parked with folded wings, an island superstructure with a funnel";
+      assert.equal(await rememberSetExample(root, "Taranto", `HMS Illustrious flight deck ${deck} 11 November 1940`, deck), true);
+      assert.equal(await rememberSetExample(root, "Taranto", "HMS Illustrious flight deck 1940", `${deck} `), false, "the same example is kept once");
+      assert.equal(await rememberSetExample(root, "Taranto", "kısa", "a deck"), false, "too short to show anyone");
+      const harbour = "Mar Grande harbour of Taranto in 1940: grey steel battleships at anchor behind anti-torpedo nets, low white port buildings";
+      await rememberSetExample(root, "Taranto", `Taranto harbour ${harbour} 11 November 1940`, harbour);
+      const failing = "The deck of a carrier at night with planes";
+      const got = await setExamples(root, `HMS Eagle flight deck ${failing} 11 November 1940`, failing);
+      assert.ok(got.includes(deck), "the similar place's passed description is offered");
+      assert.ok(got.length <= MAX_SET_EXAMPLES);
+      assert.equal((await setExamples(root, `HMS Illustrious flight deck ${deck} 11 November 1940`, deck)).includes(deck), false, "a place is never its own example");
+      assert.deepEqual(await setExamples(root, "Roman Senate marble hall 49 BC", "A marble hall"), [], "nothing similar: no example");
+      // When a set is rewritten before its second round.
+      assert.equal(setRewriteKind([], 2), undefined);
+      assert.equal(setRewriteKind([{ donem: 2 }, { donem: 8 }], 0), "donem", "a later-era drawing is always rewritten");
+      assert.equal(setRewriteKind([{ donem: 8 }], 0), undefined, "a missed subject without examples keeps its description");
+      assert.equal(setRewriteKind([{ donem: 8 }], 1), "ornek");
+      const p = periodRewritePrompt(failing, "HMS Eagle", "11 November 1940", ["no carrier deck visible"], got, false);
+      assert.ok(p.includes("The history judge rejected its drawings: no carrier deck visible") && !p.includes("later era:"));
+      assert.ok(p.includes("passed before") && p.includes(`- "${deck}"`) && p.includes('{"tasarim"'));
+      const plain = periodRewritePrompt("A walled hilltop town with stone towers", "Corfinium, Italy", "49 BC", ["cross on a tower"]);
+      assert.ok(plain.includes("came out from a later era: cross on a tower.\nRewrite the description"), "without examples the prompt is as before");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   await scenario("P subject photo (no set could be drawn): exactly this place's remains or a period object, never an unrelated photo", async () => {

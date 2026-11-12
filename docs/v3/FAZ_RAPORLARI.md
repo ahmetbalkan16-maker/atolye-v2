@@ -629,3 +629,13 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   süvari) olduğu için amblem çizilmez; haç sanılan büyük olasılıkla kılıçlıların dik kılıç işaretiydi — kalite beyninin
   "kusur değil" listesine blokların birlik işaretleri (✕, kabzalı dik kılıç, mızrak, yay, at başı, top) ve düşen pulun
   ✕'i eklendi; binadaki dönem dışı haç kusur olmaya devam eder.
+- Ortam beyninin onaylı önerisi (ortam-62, Taranto Short: "dönem görseli bulunamadı", s4-swordfish-launch): set
+  tasarımcısına şimdiye dek yalnız reddedilen setlerin dersleri (`ders`, "Avoid what failed before") gidiyordu; hakemden
+  geçen tarifler örnek olarak saklanmıyordu. `BackgroundDesigner` artık hakemden geçen set tarifini ortam beyninin
+  "işe yaradı" örneği olarak bir kez yazar (`rememberSetExample`), benzer yer ve dönem için en yakın üçünü verir
+  (`setExamples`), ve yeniden yazma istemi bu örnekleri gösterir (`periodRewritePrompt(..., examples, laterEra)`);
+  `setRewriteKind` sonraki çağ hatasında her zaman, konu ıskalandığında ise örnek varsa yeniden yazdırır. Örneksiz
+  istem öncekiyle aynıdır. Üretimde devreye girmesi için `scripts/atolye-v3.ts` set turlarında iki çağrı gerekir
+  (kabulde `rememberSetExample`, ikinci tur öncesi `setExamples` + `setRewriteKind`); bu dosya geliştirme hattının izinli
+  alanı dışında olduğu için owner onayıyla bağlanacak. Not: dönem görseli bulunamayan karakter sahnesi zaten çizili
+  yaşayan ortamda kalır; SDXL seti artık yalnız `ortam`sız sahnelerde çizilir. Kanıt: `smoke-v3-backgrounds` O2.
