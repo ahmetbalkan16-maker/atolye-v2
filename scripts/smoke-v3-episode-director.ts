@@ -1320,6 +1320,30 @@ async function main() {
     assert.equal(badges[0]!.path[0]!.x, 500, "the one already there stays");
     assert.ok(badges[1]!.path[1]!.x - 500 >= 140 && badges[1]!.path[0]!.x === 900, JSON.stringify(badges[1]));
     assert.deepEqual(spaceBadges([{ label: "A", start: 0, end: 40, path: [{ x: 0, y: 0 }] }, { label: "B", start: 50, path: [{ x: 0, y: 0 }] }], undefined, 1080)[1]!.path[0], { x: 0, y: 0 }, "not on the map at the same time");
+    // Guadalcanal (12 Nov 2026): Abe, Callaghan and Scott ~1 km apart in the melee; the old pass set Callaghan just a
+    // scroll's width from Abe, then back towards him away from Scott — badge 14 % on badge, his words 32 % on Scott's.
+    // Now each stands where the drawn boxes (scroll ends, a speaker's swell, its words over the lower one) meet none.
+    const melee = spaceBadges([
+      { label: "Hiroaki Abe", start: 287, path: [{ x: 762.9, y: 459.4 }] },
+      { label: "Daniel J. Callaghan", start: 421, path: [{ x: 942.8, y: 394.2 }] },
+      { label: "Norman Scott", start: 287, path: [{ x: 1171, y: 326.3 }] },
+    ], undefined, 1080, true);
+    const meleeBox = (b: (typeof melee)[number], swell: number) => {
+      const half = Math.max(49, (b.label.length * 11.5 + 34) / 2 + 12) * swell;
+      const p = b.path[0]!;
+      return { x0: p.x - half, x1: p.x + half, y0: p.y - 131 * swell - 120, y1: p.y + 6 };
+    };
+    for (const [i, j] of [[0, 1], [0, 2], [1, 2]] as const)
+      for (const talker of [i, j]) {
+        const [a, b] = [meleeBox(melee[i]!, talker === i ? 1.14 : 1), meleeBox(melee[j]!, talker === j ? 1.14 : 1)];
+        assert.ok(!(a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1), `${melee[i]!.label} / ${melee[j]!.label}: ${JSON.stringify(melee.map((m) => m.path[0]))}`);
+      }
+    assert.deepEqual([melee[0]!.path[0], melee[2]!.path[0]], [{ x: 762.9, y: 459.4 }, { x: 1171, y: 326.3 }], "the first two stay");
+    const moved = Math.hypot(melee[1]!.path[0]!.x - 942.8, melee[1]!.path[0]!.y - 394.2);
+    assert.ok(moved < 450, `the latecomer moves only as far as it must: ${moved}`);
+    // The flat map's badge is wider (name plate over the ring): the same two names need more room there.
+    const flat = spaceBadges([{ label: "Prince Lazar", start: 0, path: [{ x: 500, y: 300 }] }, { label: "Murad I", start: 0, path: [{ x: 505, y: 300 }] }], undefined, 1080, false);
+    assert.ok(Math.abs(flat[1]!.path[0]!.x - 500) >= (12 * 9 + 18) + (7 * 9 + 18) || Math.abs(flat[1]!.path[0]!.y - 300) >= 175, JSON.stringify(flat[1]));
     // Gallipoli (10 Nov 2026): each commander's badge at his army's own place hid "ANZAC" and "OTTOMAN 19TH DIVISION";
     // the badges now stand beside the markers, each on its own army's outer side, on no marker at all.
     const armies = [{ x: 500, y: 600, label: "ANZAC", start: 30 }, { x: 600, y: 520, label: "Ottoman 19th Division", start: 60 }];

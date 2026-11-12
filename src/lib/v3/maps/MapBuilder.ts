@@ -493,28 +493,49 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
  * their names one over the other). Where two badges are on the map at the same time and their resting places (a route's
  * end, or where they stand) are closer than the badges and their name scrolls are wide — at the camera's zoom when the
  * later one arrives — the later one moves aside, away from the other. World pixels; `camera` as in V3GeoMap.
+ *
+ * Sizes are the boxes MapView draws (hudLayout.badgeExtent: the scroll's ends too, the relief or the flat map's badge),
+ * with room for the one that speaks to swell (talkSwell, +14 %) and for its words over its ring when one stands below
+ * another. The badges are settled in arrival order, each at the nearest place — beside or under/over one already there —
+ * free of all of them: Guadalcanal (12 Nov 2026) set Callaghan's badge just wide enough from Abe's by the scroll alone,
+ * then away from Scott's back towards Abe's, and the swollen speaker covered both (14 %, his words 32 % of Scott's).
  */
-export function spaceBadges<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(badges: readonly B[], camera: V3GeoMap["camera"], height: number): B[] {
+export function spaceBadges<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(badges: readonly B[], camera: V3GeoMap["camera"], height: number, relief = true): B[] {
   const zoomAt = (frame: number) => (camera?.length ? ([...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]!).zoom : 1);
   const out = badges.map((b) => ({ ...b, path: b.path.map((p) => ({ x: p.x, y: p.y })) }));
   const rest = (b: (typeof out)[number]) => b.path[b.path.length - 1];
   const arrives = (b: (typeof out)[number]) => (b.path.length > 1 ? (b.moveStart ?? b.start) : b.start);
-  for (let i = 0; i < out.length; i++)
-    for (let j = 0; j < i; j++) {
-      const [a, b] = [out[j]!, out[i]!];
-      const [pa, pb] = [rest(a), rest(b)];
-      if (!pa || !pb) continue;
-      if ((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start) continue;
-      // The later arrival moves; its zoom then decides how big the badges are on the world.
-      const [mover, still] = arrives(b) >= arrives(a) ? [b, a] : [a, b];
-      const pm = rest(mover)!;
-      const ps = rest(still)!;
-      const k = height / 1080 / zoomAt(Math.max(arrives(a), arrives(b)));
-      const need = ((mover.label.length * 11.5 + 34) / 2 + (still.label.length * 11.5 + 34) / 2 + 16) * k;
-      const dx = pm.x - ps.x;
-      if (Math.abs(dx) >= need || Math.abs(pm.y - ps.y) >= 150 * k) continue;
-      pm.x = r1(ps.x + (dx >= 0 ? 1 : -1) * need);
-    }
+  // hudLayout.badgeExtent (remotion-v3 is not imported from the studio's modules).
+  const extent = (label: string) => (relief ? { half: Math.max(49, (label.length * 11.5 + 34) / 2 + 12), up: 131 } : { half: Math.max(54, label.length * 9 + 18), up: 175 });
+  const SWELL = 0.14;
+  const GAP = 16;
+  // MapView keeps a speaker's words ~120 px over its badge (labelAvoid); ShotView's bubble is about that tall.
+  const WORDS_UP = 120;
+  const order = out.map((_, i) => i).sort((a, b) => arrives(out[a]!) - arrives(out[b]!) || a - b);
+  const settled: (typeof out)[number][] = [];
+  for (const i of order) {
+    const b = out[i]!;
+    const pb = rest(b);
+    if (!pb) continue;
+    // The later arrival moves; its zoom then decides how big the badges are on the world.
+    const k = height / 1080 / zoomAt(arrives(b));
+    const eb = extent(b.label);
+    const others = settled.filter((a) => !((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start)).map((a) => {
+      const ea = extent(a.label);
+      return { at: rest(a)!, x: (ea.half + eb.half + SWELL * Math.max(ea.half, eb.half) + GAP) * k, y: (Math.max(ea.up, eb.up) * (1 + SWELL) + 6 + WORDS_UP) * k };
+    });
+    settled.push(b);
+    const clashes = (x: number, y: number) => others.filter((o) => Math.abs(x - o.at.x) < o.x && Math.abs(y - o.at.y) < o.y).length;
+    if (!clashes(pb.x, pb.y)) continue;
+    const tries = [
+      { x: pb.x, y: pb.y },
+      ...others.flatMap((o) => [{ x: o.at.x - o.x, y: pb.y }, { x: o.at.x + o.x, y: pb.y }, { x: pb.x, y: o.at.y + o.y }, { x: pb.x, y: o.at.y - o.y }]),
+    ].map((p) => ({ ...p, clash: clashes(p.x, p.y), d: Math.hypot(p.x - pb.x, p.y - pb.y) }));
+    const best = tries.reduce((a, p) => (p.clash < a.clash || (p.clash === a.clash && p.d < a.d) ? p : a));
+    // Rounded away from where it was, so the tenth never takes back the room it moved for.
+    const away = (v: number, from: number) => (v === from ? v : (v > from ? Math.ceil(v * 10 - 1e-9) : Math.floor(v * 10 + 1e-9)) / 10);
+    [pb.x, pb.y] = [away(best.x, pb.x), away(best.y, pb.y)];
+  }
   return out as unknown as B[];
 }
 
@@ -1831,7 +1852,7 @@ function projectGeoMap(
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
       })
-    : badges, armyMarks, camera, height), camera, height);
+    : badges, armyMarks, camera, height), camera, height, Boolean(opts.relief));
   const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
   for (const [i, s] of (opts.sideBadges ?? []).entries()) {
     const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);
