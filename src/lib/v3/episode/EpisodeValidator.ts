@@ -598,6 +598,8 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (v.konum !== undefined) lonLat(v.konum, `${vp}.konum`);
         num(v, "km", vp, 0.1, 5000, true);
       });
+      // When the map's events happen (a night raid on a dark map), as a set's time of day.
+      oneOf(h, "zaman", hp, TIMES_OF_DAY, true);
       (arr(h, "tarih", hp, true) ?? []).forEach((d, di) => {
         const dp = `${hp}.tarih[${di}]`;
         if (!isObj(d)) return err("HARITA_TARIH", dp, "nesne bekleniyor");

@@ -1,4 +1,4 @@
-import { actionAt, actionFrames, type ActionMark, behindFigure, type FrameWindow, loneWindowCentre, shortWindow } from "../maps/UnitFraming";
+import { actionAt, actionFrames, type ActionMark, behindFigure, type FrameWindow, loneWindowCentre, shortWindow, standingAt } from "../maps/UnitFraming";
 import type { V3Performer, V3RenderPlan, V3Shot } from "../render/RenderPlanTypes";
 
 /**
@@ -41,7 +41,8 @@ export function windowLeft(shot: Pick<V3Shot, "performers">, marks: readonly Act
 
 /**
  * Each moment something acts on a Short's map outside its window, cut at its edge, or behind a character standing in
- * front of the map. Empty for a plan that is not a Short.
+ * front of the map; and each camera move that brings what stands on the map behind such a character (a move may leave
+ * things out of the picture on purpose, never under a character). Empty for a plan that is not a Short.
  */
 export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "height" | "stage" | "shots">): MapFramingFault[] {
   if (!plan.stage || plan.height <= plan.width) return [];
@@ -49,9 +50,12 @@ export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "hei
   const win = shortWindow(stage, plan);
   const winW = win.width * stage.width;
   const faults: MapFramingFault[] = [];
+  const names = (l: readonly ActionMark[]) => [...new Set(l.map((m) => m.name))].join(", ");
   for (const shot of plan.shots) {
     const map = shot.geoMap;
     if (!map) continue;
+    // Frames already found at fault (a camera stop on an action's frame is reported once).
+    const found = new Set<number>();
     for (const frame of actionFrames(map)) {
       if (frame >= shot.duration || (shot.inserts ?? []).some((i) => frame >= i.start && frame < i.end)) continue;
       const marks = actionAt(map, frame, stage.width, stage.height);
@@ -62,12 +66,18 @@ export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "hei
       const actors = shot.performers.map((p) => performerX(p, frame));
       const behind = marks.filter((m) => !out.includes(m) && !edge.includes(m) && actors.some((x) => behindFigure(m, x, stage.width, stage.height)));
       if (!out.length && !edge.length && !behind.length) continue;
-      const names = (l: readonly ActionMark[]) => [...new Set(l.map((m) => m.name))].join(", ");
+      found.add(frame);
       faults.push({
         at: Math.round(((shot.start + frame) / plan.fps) * 10) / 10,
         shot: shot.id,
         ayrinti: [out.length ? `${names(out)} kadraj dışında` : "", edge.length ? `${names(edge)} kadraj kenarında kesik` : "", behind.length ? `${names(behind)} karakterin arkasında` : ""].filter(Boolean).join("; "),
       });
+    }
+    for (const key of map.camera ?? []) {
+      if (key.frame <= 0 || key.frame >= shot.duration || found.has(key.frame) || (shot.inserts ?? []).some((i) => key.frame >= i.start && key.frame < i.end)) continue;
+      const actors = shot.performers.map((p) => performerX(p, key.frame));
+      const behind = standingAt(map, key.frame, stage.width, stage.height).filter((m) => m.x + m.reach > 0 && m.x - m.reach < stage.width && actors.some((x) => behindFigure(m, x, stage.width, stage.height)));
+      if (behind.length) faults.push({ at: Math.round(((shot.start + key.frame) / plan.fps) * 10) / 10, shot: shot.id, ayrinti: `kamera hareketiyle ${names(behind)} karakterin arkasında` });
     }
   }
   return faults;

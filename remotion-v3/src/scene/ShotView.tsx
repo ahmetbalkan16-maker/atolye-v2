@@ -11,6 +11,7 @@ import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { InfoCardView } from "./InfoCard";
+import { mapBubbleSize } from "./mapEffects";
 import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
@@ -41,9 +42,6 @@ function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: Perfor
     </g>
   );
 }
-
-/** A badge's words on the map, against a character's on the stage (MapBuilder leaves room for them over the badge). */
-const MAP_BUBBLE = 0.72;
 
 /** Stage → screen: x across the frame, depth 0 front .. 1 back. */
 export function stageTransform(x: number, depth: number, width: number, height: number) {
@@ -345,7 +343,10 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
             // In a Short the words wait for the window to reach their speaker (they floated over the set before).
             const from = vertical ? Math.min(b.end - 1, windowArrival(aims, b.castId, b.start, fps, aimX)) : b.start;
             const bubble = from > b.start ? { ...b, start: from } : b;
-            return anchor ? <SpeechBubble key={`b-${i}`} bubble={bubble} anchor={anchor} language={language} size={badgeHeads.has(b.castId) ? MAP_BUBBLE : 1} /> : null;
+            // A badge's words on the map (MapBuilder leaves room for them over the badge): smaller than a character's on a
+            // wide frame, full size in a Short, on a dark plate so they read over the land and sea.
+            const onMap = badgeHeads.has(b.castId);
+            return anchor ? <SpeechBubble key={`b-${i}`} bubble={bubble} anchor={anchor} language={language} size={onMap ? mapBubbleSize(vertical) : 1} plate={onMap} /> : null;
           })}
       {insertOn
         ? null

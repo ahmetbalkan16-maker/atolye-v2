@@ -31,7 +31,7 @@ export function isShout(text: string): boolean {
  * toward the speaker, no balloon (the reference channel's look). Pops in, leans away from the nearest other
  * character, stays inside the frame and fades at its end.
  */
-export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V3Bubble; anchor: HeadAnchor; language: "tr" | "en"; size?: number }) {
+export function SpeechBubble({ bubble, anchor, language, size = 1, plate = false }: { bubble: V3Bubble; anchor: HeadAnchor; language: "tr" | "en"; size?: number; plate?: boolean }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < bubble.start || frame >= bubble.end) return null;
@@ -53,6 +53,10 @@ export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V
   const left = Math.min(W - margin - w, Math.max(margin, anchor.x - w / 2 + lean * w));
   const bottom = Math.max(margin + lines * fs * 1.1, anchor.top - tick);
   const tickX = Math.min(left + w - 30 * k, Math.max(left + 30 * k, anchor.x + lean * w * 0.3));
+  // `plate`: words over the map stand on a dark see-through plate (owner, 11 Nov 2026: thin white words on the land and
+  // sea could not be read), padded outwards so the lines break as before.
+  const pad = { x: 16 * k, y: 6 * k };
+  const plated = plate ? { left: left - pad.x, padding: `${pad.y}px ${pad.x}px`, backgroundColor: "rgba(14,17,24,0.66)", borderRadius: 14 * k } : { left };
   return (
     <div style={{ position: "absolute", inset: 0, opacity: out, transform: `scale(${0.6 + 0.4 * pop})`, transformOrigin: `${tickX}px ${bottom + tick}px` }}>
       <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
@@ -63,7 +67,7 @@ export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V
         {...yer("balon")}
         style={{
           position: "absolute",
-          left,
+          ...plated,
           bottom: H - bottom,
           width: w,
           textAlign: "center",

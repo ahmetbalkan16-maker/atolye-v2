@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, filmCamera } from "../remotion-v3/src/scene/camera";
+import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -300,6 +301,99 @@ async function main() {
     const frames = Array.from({ length: 180 }, (_, k) => gunfireAt(map, 60 + k, 30));
     assert.ok(frames.some((f) => f.filter((s) => s.ui === 1 && s.p < 0.05).length === 4), "a volley of the whole line");
     assert.ok(frames.every((f) => f.filter((s) => s.gun && s.p < 0.03).length <= 1), "guns fire in turn");
+  });
+
+  await scenario("L a torpedo runs to the ship it sinks and strikes it there: wake, burst, water column, night flares (Taranto, 11 Nov 2026)", () => {
+    // The Taranto Short: six Swordfish over the harbour, three Italian battleships, one lost at frame 189 + 2.4 s — it
+    // went down with nothing hitting it, and the planes' target, once set, got a falling bomb instead of a torpedo.
+    const ship = { x: 1818, y: 1063 };
+    const raidEnd = { x: 1696, y: 1186 };
+    const map = {
+      era: "modern",
+      cities: [],
+      vehicles: [
+        { kind: "ucak", color: "#3a7e6b", count: 6, start: 9, path: [{ x: 1371, y: 759 }, raidEnd], moveStart: 189 },
+        { kind: "ucak", color: "#3a7e6b", count: 6, start: 329, path: [{ x: 2021, y: 1614 }, raidEnd], moveStart: 507 },
+        { kind: "gemi", color: "#b3263a", count: 3, start: 9, path: [ship], lossStart: 189, losses: [2.4] },
+        { kind: "ucak", color: "#3a7e6b", count: 3, start: 9, path: [{ x: 1371, y: 759 }], target: { x: ship.x + 20, y: ship.y - 10 }, fireStart: 120 },
+        { kind: "ucak", color: "#3a7e6b", count: 3, start: 9, path: [{ x: 1371, y: 759 }], target: { x: 400, y: 400 }, fireStart: 120 },
+        { kind: "top", color: "#3a7e6b", count: 2, start: 9, path: [{ x: 1500, y: 900 }], target: ship, fireStart: 120 },
+      ],
+    } as unknown as V3GeoMap;
+    const down = 189 + Math.round(2.4 * FPS);
+    assert.deepEqual(torpedoAttacker(map, 2, down), raidEnd, "the sunk battleship's torpedo comes from the raid");
+    assert.equal(torpedoAttacker(map, 0, down), undefined, "a plane is not torpedoed");
+    assert.equal(torpedoAttacker({ ...map, vehicles: map.vehicles!.map((v) => ({ ...v, color: "#b3263a" })) } as V3GeoMap, 2, down), undefined, "no torpedo from its own side");
+    assert.equal(torpedoAttacker(map, 2, 5), undefined, "no torpedo before the planes are there");
+    assert.ok(torpedoTarget(map, 3, 180), "planes sent at a ship drop torpedoes");
+    assert.ok(!torpedoTarget(map, 4, 180) && !torpedoTarget(map, 5, 180), "planes sent at land bomb it; a gun fires shells");
+    // It enters the water short of the ship on the raid's side, and never behind an attacker closer than its run.
+    const from = torpedoStart(ship, raidEnd, 150);
+    assert.ok(Math.abs(Math.hypot(from.x - ship.x, from.y - ship.y) - 150) < 1e-6 && from.x < ship.x && from.y > ship.y, "150 px short, towards the raid");
+    assert.deepEqual(torpedoStart(ship, { x: ship.x + 40, y: ship.y }, 150), { x: ship.x + 40, y: ship.y }, "a close attacker drops it beside the ship");
+    // The raid's route ended on the town south-west of the harbour: the run turns until it lies on the sea.
+    const town = landRings(`M${ship.x - 400} ${ship.y + 30}L${ship.x - 20} ${ship.y + 30}L${ship.x - 20} ${ship.y + 400}L${ship.x - 400} ${ship.y + 400}Z`);
+    assert.ok(onLand(town, raidEnd) && !onLand(town, ship), "the raid ends on land, the ship lies on the sea");
+    const wet = torpedoStart(ship, raidEnd, 150, town);
+    assert.ok([0.25, 0.5, 0.75, 1].every((f) => !onLand(town, { x: ship.x + (wet.x - ship.x) * f, y: ship.y + (wet.y - ship.y) * f })), `the whole run on the sea (${wet.x.toFixed(0)}, ${wet.y.toFixed(0)})`);
+    assert.ok(Math.abs(Math.hypot(wet.x - ship.x, wet.y - ship.y) - 150) < 1e-6 && wet.x < ship.x + 75, "still its full run, turned no further than it must");
+    // The run: no torpedo before the drop, the head glides in without a leap, then the strike stands where the ship is.
+    assert.equal(torpedoAt(-0.01, from, ship), undefined);
+    let last = from;
+    let struck = -1;
+    for (let f = 0; f * (1 / FPS) < TORPEDO_RUN_S + COLUMN_S; f++) {
+      const run = torpedoAt(f / FPS, from, ship)!;
+      assert.ok(run, `frame ${f} draws the torpedo`);
+      assert.ok(Math.hypot(run.head.x - last.x, run.head.y - last.y) < 12, `no leap at frame ${f}`);
+      last = run.head;
+      if (run.impact !== undefined && struck < 0) struck = f;
+    }
+    assert.equal(struck, Math.round(TORPEDO_RUN_S * FPS), "it strikes when its run ends");
+    assert.ok(Math.hypot(last.x - ship.x, last.y - ship.y) < 1e-6, "the strike is where the ship is drawn");
+    assert.equal(torpedoAt(TORPEDO_RUN_S + COLUMN_S, from, ship), undefined, "gone once the column has fallen");
+    // The water column shoots up, stands, falls back.
+    const column = Array.from({ length: 21 }, (_, i) => waterColumn(i / 20)?.h ?? 0);
+    const top = Math.max(...column);
+    assert.ok(column[0] === 0 && column[20] === 0 && top > 2 && column.indexOf(top) < 10 && column[16]! < top, `up fast, then down (${column.map((h) => h.toFixed(1)).join(" ")})`);
+    // The raid's flares: over the sunk ship from 2 s before it goes down, burning out after FLARE_S; the second wave came
+    // after it and the gun is no plane — neither drops any.
+    assert.deepEqual(raidOf(map, 0, FPS), { at: ship, frame: down });
+    assert.deepEqual(raidOf(map, 3, FPS), { at: { x: ship.x + 20, y: ship.y - 10 }, frame: 120 }, "a raid with a target attacks it from fireStart");
+    assert.equal(raidOf(map, 1, FPS), undefined);
+    assert.equal(raidOf(map, 5, FPS), undefined);
+    assert.deepEqual(flaresAt(down - 2 * FPS - 1, down, FPS, 0), []);
+    const lit = flaresAt(down + FPS, down, FPS, 0);
+    assert.equal(lit.length, 3, "three flares over the harbour as the torpedo strikes");
+    assert.ok(lit.every((f) => f.glow > 0 && f.glow <= 1));
+    assert.ok(flaresAt(down + 2 * FPS, down, FPS, 0)[0]!.dy > lit[0]!.dy, "they drift down");
+    assert.deepEqual(flaresAt(down + Math.round((FLARE_S + 1) * FPS), down, FPS, 0), [], "and burn out");
+  });
+
+  await scenario("M a night map is dark with sweeping searchlights only when the script says so; a badge's words are full size in a Short", () => {
+    assert.ok(!isNightMap({}) && !isNightMap({ zaman: "gun" }) && !isNightMap({ zaman: "aksam" }), "a map without `zaman` (or by day) is drawn as before");
+    assert.ok(isNightMap({ zaman: "gece" }));
+    const view = { x0: 1000, y0: 600, x1: 2600, y1: 1500 };
+    const harbour = { era: "modern", zaman: "gece", cities: [{ x: 5000, y: 5000, label: "Far" }], vehicles: [{ kind: "gemi", color: "#b3263a", count: 3, start: 0, path: [{ x: 1818, y: 1063 }] }, { kind: "ucak", color: "#3a7e6b", count: 6, start: 0, path: [{ x: 1371, y: 759 }] }] } as unknown as V3GeoMap;
+    const beams = searchlights(harbour, view, 0, FPS);
+    assert.deepEqual(beams.map((b) => [b.x, b.y]), [[1818, 1063]], "from the ships in view, not a far city nor a plane");
+    const open = searchlights({ ...harbour, vehicles: [] } as V3GeoMap, view, 0, FPS);
+    assert.deepEqual(open.map((b) => [b.x, b.y]), [[1320, 1446], [2280, 1446]], "none in view: from just inside the view's lower corners");
+    // They sweep slowly to and fro (no jump between frames), always above the horizon of their source.
+    let prev = searchlights(harbour, view, 0, FPS);
+    let [lo, hi] = [beams[0]!.angle, beams[0]!.angle];
+    for (let f = 1; f < 600; f++) {
+      const now = searchlights(harbour, view, f, FPS);
+      now.forEach((b, i) => {
+        assert.ok(Math.abs(b.angle - prev[i]!.angle) < 0.03, `smooth sweep at frame ${f}`);
+        assert.ok(b.angle < 0 && b.angle > -Math.PI, "pointing up");
+      });
+      [lo, hi] = [Math.min(lo, now[0]!.angle), Math.max(hi, now[0]!.angle)];
+      prev = now;
+    }
+    assert.ok(hi - lo > 1.2, `the beam sweeps to and fro (${(hi - lo).toFixed(2)} rad)`);
+    // Owner, 11 Nov 2026: the thin white words over the Taranto map could not be read on the phone.
+    assert.equal(mapBubbleSize(true), 1);
+    assert.equal(mapBubbleSize(false), MAP_BUBBLE);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

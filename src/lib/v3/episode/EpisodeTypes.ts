@@ -201,6 +201,11 @@ export interface SceneMap {
   /** `ad`: the road's name, written along it ("Road to Edirne"). */
   readonly yollar?: readonly { readonly noktalar: readonly [number, number][]; readonly ad?: string }[];
   readonly arazi?: readonly { readonly tur: GroundKind; readonly konum: readonly [number, number]; readonly km?: number }[];
+  /**
+   * When the map's events happen (owner, 11 Nov 2026, Taranto's night raid shown on a daylight map): `gece` darkens the
+   * map and sweeps searchlights over it, an air raid then drops flares. Absent: day, as before.
+   */
+  readonly zaman?: V3TimeOfDay;
 }
 
 /** One side on the strength bar: its name, colour and numbers as the narrator says them ("80,000", "15,000–25,000"). */

@@ -498,6 +498,8 @@ export interface V3GeoMap {
   };
   /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
   readonly era?: "antik" | "orta" | "erken-modern" | "modern";
+  /** The map's time of day (the script's `harita.zaman`): `gece` is drawn dark with searchlights; absent, day. */
+  readonly zaman?: V3TimeOfDay;
   /**
    * Marks over the map (owner, 23 Oct 2026, after DFT Tarih): the strength bar at the top of the screen (each entry from
    * its frame, the next one updating it), white flags of surrender, flames over burning places (`size`: world px across),

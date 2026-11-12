@@ -77,15 +77,50 @@ export function placeToleranceKm(map: SceneMap): number {
 export interface PlaceFix {
   readonly sahne: string;
   readonly ad: string;
-  readonly tur: "sehir" | "savas" | "yapi";
+  readonly tur: "sehir" | "savas" | "yapi" | "arac";
   readonly from: readonly [number, number];
   readonly to: readonly [number, number];
   readonly kaynak: string;
   readonly km: number;
 }
 
-/** One scene's map with its cities, battles and (on a close map) named buildings checked; points on a moved place move with it. */
-export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: PlaceLookup): Promise<{ map: SceneMap; fixes: PlaceFix[]; unchecked: string[] }> {
+/** The script's vehicles that float (MapBuilder's SHIPS). */
+const SHIP_KINDS: ReadonlySet<string> = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
+
+/** A named place of the story (a city or battle of any of its maps, where the writer put it). */
+export interface StoryPlace {
+  readonly ad: string;
+  readonly konum: readonly [number, number];
+}
+
+/** How near (km) a ship's written place must be to a named place to stand on it, on a map this wide. */
+const onPlaceKm = (map: SceneMap) => Math.max(0.3, (map.genislik_km ?? 0) * 0.05);
+
+/** The ships of a close map that fight there: lose some, or are aimed at or flown to by another vehicle. */
+function fightingShips(map: SceneMap): readonly NonNullable<SceneMap["araclar"]>[number][] {
+  if (map.genislik_km === undefined || map.genislik_km > CLOSE_MAP_MAX_KM) return [];
+  const all = map.araclar ?? [];
+  const hit = (p: readonly [number, number]) => all.some((o) => (o.hedef && distanceKm(o.hedef, p) < 0.03) || (o.yol?.length && distanceKm(o.yol[o.yol.length - 1]!, p) < 0.03 && !SHIP_KINDS.has(o.tur)));
+  return all.filter((a) => SHIP_KINDS.has(a.tur) && ((a.kayip ?? 0) > 0 || hit(a.konum)));
+}
+
+/**
+ * The story's places where a fleet fights on a close map (a ship there loses some, or is struck or flown at): the ships at
+ * such a place are checked against the battle fought there (checkMapPlaces).
+ */
+export function seaFightPlaces(episode: Episode): StoryPlace[] {
+  const places = episode.sahneler.flatMap((s) => [...(s.harita?.sehirler ?? []), ...(s.harita?.savaslar ?? [])].map((c) => ({ ad: c.ad, konum: c.konum })));
+  return places.filter((p) => episode.sahneler.some((s) => s.harita && fightingShips(s.harita).some((a) => distanceKm(a.konum, p.konum) <= onPlaceKm(s.harita!))));
+}
+
+/**
+ * One scene's map with its cities, battles and (on a close map) named buildings checked; points on a moved place move with
+ * it — vehicles too. On a close map a ship standing on a place where the story's fleet fights (`seaFights`) is checked
+ * against that battle's own article (the Taranto Short, 11 Nov 2026: the writer put the battleships at the town's
+ * centre and they were drawn in the nearest water, the Mar Piccolo; Wikipedia's "Battle of Taranto" stands in the Mar
+ * Grande, where they lay): it moves there, with the planes flying at it, the shots aimed at it and a badge on it.
+ */
+export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: PlaceLookup, seaFights: readonly StoryPlace[] = []): Promise<{ map: SceneMap; fixes: PlaceFix[]; unchecked: string[] }> {
   const fixes: PlaceFix[] = [];
   // Places whose lookup failed (no internet, Wikipedia down): reported, never taken for confirmed.
   const unchecked: string[] = [];
@@ -124,33 +159,66 @@ export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: Pla
   for (const w of map.savaslar ?? []) savaslar.push({ ...w, konum: await ask("savas", w.ad, w.konum) });
   const yapilar = [];
   for (const b of map.yapilar ?? []) yapilar.push(close && b.ad ? { ...b, konum: await ask("yapi", b.ad, b.konum) } : b);
+  // The ships on a close map at a place where the story's fleet fights: at that battle's own place (an article of that
+  // very name, as a close map's places).
+  const shipMoves: { from: readonly [number, number]; to: [number, number] }[] = [];
+  const battles = new Map<string, PlaceCandidate[] | undefined>();
+  for (const a of close ? (map.araclar ?? []).filter((v) => SHIP_KINDS.has(v.tur)) : []) {
+    const place = seaFights.filter((p) => distanceKm(p.konum, a.konum) <= onPlaceKm(map)).sort((x, y) => distanceKm(x.konum, a.konum) - distanceKm(y.konum, a.konum))[0];
+    if (!place || shipMoves.some((m) => same(m.from, a.konum))) continue;
+    const bare = place.ad.replace(/\s*\d{3,4}\s*(BC|AD)?\s*$/i, "").replace(/^(battle|siege|sack|fall) of /i, "").trim();
+    const query = `Battle of ${bare}`;
+    if (!battles.has(query)) battles.set(query, await lookup(query).catch(() => undefined));
+    const candidates = battles.get(query);
+    if (!candidates) {
+      unchecked.push(query);
+      continue;
+    }
+    const got = decidePlace(bare, a.konum, candidates.filter((c) => /^(battle|siege) of /i.test(c.title)), { toleranceKm: tolerance, namedOnly: true });
+    if (!got) continue;
+    fixes.push({ sahne: sceneId, ad: `${a.tur} ×${a.sayi ?? 1}`, tur: "arac", from: a.konum, to: got.to, kaynak: `Wikipedia: ${got.title}`, km: got.km });
+    shipMoves.push({ from: a.konum, to: got.to });
+  }
   const moved = (p: readonly [number, number]): [number, number] => moves.find((m) => same(m.from, p))?.to ?? [p[0], p[1]];
+  // A ship's move takes what stands on it or aims at it, not the town it was written on.
+  const afloat = (p: readonly [number, number]): [number, number] => shipMoves.find((m) => same(m.from, p))?.to ?? moved(p);
   return {
     map: {
       ...map,
       ...(map.sehirler ? { sehirler } : {}),
       ...(map.savaslar ? { savaslar } : {}),
       ...(map.yapilar ? { yapilar } : {}),
-      ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: moved(r.konum), ...(r.yol ? { yol: r.yol.map(moved) } : {}) })) } : {}),
+      ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: afloat(r.konum), ...(r.yol ? { yol: r.yol.map(moved) } : {}) })) } : {}),
       ...(map.oklar ? { oklar: map.oklar.map((o) => ({ ...o, noktalar: o.noktalar.map(moved) })) } : {}),
       ...(map.ordular ? { ordular: map.ordular.map((a) => ({ ...a, konum: moved(a.konum) })) } : {}),
+      ...(map.araclar
+        ? {
+            araclar: map.araclar.map((a) => ({
+              ...a,
+              konum: SHIP_KINDS.has(a.tur) ? afloat(a.konum) : moved(a.konum),
+              ...(a.yol ? { yol: a.yol.map((p, k) => (k === a.yol!.length - 1 ? afloat(p) : moved(p))) } : {}),
+              ...(a.hedef ? { hedef: afloat(a.hedef) } : {}),
+            })),
+          }
+        : {}),
     },
     fixes,
     unchecked,
   };
 }
 
-/** Every map scene of an episode checked. */
+/** Every map scene of an episode checked (its ships against the battles its fleets fight, seaFightPlaces). */
 export async function checkEpisodePlaces(episode: Episode, lookup: PlaceLookup): Promise<{ episode: Episode; fixes: PlaceFix[]; unchecked: string[] }> {
   const fixes: PlaceFix[] = [];
   const unchecked: string[] = [];
   const sahneler = [];
+  const seaFights = seaFightPlaces(episode);
   for (const s of episode.sahneler) {
     if (!s.harita?.merkez) {
       sahneler.push(s);
       continue;
     }
-    const r = await checkMapPlaces(s.id, s.harita, lookup);
+    const r = await checkMapPlaces(s.id, s.harita, lookup, seaFights);
     fixes.push(...r.fixes);
     unchecked.push(...r.unchecked);
     sahneler.push({ ...s, harita: r.map });

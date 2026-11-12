@@ -17,7 +17,7 @@ import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/maps/Tactics";
-import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
+import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap } from "../src/lib/v3/script/MapRules";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -925,6 +925,49 @@ async function main() {
     assert.ok((await inventedPeople(cast([{ id: "a", ad: "Admiral Inigo Campioni", wiki: "Horatio Nelson" }]), lookup))[0]!.includes("someone else"));
     // An offline Wikipedia decides nothing.
     assert.deepEqual(await inventedPeople(cast([{ id: "p", ad: "Admiral Luigi de Pignati", wiki: "Luigi de Pignati" }]), async () => "error" as const), []);
+  });
+
+  await scenario("the Taranto Short's maps (owner, 11 Nov 2026): planes flying at a sunk ship strike it; the opening map rings the town its first line names and the carrier sails from line 0", async () => {
+    const line = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const base = episode();
+    const planes = { tur: "ucak" as const, renk: "#3a7e6b", sayi: 6, konum: [17.23, 40.49] as [number, number], satir: 0, yol: [[17.23, 40.49], [17.25, 40.47]] as [number, number][], yol_satir: 1 };
+    const ship = { tur: "gemi" as const, renk: "#b3263a", sayi: 3, konum: [17.25, 40.47] as [number, number], satir: 0, kayip: 1, kayip_satir: 1 };
+    const opening = {
+      ...base.sahneler[0]!,
+      id: "s2-map-intro",
+      mekan: "Map: Central Mediterranean",
+      satirlar: [line("The night of November 11, 1940. Taranto, Italy: the heart of the Italian battle fleet."), line("From the south, HMS Illustrious launches 21 biplanes."), line("Vintage ones.")],
+      harita: { merkez: [17.2, 40.5] as [number, number], genislik_km: 1200, sehirler: [{ ad: "Malta", konum: [14.5, 35.9] as [number, number] }, { ad: "Taranto", konum: [17.25, 40.47] as [number, number] }], kamera: [{ satir: 0, merkez: [17.2, 40.5] as [number, number], genislik_km: 1200 }], araclar: [{ tur: "gemi" as const, renk: "#2e4a7d", sayi: 1, konum: [15.7, 36.9] as [number, number], satir: 1, yol: [[15.7, 36.9], [17.25, 40.47]] as [number, number][], yol_satir: 2 }] },
+    };
+    const raid = { ...base.sahneler[1]!, id: "s5-harbor-attack", mekan: "Close map: Taranto harbor", satirlar: [line("Torpedoes drop."), line("Two Swordfish are shot down.")], harita: { merkez: [17.25, 40.47] as [number, number], genislik_km: 10, araclar: [planes, { ...planes, konum: [17.27, 40.45] as [number, number], hedef: [17.26, 40.46] as [number, number] }, ship, { ...planes, konum: [17.2, 40.5] as [number, number], yol: [[17.2, 40.5], [17.22, 40.48]] as [number, number][] }] } };
+    const ep = { ...base, donem: "1940", sahneler: [opening, raid] } as unknown as Episode;
+    // Item 1: the planes flying at the battleship that goes down get it as their target; the writer's target stays, a
+    // route ending elsewhere is left alone.
+    const aimed = aimPlanesAtShips(ep);
+    assert.deepEqual(aimed.episode.sahneler[1]!.harita!.araclar!.map((a) => a.hedef), [[17.25, 40.47], [17.26, 40.46], undefined, undefined]);
+    assert.deepEqual(aimed.fixes, ["s5-harbor-attack: araclar[0] uçakları battığı anlatılan gemiyi hedef alır"]);
+    assert.ok(validateEpisode(aimed.episode).ok);
+    // A ship that is not lost is no target: the planes fly past it.
+    assert.equal(aimPlanesAtShips({ ...ep, sahneler: [{ ...raid, harita: { ...raid.harita, araclar: [planes, { ...ship, kayip: undefined, kayip_satir: undefined }] } }] } as unknown as Episode).fixes.length, 0);
+    // Item 4: nothing happened on the opening map's line 0 — Taranto (named there, not the map's first city) gets its
+    // ring with that line and the carrier sails from it.
+    const opened = openOpeningMap(ep);
+    const h = opened.episode.sahneler[0]!.harita!;
+    assert.deepEqual(h.vurgular, [{ satir: 0, konum: [17.25, 40.47] }]);
+    assert.deepEqual([h.araclar![0]!.satir, h.araclar![0]!.yol_satir], [0, 0]);
+    assert.equal(opened.fixes.length, 2, opened.fixes.join(" | "));
+    assert.ok(validateEpisode(opened.episode).ok);
+    assert.equal(opened.episode.sahneler[1], ep.sahneler[1], "only the story's first map");
+    assert.equal(openOpeningMap(opened.episode).fixes.length, 0, "a second pass changes nothing: line 0 now moves");
+    // A first line that already moves is kept; a route told from line 3 on is told by its own line.
+    assert.equal(openOpeningMap({ ...ep, sahneler: [{ ...opening, harita: { ...opening.harita, kamera: [{ satir: 0, merkez: [17.25, 40.47], genislik_km: 300 }] } }] } as unknown as Episode).fixes.length, 0);
+    const late = openOpeningMap({ ...ep, sahneler: [{ ...opening, satirlar: [...opening.satirlar, line("Then it sails.")], harita: { ...opening.harita, araclar: [{ ...opening.harita.araclar[0]!, satir: 3, yol_satir: 3 }] } }] } as unknown as Episode);
+    assert.deepEqual([late.episode.sahneler[0]!.harita!.araclar![0]!.yol_satir, late.fixes.length], [3, 1]);
+    // No city named in line 0: the map's first city.
+    assert.deepEqual(openOpeningMap({ ...ep, sahneler: [{ ...opening, satirlar: [line("Night falls on the sea."), ...opening.satirlar.slice(1)] }] } as unknown as Episode).episode.sahneler[0]!.harita!.vurgular, [{ satir: 0, konum: [14.5, 35.9] }]);
+    // The director's pass runs both.
+    const directed = directBattleMaps(ep);
+    assert.ok(directed.episode.sahneler[1]!.harita!.araclar![0]!.hedef && directed.episode.sahneler[0]!.harita!.vurgular?.length === 1);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

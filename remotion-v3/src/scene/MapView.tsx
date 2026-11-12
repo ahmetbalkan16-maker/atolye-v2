@@ -11,6 +11,8 @@ import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
 import { badgeEdgeFits, badgeExtent, hudBoxes, labelSpot } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
+import { MapNight } from "./MapNight";
+import { isNightMap } from "./mapEffects";
 import { yer } from "./LayoutProbe";
 
 const OCEAN = "#22406a";
@@ -761,6 +763,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
             </g>
           );
         })}
+        {/* At night the ground goes dark under the tokens and searchlights sweep it (absent `zaman`: nothing drawn). */}
+        {isNightMap(map) ? <MapNight map={map} frame={frame} fps={fps} k={k} id={id} view={shownWorld} /> : null}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
         <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} avoid={labelAvoid} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />

@@ -40,7 +40,7 @@ import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, slideIn, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
 import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes, labelSpot } from "../remotion-v3/src/scene/hudLayout";
-import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
+import { checkEpisodePlaces, checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
@@ -1820,6 +1820,26 @@ async function main() {
     assert.notEqual(mehmed.x, 0.5, "the lone speaker on the map does not stand on Rome");
   });
 
+  await scenario("R2 a lone character over a map points at each loss and each shot when it happens", () => {
+    const ep = sampleEpisode();
+    const harita = { merkez: [12.5, 43], genislik_km: 700, sehirler: [{ ad: "Rome", konum: [12.5, 42.2] }], araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 2, konum: [8, 38], satir: 0, kayip: 1, kayip_satir: 1 }] };
+    const mapScene: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, harita, satirlar: [ep.sahneler[0]!.satirlar[0]!, { ...ep.sahneler[0]!.satirlar[1]!, metin: "The ships went down.", jest: undefined, hedef: undefined }] } as never] };
+    const square = [[[5, 35], [20, 35], [20, 50], [5, 50], [5, 35]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [], countries: new Map() };
+    const tl = buildTimeline(mapScene, [[fakeAudio(2), fakeAudio(3)]]);
+    const plan = buildRenderPlan({ episode: mapScene, timeline: tl, cast: toRenderCast(mapScene.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: data as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const shot = plan.shots[0]!;
+    const lossAt = shot.geoMap!.vehicles![0]!.lossStart!;
+    assert.ok(lossAt !== undefined, "the map has a loss");
+    assert.equal(shot.performers.length, 1, "one character on the map");
+    const lone = shot.performers[0]!;
+    const g = lone.gestures.find((x) => x.gesture === "isaret_et" && x.start === lossAt);
+    assert.ok(g, `the lone character points at the loss at frame ${lossAt}: ${JSON.stringify(lone.gestures)}`);
+    assert.ok(g!.toward === "left" || g!.toward === "right");
+    assert.ok(lone.faces.some((x) => x.start === lossAt && x.emotion === "saskin"), "and is startled");
+    assert.ok((lone.turns ?? []).some((t) => t.frame === lossAt), "and turns to it");
+  });
+
   await scenario("S an empty narrated scene gets the lead as a silent actor, who acts the narration out; the QC measures empty stretches", () => {
     const ep = sampleEpisode();
     const outro = { ...ep.sahneler[0]!, id: "kapanis", satirlar: [{ karakter: "anlatici", metin: "Ve böylece her şey değişti.", duygu: "uzgun" as const, kaynak: ["tdv-rumeli"] }, { karakter: "anlatici", metin: "Abone olmayı unutmayın, bir dahaki sefere görüşürüz!", duygu: "mutlu" as const, kurgu: true }] };
@@ -2515,6 +2535,130 @@ async function main() {
     });
     assert.equal(plan.shots[0]!.performers.length, 1);
     assert.deepEqual(mapFramingFaults(plan), [], JSON.stringify(mapFramingFaults(plan)));
+  });
+
+  await scenario("W6 the Taranto Short's follow-ups (owner, 11 Nov 2026): what points at a ship goes where it is drawn, ships stand where their battle was, a badge's step aside and a camera move are framed, a night map", async () => {
+    const win = shortWindow(STAGE_SIZE, SHORTS_SIZE);
+    // Land west of 29.0 with a small dock: three battleships written on the quay are drawn in clear water off it.
+    const square = [[[[28, 40], [29, 40], [29, 42], [28, 42], [28, 40]]]];
+    const dock = [[[[28.996, 41.039], [28.9995, 41.039], [28.9995, 41.041], [28.996, 41.041], [28.996, 41.039]]]];
+    const data = withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: square as never, water: dock as never });
+    const quay: [number, number] = [28.995, 41.04];
+    const harbour: SceneMap = {
+      merkez: [28.99, 41.04],
+      genislik_km: 10,
+      zaman: "gece",
+      araclar: [
+        { tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [28.97, 41.05], satir: 0, yol: [[28.97, 41.05], quay], yol_satir: 0, hedef: quay },
+        { tur: "gemi", renk: "#b3263a", sayi: 3, konum: quay, satir: 0, kayip: 1, kayip_satir: 0 },
+      ],
+      rozetler: [{ karakter: "mehmed", konum: quay, satir: 0 }],
+    };
+    // Item 1: the planes' route end, their target and the admiral's badge follow the ships into the water.
+    const drawn = withShipsAfloat(harbour, data, 1920, 1080);
+    const ship = drawn.araclar![1]!.konum;
+    assert.ok(ship[0] > 29.003, `the ships in clear water (${ship})`);
+    assert.deepEqual([drawn.araclar![0]!.yol![1], drawn.araclar![0]!.hedef, drawn.rozetler![0]!.konum], [ship, ship, ship]);
+    assert.deepEqual(drawn.araclar![0]!.konum, [28.97, 41.05], "the planes set out where the writer put them");
+    const geo = buildGeoMap(harbour, data, 1920, 1080, (index, order) => (index !== undefined ? index * 90 : order * 36), { fps: 30 });
+    const [planes, ships] = geo.vehicles!;
+    assert.deepEqual([planes!.path[planes!.path.length - 1], planes!.target], [ships!.path[0], ships!.path[0]], "the planes fly to the ships as drawn and aim at them");
+    // The battleship goes down after the torpedoes land, not before (a second after they are dropped).
+    assert.ok(ships!.lossStart! >= planes!.fireStart! + 30, `loss ${ships!.lossStart} after the shot ${planes!.fireStart}`);
+    assert.ok(TOLD_WORDS.ates.test("Torpedoes") && TOLD_WORDS.ates.test("bombs") && !TOLD_WORDS.ates.test("nets"), "a plane's fire is told by its torpedoes and bombs");
+    // The night map: the script's "zaman" reaches the drawn map; the validator knows the times of day.
+    assert.equal(geo.zaman, "gece");
+    const ep = sampleEpisode();
+    const night = (zaman: string) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [17.25, 40.47], genislik_km: 10, zaman } }] } as never);
+    assert.ok(night("gece").ok, JSON.stringify(night("gece").errors));
+    assert.ok(night("midnight").errors.some((e) => e.path.endsWith("harita.zaman")), "an unknown time of day is refused");
+
+    // Item 7: s5 at 16.9 s — the admiral's badge on the planes' end steps a little aside (MapBuilder), the window follows
+    // it and the second wave was cut. Its step is part of what the camera frames.
+    const s5: SceneMap = {
+      merkez: [17.25, 40.47],
+      genislik_km: 10,
+      araclar: [{ tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [17.27, 40.45], satir: 3, yol: [[17.27, 40.45], [17.25, 40.47]], yol_satir: 3, kayip: 1, kayip_satir: 3 }],
+      rozetler: [{ karakter: "luigi", konum: [17.25, 40.47], satir: 3 }],
+      kamera: [{ satir: 3, merkez: [17.26, 40.46], genislik_km: 5 }],
+    };
+    const acting = lineAction(s5, 3);
+    assert.ok(acting.some((p) => p.driftKm && Math.abs(p.driftKm - (55 * 10) / 1920) < 1e-9), "the badge may stand a step off its place");
+    const framed = frameLineAction(s5, win);
+    const k = framed.map.kamera!.find((c) => c.satir === 3)!;
+    assert.ok(framesAction(acting, k.merkez, k.genislik_km, win, true));
+    // Even with the badge a step to the far side, every drawing is inside the window centred on them all.
+    const kx = 111.32 * Math.cos((k.merkez[1] * Math.PI) / 180);
+    const xs = [...acting.map((p) => (p.at[0] - k.merkez[0]) * kx), (17.25 - k.merkez[0]) * kx - acting.find((p) => p.driftKm)!.driftKm!];
+    const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const reach = (153 * 0.5625 * k.genislik_km) / 1080;
+    assert.ok(xs.every((x) => Math.abs(x - mid) + reach <= (k.genislik_km * win.width) / 2 + 1e-9), JSON.stringify({ k, xs, mid }));
+
+    // s6 at 9.3 s: the camera closed in on the ships and brought the admiral's badge, up since the start, half behind the
+    // sailor — no event happened then, so the check never looked (the plan's own numbers).
+    const plan = {
+      fps: 30,
+      width: 1080,
+      height: 1920,
+      stage: { width: 1920, height: 1080 },
+      shots: [
+        {
+          id: "s6-battleships-hit",
+          start: 0,
+          duration: 400,
+          performers: [{ x: 0.3955, moves: [] }],
+          geoMap: {
+            world: { width: 5280, height: 2970 },
+            camera: [{ frame: 0, x: 2640, y: 1485, zoom: 0.4 }, { frame: 280, x: 2944.9, y: 1175.1, zoom: 1 }],
+            badges: [{ castId: "a", label: "Admiral Inigo Campioni", start: 9, path: [{ x: 2640, y: 1485 }] }],
+            vehicles: [{ kind: "gemi", color: "#b3263a", count: 3, start: 9, lossStart: 237, losses: [0], path: [{ x: 2945.5, y: 1177.5 }] }],
+          },
+        },
+      ],
+    };
+    assert.deepEqual(mapFramingFaults(plan as never), [{ at: 9.3, shot: "s6-battleships-hit", ayrinti: "kamera hareketiyle Admiral Inigo Campioni karakterin arkasında" }]);
+    // As rebuilt with the badge standing with its fleet (item 1): the camera closes in on both with line 0, and the sailor
+    // stands beside them.
+    const beside = { ...plan, shots: [{ ...plan.shots[0]!, performers: [{ x: 0.6045, moves: [] }], geoMap: { ...plan.shots[0]!.geoMap, camera: [{ frame: 0, x: 2640, y: 1485, zoom: 0.4 }, { frame: 9, x: 2944.9, y: 1175.1, zoom: 1 }], badges: [{ ...plan.shots[0]!.geoMap.badges[0]!, path: [{ x: 2848.3, y: 1080.3 }] }] } }] };
+    assert.deepEqual(mapFramingFaults(beside as never), []);
+
+    // Item 7: the ships were drawn in the Mar Piccolo — the writer put them on the town and the nearest water was there;
+    // the battle's own article stands in the Mar Grande. The place check now looks at the ships where a fleet fights.
+    const taranto: [number, number] = [17.25, 40.47];
+    const asked: string[] = [];
+    const lookup = async (q: string) => {
+      asked.push(q);
+      if (q === "Battle of Taranto") return [{ title: "Battle of Taranto", lon: 17.2075, lat: 40.4511 }, { title: "Taranto", lon: 17.2431, lat: 40.4711 }];
+      if (q === "Taranto") return [{ title: "Taranto", lon: 17.2431, lat: 40.4711 }];
+      return [];
+    };
+    const scene = (id: string, harita: SceneMap) => ({ ...ep.sahneler[0]!, id, harita });
+    const story: Episode = {
+      ...ep,
+      donem: "1940",
+      sahneler: [
+        scene("s3", { merkez: taranto, genislik_km: 30, sehirler: [{ ad: "Taranto", konum: taranto }], araclar: [{ tur: "gemi", renk: "#b3263a", sayi: 6, konum: taranto, satir: 0 }] }),
+        scene("s5", { merkez: taranto, genislik_km: 10, araclar: [{ tur: "ucak", renk: "#3a7e6b", sayi: 6, konum: [17.23, 40.49], satir: 0, yol: [[17.23, 40.49], taranto], yol_satir: 1, hedef: taranto }, { tur: "gemi", renk: "#b3263a", sayi: 3, konum: taranto, satir: 0, kayip: 1, kayip_satir: 1 }], rozetler: [{ karakter: "halil", konum: taranto, satir: 0 }] }),
+        scene("s7", { merkez: [15.5, 41.5], genislik_km: 600, sehirler: [{ ad: "Taranto", konum: taranto }], araclar: [{ tur: "gemi", renk: "#b3263a", sayi: 3, konum: taranto, satir: 0, yol: [taranto, [14.25, 40.85]], yol_satir: 1 }] }),
+      ],
+    };
+    const checked = await checkEpisodePlaces(story, lookup);
+    const grande: [number, number] = [17.2075, 40.4511];
+    const [s3, s5b, s7] = checked.episode.sahneler.map((s) => s.harita!);
+    assert.deepEqual(s3!.araclar![0]!.konum, grande, "the harbour's fleet at the battle's place");
+    assert.deepEqual(s3!.sehirler![0]!.konum, taranto, "the town stays (0.6 km from its article, inside the 1.2 km of a 30 km map)");
+    assert.deepEqual([s5b!.araclar![1]!.konum, s5b!.araclar![0]!.yol![1], s5b!.araclar![0]!.hedef, s5b!.rozetler![0]!.konum], [grande, grande, grande, grande], "the planes, their aim and the admiral's badge go with the ships");
+    assert.deepEqual(s5b!.araclar![0]!.konum, [17.23, 40.49]);
+    assert.deepEqual(s7!.araclar![0]!.konum, taranto, "a wide map's fleet keeps the town (40 km tolerance)");
+    assert.deepEqual(checked.fixes.filter((x) => x.tur === "arac").map((x) => [x.sahne, x.kaynak, x.km]), [["s3", "Wikipedia: Battle of Taranto", 4.2], ["s5", "Wikipedia: Battle of Taranto", 4.2]]);
+    assert.equal(asked.filter((q) => q === "Battle of Taranto").length, 2, "asked once a map");
+    // Where no fleet fights, ships are not looked up.
+    asked.length = 0;
+    const calm = await checkEpisodePlaces({ ...story, sahneler: [story.sahneler[0]!] }, lookup);
+    assert.deepEqual([calm.episode.sahneler[0]!.harita!.araclar![0]!.konum, asked.includes("Battle of Taranto")], [taranto, false]);
+    // An offline Wikipedia moves nothing and says so.
+    const offline = await checkEpisodePlaces(story, async (q) => (q.startsWith("Battle of") ? Promise.reject(new Error("offline")) : lookup(q)));
+    assert.deepEqual([offline.episode.sahneler[1]!.harita!.araclar![1]!.konum, offline.unchecked.includes("Battle of Taranto")], [taranto, true]);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

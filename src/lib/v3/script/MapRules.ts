@@ -288,15 +288,113 @@ export function toldKilled(text: string, ad: string): { word: string; at: number
   return { word: m[0], at: m.index / Math.max(1, text.length) };
 }
 
+/** The script's vehicles that float (MapBuilder's SHIPS). */
+const SHIP_KINDS: ReadonlySet<string> = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
+
 /**
- * The director's pass over the battle maps (owner, 23 Oct 2026: "what you fixed by hand, our own brains must do"; the
- * Kosovo 1389 trial was directed by hand): on a close map a commander's badge appears with the line that first names
- * him; on any map a ruler a line tells killed or captured gets the red X on his badge from that line; on a close map a
- * side a line tells breaking ("collapses", "flees") routs on that line when its formation moves away from the enemy;
- * and a side a line tells charging gets an arrow from where it stood to where it goes, before the tokens move. Only what
- * the writer left out is filled in; every fix is logged.
+ * Planes flying at a ship that goes down strike it (the Taranto Short, 11 Nov 2026: the Swordfish flew to the battleships
+ * and no torpedo was ever aimed — the planes had no "hedef"): a plane group whose route ends on a ship lost in the scene
+ * ("kayip") gets that ship as its target. A target the writer gave stays. Logged as a fix.
+ */
+export function aimPlanesAtShips(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    if (!h?.araclar?.length) return s;
+    const near = Math.max(0.3, (h.genislik_km ?? 0) * 0.02);
+    const lost = h.araclar.filter((a) => SHIP_KINDS.has(a.tur) && (a.kayip ?? 0) > 0);
+    let changed = false;
+    const araclar = h.araclar.map((a, i) => {
+      const end = a.yol?.[a.yol.length - 1];
+      const ship = a.tur === "ucak" && !a.hedef && end ? lost.find((o) => distanceKm(o.konum, end) <= near) : undefined;
+      if (!ship) return a;
+      changed = true;
+      fixes.push(`${s.id}: araclar[${i}] uçakları battığı anlatılan gemiyi hedef alır`);
+      return { ...a, hedef: [ship.konum[0], ship.konum[1]] as [number, number] };
+    });
+    return changed ? { ...s, harita: { ...h, araclar } } : s;
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
+/** Folded for a name search: Turkish dotless and dotted i alike, marks dropped, lower case. */
+const fold = (t: string) => t.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("en-US");
+
+/** Whether nothing happens on a map's first line: no move, route, shot, loss, camera move, ring, arrow, battle or sweep. */
+function stillFirstLine(h: SceneMap): boolean {
+  const same = (k: NonNullable<SceneMap["kamera"]>[number]) => k.genislik_km === h.genislik_km && k.merkez[0] === h.merkez?.[0] && k.merkez[1] === h.merkez?.[1];
+  return !(
+    (h.kamera ?? []).some((k) => k.satir === 0 && !same(k)) ||
+    (h.vurgular ?? []).some((v) => v.satir === 0) ||
+    (h.oklar ?? []).some((o) => (o.satir ?? 0) === 0) ||
+    (h.savaslar ?? []).some((w) => (w.satir ?? 0) === 0) ||
+    (h.bolgeler ?? []).some((b) => b.yayilma?.satir === 0) ||
+    (h.araclar ?? []).some((a) => (a.yol?.length && (a.yol_satir ?? a.satir) === 0) || (a.hedef && (a.ates_satir ?? a.yol_satir ?? a.satir) === 0) || a.kayip_satir === 0) ||
+    (h.ordular ?? []).some((o) => o.yol?.length && (o.yol_satir ?? o.satir ?? 0) === 0) ||
+    (h.rozetler ?? []).some((r) => r.yol?.length && (r.yol_satir ?? 0) === 0) ||
+    (h.birlikler ?? []).some((u) => u.yerler.some((y, yi) => y.satir === 0 && (yi > 0 || (y.kayip ?? 0) > 0)))
+  );
+}
+
+/**
+ * The opening map moves from its first line (owner, 11 Nov 2026, the Taranto Short: the first map stood still while the
+ * narrator set the scene — "The night of November 11, 1940. Taranto, Italy" — and the carrier sailed only on the third
+ * line): on the story's first map, when nothing happens on line 0, the city that line names (else the map's first city)
+ * gets its white ring ("vurgular") on that line, and the first route the map tells by its third line (a ship's, an
+ * army's or a badge's) sets out with line 0. Logged as a fix.
+ */
+export function openOpeningMap(episode: Episode): { episode: Episode; fixes: string[] } {
+  const si = episode.sahneler.findIndex((s) => s.harita?.merkez && s.harita.genislik_km);
+  const s = episode.sahneler[si];
+  const h = s?.harita;
+  if (!s || !h || !s.satirlar.length || !stillFirstLine(h)) return { episode, fixes: [] };
+  const fixes: string[] = [];
+  const text = fold(s.satirlar[0]!.metin);
+  const at = (ad: string) => text.search(new RegExp(`(^|[^\\p{L}])${fold(ad).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\p{L})`, "u"));
+  const named = (h.sehirler ?? []).map((c) => ({ c, at: at(c.ad) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
+  const city = named[0]?.c ?? h.sehirler?.[0];
+  let harita: SceneMap = h;
+  if (city) {
+    harita = { ...harita, vurgular: [...(h.vurgular ?? []), { satir: 0, konum: [city.konum[0], city.konum[1]] }] };
+    fixes.push(`${s.id}: açılış haritası ilk satırda duruyordu; ${city.ad} halkayla vurgulanır`);
+  }
+  // The first route told by line 2 (a later one is told by its own line).
+  const routes = [
+    ...(h.araclar ?? []).map((a, i) => ({ kind: "araclar" as const, i, line: a.yol?.length ? (a.yol_satir ?? a.satir) : undefined })),
+    ...(h.ordular ?? []).map((o, i) => ({ kind: "ordular" as const, i, line: o.yol?.length ? (o.yol_satir ?? o.satir ?? 0) : undefined })),
+    ...(h.rozetler ?? []).map((r, i) => ({ kind: "rozetler" as const, i, line: r.yol?.length ? (r.yol_satir ?? 0) : undefined })),
+  ].filter((r): r is typeof r & { line: number } => r.line !== undefined && r.line >= 1 && r.line <= 2);
+  const first = routes.sort((a, b) => a.line - b.line)[0];
+  if (first) {
+    const list = [...(harita[first.kind] ?? [])] as { satir?: number; yol_satir?: number }[];
+    list[first.i] = { ...list[first.i]!, satir: 0, yol_satir: 0 };
+    harita = { ...harita, [first.kind]: list };
+    fixes.push(`${s.id}: ${first.kind}[${first.i}] yolu ${first.line}. satır yerine ilk satırda başlar`);
+  }
+  if (!fixes.length) return { episode, fixes };
+  const sahneler = [...episode.sahneler];
+  sahneler[si] = { ...s, harita };
+  return { episode: { ...episode, sahneler }, fixes };
+}
+
+/**
+ * The director's pass over the maps (owner, 23 Oct 2026: "what you fixed by hand, our own brains must do"; the Kosovo
+ * 1389 trial was directed by hand): on a close map a commander's badge appears with the line that first names him; on any
+ * map a ruler a line tells killed or captured gets the red X on his badge from that line; on a close map a side a line
+ * tells breaking ("collapses", "flees") routs on that line when its formation moves away from the enemy; and a side a
+ * line tells charging gets an arrow from where it stood to where it goes, before the tokens move. Then planes flying at a
+ * sunk ship strike it (aimPlanesAtShips) and the opening map moves from its first line (openOpeningMap). Only what the
+ * writer left out is filled in; every fix is logged.
  */
 export function directBattleMaps(episode: Episode): { episode: Episode; fixes: string[] } {
+  const battle = directBattleMapsOnly(episode);
+  const aimed = aimPlanesAtShips(battle.episode);
+  const opened = openOpeningMap(aimed.episode);
+  return { episode: opened.episode, fixes: [...battle.fixes, ...aimed.fixes, ...opened.fixes] };
+}
+
+/** directBattleMaps' battle-map pass: badges with the line naming them, the fallen's X, routs, charge arrows. */
+function directBattleMapsOnly(episode: Episode): { episode: Episode; fixes: string[] } {
   const fixes: string[] = [];
   const cast = new Map(episode.oyuncu_kadrosu.map((c) => [c.id, nameWord(c.ad)] as const));
   const sahneler = episode.sahneler.map((s) => {

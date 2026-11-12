@@ -715,8 +715,8 @@ type GeoMapOptions = {
 export const TOLD_WORDS = {
   /** A ship, gun or unit lost. */
   kayip: /^(?:sunk|sink\p{L}*|sank|wreck\p{L}*|destroy\p{L}*|blown|blew|lost|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*|yok\s?edil\p{L}*|parçala\p{L}*|kaybed\p{L}*)$/iu,
-  /** Fire opened. */
-  ates: /^(?:fire[sd]?|firing|shell\p{L}*|bombard\p{L}*|cannon\p{L}*|guns?|blast\p{L}*|ateş\p{L}*|bombala\p{L}*|döv\p{L}*|topa)$/iu,
+  /** Fire opened (a plane's: its torpedoes or bombs). */
+  ates: /^(?:fire[sd]?|firing|torpedo\p{L}*|torpido\p{L}*|bombs?|bombed|bombing|shell\p{L}*|bombard\p{L}*|cannon\p{L}*|guns?|blast\p{L}*|ateş\p{L}*|bombala\p{L}*|döv\p{L}*|topa)$/iu,
   /**
    * A place hit and burning. "fire" alone is the guns' word ("open fire" came before "the palace is hit"); with the word
    * before it, it is the place's ("caught fire", "on fire", "set fire").
@@ -1016,6 +1016,9 @@ const SHORE_KM = 0.4;
 /** The script's vehicles that float. */
 const SHIPS = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
 
+/** A close map's badge moves off what it hides this far a step (px at 1080p in the map's widest view), up to three steps. */
+export const BADGE_STEP_PX = 55;
+
 /** A vehicle token's size at 1080p (remotion-v3 MapVehicles' SIZE). */
 export const VEHICLE_TOKEN_PX = 30;
 
@@ -1082,15 +1085,45 @@ export function shipStarts(map: SceneMap, onLand: (p: [number, number]) => boole
   return (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum, Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)))) : a.konum));
 }
 
+/** A point this near (km) a ship's written place points at that ship. */
+const AT_SHIP_KM = 0.3;
+
+/**
+ * Where a point the writer gave at a ship's written place is drawn: where the ship is drawn when shipStarts moved it into
+ * the water, else the point itself. Fire aimed at it (the Hungarian fleet's shots fell in the fields), a plane's route
+ * ending on it and a badge standing on it (the Taranto Short, 11 Nov 2026: the torpedo planes flew to the quay of the
+ * town the writer had put the battleships in, and the admiral's badge stayed there, while the ships lay in the water).
+ */
+export function atDrawnShip(map: SceneMap, starts: readonly (readonly [number, number])[]): (p: readonly [number, number]) => readonly [number, number] {
+  return (p) => {
+    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
+    const j = (map.araclar ?? []).findIndex((o, oi) => starts[oi] !== o.konum && Math.hypot((o.konum[0] - p[0]) * kx, (o.konum[1] - p[1]) * 110.57) < AT_SHIP_KM);
+    return j >= 0 ? starts[j]! : p;
+  };
+}
+
 /**
  * The map as it is drawn, for deciding what the camera frames before it is built: its ships where shipStarts puts them
- * (a fleet written on land is drawn in the water), so a frame chosen for them holds them.
+ * (a fleet written on land is drawn in the water), and what points at them with them (atDrawnShip: the fire, the planes'
+ * route's end, a badge on them), so a frame chosen for them holds them.
  */
 export function withShipsAfloat(map: SceneMap, data: MapData, width: number, height: number): SceneMap {
   if (!map.araclar?.length || !map.merkez || !map.genislik_km) return map;
   const closeMap = map.genislik_km <= CLOSE_MAP_MAX_KM;
   const starts = shipStarts(map, landTest(map, data, mapWorld(map, width, height).view).onLand, closeMap && Boolean(data.closeWater), width);
-  return starts.every((s, i) => s === map.araclar![i]!.konum) ? map : { ...map, araclar: map.araclar.map((a, i) => ({ ...a, konum: [starts[i]![0], starts[i]![1]] as [number, number] })) };
+  if (starts.every((s, i) => s === map.araclar![i]!.konum)) return map;
+  const aim = atDrawnShip(map, starts);
+  const xy = (p: readonly [number, number]): [number, number] => [aim(p)[0], aim(p)[1]];
+  return {
+    ...map,
+    araclar: map.araclar.map((a, i) => ({
+      ...a,
+      konum: [starts[i]![0], starts[i]![1]] as [number, number],
+      ...(a.tur === "ucak" && a.yol?.length ? { yol: a.yol.map((p, k) => (k === a.yol!.length - 1 ? xy(p) : p)) } : {}),
+      ...(a.hedef ? { hedef: xy(a.hedef) } : {}),
+    })),
+    ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: xy(r.konum) })) } : {}),
+  };
 }
 /** A stretch of land shorter than this share of the route is the shore it leaves from, not a haul. */
 const MIN_OVERLAND_SHARE = 0.04;
@@ -1509,7 +1542,6 @@ function projectGeoMap(
         .map((k, i) => ({ frame: i === 0 ? 0 : lineStart(k.satir, i), ...toPx([k.view.lon0, k.view.lat0]), zoom: Math.round(((width / k.view.spanLon) * v.spanLon * 1000) / v.width) / 1000 }))
         .sort((a, b) => a.frame - b.frame)
     : undefined;
-  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: lineStart(r.x_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
   // On the close map rivers are as wide as they are (OpenStreetMap's, else Natural Earth's at a default width): water
   // for ships, never land for houses, woods or tokens.
@@ -1535,13 +1567,11 @@ function projectGeoMap(
   // fleet "at Belgrade" drawn in the fields beside the Sava) — within a few hundred metres to a few km, by the map's
   // width; further inland the writer pointed at a place, and the route rules below keep the ship afloat.
   const starts = shipStarts(map, onLand, knownWater, width);
-  // Fire aimed at a ship's written place follows it into the water (the Hungarian fleet's shots fell in the fields).
-  const aimAt = (h: readonly [number, number]) => {
-    const j = (map.araclar ?? []).findIndex((o, oi) => starts[oi] !== o.konum && Math.hypot((o.konum[0] - h[0]) * 111.32 * Math.cos((h[1] * Math.PI) / 180), (o.konum[1] - h[1]) * 110.57) < 0.3);
-    return j >= 0 ? starts[j]! : h;
-  };
-  const vehicles = (map.araclar ?? []).map((a, i) => {
-    const route = [starts[i]!, ...(a.yol ?? [])];
+  // What points at a ship's written place follows it into the water: fire, planes flying at it, a badge on it.
+  const aimAt = atDrawnShip(map, starts);
+  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: lineStart(r.x_satir, i) } : {}), path: [aimAt(r.konum), ...(r.yol ?? [])].map((p) => toPx(p)) }));
+  const written = (map.araclar ?? []).map((a, i) => {
+    const route = [starts[i]!, ...(a.tur === "ucak" ? (a.yol ?? []).map((p, k, all) => (k === all.length - 1 ? aimAt(p) : p)) : (a.yol ?? []))];
     // A haul goes from water to water (1453: the Bosphorus to the Golden Horn). A ship's route that starts or ends on
     // land is the writer pointing at the place it sails for (the Belgrade run sent its fleet to the fortress itself):
     // the ship keeps to the water and stops at the shore, with no haul.
@@ -1573,6 +1603,13 @@ function projectGeoMap(
       ...(a.hedef ? { target: toPx(aimAt(a.hedef)), fireStart: toldStart(opts, lineStart, a.ates_satir ?? a.yol_satir ?? a.satir, i, TOLD_WORDS.ates, start) } : {}),
       ...(hauls.length ? { overland: hauls } : {}),
     };
+  });
+  // A ship goes down no sooner than the shots aimed at it land (the Taranto Short, 11 Nov 2026: the battleship sank on the
+  // line before the torpedo planes reached her), as a place catches fire (fires, below).
+  const vehicles = written.map((w) => {
+    const at = w.path[w.path.length - 1];
+    const land = at && w.lossStart !== undefined && SHIPS.has(w.kind) ? written.filter((o) => o !== w && o.target && o.fireStart !== undefined && Math.hypot(o.target.x - at.x, o.target.y - at.y) <= 40).map((o) => o.fireStart! + Math.round(FIRE_LANDS_S * (opts.fps ?? 30))) : [];
+    return land.length && Math.min(...land) > w.lossStart! ? { ...w, lossStart: Math.min(...land) } : w;
   });
   const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart, opts.year) : undefined;
   // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
@@ -1738,7 +1775,7 @@ function projectGeoMap(
         const marks = [...fixed, ...tokensFrom(b.start), ...badges.flatMap((o) => (o !== b && o.path[0] ? [{ q: o.path[0], w: 5 }] : []))];
         const views = viewsFor(opts.badgeLines?.get(b.castId) ?? []);
         const shown = shownViews(b, p0);
-        const spots = [p0, ...[1, 2, 3].flatMap((d) => Array.from({ length: 8 }, (_, j) => ({ x: r1(p0.x + Math.cos((j * Math.PI) / 4) * d * 55 * px), y: r1(p0.y + Math.sin((j * Math.PI) / 4) * d * 55 * px) })))];
+        const spots = [p0, ...[1, 2, 3].flatMap((d) => Array.from({ length: 8 }, (_, j) => ({ x: r1(p0.x + Math.cos((j * Math.PI) / 4) * d * BADGE_STEP_PX * px), y: r1(p0.y + Math.sin((j * Math.PI) / 4) * d * BADGE_STEP_PX * px) })))];
         const cost = (p: XY, i: number) => badgeCost(p, marks, views, shown) + Math.ceil(i / 8) * 1.5;
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
@@ -1817,6 +1854,8 @@ function projectGeoMap(
     // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
     ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
     ...(opts.era ? { era: opts.era } : {}),
+    // The map's time of day (a night raid is drawn dark, with searchlights and flares).
+    ...(map.zaman ? { zaman: map.zaman } : {}),
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),

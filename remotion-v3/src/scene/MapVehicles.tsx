@@ -4,6 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { Burst } from "./MapUnits";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
+import { COLUMN_S, flaresAt, isNightMap, landRings, raidOf, TORPEDO_EVERY_S, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, WATER_KINDS, waterColumn } from "./mapEffects";
 
 /**
  * Vehicles on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map narration): galleys rowing,
@@ -23,7 +24,7 @@ const SHOT_EVERY_S = 1.1;
 const SHOT_FLIGHT_S = 0.7;
 /** How long a lost vehicle takes to go down (seconds). */
 const SINK_S = 1.6;
-const WATER = new Set(["kadirga", "yelkenli", "gemi", "denizalti"]);
+const WATER = WATER_KINDS;
 
 function rand(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -232,6 +233,47 @@ function Haul({ frame, color }: { frame: number; color: string }) {
   );
 }
 
+/** The white column a torpedo throws up out of the sea where it strikes a ship (`impact` 0..1, from the waterline). */
+function WaterColumn({ x, y, S, impact }: { x: number; y: number; S: number; impact: number }) {
+  const c = waterColumn(impact);
+  if (!c) return null;
+  const [h, w] = [c.h * S, c.w * S];
+  return (
+    <g opacity={c.alpha}>
+      <path d={`M${x - w} ${y} Q${x - w * 0.45} ${y - h * 0.55} ${x - w * 0.35} ${y - h} Q${x} ${y - h * 1.15} ${x + w * 0.35} ${y - h} Q${x + w * 0.45} ${y - h * 0.55} ${x + w} ${y} Z`} fill="#f4f8fb" stroke="#8fa9be" strokeWidth={S * 0.05} />
+      {[-1, -0.45, 0.45, 1].map((s, j) => (
+        <circle key={j} cx={x + s * w * (1 + impact)} cy={y - h * (0.75 + 0.2 * Math.abs(s)) + impact * h * 0.7} r={S * 0.13} fill="#f4f8fb" />
+      ))}
+    </g>
+  );
+}
+
+/** A torpedo's run: its white wake from where it entered the water to its head, and the splash where it went in. */
+function TorpedoWake({ from, hit, since, S }: { from: P; hit: P; since: number; S: number }) {
+  const run = torpedoAt(since, from, hit);
+  if (!run) return null;
+  const d = `M${from.x} ${from.y} L${run.head.x} ${run.head.y}`;
+  return (
+    <g>
+      <path d={d} stroke="#ffffff" strokeOpacity={run.wake * 0.45} strokeWidth={S * 0.2} strokeLinecap="round" fill="none" />
+      <path d={d} stroke="#ffffff" strokeOpacity={run.wake} strokeWidth={S * 0.06} strokeDasharray={`${S * 0.3} ${S * 0.16}`} fill="none" />
+      {run.impact === undefined ? <circle cx={run.head.x} cy={run.head.y} r={S * 0.13} fill="#ffffff" /> : null}
+      {since < 0.4 ? <ellipse cx={from.x} cy={from.y} rx={S * (0.3 + since * 1.5)} ry={S * (0.12 + since * 0.5)} fill="none" stroke="#ffffff" strokeWidth={S * 0.06} opacity={1 - since / 0.4} /> : null}
+    </g>
+  );
+}
+
+/** A flare at night under its little parachute, lighting the sea round it (`glow` 0..1). */
+function Flare({ x, y, S, glow, light }: { x: number; y: number; S: number; glow: number; light: string }) {
+  return (
+    <g opacity={glow}>
+      <circle cx={x} cy={y} r={S * 2.4} fill={`url(#${light})`} style={{ mixBlendMode: "screen" }} />
+      <path d={`M${x - S * 0.32} ${y - S * 0.55} Q${x} ${y - S * 0.9} ${x + S * 0.32} ${y - S * 0.55} M${x - S * 0.32} ${y - S * 0.55} L${x} ${y} L${x + S * 0.32} ${y - S * 0.55}`} fill="none" stroke="#e8e2d0" strokeWidth={S * 0.04} />
+      <circle cx={x} cy={y} r={S * 0.17} fill="#ffffff" />
+    </g>
+  );
+}
+
 /**
  * All the map's vehicles, with their wakes, dust and shots. `travelS(path, from)`: how long a route takes on screen
  * (the armies' marching pace, so a fleet and an army sent together arrive together).
@@ -241,6 +283,8 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
   if (!vehicles.length) return null;
   const S = SIZE * k;
   const gun = map.era === "erken-modern" || map.era === "modern";
+  const night = isNightMap(map);
+  const land = landRings(map.land);
   return (
     <g>
       {vehicles.map((v, vi) => {
@@ -250,6 +294,8 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         if (gone <= 0) return null;
         const route = smoothPoints(v.path, 10);
         const plane = v.kind === "ucak";
+        // Planes sent at a ship drop torpedoes (Taranto, 11 Nov 2026): a wake runs to it instead of a bomb falling.
+        const torpedo = plane && torpedoTarget(map, vi, S * 6);
         const travel = v.moveStart === undefined ? 0 : travelS(route, v.moveStart) * (plane ? 0.6 : 1);
         const { p, heading, moving, t } = placeAt(v, route, frame, fps, travel);
         const dir = { x: Math.cos(heading), y: Math.sin(heading) };
@@ -271,7 +317,7 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
           const hauled = (v.overland ?? []).some((o) => f > o.from && f < o.to) && f > 0 && f < 1;
           return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving };
         });
-        const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * FIRE_S) && !moving;
+        const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * (FIRE_S + (torpedo ? TORPEDO_RUN_S + COLUMN_S : 0))) && !moving;
         // The frame a member is lost at: the group's last ones first.
         const downAt = (mi: number) => {
           const j = v.count - 1 - mi;
@@ -300,6 +346,11 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
               if (q >= 1) return null;
               const water = WATER.has(v.kind);
               const lost = down !== undefined && frame >= down;
+              // A ship sunk while another side's planes or submarine are on the map: their torpedo's wake runs into it and
+              // a water column stands up where it strikes (Taranto, 11 Nov 2026: the ship went down with nothing hitting it).
+              const waterline = { x: m.x, y: m.y + S * 0.25 };
+              const attacker = water && down !== undefined ? torpedoAttacker(map, vi, down) : undefined;
+              const torpedoIn = attacker ? { from: torpedoStart(waterline, attacker, S * 5, land), since: (frame - down!) / fps + TORPEDO_RUN_S } : undefined;
               // Afloat a ship bobs; hauled it bumps over the rollers.
               const bob = m.hauled ? Math.sin(frame * 0.5 + mi * 2) * 0.6 : water ? Math.sin(frame * 0.12 + mi) : 0;
               const fall = { y: (water ? 0.5 : 0) * q * S, turn: (water ? 28 : 80) * q, fade: 1 - Math.max(0, (q - 0.35) / 0.65) };
@@ -346,7 +397,9 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
                       <path d="M-0.95 0 L0.9 0 M0 -0.95 L-0.3 0 L0 0.95" stroke="#000000" strokeWidth={0.35} strokeLinecap="round" />
                     </g>
                   ) : null}
+                  {torpedoIn ? <TorpedoWake from={torpedoIn.from} hit={waterline} since={torpedoIn.since} S={S} /> : null}
                   {body}
+                  {lost && water ? <WaterColumn x={waterline.x} y={waterline.y} S={S} impact={since / COLUMN_S} /> : null}
                 </g>
               );
             })}
@@ -354,11 +407,26 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
               ? members.map((m, mi) => {
                   const local = (frame - v.fireStart!) / fps - mi * 0.37 - rand(vi * 13 + mi) * 0.3;
                   if (local < 0 || (downAt(mi) ?? Infinity) <= frame) return null;
-                  const shot = Math.floor(local / SHOT_EVERY_S);
-                  const since = local - shot * SHOT_EVERY_S;
+                  const every = torpedo ? TORPEDO_EVERY_S : SHOT_EVERY_S;
+                  const shot = Math.floor(local / every);
+                  const since = local - shot * every;
+                  if (torpedo && local - since >= FIRE_S) return null;
                   const muzzle = { x: m.x + dir.x * S * 1.05, y: m.y + dir.y * S * 1.05 - (plane ? 0 : S * 0.35) };
-                  const spread = { x: (rand(vi * 31 + mi * 7 + shot) - 0.5) * S * 2.2, y: (rand(vi * 17 + mi * 3 + shot) - 0.5) * S * 1.4 };
+                  const aim = torpedo ? 0.45 : 1;
+                  const spread = { x: (rand(vi * 31 + mi * 7 + shot) - 0.5) * S * 2.2 * aim, y: (rand(vi * 17 + mi * 3 + shot) - 0.5) * S * 1.4 * aim };
                   const hit = { x: v.target!.x + spread.x, y: v.target!.y + spread.y };
+                  if (torpedo) {
+                    // Dropped short of the ship, the torpedo runs in; where it strikes, a burst and a water column.
+                    const from = torpedoStart(hit, muzzle, S * 5, land);
+                    const impact = torpedoAt(since, from, hit)?.impact;
+                    return (
+                      <g key={`f${mi}`}>
+                        <TorpedoWake from={from} hit={hit} since={since} S={S} />
+                        {impact !== undefined ? <Burst x={hit.x} y={hit.y} r={S * 0.9} p={impact / 0.8} era={map.era} seed={vi * 101 + mi * 11 + shot} /> : null}
+                        {impact !== undefined ? <WaterColumn x={hit.x} y={hit.y} S={S} impact={impact} /> : null}
+                      </g>
+                    );
+                  }
                   const fly = since / SHOT_FLIGHT_S;
                   // The shot arcs over (a bomb falls straight), then bursts where it lands.
                   const arc = plane ? 0 : Math.hypot(hit.x - muzzle.x, hit.y - muzzle.y) * 0.25;
@@ -380,6 +448,23 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
           </g>
         );
       })}
+      {/* At night an air raid drops flares over its target, drifting down and lighting the sea. */}
+      {night ? (
+        <defs>
+          {/* One fixed id: two maps in a transition define the same light. */}
+          <radialGradient id="v3-flare-light">
+            <stop offset="0%" stopColor="#fff2b8" stopOpacity={0.55} />
+            <stop offset="35%" stopColor="#fff2b8" stopOpacity={0.22} />
+            <stop offset="100%" stopColor="#fff2b8" stopOpacity={0} />
+          </radialGradient>
+        </defs>
+      ) : null}
+      {night
+        ? vehicles.map((v, vi) => {
+            const raid = frame >= v.start ? raidOf(map, vi, fps) : undefined;
+            return raid ? flaresAt(frame, raid.frame, fps, vi * 29).map((f, j) => <Flare key={`fl${vi}-${j}`} x={raid.at.x + f.dx * S} y={raid.at.y + f.dy * S} S={S} glow={f.glow} light="v3-flare-light" />) : null;
+          })
+        : null}
     </g>
   );
 }

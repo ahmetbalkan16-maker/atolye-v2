@@ -1,6 +1,6 @@
 import { CLOSE_MAP_MAX_KM, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
-import { shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
+import { BADGE_STEP_PX, shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
 import { CLOSE_MIN_ZOOM_KM } from "./RouteZoom";
 
 /**
@@ -37,6 +37,12 @@ type Pt = readonly [number, number];
 export interface ActingPlace {
   readonly at: Pt;
   readonly reach: number;
+  /**
+   * How far (km) its drawing may stand off `at`: a close map's badge is moved a step off what it hides (MapBuilder,
+   * BADGE_STEP_PX in the map's own view) — the Taranto Short's s5 at 16.9 s: the admiral's badge stepped off the planes'
+   * end, the window followed it and the second wave was cut (92% in the frame).
+   */
+  readonly driftKm?: number;
 }
 
 /**
@@ -48,6 +54,8 @@ export interface ActingPlace {
 export function lineAction(map: SceneMap, line: number): ActingPlace[] {
   const out: ActingPlace[] = [];
   const put = (reach: number, ...ps: Pt[]) => out.push(...ps.map((at) => ({ at, reach })));
+  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const badge = (...ps: Pt[]) => out.push(...ps.map((at) => ({ at, reach: BADGE_REACH_PX, ...(close ? { driftKm: (BADGE_STEP_PX * map.genislik_km!) / 1920 } : {}) })));
   for (const a of map.araclar ?? []) {
     const end = a.yol?.length ? a.yol[a.yol.length - 1]! : a.konum;
     const reach = shipReachPx(Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))));
@@ -61,7 +69,7 @@ export function lineAction(map: SceneMap, line: number): ActingPlace[] {
     if (o.yol?.length && (o.yol_satir ?? o.satir) === line) put(BADGE_REACH_PX, o.konum, o.yol[o.yol.length - 1]!);
   }
   for (const r of map.rozetler ?? []) {
-    if (r.satir === line) put(BADGE_REACH_PX, r.konum);
+    if (r.satir === line) badge(r.konum);
     if (r.yol?.length && r.yol_satir === line) put(BADGE_REACH_PX, r.konum, r.yol[r.yol.length - 1]!);
   }
   for (const u of map.birlikler ?? [])
@@ -84,17 +92,20 @@ const margin = (reach: number, win: FrameWindow, floor: number) => Math.max(floo
 
 /**
  * Whether a camera view (`centre`, `km` wide) frames these places in the window: together with their drawings' reach
- * (at least FRAME_MARGIN of the window) they fit across the window (the window follows them across the stage, ShotView's
- * map beats), lie inside the stage's width, and inside its height; and — on a close map — are not a speck in it.
+ * (at least FRAME_MARGIN of the window) and how far they may stand off their place they fit in the window centred on their
+ * middle — where ShotView's map beats aim it, a step off when a badge has stepped aside —, lie inside the stage's width,
+ * and inside its height; and — on a close map — are not a speck in it.
  */
 export function framesAction(places: readonly ActingPlace[], centre: Pt, km: number, win: FrameWindow, close: boolean): boolean {
   if (!places.length) return true;
   const kx = kmX(centre[1]);
-  const xs = places.map((p) => ({ v: (p.at[0] - centre[0]) * kx, e: km * margin(p.reach, win, FRAME_MARGIN * win.width) }));
-  const ys = places.map((p) => ({ v: (p.at[1] - centre[1]) * KM_Y, e: km * margin(p.reach, win, FRAME_MARGIN * win.aspect) }));
+  const xs = places.map((p) => ({ v: (p.at[0] - centre[0]) * kx, e: km * margin(p.reach, win, FRAME_MARGIN * win.width) + (p.driftKm ?? 0) }));
+  const ys = places.map((p) => ({ v: (p.at[1] - centre[1]) * KM_Y, e: km * margin(p.reach, win, FRAME_MARGIN * win.aspect) + (p.driftKm ?? 0) }));
   const winW = km * win.width;
   const winH = km * win.aspect;
-  if (Math.max(...xs.map((x) => x.v + x.e)) - Math.min(...xs.map((x) => x.v - x.e)) > winW) return false;
+  const mid = (Math.max(...xs.map((x) => x.v)) + Math.min(...xs.map((x) => x.v))) / 2;
+  const shift = Math.max(...places.map((p) => p.driftKm ?? 0)) / 2;
+  if (!xs.every((x) => Math.abs(x.v - mid) + x.e + shift <= winW / 2 + 1e-9)) return false;
   if (!xs.every((x) => Math.abs(x.v) + x.e <= km / 2) || !ys.every((y) => Math.abs(y.v) + y.e <= winH / 2)) return false;
   const spanX = Math.max(...xs.map((x) => x.v)) - Math.min(...xs.map((x) => x.v));
   const spanY = Math.max(...ys.map((y) => y.v)) - Math.min(...ys.map((y) => y.v));
@@ -113,7 +124,9 @@ export function viewFor(places: readonly ActingPlace[], win: FrameWindow, minKm:
   const spanX = (Math.max(...lons) - Math.min(...lons)) * kmX(merkez[1]);
   const spanY = (Math.max(...lats) - Math.min(...lats)) * KM_Y;
   const reach = Math.max(...places.map((p) => p.reach));
-  const fit = Math.max(spanX / (win.width - 2 * margin(reach, win, FRAME_MARGIN * win.width)), spanY / (win.aspect - 2 * margin(reach, win, FRAME_MARGIN * win.aspect)));
+  // A drift on both sides, and the window's middle following it half way (framesAction).
+  const drift = Math.max(...places.map((p) => p.driftKm ?? 0));
+  const fit = Math.max((spanX + 3 * drift) / (win.width - 2 * margin(reach, win, FRAME_MARGIN * win.width)), (spanY + 2 * drift) / (win.aspect - 2 * margin(reach, win, FRAME_MARGIN * win.aspect)));
   // A hair wider than the bare fit, so rounding never leaves it a pixel short.
   return { merkez, genislik_km: Math.round(Math.max(minKm, fit * 1.02) * 10) / 10 };
 }
@@ -189,6 +202,30 @@ export function actionAt(m: V3GeoMap, frame: number, width: number, height: numb
     if (b.moveStart === frame) put(b.label, b.path[b.path.length - 1], BADGE_REACH_PX);
   }
   for (const b of m.battles ?? []) if (b.start === frame) put(b.label, b, BADGE_REACH_PX);
+  return out;
+}
+
+/**
+ * What stands on a built map at `frame` (vehicles and badges up then, where they are by then; battles), on the stage
+ * through the camera stop in effect: what a camera move brings into the picture — the Taranto Short's s6 at 9.3 s, the
+ * camera closed in on the ships and brought the admiral's badge, up since the start, half behind the sailor.
+ */
+export function standingAt(m: V3GeoMap, frame: number, width: number, height: number): ActionMark[] {
+  const key = m.world && m.camera?.length ? ([...m.camera].reverse().find((c) => c.frame <= frame) ?? m.camera[0]!) : undefined;
+  const s = (p: { readonly x: number; readonly y: number }) => (key ? { x: (p.x - key.x) * key.zoom + width / 2, y: (p.y - key.y) * key.zoom + height / 2 } : { x: p.x, y: p.y });
+  const u = height / 1080;
+  const up = (x: { readonly start: number; readonly end?: number }) => x.start <= frame && (x.end === undefined || frame < x.end);
+  const where = <P>(path: readonly P[], moveStart: number | undefined) => (moveStart !== undefined && frame >= moveStart ? path[path.length - 1] : path[0]);
+  const out: ActionMark[] = [];
+  for (const v of m.vehicles ?? []) {
+    const p = where(v.path, v.moveStart);
+    if (up(v) && p) out.push({ name: `${v.kind} ×${v.count}`, ...s(p), reach: shipReachPx(v.count) * u });
+  }
+  for (const b of m.badges ?? []) {
+    const p = where(b.path, b.moveStart);
+    if (up(b) && p) out.push({ name: b.label, ...s(p), reach: BADGE_REACH_PX * u });
+  }
+  for (const b of m.battles ?? []) if (b.start <= frame) out.push({ name: b.label, ...s(b), reach: BADGE_REACH_PX * u });
   return out;
 }
 

@@ -33,7 +33,7 @@ import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast, withShipsAfloat } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
-import { besideAction, frameLineAction, recentAction, shortWindow } from "../maps/UnitFraming";
+import { actionAt, besideAction, frameLineAction, recentAction, shortWindow } from "../maps/UnitFraming";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
@@ -1097,6 +1097,29 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         t.gestures.push({ gesture: HOOK_GESTURE[mood] ?? "isaret_et", start: f(0.15), end: f(1.9), ...(towardX !== undefined ? { toward: sideOf(slots.get(shotLead)!.x, towardX) } : {}) });
         t.effects.push({ effect: "unlem", start: f(0.15), end: f(1.4) });
         t.faces.push({ start: f(0.15), emotion: mood === "notr" ? "saskin" : mood });
+      }
+    }
+
+    // A lone character over a map looks and points at each loss and each shot as it happens, not ahead at nothing:
+    // they turn to it, point, and a loss startles them (the map's own events, as actionAt reads them).
+    if (geo && tracks.size === 1) {
+      const [loneId, lt] = [...tracks.entries()][0]!;
+      if (!slots.get(loneId)?.mount) {
+        const events = (geo.vehicles ?? []).flatMap((v) => [v.lossStart !== undefined ? { at: v.lossStart, loss: true } : undefined, v.fireStart !== undefined ? { at: v.fireStart, loss: false } : undefined]).filter((e): e is { at: number; loss: boolean } => !!e).sort((a, b) => a.at - b.at);
+        for (const e of events) {
+          const marks = actionAt(geo, e.at, input.width, input.height);
+          if (!marks.length || e.at >= duration - 2) continue;
+          const toward = sideOf(lt.x, marks.reduce((a, m) => a + m.x, 0) / marks.length / input.width);
+          const end = Math.min(duration - 1, e.at + f(1.4));
+          // The event takes the hands from whatever gesture is running: that one stops where this one starts.
+          lt.gestures = lt.gestures.filter((g) => !(g.start >= e.at && g.start < end)).map((g) => (g.start < e.at && g.end > e.at ? { ...g, end: e.at } : g));
+          lt.turns.push({ frame: e.at, facing: toward });
+          lt.facing = toward;
+          lt.gestures.push({ gesture: "isaret_et", start: e.at, end, toward });
+          if (e.loss) lt.faces.push({ start: e.at, emotion: "saskin" });
+        }
+        lt.turns.sort((a, b) => a.frame - b.frame);
+        lt.faces.sort((a, b) => a.start - b.start);
       }
     }
 
