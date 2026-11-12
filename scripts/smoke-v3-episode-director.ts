@@ -620,6 +620,12 @@ async function main() {
     assert.equal(geo.lines![0]!.chain, true);
     assert.deepEqual(geo.units![1]!.steps[1]!.losses, [2.4, 3.4], "two tokens fall one after the other");
     assert.deepEqual(geo.fights, [{ start: 100, durationS: 4.6 }]);
+    // Told on a scene's last line, the losses fall before the cut (owner, 12 Nov 2026: Cannae's Romans fell after it):
+    // pressed in when the scene ends 3 s after the line starts, unchanged when it runs on.
+    const geoAt = (sceneFrames: number) => buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/yakin.jpg", sceneFrames, fps: 30 });
+    const cut = geoAt(190).units![1]!.steps[1]!;
+    assert.ok(cut.start + Math.max(...cut.losses!) * 30 <= 190 - 30, `the last token falls a second before the cut (${JSON.stringify(cut.losses)})`);
+    assert.deepEqual(geoAt(1000).units![1]!.steps[1]!.losses, [2.4, 3.4], "room enough: as before");
     assert.equal(buildGeoMap({ ...map, genislik_km: 500 }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0).close, undefined, "a wide map has no close ground");
     // Validation: the close map's ground only on a close map; the chain style is known.
     const ep = { ...sampleEpisode(), donem: "1453" };

@@ -3,7 +3,7 @@ import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
 import { armsOf } from "../episode/Period";
-import { unitLossDelaysS } from "../maps/MapBuilder";
+import { fitLossDelaysS, unitLossDelaysS } from "../maps/MapBuilder";
 import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
@@ -121,6 +121,7 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
     const st = timeline.scenes[si];
     if (si > 0 && st && scene.gecis && scene.gecis !== "kes" && scene.gecis !== "cozul") cues.push({ t: Math.max(0, st.start - 0.12), id: "whoosh" });
     const lineAt = (li: number) => timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li);
+    const sceneEnd = si === lastScene ? timeline.duration : (timeline.scenes[si + 1]?.start ?? timeline.duration);
     for (const card of scene.yazi_karti ?? []) {
       const lt = lineAt(Math.min(card.satir ?? 0, scene.satirlar.length - 1));
       if (card.stil === "kelime" && lt) cues.push({ t: lt.start, id: "dusus" });
@@ -174,7 +175,8 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
         const lost = Math.min(alive, Math.max(0, Math.round(y.kayip ?? 0)));
         alive -= lost;
         const lt = lost > 0 ? lineAt(y.satir) : undefined;
-        if (lt) cues.push({ t: lt.start + 1.4, id: blow }, ...unitLossDelaysS(lost).map((d) => ({ t: lt.start + d, id: blow })));
+        // Pressed into the scene as the map presses its falls (MapBuilder.fitLossDelaysS, the same scene end as the Director's).
+        if (lt) cues.push({ t: lt.start + 1.4, id: blow }, ...fitLossDelaysS(unitLossDelaysS(lost), sceneEnd - lt.start).map((d) => ({ t: lt.start + d, id: blow })));
       }
     }
     // Vehicles: the sea as a fleet sets out, the roar of a cavalry or elephant charge, a plane's rush; their fire.

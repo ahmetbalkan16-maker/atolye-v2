@@ -11,6 +11,7 @@ import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary"
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { armsOf } from "../src/lib/v3/episode/Period";
+import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps/MapBuilder";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
@@ -174,7 +175,16 @@ async function main() {
       ],
     } as unknown as Episode;
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["kilic", 4.4], ["top_atisi", 4.6]]);
+    // The token lost on the last line falls inside the 4-second scene (owner, 12 Nov 2026: Cannae's falls came after the
+    // cut): its sword, 2.4 s in, used to ring at 4.4 s, after the scene; pressed in, it joins the battle's opening clash.
+    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["top_atisi", 4.6]]);
+    // The losses keep their pace when they fit the scene and are pressed together when they do not, always ending before it.
+    assert.deepEqual(fitLossDelaysS([2.4, 3.4], 10), [2.4, 3.4], "room enough: as before");
+    assert.deepEqual(fitLossDelaysS([2.4, 3.4], undefined), [2.4, 3.4]);
+    const pressed = fitLossDelaysS(unitLossDelaysS(5), 3);
+    assert.equal(pressed.length, 5);
+    assert.ok(pressed.every((d, i) => i === 0 || d > pressed[i - 1]!), "still one after another");
+    assert.ok(pressed[4]! <= 3 - LOSS_TAIL_S + 1e-9, `the last falls before the cut: ${pressed[4]}`);
     assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
     // A 20th-century battle has no swords: the marker and a falling token are shells.
     const somme = sfxCues({ ...siege, donem: "1916" } as Episode, tlSiege);

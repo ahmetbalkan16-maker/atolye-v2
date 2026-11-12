@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
+import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -15,6 +16,11 @@ import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../sr
 interface MapUnitsModule {
   placeTokens(map: V3GeoMap, frame: number, fps: number, k: number): ({ x: number; y: number; lostAt?: number } | undefined)[][];
   gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; gun: boolean; shot: number }[];
+  volleysAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; shot: number }[];
+  steadyFacingsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, frame: number, fps: number, k: number): number[][];
+  lostTokens(u: NonNullable<V3GeoMap["units"]>[number], fps: number): { ti: number; at: number; step: number }[];
+  fallenRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step: number }, fps: number, k: number): { x: number; y: number } | undefined;
+  menPerBlock(units: NonNullable<V3GeoMap["units"]>, ui: number): number | undefined;
 }
 const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 
@@ -92,7 +98,7 @@ function metrics(values: readonly number[]): Metrics {
 }
 
 async function main() {
-  const { gunfireAt, placeTokens } = (await import(MAP_UNITS)) as MapUnitsModule;
+  const { gunfireAt, placeTokens, volleysAt, steadyFacingsAt, lostTokens, fallenRest, menPerBlock } = (await import(MAP_UNITS)) as MapUnitsModule;
   const states = Array.from({ length: FRAMES }, (_, f) => performerState(performer, f, FPS));
   const table = CHANNELS.map((c) => ({ c, m: metrics(states.map(c.get)) }));
   for (const { c, m } of table) {
@@ -429,6 +435,105 @@ async function main() {
       assert.ok(v.zoom >= old.zoom - 1e-9 && v.zoom <= old.zoom * 1.06, `zoom ${v.zoom.toFixed(3)}`);
     }
     assert.ok(before > 10, `the old clamp showed the empty frame (${before.toFixed(1)} px)`);
+  });
+
+  // Owner, 12 Nov 2026: "yakın çekim haritalandırmada askerlerin hareketleri taktikler harita ortamı daha gerçekçi, ordu
+  // sayısı daha fazla gözüksün" — a block is a regiment of soldiers, each block faces its own enemies, archers shoot,
+  // the fallen stay on the field.
+  const battle = () => {
+    const row = (y: number, n: number, x0 = 700) => Array.from({ length: n }, (_, i) => ({ x: x0 + i * 75, y }));
+    return {
+      units: [
+        { side: "A", color: "#f2f2f2", emblem: "kartal", kind: "kilicli" as const, label: "Eight legions – 86,000 men", steps: [{ start: 9, points: row(420, 6), alive: 6 }, { start: 90, points: row(560, 6), alive: 6 }, { start: 140, points: row(600, 6), alive: 4, losses: [1.2, 2.4] }, { start: 260, points: row(200, 6, 500), alive: 3, rout: true, losses: [0.8] }] },
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "okcu" as const, steps: [{ start: 9, points: row(760, 3, 760), alive: 3 }] },
+        // A wing sweeping round the flank: it turns towards its way, then towards the enemy it reaches.
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "suvari" as const, steps: [{ start: 9, points: row(760, 2, 300), alive: 2 }, { start: 100, points: row(500, 2, 1300), alive: 2 }] },
+      ],
+      fights: [{ start: 140, durationS: 4 }, { start: 260, durationS: 3.6 }],
+    } as unknown as V3GeoMap;
+  };
+
+  await scenario("O a block is a regiment: ranks of soldiers inside it, as many as its strength, thinning as its unit loses", () => {
+    assert.equal(menOf("11 Legions – 47,000 men"), 47000);
+    assert.equal(menOf("86.000 asker"), 86000);
+    assert.equal(menOf("Eight legions"), undefined);
+    assert.equal(menOf(undefined), undefined);
+    const dense = crowdGrid("kilicli", 10_000);
+    const sparse = crowdGrid("kilicli", 120);
+    assert.ok(dense.cols * dense.rows > sparse.cols * sparse.rows, "few men, a thinner block");
+    assert.deepEqual(crowdGrid("kilicli"), dense, "no number: a full regiment");
+    for (const kind of ["kilicli", "mizrakci", "okcu", "tufekci", "suvari", "topcu", "piyade"] as const) {
+      const grid = crowdGrid(kind, 5000);
+      const figs = crowdFigures(kind, grid, 64, 46, 7);
+      assert.ok(figs.length >= 3, `${kind}: ${figs.length} figures`);
+      assert.ok(figs.every((f) => Math.abs(f.x) <= 32 && Math.abs(f.y) <= 23), `${kind}: a figure outside its block`);
+      assert.deepEqual(crowdFigures(kind, grid, 64, 46, 7), figs, "the same block always gets the same figures");
+    }
+    assert.ok(crowdFigures("kilicli", dense, 64, 46, 7).length >= 30, "a dense block of foot holds 30+ soldiers");
+    let last = 0;
+    for (const share of [0, 0.1, 0.3, 0.6, 1]) {
+      const t = thinShare(share);
+      assert.ok(t >= last && t <= THIN_MAX, `thinning ${t} at ${share}`);
+      last = t;
+    }
+    const map = battle();
+    assert.equal(Math.round(menPerBlock(map.units!, 0)!), Math.round(86000 / 6));
+    assert.equal(menPerBlock(map.units!, 1), undefined, "a side with no number: none");
+  });
+
+  await scenario("P each block faces its own enemies and turns smoothly — never a flip — and a sweeping wing faces its way", () => {
+    const map = battle();
+    let prev: number[][] | undefined;
+    let prevShown: boolean[][] | undefined;
+    let worst = 0;
+    let sweepTurned = false;
+    for (let f = 0; f < 420; f++) {
+      const placed = placeTokens(map, f, 30, 1);
+      const now = steadyFacingsAt(map, placed, f, 30, 1);
+      now.forEach((side, ui) =>
+        side.forEach((a, i) => {
+          const b = prev?.[ui]?.[i];
+          if (!placed[ui]![i] || !prevShown?.[ui]?.[i] || b === undefined) return;
+          worst = Math.max(worst, Math.abs(((a - b + 540) % 360) - 180));
+        }),
+      );
+      // Mid-sweep the wing (eastwards, 90°) faces its way rather than the enemy north of it (0°).
+      if (f === 130) sweepTurned = Math.abs(((now[2]![0]! - 90 + 540) % 360) - 180) < 50;
+      prev = now;
+      prevShown = placed.map((side) => side.map((t) => t !== undefined));
+    }
+    // A wing that rode past the enemy and faces back at it turns ~155° in half a second, ~11° a frame at most (before:
+    // 171° in one frame as the side appeared, 32° as the wing arrived).
+    assert.ok(worst < 14, `a block turned ${worst.toFixed(1)}° in one frame`);
+    assert.ok(sweepTurned, "the sweeping wing faces the way it rides");
+    // Enemies on both hands never cancel out to nothing: it faces the way its side faces.
+    const d = facingDir({ x: 0, y: 0 }, [{ x: -100, y: 0, w: 1 }, { x: 100, y: 0, w: 1 }], { x: 0, y: -1 }, 23);
+    assert.ok(Math.hypot(d.x, d.y) > 0.99 && d.y < -0.9, "encircled: it faces the way its side faces");
+  });
+
+  await scenario("Q archers loose volleys together while the fight is on, never outside it; nobody else shoots arrows", () => {
+    const map = battle();
+    assert.deepEqual(volleysAt(map, 100, 30), [], "no fight, no arrows");
+    const frames = Array.from({ length: 120 }, (_, k) => volleysAt(map, 140 + k, 30));
+    assert.ok(frames.flat().every((v) => v.ui === 1), "only the archer unit shoots");
+    assert.ok(frames.flat().length > 0, "the archers shoot");
+    assert.ok(frames.some((f) => f.filter((v) => v.p < 0.25).length === 3), "the whole unit looses together");
+    assert.ok(frames.flat().every((v) => v.p >= 0 && v.p < 1));
+  });
+
+  await scenario("R a lost block falls where it fought and its fallen stay on the field to the end", () => {
+    const map = battle();
+    const lost = lostTokens(map.units![0]!, 30);
+    assert.deepEqual(lost.map((l) => l.ti), [4, 5, 3], "the blocks tokenAt drops, in order");
+    for (const l of lost) {
+      const t = placeTokens(map, l.at + 1, 30, 1)[0]![l.ti];
+      assert.ok(t && t.lostAt === l.at, `token ${l.ti} falls at ${l.at}`);
+      const rest = fallenRest(map, 0, l, 30, 1);
+      assert.ok(rest, `token ${l.ti} has a resting place`);
+      const off = Math.hypot(rest!.x - t!.x, rest!.y - t!.y);
+      assert.ok(off < 60, `its fallen lie where it fell (${off.toFixed(0)} px)`);
+      assert.deepEqual(fallenRest(map, 0, l, 30, 1), rest, "the same place whichever frame asks first");
+    }
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

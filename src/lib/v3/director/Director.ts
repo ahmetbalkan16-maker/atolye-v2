@@ -780,6 +780,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           ...(onMap?.sideBadges.length ? { sideBadges: onMap.sideBadges } : {}),
           ...(onMap?.lines.size ? { badgeLines: onMap.lines } : {}),
           lineEnd: (index) => (lines[index] ? local(lines[index]!.end) : undefined),
+          sceneFrames: duration,
           toldAt: (index, word) => {
             const sec = toldWordAt(lines, index, word);
             return sec === undefined ? undefined : local(sec);

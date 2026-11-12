@@ -6,6 +6,7 @@ import { along } from "./mapGeometry";
 import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
 import { type Box, labelSpot } from "./hudLayout";
+import { crowdFigures, crowdGrid, facingDir, type Foe, marching, menOf, thinShare, type UnitKind } from "./unitCrowd";
 
 /**
  * Unit tokens and battle effects on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map
@@ -24,9 +25,9 @@ const TOKEN_R = 23;
 const FALLEN_S = 0.6;
 /** How long a routed side's tokens take to scatter (seconds, each a little more or less; at 2.2 s they flew 34 px a frame). */
 const ROUT_S = 3;
-/** A block on a 1080p screen: its width and depth against the token radius (room for a sign that reads at a glance). */
-const BLOCK_W = 2.8;
-const BLOCK_H = 1.7;
+/** A block on a 1080p screen: its width and depth against the token radius (within the 3-radius spacing of blocks, deep enough for five ranks of soldiers). */
+const BLOCK_W = 2.9;
+const BLOCK_H = 2;
 
 /**
  * A unit kind's sign in white, in a box of ±1 (the caller scales it), always upright: infantry ✕ (any foot), swordsmen a
@@ -87,25 +88,154 @@ export function KindSign({ kind }: { kind: string }) {
   }
 }
 
+/** `#rrggbb` mixed with white by `a` (0..1); any other colour is returned as it is. */
+function tint(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * a);
+  return `rgb(${mix((n >> 16) & 255)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+}
+
+/** `#rrggbb` darkened by `a` (0..1). */
+function shade(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const mix = (c: number) => Math.round(c * (1 - a));
+  return `rgb(${mix((n >> 16) & 255)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+}
+
+const HORSES = ["#6b4a2f", "#8a6440", "#4e3624", "#9c7a55"] as const;
+
+/** Whether a side's colour is so light that white or tinted parts on it would not read (Rome's white at Cannae). */
+function isLight(hex: string): boolean {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1]!, 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.72;
+}
+
 /**
- * A unit block like the battle maps' (DFT Tarih's Pharsalus): a rectangle in the side's colour with its kind's sign in
- * white and a bright front edge towards the enemy. Drawn about its centre, the front up (the caller turns it by
- * `turn` degrees; the sign stays upright); `r` is the token radius.
+ * One soldier seen from above, front up, in a cell `cw` × `ch`: foot behind its shield, spearmen with their spears
+ * forward over the front, archers with a bow, musketeers with a gun, a rider on his horse, a gun with its crew.
  */
-export function UnitBlock({ kind, color, r, turn = 0 }: { kind: string; color: string; r: number; turn?: number }) {
+function Soldier({ kind, color, cw, ch, seed }: { kind: UnitKind; color: string; cw: number; ch: number; seed: number }) {
+  const s = Math.min(cw, ch);
+  const head = isLight(color) ? shade(color, 0.32) : tint(color, 0.45);
+  const line = s * 0.08;
+  switch (kind) {
+    case "suvari":
+      return (
+        <g>
+          <ellipse cx={0} cy={0} rx={cw * 0.24} ry={ch * 0.4} fill={HORSES[Math.floor(rand(seed + 3) * HORSES.length)]} stroke={INK} strokeWidth={line} />
+          <ellipse cx={0} cy={-ch * 0.42} rx={cw * 0.11} ry={ch * 0.14} fill={HORSES[Math.floor(rand(seed + 3) * HORSES.length)]} stroke={INK} strokeWidth={line} />
+          <ellipse cx={0} cy={ch * 0.02} rx={cw * 0.2} ry={ch * 0.11} fill={color} stroke={INK} strokeWidth={line} />
+          <circle cx={0} cy={ch * 0.02} r={cw * 0.12} fill={head} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+    case "topcu":
+      return (
+        <g>
+          <rect x={-cw * 0.3} y={-ch * 0.08} width={cw * 0.1} height={ch * 0.3} fill="#5a4630" stroke={INK} strokeWidth={line} />
+          <rect x={cw * 0.2} y={-ch * 0.08} width={cw * 0.1} height={ch * 0.3} fill="#5a4630" stroke={INK} strokeWidth={line} />
+          <rect x={-cw * 0.09} y={-ch * 0.42} width={cw * 0.18} height={ch * 0.66} rx={cw * 0.06} fill="#3a3532" stroke={INK} strokeWidth={line} />
+          <circle cx={-cw * 0.3} cy={ch * 0.36} r={cw * 0.1} fill={head} stroke={INK} strokeWidth={line} />
+          <circle cx={cw * 0.3} cy={ch * 0.36} r={cw * 0.1} fill={head} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+    case "mizrakci":
+      return (
+        <g>
+          <path d={`M${s * 0.16} ${s * 0.15} L${s * 0.16} ${-s * 1.15}`} stroke="#eadcbc" strokeWidth={line * 1.1} strokeLinecap="round" />
+          <ellipse cx={-s * 0.06} cy={-s * 0.2} rx={s * 0.36} ry={s * 0.16} fill={color} stroke={INK} strokeWidth={line} />
+          <circle cx={0} cy={s * 0.07} r={s * 0.29} fill={head} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+    case "okcu":
+      return (
+        <g>
+          <path d={`M${-s * 0.34} ${-s * 0.1} Q0 ${-s * 0.5} ${s * 0.34} ${-s * 0.1}`} fill="none" stroke="#7a5230" strokeWidth={line * 1.2} strokeLinecap="round" />
+          <circle cx={0} cy={s * 0.07} r={s * 0.29} fill={head} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+    case "tufekci":
+      return (
+        <g>
+          <path d={`M${s * 0.14} ${s * 0.05} L${s * 0.14} ${-s * 0.62}`} stroke="#2b2420" strokeWidth={line * 1.3} strokeLinecap="round" />
+          <ellipse cx={0} cy={s * 0.06} rx={s * 0.3} ry={s * 0.16} fill={color} stroke={INK} strokeWidth={line} />
+          <circle cx={0} cy={s * 0.04} r={s * 0.2} fill={shade(color, 0.45)} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+    default:
+      // Foot and swordsmen: the shield in front, the head (helmet) behind it.
+      return (
+        <g>
+          <ellipse cx={0} cy={-s * 0.22} rx={s * 0.46} ry={s * 0.2} fill={color} stroke={INK} strokeWidth={line} />
+          <circle cx={0} cy={s * 0.08} r={s * 0.3} fill={head} stroke={INK} strokeWidth={line} />
+        </g>
+      );
+  }
+}
+
+const KINDS: readonly UnitKind[] = ["piyade", "kilicli", "mizrakci", "okcu", "tufekci", "suvari", "topcu"];
+
+/**
+ * A unit block as a regiment seen from above (owner, 12 Nov 2026: "ordu sayısı daha fazla gözüksün"): a patch of
+ * ground in the side's colour full of soldiers in ranks and files (unitCrowd), a bright front edge towards the enemy, and
+ * the kind's sign on a standard at its rear (owner, 26 Oct 2026: every kind's sign must read at a glance). Drawn about
+ * its centre, the front up (the caller turns it by `turn` degrees; the sign stays upright); `r` is the token radius.
+ * `thin`: share of figures gone from the ranks; `fallen`: how far the block itself has fallen (its figures drop one by
+ * one, its ground fades); `march`: how much it is on the march (the figures bob); `rout`: how far it has broken (the
+ * figures scatter, the ranks dissolve).
+ */
+export function UnitBlock({ kind, color, r, turn = 0, seed = 0, menPerBlock, thin = 0, fallen = 0, march = 0, rout = 0, frame = 0 }: { kind: string; color: string; r: number; turn?: number; seed?: number; menPerBlock?: number; thin?: number; fallen?: number; march?: number; rout?: number; frame?: number }) {
   const w = r * BLOCK_W;
   const h = r * BLOCK_H;
+  const k: UnitKind = KINDS.includes(kind as UnitKind) ? (kind as UnitKind) : "piyade";
+  const grid = crowdGrid(k, menPerBlock);
+  const figs = crowdFigures(k, grid, w * 0.92, h * 0.84, seed);
+  const cw = (w * 0.92) / grid.cols;
+  const ch = (h * 0.84) / grid.rows;
+  const gone = Math.max(thin, fallen);
+  const ground = (1 - fallen) * (1 - Math.min(1, rout * 1.4));
+  // The standard at the rear, turned with the block; the sign on it upright.
+  const a = (turn * Math.PI) / 180;
+  const back = h / 2;
+  const std = { x: -Math.sin(a) * back, y: Math.cos(a) * back };
+  const stdR = r * 0.56;
+  const light = isLight(color);
   return (
     <g>
       <g transform={`rotate(${turn})`}>
-        <rect x={-w / 2 + r * 0.12} y={-h / 2 + r * 0.16} width={w} height={h} rx={r * 0.12} fill="rgba(0,0,0,0.35)" />
-        <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={r * 0.12} fill={color} stroke={INK} strokeWidth={r * 0.1} />
-        <rect x={-w / 2 + r * 0.14} y={-h / 2 + r * 0.14} width={w - r * 0.28} height={h - r * 0.28} rx={r * 0.06} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={r * 0.07} />
-        {/* The front edge, towards the enemy. */}
-        <path d={`M${-w / 2 + r * 0.1} ${-h / 2 + r * 0.05} L${w / 2 - r * 0.1} ${-h / 2 + r * 0.05}`} stroke="#ffffff" strokeWidth={r * 0.2} strokeLinecap="round" />
+        {ground > 0 ? (
+          <g opacity={ground}>
+            <rect x={-w / 2 + r * 0.12} y={-h / 2 + r * 0.16} width={w} height={h} rx={r * 0.12} fill="rgba(0,0,0,0.3)" />
+            <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={r * 0.12} fill={shade(color, light ? 0.42 : 0.15)} fillOpacity={0.55} stroke={INK} strokeWidth={r * 0.08} />
+            {/* The front edge, towards the enemy. */}
+            <path d={`M${-w / 2 + r * 0.1} ${-h / 2 + r * 0.05} L${w / 2 - r * 0.1} ${-h / 2 + r * 0.05}`} stroke="#ffffff" strokeWidth={r * 0.14} strokeLinecap="round" />
+          </g>
+        ) : null}
+        {figs.map((f) => {
+          if (f.fall < gone) return null;
+          // Broken, each runs its own way (forward in the turned block: its back to the enemy).
+          const dx = rout > 0 ? (rand(f.seed + 5) - 0.5) * 2.4 * rout * r : 0;
+          const dy = rout > 0 ? -rand(f.seed + 6) * 1.6 * rout * r : 0;
+          const bob = march > 0 ? Math.sin(frame * 0.55 + f.seed) * ch * 0.1 * march : 0;
+          return (
+            <g key={f.seed} transform={`translate(${f.x + dx} ${f.y + dy + bob})`}>
+              <Soldier kind={k} color={color} cw={cw} ch={ch} seed={f.seed} />
+            </g>
+          );
+        })}
       </g>
-      <g transform={`scale(${Math.min(w, h) * 0.36})`}>
-        <KindSign kind={kind} />
+      <g transform={`translate(${std.x} ${std.y})`} opacity={1 - fallen}>
+        <circle r={stdR * 1.08} fill="rgba(0,0,0,0.3)" transform={`translate(${r * 0.08} ${r * 0.1})`} />
+        <circle r={stdR} fill={light ? shade(color, 0.55) : color} stroke="#ffffff" strokeWidth={r * 0.09} />
+        <circle r={stdR * 1.08} fill="none" stroke={INK} strokeWidth={r * 0.06} />
+        <g transform={`scale(${stdR * 0.7})`}>
+          <KindSign kind={kind} />
+        </g>
       </g>
     </g>
   );
@@ -573,6 +703,143 @@ export function gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: numb
   return out;
 }
 
+/** An archer unit looses a volley every ARCHER_PERIOD_S; its arrows are in the air ARROW_FLIGHT_S. */
+export const ARCHER_PERIOD_S = 2;
+export const ARROW_FLIGHT_S = 0.9;
+
+/**
+ * The volleys of archer units in the air at `frame` (owner, 12 Nov 2026: tactics must read; archers never shot): while a
+ * fight is on, each archer unit's tokens loose together, each unit at its own moment. `p`: how far the arrows are on
+ * their flight (0..1).
+ */
+export function volleysAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; shot: number }[] {
+  const fight = (map.fights ?? []).find((f) => frame >= f.start && frame < f.start + f.durationS * fps);
+  if (!fight) return [];
+  const local = frame - fight.start - Math.round(fps * 0.2);
+  if (local < 0) return [];
+  const out: { ui: number; ti: number; p: number; shot: number }[] = [];
+  const period = Math.round(fps * ARCHER_PERIOD_S);
+  const life = Math.round(fps * ARROW_FLIGHT_S);
+  (map.units ?? []).forEach((u, ui) => {
+    if (u.kind !== "okcu") return;
+    const count = Math.max(...u.steps.map((s) => s.points.length));
+    for (let ti = 0; ti < count; ti++) {
+      const offset = (Math.round(fps * 0.6 * ui) % period) + ti * 2;
+      const since = (((local - offset) % period) + period) % period;
+      if (local - offset >= 0 && since < life) out.push({ ui, ti, p: since / life, shot: Math.floor((local - offset) / period) });
+    }
+  });
+  return out;
+}
+
+/**
+ * Every block a unit loses and the frame it falls (as tokenAt has it): in each step, the tokens from the step's `alive`
+ * up to the last step's fall one by one at their `losses` moments.
+ */
+export function lostTokens(u: Units, fps: number): { ti: number; at: number; step: number }[] {
+  const out: { ti: number; at: number; step: number }[] = [];
+  const count = Math.max(...u.steps.map((s) => s.points.length));
+  u.steps.forEach((to, s) => {
+    const before = s === 0 ? count : u.steps[s - 1]!.alive;
+    for (let i = to.alive; i < before; i++) out.push({ ti: i, at: to.start + Math.round((to.losses?.[i - to.alive] ?? SLIDE_S * 0.6) * fps), step: s });
+  });
+  return out;
+}
+
+const restCache = new WeakMap<V3GeoMap, Map<string, { x: number; y: number } | undefined>>();
+/**
+ * Where a lost block's soldiers lie: where the token came to rest as it faded (placeTokens a moment after its fall, or
+ * just before the next step took it away), at this zoom (rounded, so a camera holding still reuses it).
+ */
+export function fallenRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step: number }, fps: number, k: number): { x: number; y: number } | undefined {
+  let byMap = restCache.get(map);
+  if (!byMap) restCache.set(map, (byMap = new Map()));
+  const key = `${ui}|${l.ti}|${l.at}|${Math.round(k * 400)}|${fps}`;
+  if (byMap.has(key)) return byMap.get(key);
+  const next = map.units?.[ui]?.steps[l.step + 1]?.start;
+  const rest = l.at + Math.round((FALLEN_S + 0.4) * fps);
+  let found: { x: number; y: number } | undefined;
+  for (const f of [next !== undefined ? Math.min(rest, next - 1) : rest, l.at]) {
+    const t = placeTokens(map, f, fps, Math.round(k * 400) / 400)[ui]?.[l.ti];
+    if (t) {
+      found = { x: t.x, y: t.y };
+      break;
+    }
+  }
+  byMap.set(key, found);
+  return found;
+}
+
+/**
+ * The men behind each block of unit `ui`: its own strength label's number over its blocks, else its side's (one label
+ * for the side, over all the side's blocks); none when no label names a number ("Eight legions").
+ */
+export function menPerBlock(units: readonly Units[], ui: number): number | undefined {
+  const blocks = (u: Units) => Math.max(1, ...u.steps.map((s) => s.points.length));
+  const labelled = (u: Units) => menOf(u.label) ?? Math.max(0, ...u.steps.map((s) => menOf(s.label) ?? 0));
+  const own = labelled(units[ui]!);
+  if (own) return own / blocks(units[ui]!);
+  const side = units.filter((u) => u.side === units[ui]!.side);
+  const men = side.reduce((a, u) => a + labelled(u), 0);
+  return men ? men / side.reduce((a, u) => a + blocks(u), 0) : undefined;
+}
+
+/**
+ * The way each standing token faces at this frame (degrees for SVG `rotate`, the block's front up): unitCrowd.facingDir
+ * with every enemy token weighted as it shows (appearing, falling and fading count less and less, so no turn jumps).
+ */
+export function facingsAt(map: V3GeoMap, placed: readonly (readonly (PlacedToken | undefined)[])[], frame: number, fps: number, r: number): number[][] {
+  const units = map.units ?? [];
+  // A token just appearing counts from its first frame (at nought the side faced up, and turned to the enemy a frame on).
+  const weight = (q: PlacedToken) => (q.lostAt !== undefined ? q.alpha * (1 - clamp01((frame - q.lostAt) / ((FALLEN_S + 0.5) * fps))) : Math.max(0.05, q.alpha));
+  const middle = (pts: readonly PlacedToken[]) => {
+    const ws = pts.reduce((a, p) => a + weight(p), 0);
+    return ws > 1e-6 ? { x: pts.reduce((a, p) => a + p.x * weight(p), 0) / ws, y: pts.reduce((a, p) => a + p.y * weight(p), 0) / ws } : undefined;
+  };
+  const shown = placed.map((side) => side.filter((t): t is PlacedToken => t !== undefined));
+  return placed.map((side, ui) => {
+    const foesPts = shown.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s));
+    const foes: Foe[] = foesPts.map((q) => ({ x: q.x, y: q.y, w: weight(q) }));
+    // The whole side's middle, not the unit's: a wing riding past the enemy's middle swung the way it faced round.
+    const own = middle(shown.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? s : [])));
+    const foe = middle(foesPts);
+    const base = own && foe ? { x: foe.x - own.x, y: foe.y - own.y } : undefined;
+    return side.map((t) => {
+      if (!t) return 0;
+      const d = facingDir(t, foes, base, r);
+      return (Math.atan2(d.y, d.x) * 180) / Math.PI + 90;
+    });
+  });
+}
+
+/** Frames back at which a block's way is sampled for its turn, and their weights (the latest counts most). */
+const TURN_SAMPLES = [0, 3, 6, 9, 12, 15] as const;
+const TURN_WEIGHTS = [6, 5, 4, 3, 2, 1] as const;
+
+/**
+ * The way each token faces at `frame`, steadied over the last half second (degrees, as facingsAt): a block turns like a
+ * body of men, never faster than its last frames allow — a wing that rode past the enemy and faced back at it turned 155°
+ * in twelve frames, 32° in one. Each frame is computed from the frames before it afresh (Remotion renders in any order).
+ * `placed`: this frame's tokens as UnitTokens has them.
+ */
+export function steadyFacingsAt(map: V3GeoMap, placed: readonly (readonly (PlacedToken | undefined)[])[], frame: number, fps: number, k: number): number[][] {
+  const r = TOKEN_R * k;
+  const sums = placed.map((side) => side.map(() => ({ x: 0, y: 0 })));
+  TURN_SAMPLES.forEach((back, si) => {
+    const f = frame - back;
+    const pl = back === 0 ? placed : placeTokens(map, f, fps, k);
+    facingsAt(map, pl, f, fps, r).forEach((side, ui) =>
+      side.forEach((deg, ti) => {
+        if (!pl[ui]?.[ti] || !sums[ui]?.[ti]) return;
+        const a = ((deg - 90) * Math.PI) / 180;
+        sums[ui]![ti]!.x += Math.cos(a) * TURN_WEIGHTS[si]!;
+        sums[ui]![ti]!.y += Math.sin(a) * TURN_WEIGHTS[si]!;
+      }),
+    );
+  });
+  return sums.map((side) => side.map((v) => (Math.atan2(v.y, v.x) * 180) / Math.PI + 90));
+}
+
 /**
  * A shot seen from above: a muzzle flash, then smoke rolling out in front of the gun and drifting off. `dx, dy`: the way
  * the unit faces; `big`: a gun's (a musket line's is a small puff at each token). `p` 0..1.
@@ -623,6 +890,85 @@ function labelOffset(map: V3GeoMap, ui: number, f: number, fps: number, k: numbe
   return { x: at.x - own.x, y: at.y - own.y };
 }
 
+/**
+ * An archer block's volley seen from above: its arrows rise from the block and drop on the enemy, each a short shaft with
+ * its shadow on the ground running under it (the higher the arrow, the further its shadow). `p` 0..1.
+ */
+function ArrowVolley({ from, to, r, p, seed }: { from: { x: number; y: number }; to: { x: number; y: number }; r: number; p: number; seed: number }) {
+  const n = 7;
+  return (
+    <g opacity={1 - clamp01((p - 0.85) / 0.15)}>
+      {Array.from({ length: n }, (_, j) => {
+        const sx = from.x + (rand(seed + j) - 0.5) * r * 2;
+        const sy = from.y + (rand(seed + j + 11) - 0.5) * r * 1.2;
+        const ex = to.x + (rand(seed + j + 23) - 0.5) * r * 2.2;
+        const ey = to.y + (rand(seed + j + 37) - 0.5) * r * 1.6;
+        const q = clamp01(p * (1 + rand(seed + j + 5) * 0.15));
+        const gx = sx + (ex - sx) * q;
+        const gy = sy + (ey - sy) * q;
+        const lift = Math.sin(Math.PI * q) * Math.hypot(ex - sx, ey - sy) * 0.22;
+        // The shaft points along its flight: rising, then falling.
+        const vx = ex - sx;
+        const vy = ey - sy - Math.cos(Math.PI * q) * Math.hypot(ex - sx, ey - sy) * 0.22 * Math.PI;
+        const l = Math.hypot(vx, vy) || 1;
+        const ux = (vx / l) * r * 0.42;
+        const uy = (vy / l) * r * 0.42;
+        const gl = Math.hypot(ex - sx, ey - sy) || 1;
+        const hx = ((ex - sx) / gl) * r * 0.42;
+        const hy = ((ey - sy) / gl) * r * 0.42;
+        return (
+          <g key={j}>
+            <path d={`M${gx - hx} ${gy - hy} L${gx} ${gy}`} stroke="rgba(0,0,0,0.25)" strokeWidth={r * 0.06} strokeLinecap="round" />
+            <path d={`M${gx - ux} ${gy - lift - uy} L${gx} ${gy - lift}`} stroke="#3b2a1a" strokeWidth={r * 0.07} strokeLinecap="round" />
+            <path d={`M${gx} ${gy - lift} l${-ux * 0.35 - uy * 0.18} ${-uy * 0.35 + ux * 0.18} M${gx} ${gy - lift} l${-ux * 0.35 + uy * 0.18} ${-uy * 0.35 - ux * 0.18}`} stroke="#3b2a1a" strokeWidth={r * 0.06} strokeLinecap="round" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/**
+ * The fallen of a lost block, left where it fell for the rest of the scene (owner, 12 Nov 2026: losses must show): its
+ * soldiers lying in the trampled ground. `share`: how many have fallen yet (0..1).
+ */
+function Fallen({ x, y, r, color, seed, share }: { x: number; y: number; r: number; color: string; seed: number; share: number }) {
+  const n = 9;
+  const body = shade(color, 0.35);
+  return (
+    <g>
+      <ellipse cx={x} cy={y} rx={r * 1.5} ry={r * 1.0} fill="#3a2a18" opacity={0.18 * share} />
+      {Array.from({ length: n }, (_, j) => {
+        if (rand(seed + j * 3) >= share) return null;
+        const a = rand(seed + j) * Math.PI * 2;
+        const d = Math.sqrt(rand(seed + j + 7)) * r * 1.2;
+        const turn = rand(seed + j + 13) * 180;
+        return (
+          <g key={j} transform={`translate(${x + Math.cos(a) * d} ${y + Math.sin(a) * d * 0.75}) rotate(${turn})`} opacity={0.85}>
+            <ellipse rx={r * 0.22} ry={r * 0.09} fill={body} stroke={INK} strokeWidth={r * 0.03} />
+            <circle cx={r * 0.24} r={r * 0.07} fill={tint(color, 0.3)} stroke={INK} strokeWidth={r * 0.03} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Dust kicked up behind a block on the march: a few puffs trailing it, more and longer behind horse. */
+function DustTrail({ x, y, dx, dy, r, amount, horse, frame, seed }: { x: number; y: number; dx: number; dy: number; r: number; amount: number; horse: boolean; frame: number; seed: number }) {
+  const n = horse ? 5 : 3;
+  return (
+    <g>
+      {Array.from({ length: n }, (_, j) => {
+        const back = r * (1.3 + j * (horse ? 0.6 : 0.5));
+        const side = Math.sin(frame * 0.21 + seed + j * 1.7) * r * 0.35;
+        const size = r * (0.42 + j * 0.14) * (0.9 + 0.1 * Math.sin(frame * 0.3 + j));
+        return <circle key={j} cx={x - dx * back - dy * side} cy={y - dy * back + dx * side} r={size} fill="#c9b48a" opacity={0.32 * amount * (1 - j / (n + 1))} />;
+      })}
+    </g>
+  );
+}
+
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
 /**
  * `view`: the world rectangle the camera shows at this frame (MapView); a label stays inside it. `avoid`: the badges and
@@ -645,6 +991,32 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
         }),
       );
   const period = Math.round(fps * 1.1);
+  // Each block's way, its unit's men behind a block, and how thin its ranks have worn as the unit lost blocks.
+  const facings = steadyFacingsAt(map, placed, frame, fps, k);
+  const men = units.map((_, ui) => menPerBlock(units, ui));
+  const thin = units.map((u) => {
+    const count = Math.max(1, ...u.steps.map((st) => st.points.length));
+    return thinShare(lostTokens(u, fps).filter((l) => l.at <= frame).length / count);
+  });
+  const restOf = (ui: number, l: { ti: number; at: number; step: number }) => fallenRest(map, ui, l, fps, k);
+  // Where an archer's volley lands: the enemies nearest to it, together (a target that changed with the nearest one
+  // made the arrows jump in flight).
+  const aimOf = (ui: number, t: { x: number; y: number }) => {
+    const foes = placed.flatMap((other, oi) => (units[oi]!.side === units[ui]!.side ? [] : other.filter((q): q is PlacedToken => q !== undefined && q.lostAt === undefined)));
+    if (!foes.length) return undefined;
+    const d = foes.map((q) => Math.hypot(q.x - t.x, q.y - t.y));
+    const dmin = Math.min(...d);
+    let sx = 0;
+    let sy = 0;
+    let sw = 0;
+    foes.forEach((q, j) => {
+      const w = q.alpha * Math.exp(-(d[j]! - dmin) / (r * 3));
+      sx += q.x * w;
+      sy += q.y * w;
+      sw += w;
+    });
+    return sw > 1e-6 ? { x: sx / sw, y: sy / sw } : undefined;
+  };
   // Each side's middle and its enemies' middle (standing tokens): blocks face the enemy, a label stands behind the side.
   const middle = (pts: readonly { x: number; y: number }[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
   const standing = placed.map((side) => side.filter((t): t is NonNullable<typeof t> => t !== undefined && t.lostAt === undefined));
@@ -723,6 +1095,29 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
           </g>
         );
       })}
+      {/* The fallen of every lost block, lying where it fell, under the living. */}
+      {units.map((u, ui) =>
+        u.kind
+          ? lostTokens(u, fps).map((l) => {
+              if (frame < l.at) return null;
+              const where = restOf(ui, l);
+              if (!where) return null;
+              return <Fallen key={`f${ui}-${l.ti}`} x={where.x} y={where.y} r={r} color={u.color} seed={ui * 977 + l.ti * 31} share={clamp01((frame - l.at) / (fps * FALLEN_S))} />;
+            })
+          : null,
+      )}
+      {/* Dust behind the blocks on the march. */}
+      {units.map((u, ui) =>
+        u.kind
+          ? placed[ui]!.map((t, i) => {
+              if (!t || t.lostAt !== undefined || t.rout !== undefined || !t.way) return null;
+              const amount = marching(t, r);
+              if (amount <= 0.02) return null;
+              const len = Math.hypot(t.way.goal.x - t.way.from.x, t.way.goal.y - t.way.from.y) || 1;
+              return <DustTrail key={`d${ui}-${i}`} x={t.x} y={t.y} dx={(t.way.goal.x - t.way.from.x) / len} dy={(t.way.goal.y - t.way.from.y) / len} r={r} amount={amount * t.alpha} horse={u.kind === "suvari"} frame={frame} seed={ui * 13 + i} />;
+            })
+          : null,
+      )}
       {units.map((u, ui) =>
         placed[ui]!.map((t, i) => {
           if (!t) return null;
@@ -730,16 +1125,15 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
           const near = Math.min(Infinity, ...clashes.map((c) => Math.hypot(c.x - t.x, c.y - t.y)));
           const jx = Math.sin(frame * 0.9 + i) * r * 0.08 * clamp01((r * 2.4 - near) / (r * 0.8));
           const lostPuff = t.lostAt !== undefined ? (frame - t.lostAt) / (fps * 0.8) : 0;
-          // A block faces the enemy; a routed one turns its back and staggers as it runs.
-          const own = centres[ui];
-          const foe = enemyOf(ui);
-          const facing = own && foe ? (Math.atan2(foe.y - own.y, foe.x - own.x) * 180) / Math.PI + 90 : 0;
+          // A block faces the enemies nearest to it (facingsAt); a routed one turns its back and staggers as it runs.
+          const facing = facings[ui]![i]!;
           const turn = t.rout !== undefined ? 180 * Math.min(1, t.rout * 2.5) + Math.sin(frame * 0.7 + i * 2) * 14 : 0;
+          const fallen = t.lostAt !== undefined ? clamp01((frame - t.lostAt) / (fps * FALLEN_S)) : 0;
           return (
             <g key={`${ui}-${i}`}>
               <g transform={`translate(${t.x + jx} ${t.y})`} opacity={t.alpha}>
                 {u.kind ? (
-                  <UnitBlock kind={u.kind} color={u.color} r={r} turn={facing + turn} />
+                  <UnitBlock kind={u.kind} color={u.color} r={r} turn={facing + turn} seed={ui * 1009 + i * 7 + 1} menPerBlock={men[ui]} thin={thin[ui]} fallen={fallen} march={marching(t, r)} rout={t.rout ?? 0} frame={frame} />
                 ) : (
                   <>
                     <circle r={r * 1.12} fill="rgba(0,0,0,0.35)" transform={`translate(${r * 0.12} ${r * 0.16})`} />
@@ -750,10 +1144,11 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
                     </g>
                   </>
                 )}
-                {/* Fallen: greyed and crossed out, like the reference maps' struck-out tokens. */}
-                {t.lostAt !== undefined ? (
+                {/* Fallen: a round token is greyed and crossed out like the reference maps' struck-out tokens; a block's
+                    soldiers fall one by one instead (UnitBlock `fallen`) and lie where they fell (Fallen). */}
+                {t.lostAt !== undefined && !u.kind ? (
                   <g>
-                    {u.kind ? <rect x={(-r * BLOCK_W) / 2} y={(-r * BLOCK_H) / 2} width={r * BLOCK_W} height={r * BLOCK_H} rx={r * 0.12} fill="#2a2a2a" opacity={0.45} transform={`rotate(${facing})`} /> : <circle r={r} fill="#2a2a2a" opacity={0.45} />}
+                    <circle r={r} fill="#2a2a2a" opacity={0.45} />
                     <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke={INK} strokeWidth={r * 0.34} strokeLinecap="round" />
                     <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke="#ffffff" strokeWidth={r * 0.18} strokeLinecap="round" />
                   </g>
@@ -778,6 +1173,13 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
         const dy = (foe.y - own.y) / len;
         const front = r * BLOCK_H * 0.55;
         return <ShotSmoke key={`g${g.ui}-${g.ti}`} x={t.x + dx * front} y={t.y + dy * front} dx={dx} dy={dy} r={r} p={g.p} big={g.gun} seed={g.ui * 131 + g.ti * 17 + g.shot * 7} />;
+      })}
+      {/* Archer units loosing their volleys on the enemy while the fight is on. */}
+      {volleysAt(map, frame, fps).map((v) => {
+        const t = placed[v.ui]?.[v.ti];
+        if (!t || t.lostAt !== undefined || t.rout !== undefined) return null;
+        const aim = aimOf(v.ui, t);
+        return aim ? <ArrowVolley key={`v${v.ui}-${v.ti}`} from={t} to={aim} r={r} p={v.p} seed={v.ui * 131 + v.ti * 17 + v.shot * 7} /> : null;
       })}
       {clashes.map((c) => {
         const phase = (frame + (c.seed % period)) % period;

@@ -729,6 +729,8 @@ type GeoMapOptions = {
   readonly sideBadges?: readonly SideBadge[];
   readonly badgeLines?: ReadonlyMap<string, readonly number[]>;
   readonly lineEnd?: (index: number) => number | undefined;
+  /** The scene's length in frames: a fight's losses fall inside it (fitLossDelaysS). */
+  readonly sceneFrames?: number;
   readonly fps?: number;
   /**
    * The frame a scene's line says a word matching `word` (the first such word; the scene's other lines when its own
@@ -1249,6 +1251,26 @@ export function unitLossDelaysS(lost: number): number[] {
   return Array.from({ length: lost }, (_, j) => Math.round((UNIT_LOSS_FIRST_S + j * UNIT_LOSS_GAP_S) * 100) / 100);
 }
 
+/** The last of a fight's losses falls at least this long before its scene ends (it falls, lies a moment, fades). */
+export const LOSS_TAIL_S = 1.2;
+
+/**
+ * Losses that would fall after their scene has ended, brought into it (owner, 12 Nov 2026, "taktikler" must read): a
+ * fight told on a scene's last line lost its climax — Cannae's Romans were to fall 2.4–6.4 s into a 3-second quip, after
+ * the cut, so the encirclement never showed a loss. With `roomS` (seconds from the step to the scene's end) the delays
+ * keep their pace when they fit and are pressed together, first one sooner, when they do not. Shared with the mix, so
+ * every sword still lands on a falling token.
+ */
+export function fitLossDelaysS(delays: readonly number[], roomS: number | undefined): number[] {
+  if (roomS === undefined || !delays.length) return [...delays];
+  const avail = roomS - LOSS_TAIL_S;
+  if (delays[delays.length - 1]! <= avail) return [...delays];
+  const n = delays.length;
+  const first = Math.max(0.3, Math.min(delays[0]!, avail * 0.3));
+  const gap = n > 1 ? Math.max(0.15, (avail - first) / (n - 1)) : 0;
+  return delays.map((_, j) => Math.round((first + j * gap) * 100) / 100);
+}
+
 /**
  * A close map's formation without its own `km`: a tenth of the map across (Belgrade's fourth trial: a 10 km map's
  * clusters, at the wide map's 30 km, put three of four defenders and the retreating army off the map).
@@ -1759,7 +1781,9 @@ function projectGeoMap(
   // The moves in the narrator's order (owner, 9 Nov 2026): holds kept still, one step per line, each unit setting off
   // on the word that names it; its name callout goes with its move.
   const told = narrateMoves(builtUnits, stepSources, { start: (l) => lineStart(l, 0), end: (l) => opts.lineEnd?.(l), told: (l, w) => opts.toldAt?.(l, w) }, opts.fps ?? 30, unitLossDelaysS);
-  const units = told.units.map((u, ui) => (u.callouts ? { ...u, callouts: u.callouts.map((c, k) => ({ ...c, start: told.moved.get(`${ui}|${calloutLines[ui]![k]}`) ?? c.start })) } : u));
+  const fitted = (u: (typeof told.units)[number]) =>
+    opts.sceneFrames === undefined ? u : { ...u, steps: u.steps.map((st) => (st.losses ? { ...st, losses: fitLossDelaysS(st.losses, (opts.sceneFrames! - st.start) / (opts.fps ?? 30)) } : st)) };
+  const units = told.units.map(fitted).map((u, ui) => (u.callouts ? { ...u, callouts: u.callouts.map((c, k) => ({ ...c, start: told.moved.get(`${ui}|${calloutLines[ui]![k]}`) ?? c.start })) } : u));
   separateFronts(units, gapKm * 1.15 * pxPerKm);
   // A unit's move arrow is drawn as that unit sets off (its colour, its line; of two such units the one whose new place
   // is nearer the arrow's head), not with the line's first word.

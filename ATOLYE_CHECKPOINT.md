@@ -1,3 +1,29 @@
+## 12 Kasım 2026 (8) — yakın savaş haritası: kalabalık ordular, kendi yönüne dönen bloklar, ok yağmuru, yerde kalan ölüler, sahne sonuna taşan kayıplar (feature dalı, canlı DEĞİL)
+
+Owner: "videoları daha kaliteli … yakın çekim haritalandırmada askerlerin hareketleri, taktikler, harita ortamı daha
+gerçekçi, ordu sayısı daha fazla gözüksün" → analiz, owner A+B paketini onayladı ("çalışan bir şeyi bozma"). Ölçüm: Cannae
+(9 Kas) ve Waterloo (6 Kas) kareleri — taraf başına 6–9 boş karo, bütün bloklar düşman ortasına dönük, zemin sade.
+- **Kalabalık alay (A):** `remotion-v3/src/scene/unitCrowd.ts` (saf) + `MapUnits.UnitBlock`: her blok üstten görülen asker
+  figürleriyle dolu (piyade 8×5 kalkanlı, mızrakçı mızrağı önde, okçu yaylı, tüfekçi 3 sıra, süvari 5×3 at+binici, topçu 3 top
+  + mürettebat); güç etiketindeki sayı blok başına <300 ise seyrek; tür işareti blok arkasındaki sancakta (owner 26 Eki
+  kuralı korunur); açık renkli tarafta (Roma beyazı) koyu kask/sancak. Birim blok kaybettikçe ayakta kalan bloklar en çok %35
+  seyrelir; düşen blokta askerler tek tek düşer, ölüler sahne sonuna dek yerde (çiğnenmiş toprak) — `lostTokens`,
+  `fallenRest` (önbellekli, kare sırasından bağımsız). Blok 2,8×1,7 → 2,9×2 r (3 r aralığın içinde; yerleşim aynı).
+- **Hareket/taktik (B):** her blok kendi yakın düşmanlarına döner (`facingDir`: düşmanların ağırlıklı noktası + tarafın
+  yönü, uzun yürüyüşte yolu — geri çekilişte yüzü düşmana), `steadyFacingsAt` son yarım saniyenin ortalaması (eski: ilk
+  karede 171°, kanat varışında 32°/kare; şimdi en çok ~11°/kare). Yürüyen blok toz izi bırakır (süvari daha uzun); bozgunda
+  askerler tek tek dağılır; okçu birlikleri savaş sürerken birlikte ok yağdırır (`volleysAt`, gölgeli yay).
+- **Kayıplar sahne sonuna taşıyordu:** Cannae'de son satırdaki (3 sn'lik Maharbal esprisi) Roma kayıpları 2,4–6,4 sn'ye
+  düşüyordu — kesmeden sonra; kuşatmanın doruğu videoda hiç görünmedi. `MapBuilder.fitLossDelaysS` + `sceneFrames`
+  (Director sahne uzunluğunu verir): sığarsa aynen, sığmazsa son kayıp sahne bitmeden 1,2 sn önce düşecek şekilde sıkışır;
+  Mixer aynı fonksiyonla kılıç seslerini eşler (smoke-v3-mix 1453 örneğindeki sahne sonrası 4,4 sn kılıcı artık içeride).
+- Kanıt: `harita-onizleme.ts` ile Cannae önce/sonra kareleri (`D:\ÜRETİM\private\temp\harita-once-yatay`, `harita-sonra3`,
+  okçulu deneme kopyası `cannae-deneme\`); hareket ölçer Cannae'de değişmedi (en büyük adım 28,6 px/kare).
+- Not: `harita-onizleme --dikey` eski dikey pencere düzenini çiziyor (harita küçük kart); üretim Short'ları bugünden beri
+  "dondur" (16:9 döndürülür) — önizleme aracı güncellenmeli.
+- Sıradaki (onaylı plan): C zemin (doku, belirgin rölyef, OSM ormanları, nehir kıyısı, bulut gölgesi), sonra D 2.5D eğik kamera
+  denemesi; yazar beynine büyük ordularda daha çok blok/ikinci saf yazdırma (ücretli yazar denemesi gerekir).
+
 ## 12 Kasım 2026 (7) — sistem taraması: kuyruk, güncelleme radarı, Guadalcanal kalanları (yalnız feature dalı, canlı DEĞİL)
 
 Owner: "sistemi tara güncellemelere bak … geliştir". Canlıya alma toplu yapılacak (owner 12 Kas); hepsi `feature/cop-adam-v3`'te.
