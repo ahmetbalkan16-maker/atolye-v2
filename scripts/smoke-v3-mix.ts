@@ -331,6 +331,15 @@ async function main() {
     // A living set sounds like its own place and hour (owner, 22 Oct 2026: no meaningless sound).
     const night = ambiencePrompt({ ...scene, ortam: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", hava: "sis", isik: "mesale" }, kalabalik: [{ duzen: "ordu" } as never] }, "49 BC");
     assert.equal(night, "Quiet ambient background sound in 49 BC: a shallow river flowing over stones nearby, night, crickets chirping, a distant owl, still misty air, torches crackling, a large army waiting quietly, armour and weapons clinking. Soft and steady, natural outdoor or room tone, no music, no speech, no singing.");
+    // A set sounds like its own age (Guadalcanal, 12 Nov 2026: a 1942 battleship's deck had sails, crickets, an owl and torches).
+    const deck = { ...scene, ortam: { zaman: "gece", manzara: "gemi_guvertesi", uslup: "roma", isik: "mesale" } } as never;
+    const steelDeck = ambiencePrompt(deck, "1942");
+    assert.match(steelDeck, /steel warship's deck at sea, engines throbbing/);
+    assert.doesNotMatch(steelDeck, /sail|crickets|owl|torches/, steelDeck);
+    const galley = ambiencePrompt(deck, "1571");
+    assert.match(galley, /wooden ship's deck at sea.*wind in the sail/);
+    assert.match(galley, /torches crackling/, "a wooden ship may carry torches");
+    assert.doesNotMatch(galley, /crickets|owl/, "no crickets or owls on the open sea at any age");
     assert.notEqual(soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt" }), soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "ortam" }));
     const ok = { durationS: 1.2, meanDb: -22, peakDb: -2, longestSilenceS: 0 };
     assert.deepEqual(soundProblems(ok, { prompt: "", seconds: 3, seed: 0, kind: "efekt" }), []);

@@ -3,6 +3,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type Era, eraOf } from "../backgrounds/HistorySources";
 import type { Episode, EpisodeScene, SceneSetting, SfxId } from "../episode/EpisodeTypes";
+import { MODERN_SHIPS_FROM, periodEndYear } from "../episode/Period";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { sideProcessEnv } from "../tts/Tts";
 import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/Gpu";
@@ -114,12 +115,29 @@ const PLACE_SOUND: Readonly<Record<SceneSetting["manzara"], string>> = {
 const WEATHER_SOUND: Readonly<Record<NonNullable<SceneSetting["hava"]>, string>> = { acik: "", bulutlu: "a light wind", sis: "still misty air", yagmur: "steady rain falling", kar: "muffled snowy quiet, soft wind" };
 const LIGHT_SOUND: Readonly<Record<NonNullable<SceneSetting["isik"]>, string>> = { yok: "", mesale: "torches crackling", kamp_atesi: "a campfire crackling" };
 
+/**
+ * The sounds a set's place, hour and light have in its own age (the Guadalcanal Short, 12 Nov 2026: a 1942 battleship's
+ * deck asked for "wind in the sail", crickets and an owl at night on the open sea, and crackling torches — the owner heard
+ * a crackle behind the voices). From MODERN_SHIPS_FROM a ship is a steel steamer; at sea the night has no crickets or
+ * owls; a steel ship carries no torches.
+ */
+const STEEL_SHIP_SOUND: Partial<Record<SceneSetting["manzara"], string>> = {
+  gemi_guvertesi: "on a steel warship's deck at sea, engines throbbing below, waves against the hull, wind over the deck",
+  gemi_kamarasi: "inside a steel ship's compartment, engines humming, muffled waves against the hull",
+};
+const AT_SEA: ReadonlySet<SceneSetting["manzara"]> = new Set(["gemi_guvertesi", "gemi_kamarasi"]);
+const SEA_TIME_SOUND: Readonly<Record<SceneSetting["zaman"], string>> = { gun: "daytime, a few distant gulls", aksam: "dusk", gece: "night", safak: "dawn" };
+
 /** A scene's ambience: from its living set when it has one, else its place as the script described it. */
 export function ambiencePrompt(scene: Pick<EpisodeScene, "mekan" | "arka_plan_sorgusu"> & Partial<Pick<EpisodeScene, "ortam" | "kalabalik">>, donem: string): string {
   if (scene.ortam) {
     const o = scene.ortam;
     const army = (scene.kalabalik ?? []).some((g) => g.duzen === "ordu") ? "a large army waiting quietly, armour and weapons clinking" : "";
-    const parts = [PLACE_SOUND[o.manzara], TIME_SOUND[o.zaman], o.hava ? WEATHER_SOUND[o.hava] : "", o.isik ? LIGHT_SOUND[o.isik] : "", army].filter(Boolean);
+    const steel = (periodEndYear(donem) ?? -Infinity) >= MODERN_SHIPS_FROM && STEEL_SHIP_SOUND[o.manzara] !== undefined;
+    const sea = AT_SEA.has(o.manzara);
+    const place = steel ? STEEL_SHIP_SOUND[o.manzara]! : PLACE_SOUND[o.manzara];
+    const light = o.isik && !(steel && o.isik === "mesale") ? LIGHT_SOUND[o.isik] : "";
+    const parts = [place, sea ? SEA_TIME_SOUND[o.zaman] : TIME_SOUND[o.zaman], o.hava ? WEATHER_SOUND[o.hava] : "", light, army].filter(Boolean);
     return `Quiet ambient background sound in ${donem}: ${parts.join(", ")}. Soft and steady, natural outdoor or room tone, no music, no speech, no singing.`;
   }
   const place = (scene.arka_plan_sorgusu.tasarim ?? scene.arka_plan_sorgusu.en)
