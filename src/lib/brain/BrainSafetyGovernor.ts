@@ -76,8 +76,9 @@ export const DEFAULT_BRAIN_HARDWARE_PROFILES: Readonly<
     vramGb: 12,
     gpuPowerLimitW: 70,
     // Owner decision 2026-10-21: the shared A2000 stop moved 73 → 85 °C (GpuThermalPolicy), so this ceiling follows
-    // it; below the card's own target (88 °C) and max operating temperature (95 °C).
-    thermalCeilingC: 85,
+    // it; below the card's own target (88 °C) and max operating temperature (95 °C). Owner decision 2026-11-12:
+    // the shared stop moved back 85 → 80 °C, so the ceiling follows it again.
+    thermalCeilingC: 80,
     cpuThreads: 12,
     ramGb: 32,
     ollama: Object.freeze({
@@ -88,7 +89,7 @@ export const DEFAULT_BRAIN_HARDWARE_PROFILES: Readonly<
     tools: Object.freeze({ ffmpeg: true, ffprobe: true, piper: true }),
     notes: Object.freeze([
       "12 GB VRAM fits a 7B model, but the ~70 W power cap still limits sustained token rate.",
-      "Ceiling 85 °C by owner decision 2026-10-21 (card limits: target 88, max operating 95) — raise only with owner approval.",
+      "Ceiling 80 °C by owner decision 2026-11-12 (85 from 2026-10-21; card limits: target 88, max operating 95) — raise only with owner approval.",
     ]),
   }),
 });

@@ -3,7 +3,7 @@
  *
  * Whisper transcription is a GPU burst. It rides the SAME hard-stop the Brain
  * worker cycle already respects (`evaluateBrainResourceHardStop`, the shared
- * GpuThermalPolicy stop on the A2000: 85 °C since 2026-10-21). If the GPU is at/over the hard stop, STT refuses to spawn and the
+ * GpuThermalPolicy stop on the A2000: 80 °C since 2026-11-12, 85 before). If the GPU is at/over the hard stop, STT refuses to spawn and the
  * caller falls back to "type your command" — the guard is never bypassed.
  *
  * An unreadable GPU does NOT block STT (the probe is best-effort telemetry, and

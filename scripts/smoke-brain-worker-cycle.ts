@@ -242,8 +242,8 @@ async function run() {
     }
     assert.ok(imports.length > 0, "sanity: found import specifiers");
     const thermalPolicy = fs.readFileSync(path.join(REPO_ROOT, "src/lib/brain/probe/GpuThermalPolicy.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim();
-    assert.equal(thermalPolicy, "export const A2000_GPU_HARD_STOP_C = 85;", "shared thermal policy contains no import, probe, or execution");
-    assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 85, "assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 85)");
+    assert.equal(thermalPolicy, "export const A2000_GPU_HARD_STOP_C = 80;", "shared thermal policy contains no import, probe, or execution");
+    assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 80, "assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 80)");
   });
 
   await scenario("14. safe-stub processor is pure and deterministic", () => {

@@ -1,3 +1,21 @@
+## 12 Kasım 2026 — GPU durma sınırı 85 → 80 °C (owner kararı, PC sağlığı)
+
+Owner: "pc sağlığı görevini bulamadıysan 85 dereceden 80 dereceye indiricez sınırı". Kayıtlarda bu adla açık bir
+PC sağlığı işi yoktu; owner'ın talimatıyla ortak A2000 durma sınırı indirildi.
+
+- Tek sabit `src/lib/brain/probe/GpuThermalPolicy.ts` `A2000_GPU_HARD_STOP_C` 85 → 80. Ondan türeyenler kendiliğinden
+  izler: V3 (`src/lib/v3/util/Gpu.ts`) 73 altında başlar, 77'de dinlenir, yerel Ollama çağrısı 69 altında başlar,
+  çağrı içi durma 80; Brain worker / STT / AYAS üretim kabulü 80'de durur.
+- `BrainSafetyGovernor` A2000 profili `thermalCeilingC` 85 → 80 (uyarı 68, bekletme 76, iptal 80).
+- Smoke sabitleri güncellendi: smoke-brain-probes (22), smoke-brain-worker-cycle (15),
+  smoke-character-animation-pipeline (14) PASS; smoke-v3-gpu (5), smoke-ollama-thermal-monitor (18),
+  smoke-brain-foundation (25), smoke-ayas-resource-governor (19), smoke-brain-plan-store (10),
+  smoke-ayas-on-demand-lifecycle (11) PASS. smoke-ayas-stt değişiklikten bağımsız `stt-path-encoding` (Unicode TEMP
+  ortamı) ile düşüyor. `npx tsc --noEmit` temiz, `node scripts/lint-yerel.mjs` 0 hata / 0 uyarı.
+- Git dışı: PC sağlık bekçisi `D:\atolye-ascii\saglik-bekcisi.sh` alarmı ≥86 → ≥81 (yedek `.bak-85`).
+- Çalışan uzun süreçler (V3 sipariş izleyicisi, Observer, Brain worker) yeni sınırı yeniden başlatılınca alır; her
+  V3 üretimi diskten taze başladığı için yeni siparişler hemen 80 ile çalışır.
+
 ## 11 Kasım 2026 (8) — Opus 5.5 işleri: tur seçimine ölçülen kusur, harita kadrajı, 4 güvenlik düzeltmesi, 3000 yalnız loopback, ana sayfa radar önbelleği
 
 Owner: "tamam bunları yaptır ama opus 5.5 yapsın", "bulduklarını yaptır", güvenlik kararlarından "sadece 1 madde" (3000

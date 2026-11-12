@@ -44,7 +44,7 @@ export async function gpuTemperature(): Promise<number | undefined> {
 }
 
 /**
- * Owner rule: no GPU work at the shared A2000 stop (GpuThermalPolicy; 85 °C since 21 Oct 2026, 73 before). The card
+ * Owner rule: no GPU work at the shared A2000 stop (GpuThermalPolicy; 80 °C since 12 Nov 2026, 85 from 21 Oct, 73 before). The card
  * heats up to 2 °C a second under load and keeps rising a moment after the work stops (21 Oct 2026, stop 73: a VoxCPM
  * line started at 70 °C reached 74, a 4 s vision call started at 65 reached 72), so work starts below GPU_START_C, and
  * work that can rest between its steps (SDXL, MOSS, VoxCPM) rests at GPU_PAUSE_C until the card is below GPU_START_C.
