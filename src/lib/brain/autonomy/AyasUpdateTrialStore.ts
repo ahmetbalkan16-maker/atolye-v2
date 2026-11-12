@@ -14,7 +14,7 @@ import type { AyasUpdateRadarItem } from "./AyasUpdateRadar";
  */
 export type AyasUpdateTrialStatus = "RUNNING" | "PASSED" | "FAILED" | "ABANDONED";
 export type AyasUpdateTrialStepName =
-  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "VULNERABILITIES" | "TYPECHECK" | "LINT" | "BUILD" | "RENDER" | "SMOKES";
+  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "VULNERABILITIES" | "TYPECHECK" | "LINT" | "BUILD" | "BROWSER" | "RENDER" | "SMOKES";
 
 export interface AyasUpdateTrialStep {
   readonly name: AyasUpdateTrialStepName;

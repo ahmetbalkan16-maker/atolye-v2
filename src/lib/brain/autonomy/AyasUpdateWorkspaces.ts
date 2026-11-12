@@ -16,6 +16,12 @@ export interface AyasUpdateWorkspace {
   readonly smokes: readonly string[];
   /** One real run of the tool after the install, from the sub-package folder with the trial's node; `port` is free. */
   readonly check: { readonly label: string; readonly args: (outDir: string, port: number) => readonly string[] };
+  /**
+   * What the new version downloads for itself before its first run (a newer Remotion wants a newer Chrome than the
+   * carried one), run on its own with retries: a network failure is then told apart from a broken update, and the
+   * canonical install gets it before the swap instead of at the first production render.
+   */
+  readonly prepare?: { readonly label: string; readonly args: readonly string[]; readonly attempts: number };
 }
 
 export const AYAS_UPDATE_WORKSPACES: Readonly<Record<string, AyasUpdateWorkspace>> = Object.freeze({
@@ -30,6 +36,9 @@ export const AYAS_UPDATE_WORKSPACES: Readonly<Record<string, AyasUpdateWorkspace
       // on a free port, as V3's own renders (RemotionRunner), so the trial checks what production runs.
       args: (outDir: string, port: number) => Object.freeze(["node_modules/@remotion/cli/remotion-cli.js", "render", "src/index.ts", "Episode", path.join(outDir, "ayas-update-trial.mp4"), "--frames=0-14", "--log=error", `--port=${port}`]),
     }),
+    // 4.0.538 → 4.0.542 moved Chrome 157 → 158 (303 MB from remotion.media); the 10 Nov 2026 trial's render failed on a
+    // DNS hiccup during that download and read as a broken update. `browser ensure` is a no-op when the version is there.
+    prepare: Object.freeze({ label: "Remotion'un istediği Chrome tarayıcısı", args: Object.freeze(["node_modules/@remotion/cli/remotion-cli.js", "browser", "ensure"]), attempts: 3 }),
   }),
 });
 

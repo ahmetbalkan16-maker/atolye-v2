@@ -182,7 +182,7 @@ const UPDATE_APPROVAL_REASON: Readonly<Record<string, string>> = {
 
 const TRIAL_STEP_LABEL: Readonly<Record<string, string>> = {
   WORKTREE: "ayrı kopya", NPM_CI: "mevcut bağımlılıklar", BASELINE_SMOKES: "güncelleme öncesi testler", NPM_INSTALL: "güncellemenin kurulması",
-  LOCK_CHECK: "paket dosyası denetimi", SIGNATURES: "paket imzaları", VULNERABILITIES: "bilinen güvenlik açıkları", TYPECHECK: "TypeScript", LINT: "lint", BUILD: "üretim derlemesi", RENDER: "deneme videosu", SMOKES: "testler",
+  LOCK_CHECK: "paket dosyası denetimi", SIGNATURES: "paket imzaları", VULNERABILITIES: "bilinen güvenlik açıkları", TYPECHECK: "TypeScript", LINT: "lint", BUILD: "üretim derlemesi", BROWSER: "aracın tarayıcısı (ağdan indirme)", RENDER: "deneme videosu", SMOKES: "testler",
 };
 /** A failure in these steps means the code itself would have to change; AYAS cannot do that locally today. */
 const CODE_CHANGE_STEPS = new Set(["TYPECHECK", "LINT", "BUILD", "RENDER", "SMOKES"]);

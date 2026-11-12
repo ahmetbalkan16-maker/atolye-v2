@@ -245,6 +245,18 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
     if (lint.code !== 0) return fail("LINT", "lint hata verdi; güncelleme kod ya da yapılandırma değişikliği gerektiriyor");
 
     if (workspace) {
+      if (workspace.prepare) {
+        let prepared: AyasCommandResult | undefined;
+        let preparedMs = 0;
+        for (let attempt = 0; attempt < workspace.prepare.attempts && prepared?.code !== 0; attempt++) {
+          prepared = await exec(nodeExec, workspace.prepare.args, stepTimeout, packageDir);
+          preparedMs += prepared.durationMs;
+        }
+        const preparedOk = prepared?.code === 0;
+        step("BROWSER", preparedOk, preparedMs, preparedOk ? `${workspace.prepare.label} hazır` : `${workspace.prepare.attempts} denemede indirilemedi: ${outcome(prepared!)}`);
+        // Not the update's fault: the trial can simply be run again once the network answers.
+        if (!preparedOk) return fail("BROWSER", `${workspace.prepare.label} indirilemedi (ağ); güncelleme bozuk değil, deneme yeniden çalıştırılabilir`);
+      }
       // The root app's build does not include a sub-package; the tool itself is run once instead.
       const outDir = path.join(worktree, ".ayas-update-trial-out");
       fs.mkdirSync(outDir, { recursive: true });

@@ -368,6 +368,21 @@ export async function syncAyasWorkspaceDependencies(request: AyasWorkspaceSyncRe
     for (const file of ["package.json", "package-lock.json"]) fs.copyFileSync(path.join(dir, file), path.join(stage, file));
     const ci = await run(node, [deps.npmCli ?? resolveAyasNpmCli(node), "ci", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: stage, timeoutMs: 30 * 60_000, env: childEnv(deps) });
     if (ci.code !== 0) return fail(`npm ci başarısız: ${ci.output.slice(-300)}`);
+    if (workspace.prepare) {
+      // The new version gets what it downloads for itself (Remotion's newer Chrome) here, in the stage, from the
+      // carried copy: a network failure then changes nothing and the request stays, instead of the first production
+      // render downloading 300 MB and failing on the same hiccup. The old folder keeps serving until the swap.
+      for (const folder of workspace.carry) {
+        const from = path.join(current, folder.replace(/^node_modules[\\/]/, ""));
+        const to = path.join(stage, "node_modules", folder.replace(/^node_modules[\\/]/, ""));
+        if (fs.existsSync(from) && !fs.existsSync(to)) fs.cpSync(from, to, { recursive: true });
+      }
+      let prepared = { code: 1 as number | null, output: "" };
+      for (let attempt = 0; attempt < workspace.prepare.attempts && prepared.code !== 0; attempt++) {
+        prepared = await run(node, workspace.prepare.args, { cwd: stage, timeoutMs: 30 * 60_000, env: childEnv(deps) });
+      }
+      if (prepared.code !== 0) return fail(`${workspace.prepare.label} indirilemedi; eski node_modules yerinde: ${prepared.output.slice(-300)}`);
+    }
     const hadOld = fs.existsSync(current);
     if (hadOld) fs.renameSync(current, old);
     try { fs.renameSync(path.join(stage, "node_modules"), current); } catch (error) { if (hadOld) fs.renameSync(old, current); throw error; }

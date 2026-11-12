@@ -231,9 +231,19 @@ async function main(): Promise<void> {
     fs.mkdirSync(path.join(modules, "remotion"), { recursive: true }); fs.writeFileSync(path.join(modules, "remotion", "v.txt"), "4.0.536");
     fs.mkdirSync(path.join(modules, ".remotion", "chrome"), { recursive: true }); fs.writeFileSync(path.join(modules, ".remotion", "chrome", "chrome.exe"), "exe");
     let ciOk = false;
+    let browserOk = false;
     const cwds: string[] = [];
     const run = async (_command: string, args: readonly string[], options: { readonly cwd: string }) => {
       cwds.push(options.cwd);
+      if (args[0] === "node_modules/@remotion/cli/remotion-cli.js") {
+        // Remotion's `browser ensure` in the stage: the carried Chrome is already there; the newer one is downloaded.
+        assert.deepEqual([args[1], args[2]], ["browser", "ensure"]);
+        assert.equal(fs.readFileSync(path.join(options.cwd, "node_modules", ".remotion", "chrome", "chrome.exe"), "utf8"), "exe", "carried before the download");
+        assert.equal(fs.readFileSync(path.join(options.cwd, "node_modules", "remotion", "v.txt"), "utf8"), "4.0.538", "with the new version's CLI");
+        if (!browserOk) return { code: 1, output: "Error: getaddrinfo EAI_AGAIN remotion.media", durationMs: 1, timedOut: false };
+        fs.writeFileSync(path.join(options.cwd, "node_modules", ".remotion", "chrome", "VERSION"), "158");
+        return { code: 0, output: "Downloaded", durationMs: 1, timedOut: false };
+      }
       assert.ok(args.includes("ci") && args.includes("--ignore-scripts"), JSON.stringify(args));
       if (!ciOk) return { code: 1, output: "npm ERR! network", durationMs: 1, timedOut: false };
       fs.mkdirSync(path.join(options.cwd, "node_modules", "remotion"), { recursive: true }); fs.writeFileSync(path.join(options.cwd, "node_modules", "remotion", "v.txt"), "4.0.538");
@@ -244,10 +254,18 @@ async function main(): Promise<void> {
     assert.equal(failed.ok, false); assert.equal(fs.readFileSync(path.join(modules, "remotion", "v.txt"), "utf8"), "4.0.536", "a failed install changes nothing");
     assert.deepEqual([listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.attempts, /network/.test(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.lastError ?? "")], [1, true]);
     ciOk = true;
+    const offline = await syncAyasWorkspaceDependencies(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]!, syncDeps);
+    assert.equal(offline.ok, false);
+    assert.equal(fs.readFileSync(path.join(modules, "remotion", "v.txt"), "utf8"), "4.0.536", "a failed Chrome download changes nothing either");
+    assert.equal(fs.existsSync(path.join(modules, ".remotion", "chrome", "VERSION")), false);
+    assert.deepEqual([listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.attempts, /Chrome.*EAI_AGAIN/.test(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.lastError ?? "")], [2, true]);
+    assert.equal(cwds.filter((cwd, i) => cwd === cwds[i - 1]).length >= 2, true, "the download was retried");
+    browserOk = true;
     const synced = await syncAyasWorkspaceDependencies(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]!, syncDeps);
     assert.equal(synced.ok, true, synced.summary);
     assert.equal(fs.readFileSync(path.join(modules, "remotion", "v.txt"), "utf8"), "4.0.538");
     assert.equal(fs.readFileSync(path.join(modules, ".remotion", "chrome", "chrome.exe"), "utf8"), "exe", "Remotion's Chrome is carried over");
+    assert.equal(fs.readFileSync(path.join(modules, ".remotion", "chrome", "VERSION"), "utf8"), "158", "and the newer one is there before the first render");
     assert.deepEqual(listAyasWorkspaceSyncRequests(f.trials.rootDir), [], "the request is done");
     assert.ok(cwds.every((cwd) => !path.resolve(cwd).startsWith(path.resolve(f.repoRoot))), "the install ran outside the repository");
     assert.equal(git(f.repoRoot, "status", "--porcelain"), "", "nothing is left in the tree");

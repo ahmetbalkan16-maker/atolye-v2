@@ -55,6 +55,8 @@ interface Script {
   /** Known vulnerabilities the fake OSV reports per name@version; `osvDown` makes it answer 503. */
   readonly vulns?: Readonly<Record<string, readonly { readonly id: string; readonly severity: string }[]>>;
   readonly osvDown?: boolean;
+  /** `browser ensure` fails this many times (a network hiccup) before it downloads. */
+  readonly browserFailures?: number;
 }
 
 /** OSV's two calls (querybatch, vulns/<id>) over the script's table; records what was asked. */
@@ -77,6 +79,7 @@ function fakeOsv(script: Script) {
 function fixtureRunner(script: Script) {
   const calls: { command: string; args: readonly string[]; cwd: string; env: Readonly<Record<string, string | undefined>> }[] = [];
   let installed = false;
+  let browserFailures = script.browserFailures ?? 0;
   const run: AyasCommandRunner = async (command, args, options) => {
     calls.push({ command, args, cwd: options.cwd, env: options.env });
     const ok = { code: 0, output: "ok", durationMs: 1, timedOut: false };
@@ -125,6 +128,11 @@ function fixtureRunner(script: Script) {
       if (sub[0] === "exec") return script.fail?.tsc ? bad(`${options.cwd}\\src\\x.ts(1,1): error TS2322`) : ok;
       if (sub[0] === "run" && sub[1] === "lint") return script.fail?.lint ? bad("1 error") : ok;
       if (sub[0] === "run" && sub[1] === "build") return script.fail?.build ? bad("\x1b[31mBuild error occurred\x1b[0m") : ok;
+    }
+    if (command === "node-fake" && args[0] === "node_modules/@remotion/cli/remotion-cli.js" && args[1] === "browser") {
+      if (args[2] !== "ensure" || !installed) return bad("unexpected browser call");
+      if (browserFailures-- > 0) return bad("Error: getaddrinfo EAI_AGAIN remotion.media");
+      return ok;
     }
     if (command === "node-fake" && args[0] === "node_modules/@remotion/cli/remotion-cli.js") {
       if (script.fail?.render || !fs.existsSync(path.join(options.cwd, "node_modules", ".remotion", "chrome", "chrome.exe"))) return bad("Error: Could not find a Chrome executable");
@@ -268,7 +276,7 @@ async function main(): Promise<void> {
     const { store, runner, roots, promise } = runFixture({ workspace: true });
     const record = await promise;
     assert.equal(record.status, "PASSED", JSON.stringify(record.steps));
-    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "VULNERABILITIES", "TYPECHECK", "LINT", "RENDER", "SMOKES"]);
+    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "VULNERABILITIES", "TYPECHECK", "LINT", "BROWSER", "RENDER", "SMOKES"]);
     assert.deepEqual(record.installSpecs, ["remotion@4.0.538", "@remotion/cli@4.0.538"]);
     const artifacts = store.readArtifacts(record.trialId)!;
     assert.match(artifacts.packageJson, /"@remotion\/cli": "4.0.538"/); assert.match(artifacts.packageLock, /"version": "4.0.538"/);
@@ -284,6 +292,19 @@ async function main(): Promise<void> {
     assert.equal(fs.existsSync(path.join(roots.root, record.trialId)), false, "the worktree is removed");
     const noChrome = await runFixture({ workspace: true, fail: { render: true } }).promise;
     assert.deepEqual([noChrome.status, noChrome.failedStep], ["FAILED", "RENDER"]); assert.match(noChrome.steps.at(-1)!.summary, /Chrome/);
+    // Chrome 157 → 158 (Remotion 4.0.542): the download is its own step; one DNS hiccup is retried, a lasting one is a
+    // network failure, not a broken update, and nothing is rendered (10 Nov 2026 trial read EAI_AGAIN as RENDER).
+    const hiccup = runFixture({ workspace: true, browserFailures: 1 });
+    const retried = await hiccup.promise;
+    assert.equal(retried.status, "PASSED", JSON.stringify(retried.steps));
+    const ensures = hiccup.runner.calls.filter((call) => call.args[1] === "browser");
+    assert.equal(ensures.length, 2);
+    assert.ok(ensures.every((call) => call.cwd.endsWith("remotion-v3")), "in the sub-package");
+    const offline = runFixture({ workspace: true, browserFailures: 99 });
+    const down = await offline.promise;
+    assert.deepEqual([down.status, down.failedStep], ["FAILED", "BROWSER"]);
+    assert.match(down.failureReason!, /ağ/); assert.match(down.steps.at(-1)!.summary, /^3 denemede indirilemedi: .*EAI_AGAIN/);
+    assert.equal(offline.runner.calls.some((call) => call.args[1] === "render"), false, "no render after a failed download");
   });
 
   await scenario("known vulnerabilities (OSV): one the update brings in at high or critical, or a malicious package, fails the trial; one it already had or a moderate one does not; no database, no pass", async () => {
