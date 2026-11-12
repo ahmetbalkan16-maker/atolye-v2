@@ -24,7 +24,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
-import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, momentText, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, momentText, periodRewritePrompt, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons, searchCommonsVideos } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cutFilmClip, designedCaption, filmCaption, maxDesignedPictures, pictureRequests } from "../src/lib/v3/backgrounds/MomentPictures";
@@ -480,22 +480,27 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     if (!todo.length) break;
     for (const si of todo) {
       const failed = (tried.get(si) ?? []).flatMap((t) => (t.v && !passes(t.v) && !t.v.okunamadi ? [t.v] : []));
-      if (round === 0 || rewritten.has(si) || !failed.some((v) => (v.donem ?? 10) <= 3)) continue;
+      if (round === 0 || rewritten.has(si) || !failed.length) continue;
       const sc = episode.sahneler[si]!;
       const place = sc.arka_plan_sorgusu.tasarim ?? `${sc.mekan}; ${sc.arka_plan_sorgusu.en}`;
+      // The setting brain's worked examples for similar places and periods (ortam-62, approved 12 Nov 2026): a set that
+      // missed its subject is rewritten too when such examples exist, a later-era one always (setRewriteKind).
+      const examples = await setExamples(paths.workRoot, `${sc.mekan} ${place} ${episode.donem}`, place).catch(() => [] as string[]);
+      const kind = setRewriteKind(failed, examples.length);
+      if (!kind) continue;
       const reasons = failed.map((v) => v.sonrakiCag ?? v.kacin ?? v.sorun).filter(Boolean);
       // Asked twice (an answer that repeats a castle word is refused); then the ancient wording that worked.
       let text: string | undefined;
       for (let attempt = 0; attempt < 2 && !text; attempt++) {
-        const out = await judge.generate(periodRewritePrompt(place, sc.mekan, episode.donem, reasons), { maxTokens: 220 }).catch((e: Error) => (log(`  ${sc.id}: tarif yeniden yazılamadı (${e.message.slice(0, 80)})`), undefined));
+        const out = await judge.generate(periodRewritePrompt(place, sc.mekan, episode.donem, reasons, examples, kind === "donem"), { maxTokens: 220 }).catch((e: Error) => (log(`  ${sc.id}: tarif yeniden yazılamadı (${e.message.slice(0, 80)})`), undefined));
         const content = out ? (typeof out === "string" ? out : out.content) : "";
         text = readPeriodRewrite(content);
         if (!text && content) log(`  ${sc.id}: yeniden yazılan tarif kabul edilmedi (${content.replace(/\s+/g, " ").slice(0, 120)})`);
       }
-      text ??= ancientPlace(sc.mekan, episode.donem);
+      if (kind === "donem") text ??= ancientPlace(sc.mekan, episode.donem);
       if (text) {
         rewritten.set(si, text);
-        log(`  ${sc.id}: set tarifi döneme göre yeniden yazıldı — ${text}`);
+        log(`  ${sc.id}: set tarifi ${kind === "donem" ? "döneme göre" : `${examples.length} işe yarayan örneğe bakarak`} yeniden yazıldı — ${text}`);
       } else {
         log(`  ${sc.id}: set tarifi yeniden yazılamadı; ikinci tur aynı tarifle`);
       }
@@ -529,6 +534,10 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
         sets[si] = await designedSet(pub, episode, si, pick.chosen.d, pick.verdict, false);
         accepted[episode.sahneler[si]!.id] = { dosya: path.basename(pick.chosen.d.file), puan: pick.verdict.puan, ...(pick.verdict.donem !== undefined ? { donem: pick.verdict.donem } : {}), tarih: new Date().toISOString() };
         await writeJson(acceptedFile, accepted);
+        // A description the judge passed becomes the setting brain's worked example for similar places (ortam-62).
+        const sc = sceneFor(si);
+        const place = sc.arka_plan_sorgusu.tasarim ?? `${sc.mekan}; ${sc.arka_plan_sorgusu.en}`;
+        if (await rememberSetExample(paths.workRoot, episode.konu, `${sc.mekan} ${place} ${episode.donem}`, place).catch(() => false)) log(`  ${sc.id}: set tarifi ortam beynine örnek olarak yazıldı`);
       }
     }
   }
