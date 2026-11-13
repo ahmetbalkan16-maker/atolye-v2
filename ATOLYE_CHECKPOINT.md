@@ -1,3 +1,34 @@
+## 13 Kasım 2026 (3) — GÜVENLİ DURUŞ (owner: kullanım tokeni bitiyor, "yenilendiğinde kaldığımız yerden devam") — DEVAM BURADAN
+
+Durum (~15:30): Bağdat siparişi 20261113T091723 DURDU ve DURUYOR (üretici süreci 0, sipariş `hata`, izleyici `hata`yı
+asla yeniden başlatmaz). Canlı: 7e903611 (vaka kütüphanesi dahil). Feature dalı = canlı + aşağıdaki commit'lenmemiş işler.
+Owner'ın video incelemesinden açık işler (her biri bitince TAM VAKA kaydı — CLAUDE.md STANDING ORDER):
+1. [ajan, commit'siz] Harita sahnesinde dönem resmi haritanın açılışından 0,5 sn sonra giriyor (11,5/41,2/94,9 sn — "iki
+   harita görülmeden geçiyor"), s5 kamera 0,3 sn'de zoom 0,56→1 sıçrıyor; + karşıt tarafların aynı renk olması (Osmanlı
+   #3fae3a, Safevi #556B2F) için genel kural. Dosyalar: Director.ts, DraftNormalizer.ts, (yeni) SideColours.ts,
+   smoke-v3-episode-director/script. Kanıt: plan.json zaman çizelgesi (resim/zoom harita başından ≥~3 sn sonra).
+2. [ajan, commit'siz] Meşale: sahnede 1 meşale, 2 ışık halesi (1,3 sn ve 1:32). remotion-v3 set çizimi.
+3. [ajan, commit'siz] Araştırma Wikipedia bilgi kutusunu okumuyor (Safevi garnizonu 40.000 piyade, 100 top, 20.000+
+   katliam yalnız infobox'ta) → src/lib/v3/research/Infobox.ts (yeni) + SourceResearch.ts.
+4. [ajan, commit'siz] Benzerlik beyni Murad IV'ü "clean-shaven" yazdı; yan yana kontrol 3/10 "portrede sakal-bıyık var"
+   dedi ama eklenmedi; yazarın `biyik: "yeni:thick black moustache"` isteği düştü → src/lib/v3/faces/*.
+5. [ben, commit'siz] Her video sonunda ANA KARAKTER abone daveti (owner: "her video sonunda ana karakter yapsın"):
+   ScriptPrompts.ts kuralları değişti (uzun: anlatıcı yerine ana karakter; Shorts: "NO subscribe line"/döngü kaldırıldı,
+   ana karakter ≤14 kelime Crowns & Doodles daveti). YAPILACAK: smoke-v3-script.ts:362 beklentisini güncelle ("MAIN
+   CHARACTER", "Crowns & Doodles"); yazar unutursa yedek: yeni src/lib/v3/script/ClosingLine.ts (en çok konuşan görünür
+   karakter, son sahnede konuşanlardan; kanal adı content/v3/kanal-hedefleri.json `kanal.ad`) + atolye-v3.ts writeScript
+   sonrası çağrı + smoke; ScriptPrompts.ts:250 yorumunu güncelle.
+Bu videonun verisi (episode.json + episode-siparisli.json, yedekler private/temp/bagdat-episode*.kusatma-once) elle
+yamalı: kuşatma nizamı, s5 zamanlama/kamera 4,5 km/rozetler, Safevi rengi #e67e22 (s2 bölge + s3/s5 birlikler; kadroda
+bektash renk/kostüm #556B2F kaldı — sorun değil), s2 resim işareti silindi, s2 güç çubuğu (kaynaksız ~20,000) silindi,
+Tayyar başı `ottoman-1453/vezir-sarigi`, Murad `sakal: ottoman-1453/sakal-kahve`, `biyik: ottoman-1453/biyik-pala`.
+YAPILACAK veri: s3 ve s5 Safevi garnizon etiketine kaynaklı "40,000 infantry" (infobox), istenirse s2 güç çubuğu
+Osmanlı 108,589 / Safevi 40,000; son sahneye (s6) Murad'ın abone satırı (ör. "Enjoyed the siege? Subscribe to Crowns &
+Doodles — Baghdad was easier than that button!"), sonra siparişi `devamAdimi: "ses"` (yeni satır seslendirilir) ile
+sürdür: uret.log'u onceki-deneme-3/'e taşı, durum "bekliyor", bitis/ozet/baslangic sil. Render'dan sonra bütün videoyu
+yeniden tara (kısa geçiş, meşale, renk, sayı, sakal) ve her düzeltmenin vakasını kaydet (`scripts/v3/vaka.ts ekle`,
+kanonik repodan; commit'lerde Vaka blokları). Sonra canlıya al (feature → wip ff, kanonik pull, Graphify, izleyici).
+
 ## 13 Kasım 2026 (2) — Shorts 2:30–3:00, toplu canlıya alma, Bağdat 1638 Short'u
 
 - Owner: "yeni shorts videoları neden 2:30'un altında kalıyor, en fazla 3 dakika, 2:30'un altına fazla inmesin". Ölçüm:
