@@ -769,6 +769,10 @@ async function main() {
     assert.deepEqual(steps[2]!.through, [0, 1, 2]);
     assert.deepEqual(steps[2]!.via, { x: geo.close!.walls[0]!.breach!.x, y: geo.close!.walls[0]!.breach!.y });
     assert.deepEqual(throughBreach([{ x: 0, y: 0 }], [{ x: 5, y: 0 }], 10, [{ points: [{ x: 9, y: -5 }, { x: 9, y: 5 }], towers: [], gates: [], breach: { x: 9, y: 0, start: 0 } }]), {}, "a move that does not cross the wall goes straight");
+    // A token crossing the wall with the breach beyond its goal would overshoot and turn back (Siege of Baghdad, 13 Nov
+    // 2026): it slides straight; one going on past the breach takes it.
+    const wallX = [{ points: [{ x: 9, y: -50 }, { x: 9, y: 50 }], towers: [], gates: [], breach: { x: 9, y: 30, start: 0 } }];
+    assert.deepEqual(throughBreach([{ x: 0, y: 0 }, { x: 0, y: 25 }], [{ x: 12, y: 0 }, { x: 20, y: 34 }], 10, wallX), { via: { x: 9, y: 30 }, through: [1] });
     // The camera: a fleet's short haul on a wide close view is followed; a fight away from the view gets the camera.
     const fleet = zoomOnShortRoutes({ merkez: [28.95, 41.02], genislik_km: 22, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [29.006, 41.041], satir: 2, yol: [[28.99, 41.047], [28.972, 41.041], [28.957, 41.029]] }] });
     const key = fleet.map.kamera!.find((k) => k.satir === 2)!;

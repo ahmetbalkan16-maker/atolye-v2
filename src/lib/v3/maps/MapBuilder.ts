@@ -1030,16 +1030,21 @@ function segmentsCross(a: XY, b: XY, c: XY, d: XY): boolean {
 /**
  * Tokens that cross a wall to their next formation go through its breach, once it is open (owner's 1453 flow: "the
  * wall gives way at the gate and the city falls" — the tokens slid straight through the stone): the breach, and which
- * tokens pass it. A wall without an open breach is crossed as before.
+ * tokens pass it. A wall without an open breach is crossed as before. Only a token that goes on past the breach takes
+ * it: one whose start or goal lies at the breach itself, so the breach is behind it (the Siege of Baghdad Short, 13 Nov
+ * 2026: the storming column and the garrison lining the breach both overshot to it and turned back, ~175°, 72 px a
+ * frame), slides straight — it is in the gap.
  */
 export function throughBreach(from: readonly XY[], to: readonly XY[], start: number, walls: NonNullable<V3GeoMap["close"]>["walls"]): { via?: XY; through?: number[] } {
   for (const w of walls) {
     if (!w.breach || w.breach.start > start) continue;
+    const via = { x: w.breach.x, y: w.breach.y };
     const through = to.flatMap((b, i) => {
       const a = from[Math.min(i, from.length - 1)];
-      return a && w.points.slice(1).some((p, j) => segmentsCross(a, b, w.points[j]!, p)) ? [i] : [];
+      if (!a || !w.points.slice(1).some((p, j) => segmentsCross(a, b, w.points[j]!, p))) return [];
+      return (via.x - a.x) * (b.x - via.x) + (via.y - a.y) * (b.y - via.y) > 0 ? [i] : [];
     });
-    if (through.length) return { via: { x: w.breach.x, y: w.breach.y }, through };
+    if (through.length) return { via, through };
   }
   return {};
 }

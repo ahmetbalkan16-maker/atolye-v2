@@ -370,8 +370,12 @@ export function siegeOrder(map: Obj, where = "harita"): string[] {
   rowAt(rows.rest!, guns + 2 * line, "ihtiyatta, piyadenin arkasında");
   rowAt(rows.charge!, SIEGE_FOOT_KM, "hücum surun dibine kadar");
   for (const h of heaps) {
-    const w = Math.min(len(sub(edge.b, edge.a)) * 0.8, Math.max(0.4, widthOf(h.y)));
-    place(h.y, add(foot, mul(out, -0.08)), w);
+    const edgeLen = len(sub(edge.b, edge.a));
+    const w = Math.min(edgeLen * 0.8, Math.max(0.4, widthOf(h.y)));
+    // Along the attacked wall, all of it on that wall: a breach at a corner would put half the line past the corner,
+    // outside the town (the Baghdad trial's garrison stood outside the north-east corner).
+    const t = Math.max(w / 2, Math.min(edgeLen - w / 2, (foot[0] - edge.a[0]) * along[0] + (foot[1] - edge.a[1]) * along[1]));
+    place(h.y, add(add(edge.a, mul(along, t)), mul(out, -0.08)), w);
     fixes.push(`${name(h.x)} ${lineOf(h.y)}. satır: savunanlar şehrin ortasında yığılıydı — saldırılan surda`);
   }
   return fixes;
