@@ -1,3 +1,15 @@
+## 14 Kasım 2026 (1) — 02:50 devam: 2.5D bitirme + uzun video eşitleme + AYAS/güvenlik + atölye/araştırma denetimi
+
+Önceki oturum 13 Kas 19:54'te kullanım sınırına takıldı; 2.5D ajanının işi commit'siz ağaçta kaldı (13 dosya, ~500 satır:
+SceneMap.gorunus, MapBuilder.mapTilt/mapViews/withBothViews, tilt.ts tiltShare/TILT_GLIDE_S, MapFramingCheck.mapViewMix,
+atolye-v3 QC satırı). Owner 14 Kas: "kaldığın yerden devam, verdiğim görevlerin hepsi; Short iyileştirmelerinin hepsi uzun
+videoya da, uzun video üretime hazır olsun; onayladığım atölye geliştirmeleri yapılsın; AYAS, araştırmacı beyinler,
+atölye ve güvenlik denetimi; işi Opus 5.5'lere bölebilirsin". Dört Opus ajanı: A 2.5D bitirme (kareler 25d-once/sonra),
+B uzun video eşitleme (kareler private/temp/uzun-video), C AYAS + güvenlik, D atölye kurulu + araştırmacı beyinler.
+Onaylı işler kostum-72, kurgu-73: gece geliştiricisi (gelistirici.ts aksam, 02:51) yapıyor → `hazir` olunca incele/uygula.
+13 Kas owner isteği "2.5D'yi yap sonra canlıya al herşeyi güncelle" → hepsi doğrulanınca TOPLU canlıya alma (bekleyen:
+c44e8547, 406a1aa4, 63e3eae9, 51d849d5 + bu oturumun commit'leri), izleyici yeniden başlatma.
+
 ## 13 Kasım 2026 (5) — Bağdat 1638 Short'u TESLİM EDİLDİ (tur 0, 2:37) — yüklemeyi owner bekliyor
 
 - 33769809 yuvarlak jeton ordusu (her yuvarlak 1.000 asker, DFT Tarih tarzı, garnizon sur içinde, lejant; blok için
