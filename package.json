@@ -139,7 +139,7 @@
     "ayas:phone-gateway:secret": "wrangler secret put --config cloudflare/ayas-phone-gateway/wrangler.toml"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.2",
     "next": "16.4.6",
     "onnxruntime-web": "^1.29.0",
     "react": "19.2.4",
