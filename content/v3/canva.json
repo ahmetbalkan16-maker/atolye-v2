@@ -1,0 +1,16 @@
+{
+  "_aciklama": "Canva kapağı (owner kararı 13 Kasım 2026; docs/v3/CANVA.md). Yalnız şablon kimlikleri ve alan adları — gizli bilgi YOK. Kimlikleri 'npx tsx scripts/v3/canva.ts sablonlar' listeler. Boş kimlik = o biçimde Canva denenmez. resim: 'temiz' = seçilen kapak bizim başlığımız olmadan çizilip şablonun resim alanına konur (başlığı şablon yazar); 'kapak' = bitmiş kapağımız olduğu gibi (şablon yalnız çerçeve/marka ekler). kalite: JPG kalitesi 1-100 (YouTube kapağı 2 MB'ı aşamaz).",
+  "sablonlar": {
+    "uzun": { "id": "", "genislik": 1280, "yukseklik": 720 },
+    "kisa": { "id": "", "genislik": 1080, "yukseklik": 1920 }
+  },
+  "alanlar": {
+    "kapakBasligi": "kapak_basligi",
+    "videoBasligi": "video_basligi",
+    "donem": "donem",
+    "dizi": "dizi",
+    "resim": "resim"
+  },
+  "resim": "temiz",
+  "kalite": 90
+}

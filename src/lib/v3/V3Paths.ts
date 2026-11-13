@@ -73,8 +73,8 @@ export function loadV3Settings(repoRoot = process.cwd(), env: Record<string, str
   return set;
 }
 
-/** Secrets V3 may borrow from another env file; nothing else is read from it. */
-const BORROWABLE_SECRETS = new Set(["OPENAI_API_KEY"]);
+/** Secrets V3 may borrow from another env file; nothing else is read from it (the Canva pair: owner, 13 Nov 2026). */
+const BORROWABLE_SECRETS = new Set(["OPENAI_API_KEY", "ATOLYE_V3_CANVA_CLIENT_ID", "ATOLYE_V3_CANVA_CLIENT_SECRET"]);
 
 /**
  * A secret for this process only: the environment first, then the env file named by `ATOLYE_V3_SECRETS_ENV`
