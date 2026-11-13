@@ -430,10 +430,10 @@ async function main() {
     // No repair rounds here: the fixture has no map, and the Short's map share (asked in those rounds) is not this test's.
     const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 0 });
     assert.equal(out.lengthRounds, 1);
-    // A 50 s Short: its words aim at 85% of the ceiling (50 × 0.85 × 1.8 ≈ 77).
-    assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 77. Expand"));
+    // A 50 s Short: its words aim at 92% of the ceiling (50 × 0.92 × 1.8 ≈ 83; 85% until 13 Nov 2026).
+    assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 83. Expand"));
     assert.equal(out.spokenWords, 21 + 6 * 9);
-    assert.equal(out.targetWords, 77);
+    assert.equal(out.targetWords, 83);
     // A longer version that loses what the map rules won is not taken (they are not asked again after these rounds).
     const lostMap = JSON.parse(JSON.stringify(longer));
     lostMap.sahneler[1].mekan = "Map of the Bosphorus";
@@ -887,13 +887,13 @@ async function main() {
     assert.equal(COPY_RUN_WORDS, 12);
   });
 
-  await scenario("L2 a Short under its word budget but well over half its ceiling is not sent to a paid expansion round", async () => {
-    // 20 s Short: budget 20 × 0.85 × 1.8 ≈ 31 words; the fixture's 21 words are ~68% of it — a normal video's ±10% band
-    // would have asked for more (the third Caesar Short: three rounds, all dropped over the ceiling).
+  await scenario("L2 a Short within its band (90–104% of its word budget) is not sent to a paid expansion round", async () => {
+    // 14 s Short: budget 14 × 0.92 × 1.8 ≈ 23 words; the fixture's 21 words are 91% of it (a Short's band was 65–110% until
+    // 13 Nov 2026: the 3-minute Shorts came out at 107 s; owner: not much under 2:30, so 90%; the Caesar overshoot is the top 104%).
     const openai = new FakeProvider([validJson(), JSON.stringify({ iddialar: [] })]);
     const budget = new V3Budget({ providers: { openai } });
-    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 20, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
-    assert.deepEqual([out.lengthRounds, out.spokenWords, out.targetWords], [0, 21, 31]);
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
+    assert.deepEqual([out.lengthRounds, out.spokenWords, out.targetWords], [0, 21, 23]);
     assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama");
   });
 

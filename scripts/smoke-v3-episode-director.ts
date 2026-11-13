@@ -52,7 +52,7 @@ import { checkEpisodePlaces, checkMapPlaces, decidePlace, distanceKm, placeToler
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
-import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
+import { wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
 import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
@@ -2066,6 +2066,10 @@ async function main() {
 
     // A Short's ordered length is a ceiling (51 s of a 60 s Short passes), a long video's a target.
     assert.deepEqual([lengthOk(51, 60), lengthOk(60, 60), lengthOk(60.5, 60), lengthOk(25, 60), lengthOk(115, 120), lengthOk(105, 120), lengthOk(170, 180), lengthOk(181, 180), lengthOk(80, 180), lengthOk(290, 300), lengthOk(265, 300)], [true, true, false, false, true, true, true, false, false, true, false]);
+    // Not much under it (owner, 13 Nov 2026: "en fazla 3 dakika, 2:30'un altına fazla inmesin"): the Guadalcanal Short's
+    // 107 s of 180 failed now, 150 s passes; its writer aims at ~389 English words (~165 s), not 359 (and 254 accepted).
+    assert.deepEqual([lengthOk(107.5, 180), lengthOk(143, 180), lengthOk(150, 180)], [false, false, true]);
+    assert.equal(wordBudget({ konu: "x", donem: "x", hedefSureSn: 180, ton: "mizahi", dil: "en" }), 389);
 
     // Who opens: the narrator (the Short's lesson for the script brain) or a visible character.
     const characterFirst: Episode = { ...ep, sahneler: [{ ...base, satirlar: base.satirlar.slice(1) }] };

@@ -12,12 +12,15 @@ export const SHORTS_MAX_S = 180;
 export const isShorts = (targetS: number): boolean => targetS <= SHORTS_MAX_S;
 
 /**
- * Whether a finished video's length is right. A Short's ordered length is a ceiling, not a target (owner, 2 Nov 2026:
- * the first Short was flagged "51 s / target 60"): anything up to it passes, down to half of it. A normal video stays
- * within ±10% of its target.
+ * The shortest a finished Short may be: its ordered length is a ceiling, not a target (owner, 2 Nov 2026: the first
+ * Short was flagged "51 s / target 60"), but not much under it (owner, 13 Nov 2026: "en fazla 3 dakika olsun ama 2:30
+ * dakikanın altına fazla inmesin"; half of it let 107 s pass for 180 s): 80%, 144 s of a 3-minute Short.
  */
+export const shortsMinS = (targetS: number): number => targetS * 0.8;
+
+/** Whether a finished video's length is right: a Short from shortsMinS up to its ordered length, a normal video ±10%. */
 export function lengthOk(durationS: number, targetS: number): boolean {
-  return isShorts(targetS) ? durationS <= targetS && durationS >= targetS / 2 : Math.abs(durationS - targetS) <= targetS * 0.1;
+  return isShorts(targetS) ? durationS <= targetS && durationS >= shortsMinS(targetS) : Math.abs(durationS - targetS) <= targetS * 0.1;
 }
 
 /** Where the director lays out every shot. */

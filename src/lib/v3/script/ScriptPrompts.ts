@@ -122,9 +122,12 @@ export const SHOES = ["kahve-cizme", "kahve-mest", "kirmizi-cizme", "kirmizi-mes
 
 /**
  * A Short's length is a ceiling, not a target (Format.lengthOk): its words aim at this share of it, so the spoken video
- * with its pauses and the length band's +10% stays under (the second Caesar Short: 155 words for 60 s ran 66 s).
+ * with its pauses and the length band's top stays under (the second Caesar Short: 155 words for 60 s ran 66 s). 0.92
+ * since 13 Nov 2026 (owner: "neden 2:30 dakikanın altında kalıyor, en fazla 3 dakika olsun ama 2:30'un altına fazla
+ * inmesin"): 0.85 with a band down to 65% let the Taranto and Guadalcanal Shorts through at ~254 words (107–112 s); now
+ * 389 words for 180 s, ~165 s at the measured 2.26–2.52 words/s.
  */
-export const SHORTS_FILL = 0.85;
+export const SHORTS_FILL = 0.92;
 
 export function wordBudget(brief: ScriptBrief): number {
   return Math.round(brief.hedefSureSn * (isShorts(brief.hedefSureSn) ? SHORTS_FILL : 1) * WORDS_PER_SECOND[brief.dil]);

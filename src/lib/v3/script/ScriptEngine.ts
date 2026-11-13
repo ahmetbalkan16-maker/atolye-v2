@@ -142,11 +142,12 @@ function withBankSources(episode: Episode, bank: SourceBank | undefined): Episod
  */
 const LENGTH_BAND = [0.9, 1.1] as const;
 /**
- * A Short's length is a ceiling (Format.lengthOk: up to it, down to half of it), so a shorter script is fine down to
- * this share of its budget (~35 s of a 60 s Short): the third Caesar Short's 98 words (44 s) were sent to three
- * expansion rounds that came back at 151–159 words, over the ceiling, and were all dropped.
+ * A Short's script is fine within this share of its budget (ScriptPrompts.SHORTS_FILL). Was [0.65, 1.1] (the third
+ * Caesar Short's 98 words for 60 s were sent to expansion rounds that overshot the ceiling): it let the 3-minute
+ * Taranto and Guadalcanal Shorts through at 70% (~254 words, 107–112 s). Since 13 Nov 2026 (owner: at most 3 minutes,
+ * not much under 2:30) 350–405 words for 180 s: ~139–155 s at the bottom, ≤ 179 s at the slowest measured pace on top.
  */
-const SHORTS_LENGTH_BAND = [0.65, 1.1] as const;
+const SHORTS_LENGTH_BAND = [0.9, 1.04] as const;
 const lengthBand = (brief: ScriptBrief): readonly [number, number] => (isShorts(brief.hedefSureSn) ? SHORTS_LENGTH_BAND : LENGTH_BAND);
 /** Share of scenes that must carry an exchange (two or more lines by visible characters). */
 export const MIN_DIALOGUE_SCENES = 0.3;

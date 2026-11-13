@@ -73,7 +73,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
-import { isShorts, lengthOk, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
@@ -1379,7 +1379,7 @@ async function main() {
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`, false),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(!descFit.requiredDropped.length, `YouTube açıklaması: ${Buffer.byteLength(bodyOf(aciklama).trim())} bayt${compactCredits ? ", kamu malı görseller tek satırda sayıldı" : ""}; zorunlu atıf satırları ${descFit.requiredDropped.length ? `— ${descFit.requiredDropped.length} SATIR 5000 BAYTA SIĞMIYOR, yükleme reddedilir` : "hepsi açıklamada"}`, false),
-      row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(target / 2)} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
+      row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(shortsMinS(target))} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
       ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%50 / ~%30 / ~%20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
     ];
@@ -1403,7 +1403,7 @@ async function main() {
     for (const p of parts.filter((x) => x.kaynak === "basarisiz")) if (!council.findings.some((x) => x.yer === p.tarif)) council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: p.tarif, tur: "veri", yer: p.tarif });
     const rms = lipsync.filter((l) => l.lipSync === "rms").length;
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
-    if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(target / 2)})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
+    if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(shortsMinS(target))})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
     if (shorts && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin" || claim.sonuc === "dayanaksiz") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
