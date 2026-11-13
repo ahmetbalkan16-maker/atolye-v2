@@ -27,7 +27,7 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
-import { badgeRoom, CLOSE_MAP_TILT_DEG, closeMapTilt, TILT_BADGE_TALL, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
+import { badgeRoom, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, TILT_BADGE_TALL, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
 import { TILT_WORLD_PAST, tiltAt, tiltSeen } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
@@ -47,7 +47,7 @@ import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArri
 import { exitFrames, FLASH_PEAK, insertOpacity, transitionLook, transitionProgress } from "../remotion-v3/src/scene/transitions";
 import { CAMERA_MOVE_S, cameraAt as mapCameraAt } from "../remotion-v3/src/scene/mapCamera";
 import { drift } from "../remotion-v3/src/character/rig";
-import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes, labelSpot } from "../remotion-v3/src/scene/hudLayout";
+import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, dotLegend, hudBoxes, labelSpot, legendScaleText } from "../remotion-v3/src/scene/hudLayout";
 import { checkEpisodePlaces, checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -2988,6 +2988,65 @@ async function main() {
       if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
       else process.env.ATOLYE_V3_EGIK_HARITA = saved;
     }
+  });
+
+  await scenario("the close map's army of dots (owner, 13 Nov 2026, Siege of Baghdad Short: \"askerleri küçük yuvarlak halinde … her yuvarlak birlik 1000 askere denk gelsin\"): \"nokta\" on every close map with unit kinds unless ATOLYE_V3_BIRLIK_STILI=blok, a heap marked for its discs, and a legend in the top left clear of the date stamp and the strength bar", () => {
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
+    const close: SceneMap = {
+      merkez: [28.95, 41.02],
+      genislik_km: 20,
+      birlikler: [
+        { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal", tur: "piyade", sayi: 4, etiket: "35,000 infantry", yerler: [{ satir: 0, cephe: [[28.91, 41.04], [28.95, 41.04]] }] },
+        { taraf: "Safavids", renk: "#e67e22", amblem: "aslan", tur: "suvari", sayi: 3, yerler: [{ satir: 0, kume: [28.95, 41.0] }] },
+      ],
+    };
+    const kindless: SceneMap = { ...close, birlikler: close.birlikler!.map((u) => ({ ...u, tur: undefined })) };
+    const wide: SceneMap = { ...close, genislik_km: 600 };
+    assert.equal(closeUnitStyle({}), "nokta", "on by default");
+    assert.equal(closeUnitStyle({ ATOLYE_V3_BIRLIK_STILI: " Blok " }), "blok");
+    assert.equal(closeUnitStyle({ ATOLYE_V3_BIRLIK_STILI: "nokta" }), "nokta");
+    const saved = process.env.ATOLYE_V3_BIRLIK_STILI;
+    try {
+      delete process.env.ATOLYE_V3_BIRLIK_STILI;
+      const dotted = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
+      assert.equal(dotted.unitStyle, "nokta");
+      assert.deepEqual(dotted.units!.map((u) => u.steps[0]!.heap), [undefined, true], "a cluster's step is a heap, a front's not");
+      assert.equal(buildGeoMap(kindless, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" }).unitStyle, undefined, "no kinds: emblem tokens as before");
+      assert.equal(buildGeoMap(wide, data, 1920, 1080, () => 0).unitStyle, undefined, "a wide map never");
+      process.env.ATOLYE_V3_BIRLIK_STILI = "blok";
+      const blocks = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
+      assert.equal(blocks.unitStyle, "blok");
+      assert.deepEqual({ ...blocks, unitStyle: "nokta" }, dotted, "the switch changes the style and nothing else");
+    } finally {
+      if (saved === undefined) delete process.env.ATOLYE_V3_BIRLIK_STILI;
+      else process.env.ATOLYE_V3_BIRLIK_STILI = saved;
+    }
+    // The legend: from the first unit on, in the top left, off the date stamp and the strength bar; one row for the scale
+    // (written numbers only) and one per side, each of its colours; none on a block map.
+    const meets = (a: { x0: number; y0: number; x1: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    const units = [
+      { side: "Ottomans", color: "#3fae3a", emblem: "hilal", kind: "piyade", label: "35,000 infantry", steps: [{ start: 9, points: [{ x: 900, y: 300 }, { x: 970, y: 300 }], alive: 2 }] },
+      { side: "Safavids", color: "#e67e22", emblem: "aslan", kind: "piyade", steps: [{ start: 9, points: [{ x: 900, y: 600 }], alive: 1 }] },
+      { side: "Safavids", color: "#7a3b10", emblem: "aslan", kind: "suvari", steps: [{ start: 9, points: [{ x: 1000, y: 600 }], alive: 1 }] },
+    ];
+    const marks = { unitStyle: "nokta", units, dates: [{ start: 0, text: "25 December 1638" }], strength: [{ start: 0, sides: [{ label: "Ottomans", color: "#3fae3a", count: "35,000", value: 35_000 }, { label: "Safavids", color: "#e67e22", count: "40,000", value: 40_000 }] }] } as unknown as V3GeoMap;
+    assert.equal(dotLegend(marks, 5, 1920, 1080), undefined, "not before the first unit");
+    const wideLegend = dotLegend(marks, 30, 1920, 1080)!;
+    assert.ok(wideLegend.x0 < 100 && wideLegend.y0 < 100, `top left: ${wideLegend.x0},${wideLegend.y0}`);
+    assert.deepEqual(wideLegend.rows.map((r) => [r.side, r.colors.length]), [[undefined, 1], ["Ottomans", 1], ["Safavids", 2]]);
+    assert.equal(legendScaleText(wideLegend.menPerDot, "en"), "= 1,000 men");
+    assert.equal(legendScaleText(wideLegend.menPerDot, "tr"), "= 1.000 asker");
+    const wideBoxes = hudBoxes(marks, 30, 1920, 1080);
+    assert.equal(wideBoxes.length, 3, "date, bar and legend: map names keep off all three");
+    assert.ok(!meets(wideBoxes[2]!, wideBoxes[0]!) && !meets(wideBoxes[2]!, wideBoxes[1]!), "clear of the stamp and the bar");
+    // A narrow frame's strength bar reaches the corner: the legend goes under it.
+    const tall = hudBoxes(marks, 30, 1080, 1920);
+    assert.ok(!meets(tall[2]!, tall[0]!) && !meets(tall[2]!, tall[1]!) && tall[2]!.y0 >= tall[1]!.y1, JSON.stringify(tall));
+    assert.equal(dotLegend({ ...marks, unitStyle: "blok" } as V3GeoMap, 30, 1920, 1080), undefined);
+    assert.equal(hudBoxes({ ...marks, unitStyle: "blok" } as V3GeoMap, 30, 1920, 1080).length, 2);
+    // Estimated armies only (no number written): the sides' colours, no scale claimed.
+    assert.deepEqual(dotLegend({ ...marks, units: units.map((u) => ({ ...u, label: undefined })), strength: undefined } as unknown as V3GeoMap, 30, 1920, 1080)!.rows.map((r) => r.side), ["Ottomans", "Safavids"]);
   });
 
   await scenario("a close map's coast never runs a straight shore from a stray coast piece to the box's corner (tilted 1453, 13 Nov 2026), and a flat map keeps the coast the library already holds", async () => {

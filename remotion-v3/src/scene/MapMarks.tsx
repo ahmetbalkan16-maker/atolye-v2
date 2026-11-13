@@ -3,7 +3,7 @@ import { Easing, interpolate, spring } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
-import { BAR_W, barTop, plateWidth } from "./hudLayout";
+import { BAR_W, barTop, dotLegend, LEGEND_DOT_STEP, legendScaleText, plateWidth } from "./hudLayout";
 import type { TiltLayer, Up } from "./tilt";
 
 /**
@@ -277,13 +277,51 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
   );
 }
 
-/** The map's screen marks (strength bar, date stamp), fixed on the screen over the moving map. */
-export function MapHud({ map, frame, fps, W, H }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number }) {
-  if (!map.strength?.length && !map.dates?.length) return null;
+/**
+ * A dotted map's legend (hudLayout.dotLegend places it): "● = 1,000 men" and each side's colour and name, on a dark
+ * plate like the unit labels', fading in with the first unit.
+ */
+function DotLegend({ map, frame, fps, W, H, language }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language: "tr" | "en" }) {
+  const lg = dotLegend(map, frame, W, H);
+  if (!lg) return null;
+  const u = lg.u;
+  const a = interpolate(frame, [lg.first + Math.round(fps * 0.4), lg.first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  if (a <= 0) return null;
+  const dot = (cx: number, cy: number, color: string) => (
+    <g>
+      <circle cx={cx} cy={cy} r={8 * u} fill={color} stroke={INK} strokeWidth={1.8 * u} />
+      <circle cx={cx - 2.4 * u} cy={cy - 2.6 * u} r={3 * u} fill="#ffffff" opacity={0.35} />
+    </g>
+  );
+  return (
+    <g {...yer("hud", "legend")} opacity={a} style={{ filter: `drop-shadow(0 ${3 * u}px ${4 * u}px rgba(0,0,0,0.5))` }}>
+      <rect x={lg.x0} y={lg.y0} width={lg.x1 - lg.x0} height={lg.y1 - lg.y0} rx={8 * u} fill="rgba(16,12,20,0.78)" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5 * u} />
+      {lg.rows.map((row, i) => {
+        const cy = lg.y0 + (14 + 13 + i * 32) * u;
+        const text = row.side ?? legendScaleText(lg.menPerDot, language);
+        return (
+          <g key={i}>
+            {row.colors.map((c, j) => (
+              <g key={j}>{dot(lg.x0 + (26 + j * LEGEND_DOT_STEP) * u, cy, c)}</g>
+            ))}
+            <text x={lg.x0 + (44 + (row.colors.length - 1) * LEGEND_DOT_STEP) * u} y={cy + 7.5 * u} style={{ font: `700 ${22 * u}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
+              {text}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** The map's screen marks (strength bar, date stamp, a dotted map's legend), fixed on the screen over the moving map. */
+export function MapHud({ map, frame, fps, W, H, language = "en" }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language?: "tr" | "en" }) {
+  if (!map.strength?.length && !map.dates?.length && map.unitStyle !== "nokta") return null;
   return (
     <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
       {map.strength?.length ? <StrengthBar list={map.strength} frame={frame} fps={fps} W={W} H={H} /> : null}
       {map.dates?.length ? <DateStamp dates={map.dates} frame={frame} fps={fps} W={W} H={H} /> : null}
+      <DotLegend map={map} frame={frame} fps={fps} W={W} H={H} language={language} />
     </svg>
   );
 }

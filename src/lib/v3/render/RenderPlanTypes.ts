@@ -443,9 +443,10 @@ export interface V3GeoMap {
     /**
      * `losses`: seconds after `start` at which each token lost in this formation falls, one by one. `via`: a breach the
      * tokens listed in `through` (they cross the walls to reach this formation) pass through, one after another.
-     * `rout`: the side breaks — its tokens turn their backs and scatter to these points.
+     * `rout`: the side breaks — its tokens turn their backs and scatter to these points. `heap`: the formation is the
+     * writer's cluster (`kume`), not a front — on a dotted map each block's circles stand in a disc, not in ranks.
      */
-    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[]; readonly via?: { readonly x: number; readonly y: number }; readonly through?: readonly number[]; readonly rout?: boolean; readonly label?: string }[];
+    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[]; readonly via?: { readonly x: number; readonly y: number }; readonly through?: readonly number[]; readonly rout?: boolean; readonly label?: string; readonly heap?: boolean }[];
   }[];
   /** Fights between the tokens: from `start` for `durationS` the sides close in and strike where they meet. */
   readonly fights?: readonly { readonly start: number; readonly durationS: number }[];
@@ -481,6 +482,14 @@ export interface V3GeoMap {
    * (MapBuilder.closeMapTilt); absent, the map is drawn flat exactly as before.
    */
   readonly tilt?: number;
+  /**
+   * How the close battle map draws its unit blocks (owner, 13 Nov 2026, of the Siege of Baghdad Short: "askerleri küçük
+   * yuvarlak halinde yapılsa … her yuvarlak birlik 1000 askere denk gelsin", after DFT Tarih): "nokta" — each block as
+   * small round tokens in the side's colour, one per MEN_PER_DOT men (remotion-v3 scene/unitCrowd.armyDots), a garrison
+   * packed inside its walls, with a legend; "blok" or absent — the regiment blocks of figures as before. Set at plan time
+   * (MapBuilder.closeUnitStyle: "nokta" on every close map with unit kinds unless `ATOLYE_V3_BIRLIK_STILI=blok`).
+   */
+  readonly unitStyle?: "blok" | "nokta";
   /**
    * The close battle map (genislik_km ≤ 120): the ground is the place's real elevation (`relief`) on its own coast, and
    * on it the story's walls (towers every few hundred metres, gates, a breach from a frame), roads, settlements (houses

@@ -171,3 +171,291 @@ export function marching(t: { readonly way?: { readonly from: XY; readonly goal:
   if (!w || Math.hypot(w.goal.x - w.from.x, w.goal.y - w.from.y) <= r * 1.5) return 0;
   return smooth01(Math.min(w.t, 1 - w.t) * 5);
 }
+
+/*
+ * The army of dots (owner, 13 Nov 2026, of the Siege of Baghdad Short: "kaleden askerler taşıyor; öyle yapacağına
+ * askerleri küçük yuvarlak halinde yapılsa hem daha fazla asker görüntüsü olur hem daha güzel görünür … her yuvarlak birlik
+ * 1000 askere denk gelsin", after DFT Tarih's close battle maps: many small round tokens in the side's colour, packed in
+ * tight formations, closing in and falling one by one). On a dotted map (`V3GeoMap.unitStyle` "nokta") each block of a
+ * unit is drawn as small filled circles instead of a regiment of figures; the blocks keep their places and motion
+ * (MapUnits.placeTokens), so only the look changes.
+ */
+
+/**
+ * Men one circle stands for. A period's company size could replace it per era (a Roman century's 80, a Janissary orta's
+ * ~100, a Napoleonic battalion's ~700); one round number keeps the legend ("● = 1,000 men") readable at a glance.
+ */
+export const MEN_PER_DOT = 1000;
+/**
+ * The scales a map steps up through when one of its units would need more circles than read — one scale for the whole
+ * map, never one per unit, so the legend's single line is true of every unit on it.
+ */
+export const DOT_SCALES = [MEN_PER_DOT, 2000, 2500, 5000, 10_000, 20_000, 25_000, 50_000, 100_000] as const;
+/**
+ * A unit's circles: at least DOTS_MIN (a raiding party must still read as a body of men, not a stray dot — the scale
+ * then flatters it, the only place it does), at most DOTS_MAX, and at most DOTS_PER_BLOCK_MAX in one block (more and the
+ * circles shrink below what reads on a phone).
+ */
+export const DOTS_MIN = 4;
+export const DOTS_MAX = 80;
+export const DOTS_PER_BLOCK_MAX = 24;
+/**
+ * The men behind a block when no number is written anywhere on the map (a legion with its allies, a large regiment):
+ * eight circles, a tight two-rank block — at 5,000 Cannae's unnumbered legions stood as sparse fives.
+ */
+export const DEFAULT_MEN_PER_BLOCK = 8000;
+
+/** Folded for comparing names written by hand ("Osmanlılar" / "OSMANLILAR"; Turkish dotless and dotted i). */
+const foldName = (s: string) => s.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** A unit as armyDots reads it (MapUnits passes V3GeoMap units). */
+export interface DotUnit {
+  readonly side: string;
+  readonly kind?: string;
+  readonly label?: string;
+  readonly steps: readonly { readonly points: readonly XY[]; readonly label?: string }[];
+}
+
+/** Each unit's men and circles on a dotted map, at the map's one scale. */
+export interface ArmyDots {
+  /** Men one circle stands for on this map (MEN_PER_DOT unless an army needed a larger scale). */
+  readonly menPerDot: number;
+  /** Each unit's men, written or estimated (0 for a unit drawn without circles: guns, emblem tokens). */
+  readonly men: readonly number[];
+  /** Each unit's circles (0 for a unit drawn without circles). */
+  readonly dots: readonly number[];
+  /** Whether a unit's men came from a written number (its label, a step's label, or its side's strength bar). */
+  readonly written: readonly boolean[];
+}
+
+/** Whether a unit is drawn as circles: a kind of foot or horse (guns keep their gun icons, kindless tokens their emblem). */
+export const dottedKind = (kind: string | undefined) => kind !== undefined && kind !== "topcu";
+
+/**
+ * How many circles each unit gets: its men — its own label's number ("35,000 infantry"), else what its side's strength
+ * bar leaves after the side's labelled units, shared by blocks; else its blocks × the men behind a labelled block of its
+ * side (or of the map, or DEFAULT_MEN_PER_BLOCK) — over the map's scale, rounded up, kept to DOTS_MIN..DOTS_MAX.
+ */
+export function armyDots(units: readonly DotUnit[], strength?: readonly { readonly sides: readonly { readonly label: string; readonly value: number }[] }[]): ArmyDots {
+  const drawn = units.map((u) => dottedKind(u.kind));
+  const blocks = units.map((u) => Math.max(1, ...u.steps.map((s) => s.points.length)));
+  const own = units.map((u, i) => (drawn[i] ? menOf(u.label) ?? (Math.max(0, ...u.steps.map((s) => menOf(s.label) ?? 0)) || undefined) : undefined));
+  const men = own.map((m) => m ?? 0);
+  const written = own.map((m) => m !== undefined);
+  // The strength bar's opening numbers (later entries come after the losses).
+  for (const s of strength?.[0]?.sides ?? []) {
+    const ids = units.flatMap((u, i) => (drawn[i] && foldName(u.side) === foldName(s.label) ? [i] : []));
+    const open = ids.filter((i) => own[i] === undefined);
+    const rest = s.value - ids.reduce((a, i) => a + (own[i] ?? 0), 0);
+    const b = open.reduce((a, i) => a + blocks[i]!, 0);
+    if (rest > 0 && b) for (const i of open) [men[i], written[i]] = [(rest * blocks[i]!) / b, true];
+  }
+  const known = written.slice();
+  const perBlock = (ids: readonly number[]) => {
+    const w = ids.filter((i) => known[i]);
+    const b = w.reduce((a, i) => a + blocks[i]!, 0);
+    return b ? w.reduce((a, i) => a + men[i]!, 0) / b : undefined;
+  };
+  const all = units.map((_, i) => i).filter((i) => drawn[i]);
+  for (const i of all) if (!known[i]) men[i] = blocks[i]! * (perBlock(all.filter((j) => units[j]!.side === units[i]!.side)) ?? perBlock(all) ?? DEFAULT_MEN_PER_BLOCK);
+  const fits = (scale: number) => all.every((i) => Math.ceil(men[i]! / scale) <= DOTS_MAX && Math.ceil(men[i]! / scale) <= DOTS_PER_BLOCK_MAX * blocks[i]!);
+  const menPerDot = DOT_SCALES.find(fits) ?? DOT_SCALES[DOT_SCALES.length - 1]!;
+  const dots = units.map((_, i) => (drawn[i] ? Math.min(DOTS_MAX, DOTS_PER_BLOCK_MAX * blocks[i]!, Math.max(DOTS_MIN, blocks[i]!, Math.ceil(men[i]! / menPerDot))) : 0));
+  return { menPerDot, men: men.map((m, i) => (drawn[i] ? Math.round(m) : 0)), dots, written: written.map((w, i) => drawn[i]! && w) };
+}
+
+/** How many of a unit's `total` circles block `b` of `blocks` holds (the first blocks one more; they fall last). */
+export function blockDotCount(total: number, blocks: number, b: number): number {
+  return Math.floor(total / blocks) + (b < total % blocks ? 1 : 0);
+}
+
+/** A circle in its block, block-local (the front is −y): its radius, and `fall` (0..1), its turn to fall. */
+export interface Dot {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+  readonly seed: number;
+  readonly fall: number;
+}
+
+const dotCache = new Map<string, Dot[]>();
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+/**
+ * The `n` circles of a block `w` wide and `h` deep, each of radius `maxR` where they fit (one size over the whole map, as
+ * each stands for the same men), packed tight about the block's middle like DFT Tarih's tokens: on a front, in ranks along
+ * it — as many ranks as keep them largest, the fewest on a tie (foot at most five, horse and musketeers three), every other
+ * rank of foot a little over, the last rank's few centred at the rear; in a heap (`heap`, a writer's `kume`), a disc. A
+ * block too full for that size packs them smaller. Horse stand looser (further apart, the same size). The same block always
+ * gets the same circles (Remotion renders frames in any order).
+ */
+export function blockDots(kind: UnitKind, n: number, w: number, h: number, maxR: number, heap: boolean, seed: number): Dot[] {
+  const key = `${kind}|${n}|${w.toFixed(2)}|${h.toFixed(2)}|${maxR.toFixed(2)}|${heap ? 1 : 0}|${seed}`;
+  const hit = dotCache.get(key);
+  if (hit) return hit;
+  const loose = kind === "suvari" ? 0.34 : 0.42;
+  // The spacing that gives full-size circles; a block's ranks may run a little past its depth (its front edge is a line).
+  const full = maxR / loose;
+  const deep = h * 1.15;
+  const out: Dot[] = [];
+  if (n <= 0) return out;
+  if (heap) {
+    const pitch = Math.min(full, (Math.min(w, h) * 0.62) / (0.56 * Math.sqrt(n)));
+    for (let j = 0; j < n; j++) {
+      const s = seed * 131 + j * 17;
+      const p = packedDot(j, pitch);
+      out.push({ x: p.x, y: p.y, r: pitch * loose, seed: s, fall: rand(s + 2) });
+    }
+  } else {
+    const maxRows = kind === "suvari" || kind === "tufekci" ? 3 : 5;
+    let best = { rows: 1, cols: n, pitch: 0 };
+    for (let rows = 1; rows <= Math.min(maxRows, n); rows++) {
+      const cols = Math.ceil(n / rows);
+      const pitch = Math.min(full, w / cols, deep / rows);
+      if (pitch > best.pitch + 1e-9) best = { rows, cols, pitch };
+    }
+    const p = best.pitch;
+    const stagger = kind !== "suvari";
+    for (let row = 0, j = 0; row < best.rows; row++) {
+      const inRow = Math.min(best.cols, n - j);
+      const shift = stagger && row % 2 === 1 ? p * 0.22 : 0;
+      for (let c = 0; c < inRow; c++, j++) {
+        const s = seed * 131 + row * 17 + c * 7;
+        out.push({ x: (c - (inRow - 1) / 2) * p + shift + (rand(s) - 0.5) * p * 0.12, y: (row - (best.rows - 1) / 2) * p + (rand(s + 1) - 0.5) * p * 0.1, r: p * loose, seed: s, fall: rand(s + 2) });
+      }
+    }
+  }
+  if (dotCache.size > 2000) dotCache.clear();
+  dotCache.set(key, out);
+  return out;
+}
+
+/** Circle `j` of a garrison packed in a disc about its middle, `pitch` apart (a sunflower: the first ones innermost). */
+export function packedDot(j: number, pitch: number): XY {
+  const d = 0.56 * pitch * Math.sqrt(j + 0.5);
+  return { x: Math.cos(j * GOLDEN) * d, y: Math.sin(j * GOLDEN) * d };
+}
+
+/** The radius of `n` circles packed `pitch` apart (packedDot), to their outer edge. */
+export const packedRadius = (n: number, pitch: number) => 0.56 * pitch * Math.sqrt(Math.max(1, n)) + pitch * 0.5;
+
+/** Whether a wall's line closes into a ring (MapBuilder's `walled` asks the same: first and last point within 1 px). */
+export function closedRing(points: readonly XY[]): boolean {
+  return points.length >= 4 && Math.hypot(points[0]!.x - points[points.length - 1]!.x, points[0]!.y - points[points.length - 1]!.y) < 1;
+}
+
+function inRing(p: XY, ring: readonly XY[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function edgeDistance(p: XY, ring: readonly XY[]): number {
+  let best = Infinity;
+  for (let i = 1; i < ring.length; i++) {
+    const a = ring[i - 1]!;
+    const b = ring[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t));
+  }
+  return best;
+}
+
+/** How far inside a ring a point is (negative: outside), in its own px. */
+export function ringDepth(p: XY, ring: readonly XY[]): number {
+  return (inRing(p, ring) ? 1 : -1) * edgeDistance(p, ring);
+}
+
+const poles = new WeakMap<readonly XY[], { x: number; y: number; d: number }>();
+/** The point deepest inside a ring and its depth (a grid search refined twice; once per ring). */
+export function ringPole(ring: readonly XY[]): { x: number; y: number; d: number } {
+  const hit = poles.get(ring);
+  if (hit) return hit;
+  const xs = ring.map((p) => p.x);
+  const ys = ring.map((p) => p.y);
+  let box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  const mid = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
+  let best = { ...mid, d: ringDepth(mid, ring) };
+  for (let round = 0; round < 3; round++) {
+    const N = 16;
+    for (let i = 0; i <= N; i++)
+      for (let j = 0; j <= N; j++) {
+        const p = { x: box.x0 + ((box.x1 - box.x0) * i) / N, y: box.y0 + ((box.y1 - box.y0) * j) / N };
+        const d = ringDepth(p, ring);
+        if (d > best.d) best = { ...p, d };
+      }
+    const hw = (box.x1 - box.x0) / 8;
+    const hh = (box.y1 - box.y0) / 8;
+    box = { x0: best.x - hw, x1: best.x + hw, y0: best.y - hh, y1: best.y + hh };
+  }
+  poles.set(ring, best);
+  return best;
+}
+
+/**
+ * Where a disc of radius `R` about `c` stands inside a ring: `c` itself when it fits, else the nearest place towards the
+ * ring's deepest point where it does (found by halving, so it moves smoothly as `c` does); a disc wider than the ring
+ * allows is shrunk to fit at that deepest point (its circles packed closer: `R` returned smaller).
+ */
+export function fitInRing(c: XY, R: number, ring: readonly XY[]): { x: number; y: number; R: number } {
+  const pole = ringPole(ring);
+  const room = Math.min(R, pole.d * 0.92);
+  if (ringDepth(c, ring) >= room) return { x: c.x, y: c.y, R: room };
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 24; k++) {
+    const t = (lo + hi) / 2;
+    if (ringDepth({ x: c.x + (pole.x - c.x) * t, y: c.y + (pole.y - c.y) * t }, ring) >= room) hi = t;
+    else lo = t;
+  }
+  return { x: c.x + (pole.x - c.x) * hi, y: c.y + (pole.y - c.y) * hi, R: room };
+}
+
+/** How near a ring's edge (a share of its own radius) a formation's middle still counts as standing in it (on the wall). */
+export const GARRISON_REACH = 0.25;
+
+/**
+ * Which wall ring each step of each unit stands inside, as its garrison (−1: none): the ring's defending side is the one
+ * whose units stand deepest in it at first (the Siege of Baghdad Short: the writer put the garrison's front right on the
+ * northern wall, the besiegers' assault column too — the side decides, not one formation), within GARRISON_REACH; its
+ * steps standing in the ring (or on its wall) are its garrison's, never a rout. Walls that do not close are no ring.
+ */
+export function garrisonSteps(units: readonly { readonly side: string; readonly steps: readonly { readonly points: readonly XY[]; readonly rout?: boolean }[] }[], walls: readonly { readonly points: readonly XY[] }[]): number[][] {
+  const out = units.map((u) => u.steps.map(() => -1));
+  const centre = (pts: readonly XY[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
+  const rings = walls.flatMap((w, wi) => {
+    if (!closedRing(w.points)) return [];
+    let area = 0;
+    for (let i = 1; i < w.points.length; i++) area += w.points[i - 1]!.x * w.points[i]!.y - w.points[i]!.x * w.points[i - 1]!.y;
+    const size = Math.sqrt(Math.abs(area) / 2 / Math.PI);
+    return size > 0 ? [{ wi, ring: w.points, size }] : [];
+  });
+  const sides = [...new Set(units.map((u) => u.side))];
+  // The smallest ring first: a citadel's garrison is the citadel's, not the town's.
+  for (const { wi, ring, size } of rings.sort((a, b) => a.size - b.size)) {
+    const depthOf = (side: string) => {
+      const ds = units.flatMap((u) => {
+        const c = u.side === side ? centre(u.steps[0]?.points ?? []) : undefined;
+        return c ? [ringDepth(c, ring) / size] : [];
+      });
+      return ds.length ? ds.reduce((a, d) => a + d, 0) / ds.length : -Infinity;
+    };
+    const defender = sides.map((s) => ({ s, d: depthOf(s) })).sort((a, b) => b.d - a.d)[0];
+    if (!defender || defender.d < -GARRISON_REACH) continue;
+    units.forEach((u, ui) => {
+      if (u.side !== defender.s) return;
+      u.steps.forEach((st, si) => {
+        const c = centre(st.points);
+        if (out[ui]![si]! < 0 && !st.rout && c && ringDepth(c, ring) / size >= -GARRISON_REACH) out[ui]![si] = wi;
+      });
+    });
+  }
+  return out;
+}

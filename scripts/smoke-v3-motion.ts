@@ -11,7 +11,7 @@ import { DrawnSetBack, DrawnSetFront, flameBox, lightSpots, type SetCover, torch
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
-import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
+import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
 import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
@@ -20,7 +20,7 @@ import type { V3CameraKey, V3DrawnSet, V3GeoMap, V3Performer, V3Shot, V3Viseme }
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
 // type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
 interface MapUnitsModule {
-  placeTokens(map: V3GeoMap, frame: number, fps: number, k: number, end?: number): ({ x: number; y: number; lostAt?: number } | undefined)[][];
+  placeTokens(map: V3GeoMap, frame: number, fps: number, k: number, end?: number): ({ x: number; y: number; lostAt?: number; alpha: number } | undefined)[][];
   slideFrames(steps: NonNullable<V3GeoMap["units"]>[number]["steps"], fps: number): number[];
   gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; gun: boolean; shot: number }[];
   volleysAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; shot: number }[];
@@ -28,6 +28,7 @@ interface MapUnitsModule {
   lostTokens(u: NonNullable<V3GeoMap["units"]>[number], fps: number): { ti: number; at: number; step: number }[];
   fallenRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step: number }, fps: number, k: number): { x: number; y: number } | undefined;
   menPerBlock(units: NonNullable<V3GeoMap["units"]>, ui: number): number | undefined;
+  unitDotsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, facings: number[][], frame: number, fps: number, k: number): { dots: (({ dots: { x: number; y: number; r: number; gone: number }[] } | undefined)[] | undefined)[]; guns: ({ x: number; y: number }[] | undefined)[] };
 }
 const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 
@@ -105,7 +106,7 @@ function metrics(values: readonly number[]): Metrics {
 }
 
 async function main() {
-  const { gunfireAt, placeTokens, volleysAt, steadyFacingsAt, lostTokens, fallenRest, menPerBlock, slideFrames } = (await import(MAP_UNITS)) as MapUnitsModule;
+  const { gunfireAt, placeTokens, volleysAt, steadyFacingsAt, lostTokens, fallenRest, menPerBlock, slideFrames, unitDotsAt } = (await import(MAP_UNITS)) as MapUnitsModule;
   const states = Array.from({ length: FRAMES }, (_, f) => performerState(performer, f, FPS));
   const table = CHANNELS.map((c) => ({ c, m: metrics(states.map(c.get)) }));
   for (const { c, m } of table) {
@@ -842,6 +843,100 @@ async function main() {
     assert.equal(count(front, "url(#ds-light)"), 2, "two torches hidden, two glows over the actors");
     // A pure function of what is in front: the same frame gives the same light.
     assert.deepEqual(lightSpots(walls, W, H, [before(torches[2]!, 0.5)]), lightSpots(walls, W, H, [before(torches[2]!, 0.5)]));
+  });
+
+  await scenario("Y the army of dots (owner, 13 Nov 2026, Siege of Baghdad Short: \"askerleri küçük yuvarlak halinde … her yuvarlak birlik 1000 askere denk gelsin\"): circles counted from the labels at one scale per map, packed tight in ranks or a disc, a garrison kept inside its walls, falling one by one", () => {
+    const four = (y: number) => [0, 1, 2, 3].map((i) => ({ x: 800 + i * 69, y }));
+    const five = (y: number) => [0, 1, 2, 3, 4].map((i) => ({ x: 812 + i * 69, y }));
+    // Counted from the labels: a unit's own number, else as many men a block as its side's labelled blocks; guns none.
+    const baghdad = [
+      { side: "Ottomans", kind: "piyade", label: "35,000 infantry", steps: [{ points: four(300) }] },
+      { side: "Ottomans", kind: "suvari", steps: [{ points: four(200) }] },
+      { side: "Ottomans", kind: "topcu", steps: [{ points: four(380) }] },
+      { side: "Safavids", kind: "piyade", label: "40,000 defenders", steps: [{ points: five(500) }] },
+      { side: "Ottomans", kind: "piyade", steps: [{ points: four(495).slice(0, 2), label: "Assaulting the breach" }] },
+    ];
+    const a = armyDots(baghdad);
+    assert.equal(a.menPerDot, 1000);
+    assert.deepEqual(a.dots, [35, 35, 0, 40, 18]);
+    assert.deepEqual(a.written, [true, false, false, true, false]);
+    // The strength bar's numbers go to a side's unlabelled units by blocks (its name matched however it is written).
+    const bar = armyDots([{ side: "Ottomans", kind: "piyade", steps: [{ points: four(0) }] }, { side: "Ottomans", kind: "suvari", steps: [{ points: four(0).slice(0, 2) }] }, { side: "Safavids", kind: "piyade", steps: [{ points: five(0) }] }], [{ sides: [{ label: "OTTOMANS", value: 60_000 }, { label: "Safavids", value: 40_000 }] }]);
+    assert.deepEqual([bar.dots, bar.written], [[40, 20, 40], [true, true, true]]);
+    // One scale for the whole map: an army too big for 80 circles moves every unit to the next scale.
+    const big = armyDots([{ side: "A", kind: "piyade", label: "200,000 men", steps: [{ points: [...four(0), ...four(60), ...four(120)].slice(0, 10) }] }, { side: "B", kind: "kilicli", label: "3,000 men", steps: [{ points: four(0).slice(0, 2) }] }]);
+    assert.deepEqual([big.menPerDot, big.dots], [2500, [80, DOTS_MIN]], "2,500 men a circle; the small unit kept readable");
+    assert.deepEqual(armyDots([{ side: "A", kind: "piyade", label: "500 men", steps: [{ points: four(0).slice(0, 2) }] }, { side: "B", kind: "piyade", label: "20,000", steps: [{ points: four(0) }] }]).dots, [DOTS_MIN, 20]);
+    // Nothing written anywhere (Cannae's "Eight legions"): blocks × a default, and no number claimed.
+    const cannae = armyDots([{ side: "Romans", kind: "kilicli", label: "Eight legions", steps: [{ points: [...four(0), ...four(60)].slice(0, 7) }] }]);
+    assert.deepEqual([cannae.dots[0], cannae.written[0]], [Math.ceil((7 * DEFAULT_MEN_PER_BLOCK) / 1000), false]);
+    assert.equal(blockDotCount(40, 5, 0) + blockDotCount(40, 5, 4), 16);
+    assert.equal([0, 1, 2, 3].reduce((s, b) => s + blockDotCount(35, 4, b), 0), 35);
+    // A block's circles: one size, packed tight about its middle — ranks along a front, a disc in a heap, horse looser.
+    const R = 23 * 0.3;
+    const line = blockDots("piyade", 9, 66.7, 46, R, false, 3);
+    assert.equal(line.length, 9);
+    assert.ok(line.every((d) => Math.abs(d.r - R) < 1e-9), "full-size circles where they fit");
+    assert.ok(line.every((d) => Math.abs(d.x) <= 33.4 && Math.abs(d.y) <= 46 * 0.6), "inside its block");
+    const spread = (ds: readonly { x: number; y: number }[], k: "x" | "y") => Math.max(...ds.map((d) => d[k])) - Math.min(...ds.map((d) => d[k]));
+    assert.ok(spread(blockDots("piyade", 8, 66.7, 46, R, false, 3), "x") > spread(blockDots("piyade", 8, 66.7, 46, R, false, 3), "y"), "ranks along the front, wider than deep");
+    const heap = blockDots("piyade", 9, 66.7, 46, R, true, 3);
+    assert.ok(heap.every((d) => Math.hypot(d.x, d.y) <= 46 * 0.62), "a heap is a disc");
+    const gap = (ds: readonly { x: number; y: number }[]) => Math.min(...ds.flatMap((p, i) => ds.slice(i + 1).map((q) => Math.hypot(p.x - q.x, p.y - q.y))));
+    assert.ok(gap(blockDots("suvari", 6, 66.7, 46, R, false, 3)) > gap(blockDots("piyade", 6, 66.7, 46, R, false, 3)), "horse stand looser");
+    const full = blockDots("piyade", 24, 66.7, 46, R, false, 3);
+    assert.ok(full[0]!.r < R && full[0]!.r > R * 0.4 && gap(full) > full[0]!.r * 1.9, "a full block packs smaller circles that never overlap");
+    assert.deepEqual(blockDots("piyade", 9, 66.7, 46, R, false, 3), line, "the same block always gets the same circles");
+    // The garrison: the writer stood its front right on the northern wall, the assault column too; the side decides.
+    const ring = [{ x: 800, y: 500 }, { x: 1100, y: 500 }, { x: 1100, y: 800 }, { x: 800, y: 800 }, { x: 800, y: 500 }];
+    const siege = {
+      unitStyle: "nokta",
+      close: { unit: 10, ground: [], roads: [], walls: [{ points: ring, towers: [], gates: [] }], settlements: [], buildings: [] },
+      units: [
+        { side: "Safavids", color: "#e67e22", emblem: "aslan", kind: "piyade" as const, label: "40,000 defenders", steps: [{ start: 9, points: five(500), alive: 5 }, { start: 120, points: five(505), alive: 3, losses: [0.8, 1.8] }] },
+        { side: "Ottomans", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, label: "35,000 infantry", steps: [{ start: 9, points: four(300), alive: 4 }, { start: 120, points: four(440), alive: 4 }] },
+        { side: "Ottomans", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, steps: [{ start: 9, points: [{ x: 930, y: 495 }, { x: 1000, y: 495 }], alive: 2 }] },
+      ],
+      fights: [{ start: 120, durationS: 4 }],
+    } as unknown as V3GeoMap;
+    assert.deepEqual(garrisonSteps(siege.units!, siege.close!.walls), [[0, 0], [-1, -1], [-1]]);
+    assert.deepEqual(garrisonSteps(siege.units!, [{ points: ring.slice(0, 4) }]), [[-1, -1], [-1, -1], [-1]], "an open wall is no ring");
+    assert.deepEqual(garrisonSteps([{ side: "S", steps: [{ points: five(600) }, { points: five(300), rout: true }, { points: five(100) }] }], [{ points: ring }]), [[0, -1, -1]], "a rout and a sortie leave the walls");
+    const fit = fitInRing({ x: 950, y: 470 }, 60, ring);
+    assert.ok(ringDepth(fit, ring) >= 60 - 1e-6 && fit.R === 60, "a disc set down on the wall moves inside it");
+    assert.ok(fitInRing({ x: 950, y: 650 }, 400, ring).R < 150, "a disc wider than the walls packs closer");
+    let blockOut = false;
+    let worst = 0;
+    let prev: { x: number; y: number }[][] | undefined;
+    const shown: number[] = [];
+    for (let f = 0; f < 300; f++) {
+      const placed = placeTokens(siege, f, 30, 1);
+      const { dots } = unitDotsAt(siege, placed, steadyFacingsAt(siege, placed, f, 30, 1), f, 30, 1);
+      if (placed[0]!.some((t) => t && t.alpha > 0.5 && ringDepth(t, ring) < 0)) blockOut = true;
+      const garrison = dots[0]!.map((b) => (b ? b.dots : []));
+      for (const d of garrison.flat()) if (d.gone < 1) assert.ok(ringDepth(d, ring) >= d.r * 0.99, `frame ${f}: a circle at ${d.x.toFixed(0)},${d.y.toFixed(0)} outside the walls`);
+      garrison.forEach((b, bi) => b.forEach((d, j) => {
+        const p = prev?.[bi]?.[j];
+        if (p && d.gone < 1) worst = Math.max(worst, Math.hypot(d.x - p.x, d.y - p.y));
+      }));
+      prev = garrison.map((b) => b.map((d) => ({ x: d.x, y: d.y })));
+      shown[f] = garrison.flat().filter((d) => d.gone < 1).length;
+      // The besiegers' circles stand with their blocks.
+      placed[1]!.forEach((t, i) => t && dots[1]![i]!.dots.forEach((d) => assert.ok(Math.hypot(d.x - t.x, d.y - t.y) < 23 * 2, "a circle strays from its block")));
+    }
+    assert.ok(blockOut, "the garrison's blocks themselves stand past the wall (the fault the circles fix)");
+    assert.ok(worst < 12, `a packed circle moved ${worst.toFixed(1)} px in one frame`);
+    assert.deepEqual([shown[60], shown[299]], [40, 40 - blockDotCount(40, 5, 3) - blockDotCount(40, 5, 4)], "40 circles, then the two lost blocks' circles gone");
+    // Its circles fall one by one: while a block falls, some of its circles are down and some still stand.
+    const falling = Array.from({ length: 300 }, (_, f) => {
+      const placed = placeTokens(siege, f, 30, 1);
+      const b = unitDotsAt(siege, placed, steadyFacingsAt(siege, placed, f, 30, 1), f, 30, 1).dots[0]![4];
+      return b ? b.dots.filter((d) => d.gone > 0 && d.gone < 1).length + b.dots.filter((d) => d.gone >= 1).length * 100 : 0;
+    });
+    assert.ok(falling.some((v) => v > 0 && v % 100 > 0 && v >= 100), "one block's circles fall in turn, not all at once");
+    // Switched back to blocks (ATOLYE_V3_BIRLIK_STILI=blok at plan time): no circles.
+    const blocks = { ...siege, unitStyle: "blok" } as V3GeoMap;
+    assert.ok(unitDotsAt(blocks, placeTokens(blocks, 60, 30, 1), [], 60, 30, 1).dots.every((u) => u === undefined));
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

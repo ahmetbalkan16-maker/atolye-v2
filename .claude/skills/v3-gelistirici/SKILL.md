@@ -35,6 +35,15 @@ writer's data alone, so improve these files rather than adding a second path:
 - Units: `remotion-v3/src/scene/MapUnits.tsx` (`placeTokens` = positions and motion — never change it for looks; the
   meter `scripts/v3/hareket-olcer.ts` must stay ≤ 28.6 px/frame on Cannae), `unitCrowd.ts` (soldiers inside a block,
   density from the strength label, per-block facing), archer volleys `volleysAt`, the fallen `lostTokens`/`fallenRest`.
+- Army of dots (owner, 13 Nov 2026, after DFT Tarih; default on every close map with unit kinds): `V3GeoMap.unitStyle`
+  "nokta" (`MapBuilder.closeUnitStyle`; `ATOLYE_V3_BIRLIK_STILI=blok` at plan time brings the blocks back bit for bit)
+  draws each block as small circles, one per `MEN_PER_DOT` (1,000) men at ONE scale per map (`unitCrowd.armyDots`: own
+  label → strength bar remainder → a labelled block of its side × blocks → `DEFAULT_MEN_PER_BLOCK`; 4..80 a unit, ≤ 24
+  a block, else the whole map steps to 2,000/2,500/5,000…). `blockDots` packs them (ranks on a front, a disc on a `heap`
+  step = writer's `kume`, horse looser, guns keep their icons); `MapUnits.unitDotsAt` places them on placeTokens' blocks
+  (motion untouched) and packs a garrison (`garrisonSteps`: the side standing deepest in a closed wall ring) in a disc
+  inside its walls (`fitInRing`); the legend is `hudLayout.dotLegend` (top left, in `hudBoxes`). Proof: smoke-v3-motion Y,
+  smoke-v3-episode-director "army of dots".
 - Ground: `scripts/v3/terrain_close.py` bakes the painted relief once per place (bump `Relief.CLOSE_RELIEF_VERSION`
   after a change); `MapCloseGround.tsx` + `mapNature.ts` draw woods, fields, hills, rivers' banks and cloud shadows.
 - Anything that moves is a pure function of the frame (Remotion renders frames in any order, in parallel); no per-frame

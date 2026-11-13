@@ -1546,6 +1546,16 @@ export function closeMapTilt(map: SceneMap, env: Readonly<Record<string, string 
 }
 
 /**
+ * How a close map draws its unit blocks (owner, 13 Nov 2026, of the Siege of Baghdad Short: "kaleden askerler taşıyor;
+ * öyle yapacağına askerleri küçük yuvarlak halinde yapılsa hem daha fazla asker görüntüsü olur hem daha güzel görünür",
+ * after DFT Tarih's close battle maps): "nokta", small round tokens, one per thousand men, unless
+ * `ATOLYE_V3_BIRLIK_STILI=blok` when the plan is made brings the regiment blocks back (the renderer reads no settings).
+ */
+export function closeUnitStyle(env: Readonly<Record<string, string | undefined>> = process.env): "blok" | "nokta" {
+  return env.ATOLYE_V3_BIRLIK_STILI?.trim().toLowerCase() === "blok" ? "blok" : "nokta";
+}
+
+/**
  * The map a scene draws: its own view, or — with `kamera` keys — a world spanning every view (and a margin), at the
  * scale of the closest one, so the camera can move from region to region over one map. A tilted close map
  * (closeMapTilt) always gets such a world, each view widened by TILT_WORLD_SPAN: its far side shows ground beyond the view.
@@ -1813,6 +1823,8 @@ function projectGeoMap(
           ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}),
           ...(y.bozgun ? { rout: true } : {}),
           ...(y.etiket ? { label: y.etiket } : {}),
+          // A cluster's circles stand in a disc on a dotted map (closeUnitStyle), a front's in ranks.
+          ...("kume" in y && !y.bozgun ? { heap: true } : {}),
           // A sweep round a flank (Tactics "kusat"): the tokens go the long way, one after another, a column.
           ...(si > 0 && y.uzerinden ? { via: toPx(y.uzerinden), through: Array.from({ length: count }, (_, k) => k) } : {}),
         };
@@ -2018,6 +2030,8 @@ function projectGeoMap(
     // The map's time of day (a night raid is drawn dark, with searchlights and flares).
     ...(map.zaman ? { zaman: map.zaman } : {}),
     ...(tilt !== undefined ? { tilt } : {}),
+    // The close map's units as small round tokens (or, switched back, as blocks): only where there are kinded units.
+    ...(close && units.some((u) => u.kind) ? { unitStyle: closeUnitStyle() } : {}),
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),

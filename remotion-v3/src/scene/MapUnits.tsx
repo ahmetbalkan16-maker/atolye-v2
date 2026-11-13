@@ -6,8 +6,8 @@ import { along, pathLength } from "./mapGeometry";
 import { CAMERA_MOVE_S, cameraAt } from "./mapCamera";
 import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
-import { type Box, labelSpot } from "./hudLayout";
-import { crowdFigures, crowdGrid, facingDir, type Foe, marching, menOf, thinShare, type UnitKind } from "./unitCrowd";
+import { armyDotsOf, type Box, labelSpot } from "./hudLayout";
+import { blockDotCount, blockDots, crowdFigures, crowdGrid, dottedKind, facingDir, fitInRing, type Foe, garrisonSteps, marching, menOf, packedDot, packedRadius, thinShare, type UnitKind } from "./unitCrowd";
 import type { TiltLayer, Up } from "./tilt";
 
 /**
@@ -204,7 +204,8 @@ const KINDS: readonly UnitKind[] = ["piyade", "kilicli", "mizrakci", "okcu", "tu
  * one, its ground fades); `march`: how much it is on the march (the figures bob); `rout`: how far it has broken (the
  * figures scatter, the ranks dissolve).
  */
-export function UnitBlock({ kind, color, r, turn = 0, seed = 0, menPerBlock, thin = 0, fallen = 0, march = 0, rout = 0, frame = 0 }: { kind: string; color: string; r: number; turn?: number; seed?: number; menPerBlock?: number; thin?: number; fallen?: number; march?: number; rout?: number; frame?: number }) {
+/** `bare`: the soldiers only, with no ground patch and no standard (a dotted map's guns: the gun icons alone). */
+export function UnitBlock({ kind, color, r, turn = 0, seed = 0, menPerBlock, thin = 0, fallen = 0, march = 0, rout = 0, frame = 0, bare = false }: { kind: string; color: string; r: number; turn?: number; seed?: number; menPerBlock?: number; thin?: number; fallen?: number; march?: number; rout?: number; frame?: number; bare?: boolean }) {
   const w = r * BLOCK_W;
   const h = r * BLOCK_H;
   const k: UnitKind = KINDS.includes(kind as UnitKind) ? (kind as UnitKind) : "piyade";
@@ -213,7 +214,7 @@ export function UnitBlock({ kind, color, r, turn = 0, seed = 0, menPerBlock, thi
   const cw = (w * 0.92) / grid.cols;
   const ch = (h * 0.84) / grid.rows;
   const gone = Math.max(thin, fallen);
-  const ground = (1 - fallen) * (1 - Math.min(1, rout * 1.4));
+  const ground = bare ? 0 : (1 - fallen) * (1 - Math.min(1, rout * 1.4));
   // The standard at the rear, turned with the block; the sign on it upright.
   const a = (turn * Math.PI) / 180;
   const back = h / 2;
@@ -244,16 +245,164 @@ export function UnitBlock({ kind, color, r, turn = 0, seed = 0, menPerBlock, thi
           );
         })}
       </g>
-      <g transform={`translate(${std.x} ${std.y})`} opacity={1 - fallen}>
-        <circle r={stdR * 1.08} fill="rgba(0,0,0,0.3)" transform={`translate(${r * 0.08} ${r * 0.1})`} />
-        <circle r={stdR} fill={light ? shade(color, 0.55) : color} stroke="#ffffff" strokeWidth={r * 0.09} />
-        <circle r={stdR * 1.08} fill="none" stroke={INK} strokeWidth={r * 0.06} />
-        <g transform={`scale(${stdR * 0.7})`}>
-          <KindSign kind={kind} />
-        </g>
+      {bare ? null : <Standard x={std.x} y={std.y} r={stdR} t={r} kind={kind} color={color} alpha={1 - fallen} />}
+    </g>
+  );
+}
+
+/**
+ * A unit's standard: its kind's sign upright on a disc of its colour, ringed in white (UnitBlock's rear, DotBlock's).
+ * `r`: the disc's radius; `t`: the token radius its shadow and rings are measured by.
+ */
+function Standard({ x, y, r, t, kind, color, alpha }: { x: number; y: number; r: number; t: number; kind: string; color: string; alpha: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`} opacity={alpha}>
+      <circle r={r * 1.08} fill="rgba(0,0,0,0.3)" transform={`translate(${t * 0.08} ${t * 0.1})`} />
+      <circle r={r} fill={isLight(color) ? shade(color, 0.55) : color} stroke="#ffffff" strokeWidth={t * 0.09} />
+      <circle r={r * 1.08} fill="none" stroke={INK} strokeWidth={t * 0.06} />
+      <g transform={`scale(${r * 0.7})`}>
+        <KindSign kind={kind} />
       </g>
     </g>
   );
+}
+
+/** A dotted map's circle at its largest against the token radius (≈7 px on a 1080p screen), and its standard's. */
+const DOT_MAX_R = 0.3;
+const DOT_STD_R = 0.4;
+
+/** A circle on screen (world px): where, how large, and how far it has fallen (0..1). */
+interface PlacedDot {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+  readonly gone: number;
+  readonly seed: number;
+}
+
+/**
+ * One block's circles (owner, 13 Nov 2026: "askerleri küçük yuvarlak halinde … her yuvarlak birlik 1000 askere denk
+ * gelsin"): each a small filled circle in the side's colour with a thin dark outline, a soft shadow and a highlight; a
+ * falling one shrinks, darkens and fades on its own moment (they fall one by one, DFT Tarih's tokens), and the kind's
+ * standard at the rear.
+ */
+function DotBlock({ dots, color, std, stdR, kind, stdAlpha }: { dots: readonly PlacedDot[]; color: string; std?: { x: number; y: number }; stdR: number; kind: string; stdAlpha: number }) {
+  const light = isLight(color);
+  const dark = shade(color, 0.55);
+  return (
+    <g>
+      {dots.map((d) => {
+        if (d.gone >= 1) return null;
+        const rr = d.r * (1 - 0.35 * d.gone);
+        return (
+          <g key={d.seed} opacity={1 - d.gone}>
+            <circle cx={d.x + d.r * 0.22} cy={d.y + d.r * 0.3} r={rr * 1.04} fill="rgba(0,0,0,0.3)" />
+            <circle cx={d.x} cy={d.y} r={rr} fill={d.gone > 0 ? dark : color} stroke={light ? "#3a3530" : INK} strokeWidth={Math.max(0.6, rr * 0.2)} />
+            {light ? null : <circle cx={d.x - rr * 0.3} cy={d.y - rr * 0.32} r={rr * 0.36} fill="#ffffff" opacity={0.32} />}
+          </g>
+        );
+      })}
+      {std && stdAlpha > 0 ? <Standard x={std.x} y={std.y} r={stdR} t={stdR / 0.56} kind={kind} color={color} alpha={stdAlpha} /> : null}
+    </g>
+  );
+}
+
+/** The fallen of a lost block on a dotted map: its circles lying dark and flattened where it fell. `share`: how many yet. */
+function FallenDots({ x, y, r, color, seed, share, n }: { x: number; y: number; r: number; color: string; seed: number; share: number; n: number }) {
+  const body = shade(color, 0.5);
+  return (
+    <g opacity={0.75}>
+      {Array.from({ length: Math.min(8, Math.max(3, n)) }, (_, j) => {
+        if (rand(seed + j * 3) >= share) return null;
+        const a = rand(seed + j) * Math.PI * 2;
+        const d = Math.sqrt(rand(seed + j + 7)) * r * 1.1;
+        return <ellipse key={j} cx={x + Math.cos(a) * d} cy={y + Math.sin(a) * d * 0.75} rx={r * 0.28} ry={r * 0.17} fill={body} stroke={INK} strokeWidth={r * 0.04} transform={`rotate(${rand(seed + j + 13) * 180} ${x + Math.cos(a) * d} ${y + Math.sin(a) * d * 0.75})`} />;
+      })}
+    </g>
+  );
+}
+
+const garrisonCache = new WeakMap<V3GeoMap, number[][]>();
+/** Which wall ring each unit's steps stand in as its garrison (unitCrowd.garrisonSteps), once per map. */
+function garrisonsOf(map: V3GeoMap): number[][] {
+  const hit = garrisonCache.get(map);
+  if (hit) return hit;
+  const out = garrisonSteps(map.units ?? [], map.close?.walls ?? []);
+  garrisonCache.set(map, out);
+  return out;
+}
+
+/**
+ * How far a unit's circles are packed inside its walls at `frame` (0..1) and which ring: a step standing in its ring
+ * packs them, one leaving it unpacks them, eased over the step's slide so no circle jumps.
+ */
+function packAt(map: V3GeoMap, ui: number, frame: number, fps: number, pace: Pace): { w: number; ring: number } {
+  const u = map.units![ui]!;
+  const walled = garrisonsOf(map)[ui] ?? [];
+  let s = 0;
+  while (s + 1 < u.steps.length && u.steps[s + 1]!.start <= frame) s++;
+  const cur = walled[s] ?? -1;
+  const prev = s > 0 ? (walled[s - 1] ?? -1) : cur;
+  const t = s > 0 ? smooth((frame - u.steps[s]!.start) / Math.max(1, slideFrames(u.steps, fps, pace)[s]!)) : 1;
+  const a = prev >= 0 ? 1 : 0;
+  const b = cur >= 0 ? 1 : 0;
+  return { w: a + (b - a) * t, ring: cur >= 0 ? cur : prev };
+}
+
+/** Whether a step's formation is a heap (its blocks' circles in discs), eased over the slide as packAt. */
+function heapAt(u: Units, frame: number, fps: number, pace: Pace): number {
+  let s = 0;
+  while (s + 1 < u.steps.length && u.steps[s + 1]!.start <= frame) s++;
+  const cur = u.steps[s]!.heap ? 1 : 0;
+  const prev = s > 0 ? (u.steps[s - 1]!.heap ? 1 : 0) : cur;
+  const t = s > 0 ? smooth((frame - u.steps[s]!.start) / Math.max(1, slideFrames(u.steps, fps, pace)[s]!)) : 1;
+  return prev + (cur - prev) * t;
+}
+
+/**
+ * The middle of a unit's tokens, a falling block counted as it fades (so its going moves the middle smoothly). One
+ * appearing counts fully from its first frame: its blocks fade in one after another, and weighed by their fade the
+ * middle ran 28.6 px a frame across a garrison's first 0.3 s (Siege of Baghdad, measured on the dots).
+ */
+function middleOf(side: readonly (PlacedToken | undefined)[]): { x: number; y: number } | undefined {
+  let sx = 0;
+  let sy = 0;
+  let sw = 0;
+  for (const t of side) {
+    if (!t) continue;
+    const w = t.lostAt !== undefined ? Math.max(0.02, t.alpha) : 1;
+    sx += t.x * w;
+    sy += t.y * w;
+    sw += w;
+  }
+  return sw > 0 ? { x: sx / sw, y: sy / sw } : undefined;
+}
+
+/** A garrison's circles packed in a disc in its walls at a frame: the disc's middle, and its circles' spacing and size. */
+interface Packed {
+  readonly w: number;
+  readonly x: number;
+  readonly y: number;
+  readonly pitch: number;
+  readonly scale: number;
+}
+
+/** Where unit `ui`'s circles pack at this frame (`side`: its tokens as placed then), or none (not a garrison now). */
+function packedOf(map: V3GeoMap, ui: number, side: readonly (PlacedToken | undefined)[], frame: number, fps: number, pace: Pace, pitch: number): Packed | undefined {
+  const { w, ring } = packAt(map, ui, frame, fps, pace);
+  const walls = map.close?.walls[ring]?.points;
+  const c = middleOf(side);
+  if (w <= 0 || !walls || !c) return undefined;
+  const n = armyDotsOf(map).dots[ui] ?? 0;
+  const R = packedRadius(n, pitch);
+  const fit = fitInRing(c, R, walls);
+  return { w, x: fit.x, y: fit.y, pitch: pitch * (fit.R / R), scale: fit.R / R };
+}
+
+/** A dotted map's circle spacing for a unit's blocks (its first block's circles), for packing it in its walls. */
+function dotPitch(kind: UnitKind, n: number, r: number): number {
+  const d = blockDots(kind, Math.max(1, n), r * BLOCK_W, r * BLOCK_H, r * DOT_MAX_R, false, 0)[0];
+  return (d ? d.r : r * DOT_MAX_R) * 2.4;
 }
 
 function rand(seed: number): number {
@@ -888,6 +1037,36 @@ export function fallenRest(map: V3GeoMap, ui: number, l: { ti: number; at: numbe
   return found;
 }
 
+const dotRestCache = new WeakMap<V3GeoMap, Map<string, { x: number; y: number; packed: boolean } | undefined>>();
+/**
+ * Where a lost block's circles lie on a dotted map: where its block came to rest (fallenRest), or — a garrison packed in
+ * its walls when the block fell — where its circles stood in the packed disc then, inside the walls.
+ */
+function dottedRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step: number }, fps: number, k: number, end: number | undefined, pace: Pace): { x: number; y: number; packed: boolean } | undefined {
+  let byMap = dotRestCache.get(map);
+  if (!byMap) dotRestCache.set(map, (byMap = new Map()));
+  const kk = Math.round(k * 400) / 400;
+  const key = `${ui}|${l.ti}|${l.at}|${kk}|${fps}|${end ?? ""}`;
+  if (byMap.has(key)) return byMap.get(key);
+  const rest = fallenRest(map, ui, l, fps, k, end);
+  let out: { x: number; y: number; packed: boolean } | undefined = rest ? { ...rest, packed: false } : undefined;
+  const u = map.units![ui]!;
+  if (rest && dottedKind(u.kind)) {
+    const r = TOKEN_R * kk;
+    const blocks = Math.max(1, ...u.steps.map((st) => st.points.length));
+    const total = armyDotsOf(map).dots[ui] ?? 0;
+    const pack = packedOf(map, ui, placeTokens(map, l.at, fps, kk, end)[ui] ?? [], l.at, fps, pace, dotPitch(u.kind as UnitKind, blockDotCount(total, blocks, 0), r));
+    if (pack) {
+      let start = 0;
+      for (let b = 0; b < l.ti; b++) start += blockDotCount(total, blocks, b);
+      const p = packedDot(start + Math.floor(blockDotCount(total, blocks, l.ti) / 2), pack.pitch);
+      out = { x: rest.x + (pack.x + p.x - rest.x) * pack.w, y: rest.y + (pack.y + p.y - rest.y) * pack.w, packed: pack.w > 0.5 };
+    }
+  }
+  byMap.set(key, out);
+  return out;
+}
+
 /**
  * The men behind each block of unit `ui`: its own strength label's number over its blocks, else its side's (one label
  * for the side, over all the side's blocks); none when no label names a number ("Eight legions").
@@ -1129,6 +1308,96 @@ function DustTrail({ x, y, dx, dy, r, amount, horse, frame, seed }: { x: number;
   );
 }
 
+/** One block's circles at a frame on a dotted map, its standard, and how much of the standard shows. */
+export interface BlockDots {
+  readonly dots: readonly PlacedDot[];
+  readonly std: { readonly x: number; readonly y: number };
+  readonly stdAlpha: number;
+}
+
+/**
+ * A dotted map's circles at `frame` (owner, 13 Nov 2026: "askerleri küçük yuvarlak halinde … her yuvarlak birlik 1000
+ * askere denk gelsin"): each block's circles where placeTokens has the block (`placed`), turned the way it faces
+ * (`facings`, steadyFacingsAt), in ranks along a front or a disc in a heap; a garrison's packed in a disc inside its walls
+ * (as blocks, the Baghdad garrison stood out past them). `guns`: how far a garrison's guns are moved inside its walls
+ * (they keep their icons). `shake`: a fighting block's tremor (UnitTokens'), none by default. Nothing for a block map.
+ * A pure function of the frame, like everything that moves.
+ */
+export function unitDotsAt(
+  map: V3GeoMap,
+  placed: readonly (readonly (PlacedToken | undefined)[])[],
+  facings: readonly (readonly number[])[],
+  frame: number,
+  fps: number,
+  k: number,
+  end?: number,
+  shake: (t: PlacedToken, i: number) => number = () => 0,
+): { dots: ((BlockDots | undefined)[] | undefined)[]; guns: ({ x: number; y: number }[] | undefined)[] } {
+  const units = map.units ?? [];
+  if (map.unitStyle !== "nokta") return { dots: units.map(() => undefined), guns: units.map(() => undefined) };
+  const r = TOKEN_R * k;
+  const pace: Pace = { ...(map.camera ? { camera: map.camera } : {}), ...(end !== undefined ? { end } : {}) };
+  const army = armyDotsOf(map);
+  const guns = units.map((u, ui) => {
+    if (u.kind !== "topcu") return undefined;
+    const { w, ring } = packAt(map, ui, frame, fps, pace);
+    const walls = map.close?.walls[ring]?.points;
+    return (placed[ui] ?? []).map((t) => {
+      if (!t || w <= 0 || !walls) return { x: 0, y: 0 };
+      const fit = fitInRing(t, r * 1.6, walls);
+      return { x: (fit.x - t.x) * w, y: (fit.y - t.y) * w };
+    });
+  });
+  const dots = units.map((u, ui) => {
+    if (!dottedKind(u.kind)) return undefined;
+    const kind = u.kind as UnitKind;
+    const blocks = Math.max(1, ...u.steps.map((st) => st.points.length));
+    const total = army.dots[ui] ?? 0;
+    const pack = packedOf(map, ui, placed[ui] ?? [], frame, fps, pace, dotPitch(kind, blockDotCount(total, blocks, 0), r));
+    const heap = heapAt(u, frame, fps, pace);
+    let next = 0;
+    return (placed[ui] ?? []).map((t, i): BlockDots | undefined => {
+      const n = blockDotCount(total, blocks, i);
+      const start = next;
+      next += n;
+      if (!t) return undefined;
+      const seed = ui * 1009 + i * 7 + 1;
+      const line = blockDots(kind, n, r * BLOCK_W, r * BLOCK_H, r * DOT_MAX_R, false, seed);
+      const disc = heap > 0 ? blockDots(kind, n, r * BLOCK_W, r * BLOCK_H, r * DOT_MAX_R, true, seed) : line;
+      const deg = (facings[ui]?.[i] ?? 0) + (t.rout !== undefined ? 180 * Math.min(1, t.rout * 2.5) + Math.sin(frame * 0.7 + i * 2) * 14 : 0);
+      const cos = Math.cos((deg * Math.PI) / 180);
+      const sin = Math.sin((deg * Math.PI) / 180);
+      const x0 = t.x + shake(t, i);
+      const fallen = t.lostAt !== undefined ? clamp01((frame - t.lostAt) / (fps * FALLEN_S)) : 0;
+      const rout = t.rout ?? 0;
+      const placedDots = line.map((d, j): PlacedDot => {
+        const q = disc[j]!;
+        // Broken, each runs its own way (forward in the turned block: its back to the enemy).
+        const lx = d.x + (q.x - d.x) * heap + (rout > 0 ? (rand(d.seed + 5) - 0.5) * 2.4 * rout * r : 0);
+        const ly = d.y + (q.y - d.y) * heap - (rout > 0 ? rand(d.seed + 6) * 1.6 * rout * r : 0);
+        const size = d.r + (q.r - d.r) * heap;
+        let x = x0 + lx * cos - ly * sin;
+        let y = t.y + lx * sin + ly * cos;
+        let dr = size;
+        if (pack) {
+          const p = packedDot(start + j, pack.pitch);
+          x += (pack.x + p.x - x) * pack.w;
+          y += (pack.y + p.y - y) * pack.w;
+          dr += (size * pack.scale - size) * pack.w;
+        }
+        // Each falls at its own moment while its block falls (DFT Tarih's tokens fall one by one).
+        return { x, y, r: dr, gone: clamp01((fallen - d.fall * 0.75) / 0.25), seed: d.seed };
+      });
+      // The standard at the block's rear; packed in the walls, one standard for the garrison, in its middle.
+      const back = (r * BLOCK_H) / 2;
+      const rear = { x: x0 - sin * back, y: t.y + cos * back };
+      const std = pack && i === 0 ? { x: rear.x + (pack.x - rear.x) * pack.w, y: rear.y + (pack.y - rear.y) * pack.w } : rear;
+      return { dots: placedDots, std, stdAlpha: (1 - fallen) * (pack && i > 0 ? 1 - pack.w : 1) };
+    });
+  });
+  return { dots, guns };
+}
+
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
 /**
  * `up`: a tilted map's layer (MapView) — the labels stand upright over the tilted ground; absent, drawn as they are.
@@ -1168,6 +1437,14 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
     return thinShare(lostTokens(u, fps).filter((l) => l.at <= frame).length / count);
   });
   const restOf = (ui: number, l: { ti: number; at: number; step: number }) => fallenRest(map, ui, l, fps, k, end);
+  // A slight shake while a block fights, so a front reads as alive (fading in and out as the clash comes near).
+  const shakeOf = (t: PlacedToken, i: number) => {
+    const near = Math.min(Infinity, ...clashes.map((c) => Math.hypot(c.x - t.x, c.y - t.y)));
+    return Math.sin(frame * 0.9 + i) * r * 0.08 * clamp01((r * 2.4 - near) / (r * 0.8));
+  };
+  const pace: Pace = { ...(map.camera ? { camera: map.camera } : {}), end };
+  const army = map.unitStyle === "nokta" ? armyDotsOf(map) : undefined;
+  const { dots: dotsNow, guns: gunShift } = layer === "upright" ? { dots: [], guns: [] } : unitDotsAt(map, placed, facings, frame, fps, k, end, shakeOf);
   // Where an archer's volley lands: the enemies nearest to it, together (a target that changed with the nearest one
   // made the arrows jump in flight).
   const aimOf = (ui: number, t: { x: number; y: number }) => {
@@ -1275,10 +1552,12 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
       {/* The side the narrator speaks of is framed in light while the line is told (DFT Tarih's highlight). */}
       {units.map((u, ui) => {
         const h = (u.highlights ?? []).find((x) => frame >= x.start && frame < x.end);
-        const pts = standing[ui]!;
+        // On a dotted map the light frames the circles themselves (a garrison's are packed away from its blocks).
+        const circles = dotsNow[ui]?.flatMap((b, i) => (b && placed[ui]![i]?.lostAt === undefined ? b.dots : []));
+        const pts = circles?.length ? circles : standing[ui]!;
         if (!h || !pts.length) return null;
         const a = Math.min(interpolate(frame, [h.start, h.start + Math.round(fps * 0.4)], [0, 1], { extrapolateRight: "clamp" }), interpolate(frame, [h.end - Math.round(fps * 0.4), h.end], [1, 0], { extrapolateLeft: "clamp" }));
-        const m = r * (u.kind ? 1.9 : 1.6);
+        const m = circles?.length ? r * 0.8 : r * (u.kind ? 1.9 : 1.6);
         const x0 = Math.min(...pts.map((p) => p.x)) - m;
         const y0 = Math.min(...pts.map((p) => p.y)) - m;
         const w = Math.max(...pts.map((p) => p.x)) + m - x0;
@@ -1296,6 +1575,12 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
         u.kind
           ? lostTokens(u, fps).map((l) => {
               if (frame < l.at) return null;
+              if (dotsNow[ui]) {
+                const lying = dottedRest(map, ui, l, fps, k, end, pace);
+                if (!lying) return null;
+                const n = blockDotCount(army!.dots[ui] ?? 0, Math.max(1, ...u.steps.map((st) => st.points.length)), l.ti);
+                return <FallenDots key={`f${ui}-${l.ti}`} x={lying.x} y={lying.y} r={r * (lying.packed ? 0.55 : 1)} color={u.color} seed={ui * 977 + l.ti * 31} share={clamp01((frame - l.at) / (fps * FALLEN_S))} n={n} />;
+              }
               const where = restOf(ui, l);
               if (!where) return null;
               return <Fallen key={`f${ui}-${l.ti}`} x={where.x} y={where.y} r={r} color={u.color} seed={ui * 977 + l.ti * 31} share={clamp01((frame - l.at) / (fps * FALLEN_S))} />;
@@ -1317,19 +1602,24 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
       {units.map((u, ui) =>
         placed[ui]!.map((t, i) => {
           if (!t) return null;
-          // A slight shake while it fights, so a front reads as alive (fading in and out as the clash comes near).
-          const near = Math.min(Infinity, ...clashes.map((c) => Math.hypot(c.x - t.x, c.y - t.y)));
-          const jx = Math.sin(frame * 0.9 + i) * r * 0.08 * clamp01((r * 2.4 - near) / (r * 0.8));
+          const jx = shakeOf(t, i);
           const lostPuff = t.lostAt !== undefined ? (frame - t.lostAt) / (fps * 0.8) : 0;
           // A block faces the enemies nearest to it (facingsAt); a routed one turns its back and staggers as it runs.
           const facing = facings[ui]![i]!;
           const turn = t.rout !== undefined ? 180 * Math.min(1, t.rout * 2.5) + Math.sin(frame * 0.7 + i * 2) * 14 : 0;
           const fallen = t.lostAt !== undefined ? clamp01((frame - t.lostAt) / (fps * FALLEN_S)) : 0;
+          const circles = dotsNow[ui]?.[i];
+          const gun = gunShift[ui]?.[i];
           return (
             <g key={`${ui}-${i}`}>
-              <g transform={`translate(${t.x + jx} ${t.y})`} opacity={t.alpha}>
+              {circles ? (
+                <g opacity={t.alpha}>
+                  <DotBlock dots={circles.dots} color={u.color} std={circles.std} stdR={r * DOT_STD_R} kind={u.kind!} stdAlpha={circles.stdAlpha} />
+                </g>
+              ) : (
+              <g transform={`translate(${t.x + jx + (gun?.x ?? 0)} ${t.y + (gun?.y ?? 0)})`} opacity={t.alpha}>
                 {u.kind ? (
-                  <UnitBlock kind={u.kind} color={u.color} r={r} turn={facing + turn} seed={ui * 1009 + i * 7 + 1} menPerBlock={men[ui]} thin={thin[ui]} fallen={fallen} march={marching(t, r)} rout={t.rout ?? 0} frame={frame} />
+                  <UnitBlock kind={u.kind} color={u.color} r={r} turn={facing + turn} seed={ui * 1009 + i * 7 + 1} menPerBlock={men[ui]} thin={thin[ui]} fallen={fallen} march={marching(t, r)} rout={t.rout ?? 0} frame={frame} bare={gun !== undefined} />
                 ) : (
                   <>
                     <circle r={r * 1.12} fill="rgba(0,0,0,0.35)" transform={`translate(${r * 0.12} ${r * 0.16})`} />
@@ -1350,6 +1640,7 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
                   </g>
                 ) : null}
               </g>
+              )}
               {/* Dust kicked up by a routed token as it runs. */}
               {t.rout !== undefined && t.rout > 0.05 && t.rout < 0.95 ? <Burst x={t.x} y={t.y + r * 0.5} r={r * 0.9} p={((frame + i * 9) % 24) / 24} era="orta" seed={ui * 53 + i} /> : null}
               {/* Melee: dust and sword sparks in every age (cannon fire belongs to the guns). */}

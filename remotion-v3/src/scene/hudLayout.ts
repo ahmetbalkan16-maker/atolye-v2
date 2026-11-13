@@ -1,4 +1,5 @@
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
+import { type ArmyDots, armyDots, dottedKind } from "./unitCrowd";
 
 /**
  * Where a map's screen marks stand (MapMarks' StrengthBar and DateStamp), shared with MapView, which writes no map name
@@ -21,12 +22,81 @@ export const plateWidth = (text: string) => Math.max(150, text.length * 25 + 56)
  * The marks' boxes on a frame of W×H (its own pixels): the date stamp's corner and, while it is on, the strength bar with
  * its names and numbers.
  */
-export function hudBoxes(map: Pick<V3GeoMap, "dates" | "strength">, frame: number, W: number, H: number): { x0: number; y0: number; x1: number; y1: number }[] {
+export function hudBoxes(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number): { x0: number; y0: number; x1: number; y1: number }[] {
+  const marks = markBoxes(map, frame, W, H);
+  const legend = dotLegend(map, frame, W, H);
+  return legend ? [...marks, { x0: legend.x0, y0: legend.y0, x1: legend.x1, y1: legend.y1 }] : marks;
+}
+
+/** The date stamp's and the strength bar's boxes (hudBoxes without the legend, which keeps clear of them). */
+function markBoxes(map: Pick<V3GeoMap, "dates" | "strength">, frame: number, W: number, H: number): Box[] {
   const u = Math.min(W, H) / 1080;
   return [
     ...(map.dates?.length ? [{ x0: W - 56 * u - plateWidth(map.dates.reduce((a, d) => (d.text.length > a.length ? d.text : a), "")) * u, y0: 0, x1: W, y1: 110 * u }] : []),
     ...((map.strength ?? []).some((s) => s.start <= frame && (s.end === undefined || frame < s.end)) ? [{ x0: (W - BAR_W * u) / 2 - 12 * u, y0: 0, x1: (W + BAR_W * u) / 2 + 12 * u, y1: (barTop(W, H) + 84) * u }] : []),
   ];
+}
+
+const armyCache = new WeakMap<object, ArmyDots>();
+/** A dotted map's circles (unitCrowd.armyDots), once per map's units. */
+export function armyDotsOf(map: Pick<V3GeoMap, "units" | "strength">): ArmyDots {
+  const units = map.units ?? [];
+  const hit = armyCache.get(units);
+  if (hit) return hit;
+  const out = armyDots(units, (map.strength ?? []).map((s) => ({ sides: s.sides.map((x) => ({ label: x.label, value: x.value })) })));
+  armyCache.set(units, out);
+  return out;
+}
+
+/** The legend's text size, row height and inner margin (1080p px). */
+const LEGEND_FONT = 22;
+const LEGEND_ROW = 32;
+const LEGEND_PAD = 14;
+/** How far apart a side's colour dots stand in its legend row (1080p px), and the scale row's neutral dot. */
+export const LEGEND_DOT_STEP = 19;
+export const LEGEND_SCALE_DOT = "#d8d2c4";
+
+/** The legend's scale line in the narration's language ("= 1,000 men", "= 1.000 asker"). */
+export function legendScaleText(menPerDot: number, language: "tr" | "en"): string {
+  return language === "tr" ? `= ${menPerDot.toLocaleString("tr-TR")} asker` : `= ${menPerDot.toLocaleString("en-US")} men`;
+}
+
+/**
+ * The dotted map's legend (owner, 13 Nov 2026: "her yuvarlak birlik 1000 askere denk gelsin"): a small plate in the top
+ * left corner — the date stamp holds the top right, the strength bar the top middle, the atlas corner the bottom left,
+ * the captions the bottom middle — and below the strength bar where a narrow frame's bar reaches that corner. Its rows:
+ * "● = 1,000 men" at the map's scale (only when some unit's men are written: estimated armies get no number), then each
+ * side's colour and name. Shown from the first unit on; none on a block map. Sized for the longer of its two languages,
+ * so the box MapView keeps names out of is the same in both.
+ */
+export function dotLegend(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number): (Box & { u: number; rows: { colors: string[]; side?: string }[]; menPerDot: number; scale: boolean; first: number }) | undefined {
+  const units = map.units ?? [];
+  if (map.unitStyle !== "nokta" || !units.some((u) => dottedKind(u.kind))) return undefined;
+  const first = Math.min(...units.map((u) => u.steps[0]?.start ?? Infinity));
+  if (!Number.isFinite(first) || frame < first) return undefined;
+  const army = armyDotsOf(map);
+  const scale = army.written.some(Boolean);
+  // A side's every colour (Cannae: Hannibal's Gauls red, his Africans and horse olive), up to three dots before its name.
+  const sides: { colors: string[]; side: string }[] = [];
+  for (const u of units) {
+    const s = sides.find((x) => x.side === u.side);
+    if (!s) sides.push({ colors: [u.color], side: u.side });
+    else if (!s.colors.includes(u.color) && s.colors.length < 3) s.colors.push(u.color);
+  }
+  const rows = [...(scale ? [{ colors: [LEGEND_SCALE_DOT] }] : []), ...sides.slice(0, 4)];
+  const u = Math.min(W, H) / 1080;
+  const width = (row: { colors: readonly string[]; side?: string }) => (row.colors.length - 1) * LEGEND_DOT_STEP + (row.side ?? "").length * LEGEND_FONT * 0.56;
+  const scaleChars = scale ? Math.max(legendScaleText(army.menPerDot, "en").length, legendScaleText(army.menPerDot, "tr").length) * LEGEND_FONT * 0.56 : 0;
+  const w = (LEGEND_PAD * 2 + 26 + Math.max(scaleChars, ...rows.map(width))) * u;
+  const h = (LEGEND_PAD * 2 + rows.length * LEGEND_ROW - 6) * u;
+  let box: Box = { x0: 40 * u, y0: 30 * u, x1: 40 * u + w, y1: 30 * u + h };
+  const marks = markBoxes(map, frame, W, H);
+  const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  if (marks.some((m) => meets(box, m))) {
+    const below = Math.max(...marks.filter((m) => m.x0 < box.x1 && box.x0 < m.x1).map((m) => m.y1)) + 14 * u;
+    box = { ...box, y0: below, y1: below + h };
+  }
+  return { ...box, u, rows, menPerDot: army.menPerDot, scale, first };
 }
 
 /**
