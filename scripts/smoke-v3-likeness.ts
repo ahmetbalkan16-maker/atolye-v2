@@ -16,7 +16,7 @@ import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, colourFamily, uniformColourFromNote, withNoteUniform, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, colourFamily, facialHairFixes, facialHairSaid, hairWord, portraitFacialHair, settleFacialHair, withoutShavenClaims, uniformColourFromNote, withNoteUniform, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -139,6 +139,88 @@ async function main() {
     assert.deepEqual(r.kostum.renkler, base.renkler);
     assert.equal(r.kostum.sac, undefined);
     assert.ok(r.sorunlar.some((s) => s.includes("giysi")) && r.sorunlar.some((s) => s.includes("renk")) && r.sorunlar.some((s) => s.includes("saç")));
+  });
+
+  // Siege of Baghdad Short (13 Nov 2026): the note called Murad IV (1638, 26) "clean-shaven", every chosen portrait has a
+  // full dark beard and moustache, the sheet set both to null, the check scored 3/10 "Cartoon shows no beard or
+  // moustache, but the portrait has a full beard and moustache" — and nothing added them. The writer's
+  // "yeni:thick black moustache" (Murad's and Tayyar Mehmed Pasha's) was dropped by the sheet's null without a word.
+  scenario("D2 Baghdad 1638: the side-by-side check's 'portrait has a beard' is read as add, 'no beard in the portrait' as none", () => {
+    const farklar = ["Cartoon has a rounded face, but the portrait shows a strong, angular jawline.", "Cartoon shows no beard or moustache, but the portrait has a full beard and moustache.", "Turban style in the cartoon is very different from the ornate, feathered turban in the portrait."];
+    assert.deepEqual(facialHairFixes(farklar), { beard: true, moustache: true });
+    assert.deepEqual(facialHairFixes(["no beard in the portrait"]), { beard: false });
+    assert.deepEqual(facialHairFixes(["add a moustache"]), { moustache: true });
+    assert.deepEqual(facialHairFixes(["the cartoon is missing the beard"]), { beard: true });
+    assert.deepEqual(facialHairFixes(["hair too dark", "the face should be longer"]), {}, "nothing about facial hair: nothing decided");
+    // The portrait: the designer's own look ("portre_kil") and the judge's description; a beard either saw is there.
+    assert.deepEqual(portraitFacialHair("sakal_biyik"), { beard: true, moustache: true });
+    assert.deepEqual(portraitFacialHair("yok"), { beard: false, moustache: false });
+    assert.deepEqual(portraitFacialHair("yok", "Sakallı ve bıyıklı Sultan IV. Murad'ın portresi"), { beard: true, moustache: true }, "the designer's 'none' never hides what the judge described");
+    assert.deepEqual(portraitFacialHair(undefined, "Sultan IV. Murat'ın savaş zırhı ve başlığıyla tasvir edildiği minyatür"), {}, "a description silent on the face decides nothing");
+    assert.deepEqual(facialHairSaid("a clean-shaven young officer"), { beard: false, moustache: false });
+    assert.deepEqual(["#2c2321", "#b9b6ae", "#f4f1ea", "#5b3e26", "#a8492a", "#d9b46a", undefined].map(hairWord), ["black", "grey", "white", "brown", "red", "blond", "dark"]);
+  });
+
+  scenario("D3 Baghdad 1638: the portrait's beard goes back on, the writer's moustache is kept, both drawn free by a family", () => {
+    const writer: CastCostume = { giysi: "kaftan", renkler: { ana: "#8B0000", ikincil: "#F5DEB3", ic: "#FFF5E1", sus: "#FFD700" }, bas: "yeni:white turban with red jewel", biyik: "yeni:thick black moustache", ayakkabi: "kahve-cizme", pelerin: "#8B0000" };
+    // The sheet as written that day: square face, black brows, sakal and biyik null ("clean-shaven" from the note).
+    const sheet = { yuz: { sekil: "kare", ten: "#efd0b0", burun: "duz", kas_renk: "#2c2321", yas: "genc" }, sac: { stil: "kisa", renk: "#2c2321" }, bas: "yeni:Murad IV's tall, ornate white turban with jewels and feather plume", sakal: null, biyik: null, giysi: "kaftan", renkler: writer.renkler, yaka: "kurk", el_on: "yeni:Murad IV's curved Ottoman yataghan sword with ornate hilt", tarif: "Tall jeweled turban, square jaw." };
+    const designed = applySheet(writer, sheet).kostum;
+    assert.equal(designed.biyik, undefined, "the sheet's null still removes in applySheet (the old loss point)");
+    const fixes = ["Cartoon shows no beard or moustache, but the portrait has a full beard and moustache."];
+    const s = settleFacialHair({ writer, designed, owner: "Murad IV", artDirector: facialHairFixes(fixes), keepWriter: true, evidence: fixes.join(". ") });
+    assert.equal(s.kostum.sakal, "yeni:Murad IV's full black beard", "a beard in his hair colour, ordered from the free beard family");
+    assert.equal(s.kostum.biyik, "yeni:thick black moustache", "the writer's own moustache order comes back");
+    assert.equal(s.notlar.length, 2);
+    assert.ok(s.notlar.every((n) => /eklendi/.test(n) && /sanat yönetmeni/.test(n)), s.notlar.join(" | "));
+    const orders = likenessOrders(s.kostum);
+    const beard = orders.find((o) => o.slot === "beard")!;
+    const moustache = orders.find((o) => o.slot === "mustache")!;
+    assert.ok(beard && moustache, JSON.stringify(orders));
+    const fb = familyPart(beard, "kare");
+    const fm = familyPart(moustache);
+    assert.equal(fb?.family, "sakal-uzun");
+    assert.equal(fb?.params.renk, "#2a2420", "black, not the default brown");
+    assert.equal(fm?.family, "biyik-gur");
+    const ep = episode();
+    const next = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "caesar" ? { ...c, kostum: s.kostum } : c)) };
+    assert.ok(validateEpisode(next).ok, JSON.stringify(validateEpisode(next).errors));
+    // The first round, before any check: the designer says what the portrait shows; that alone puts the beard on.
+    const first = settleFacialHair({ writer, designed, owner: "Murad IV", portrait: portraitFacialHair("sakal_biyik"), keepWriter: true });
+    assert.ok(first.kostum.sakal && first.kostum.biyik === "yeni:thick black moustache");
+    // A kept design reused without a redesign (stuck): the check's beard is added, the writer's order is not forced on it.
+    const reuse = settleFacialHair({ writer, designed: { ...designed, biyik: "ottoman-1453/biyik-pala" }, owner: "Murad IV", artDirector: { beard: true }, keepWriter: false });
+    assert.equal(reuse.kostum.biyik, "ottoman-1453/biyik-pala");
+    assert.ok(reuse.kostum.sakal?.startsWith("yeni:Murad IV's full black beard"));
+  });
+
+  scenario("D4 Baghdad 1638: a writer's facial-hair order is never dropped silently", () => {
+    const writer: CastCostume = { giysi: "kaftan", renkler: { ana: "#4B0082", ikincil: "#D2B48C", ic: "#FFF8DC", sus: "#C0C0C0" }, bas: "ottoman-1453/vezir-sarigi", biyik: "yeni:thick black moustache", ayakkabi: "kahve-cizme" };
+    const designed: CastCostume = { ...writer, biyik: undefined } as CastCostume;
+    delete (designed as { biyik?: string }).biyik;
+    // Tayyar Mehmed Pasha had no portrait: the note's "clean-shaven" is memory against memory, the writer's order stays.
+    const kept = settleFacialHair({ writer, designed, owner: "Tayyar Mehmed Pasha", keepWriter: true });
+    assert.equal(kept.kostum.biyik, "yeni:thick black moustache");
+    assert.match(kept.notlar[0]!, /korundu/);
+    // The portrait shows none: the order goes, and says why.
+    const gone = settleFacialHair({ writer, designed, owner: "Tayyar Mehmed Pasha", portrait: portraitFacialHair("yok"), keepWriter: true });
+    assert.equal(gone.kostum.biyik, undefined);
+    assert.match(gone.notlar[0]!, /çıkarıldı: portrede bıyık yok/);
+    // Nothing to say: no order, no evidence, no change.
+    assert.deepEqual(settleFacialHair({ writer: designed, designed, owner: "X", keepWriter: true }).notlar, []);
+  });
+
+  scenario("D5 Baghdad 1638: the sheet asks what the portrait shows; a 'clean-shaven' note never reaches a bearded likeness's parts or check", () => {
+    const ep = episode();
+    const withPortrait = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Murad IV", { gorunus: "clean-shaven", giyim: "kaftan", simge: "", fark: "" }, "File:IV Murat.jpg");
+    assert.match(withPortrait, /"portre_kil"/);
+    assert.match(withPortrait, /never takes away what the portrait shows/);
+    const without = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Murad IV", undefined, undefined);
+    assert.ok(!/portre_kil/.test(without), "no portrait: nothing to report on");
+    assert.ok(/\n- "giysi": kaftan/.test(without) && /\n- "giysi": kaftan/.test(withPortrait), "the key list stays one per line");
+    const note = "Murad IV had a strong, angular face with a pronounced jawline, clean-shaven, dark hair under his turban, and a commanding presence.";
+    assert.equal(withoutShavenClaims(note), "Murad IV had a strong, angular face with a pronounced jawline, dark hair under his turban, and a commanding presence.");
+    assert.equal(withoutShavenClaims("in 1638 he was younger and clean-shaven during the siege"), "in 1638 he was younger during the siege");
   });
 
   scenario("E: a drawn haircut drops the parametric hair; new parts reach the wardrobe orders", () => {

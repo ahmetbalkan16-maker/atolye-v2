@@ -71,6 +71,8 @@ export interface LikenessRecord {
   /** Side-by-side check after the parts were made (0–10), and what still differs. */
   readonly benzerlik?: number;
   readonly farklar?: readonly string[];
+  /** What the code changed in the designer's sheet and why (a portrait's beard put back, a writer's order kept). */
+  readonly duzeltmeler?: readonly string[];
 }
 
 export interface LikenessOutcome {
@@ -282,8 +284,9 @@ Choose:
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
 - "sac_parca": "yeni:${owner}'s <haircut>" only when their haircut is distinctive and no parametric style fits; else null.
 - "bas": the headwear they wore in ${episode.donem} ("yeni:${owner}'s <description>"), the script's item to keep, or null for a bare head.
-- "sakal", "biyik": beard and moustache ("yeni:${owner}'s <description>"), or null if clean-shaven in ${episode.donem}.
-- "giysi": kaftan | cubbe (robe) | zirh (armour) | onluk (apron) | bizans | yeniceri | sade (plain tunic) | tunik | toga | ceket (long coat, 1600s on) | uniforma | takim (modern suit) | elbise (long dress).
+- "sakal", "biyik": beard and moustache ("yeni:${owner}'s <description>"), or null if clean-shaven in ${episode.donem}.${portraitTitle ? ` Draw the beard and moustache the attached portrait shows: a note's "clean-shaven" is the historian's memory and never takes away what the portrait shows.` : ""}
+${portraitTitle ? `- "portre_kil": the facial hair the attached portrait itself shows, whatever the note says: "sakal_biyik" (beard and moustache) | "sakal" (beard only) | "biyik" (moustache only) | "yok" (clean-shaven) | "gorunmuyor" (face too small or hidden).
+` : ""}- "giysi": kaftan | cubbe (robe) | zirh (armour) | onluk (apron) | bizans | yeniceri | sade (plain tunic) | tunik | toga | ceket (long coat, 1600s on) | uniforma | takim (modern suit) | elbise (long dress).
 - "renkler": {"ana": main, "ikincil": second, "ic": undergarment, "sus": trim}, each #RRGGBB, true to the portrait and the period.
 - "yaka": "kurk" (fur collar and fur front bands) or "yok".
 - "pelerin": the colour #RRGGBB of the cloak or cape they wore over the shoulders in ${episode.donem} (a Roman general's paludamentum, a royal mantle), or null when they wore none.
@@ -359,6 +362,156 @@ export function likenessOrders(k: CastCostume): { slot: PartSlot; tarif: string 
     const m = NEW_PART.exec(String(rec[f] ?? ""));
     return m ? [{ slot: SLOT_OF[f], tarif: m[1]!.trim() }] : [];
   });
+}
+
+/** Beard and moustache as evidence says them: true = they have it, false = they have none, absent = not said. */
+export interface FacialHair {
+  readonly beard?: boolean;
+  readonly moustache?: boolean;
+}
+
+const BEARD_WORD = /\b(beard(ed|s)?|sakal\w*)/i;
+const MOUSTACHE_WORD = /\b(moustach\w*|mustach\w*|b[ıi]y[ıi]k\w*)/i;
+const SHAVEN = /\b(clean[- ]?shaven|beardless|shaven|shaved|facial hair\b[^.;]*\b(none|absent))|sakals[ıi]z|b[ıi]y[ıi]ks[ıi]z|t[ıi]ra[sş]l[ıi]/i;
+const NEGATED = /\b(no|without|lacks?|lacking|missing|absent|not|never|none)\b/i;
+const PORTRAIT_SIDE = /\b(portrait|painting|miniature|original|reference|engraving|portre\w*)\b/i;
+const ASKS_FOR = /\b(add|give|needs?|should (have|show|get|wear)|missing|lacks?|lacking|is absent)\b/i;
+
+/** What a clause says of one kind of facial hair: true when it is there, false when it is denied. */
+function saysHair(clause: string, word: RegExp): boolean | undefined {
+  if (!word.test(clause)) return SHAVEN.test(clause) && !BEARD_WORD.test(clause) && !MOUSTACHE_WORD.test(clause) ? false : undefined;
+  return !(NEGATED.test(clause) || SHAVEN.test(clause));
+}
+
+const clauses = (text: string) => text.split(/[.;—]|\b(?:but|while|whereas|however)\b/i).map((s) => s.trim()).filter(Boolean);
+
+/**
+ * Facial hair a describing text affirms (the portrait judge's "Sultan shown with a full beard", the designer's look):
+ * true when a clause names it without a denial, false when a clause says clean-shaven or "no beard".
+ */
+export function facialHairSaid(text: string): FacialHair {
+  const out: { beard?: boolean; moustache?: boolean } = {};
+  for (const c of clauses(text)) {
+    const b = saysHair(c, BEARD_WORD);
+    const m = saysHair(c, MOUSTACHE_WORD);
+    if (b !== undefined && out.beard === undefined) out.beard = b;
+    if (m !== undefined && out.moustache === undefined) out.moustache = m;
+  }
+  return out;
+}
+
+/** The designer's "portre_kil" answer (what the attached portrait shows), else what the portrait judge wrote. */
+export function portraitFacialHair(answer: unknown, judgeText = ""): FacialHair {
+  const a = typeof answer === "string" ? answer.toLowerCase().replace(/[\s-]+/g, "_") : "";
+  const designer: FacialHair = /^(sakal_biyik|beard_and_moustache|both)$/.test(a)
+    ? { beard: true, moustache: true }
+    : /^(sakal|beard)$/.test(a)
+      ? { beard: true, moustache: false }
+      : /^(biyik|moustache|mustache)$/.test(a)
+        ? { beard: false, moustache: true }
+        : /^(yok|none|clean_shaven)$/.test(a)
+          ? { beard: false, moustache: false }
+          : {};
+  const judge = facialHairSaid(judgeText);
+  // A beard either of them saw is there: the designer's "none" never hides what the judge described.
+  const pick = (d?: boolean, j?: boolean) => (d === true || j === true ? true : d ?? j);
+  const beard = pick(designer.beard, judge.beard);
+  const moustache = pick(designer.moustache, judge.moustache);
+  return { ...(beard !== undefined ? { beard } : {}), ...(moustache !== undefined ? { moustache } : {}) };
+}
+
+/**
+ * What the side-by-side check's differences ask for facial hair (Siege of Baghdad Short, 13 Nov 2026: "Cartoon shows no
+ * beard or moustache, but the portrait has a full beard and moustache" for Murad IV at 3/10, and nothing added them).
+ * The portrait's side of a sentence decides; else "add a beard", "missing moustache" or "the cartoon has no beard".
+ * true = add, false = the portrait has none.
+ */
+export function facialHairFixes(farklar: readonly string[]): FacialHair {
+  const out: { beard?: boolean; moustache?: boolean } = {};
+  for (const [kind, word] of [["beard", BEARD_WORD], ["moustache", MOUSTACHE_WORD]] as const) {
+    for (const line of farklar) {
+      const parts = clauses(line).filter((c) => word.test(c));
+      const portrait = parts.find((c) => PORTRAIT_SIDE.test(c));
+      const verdict = portrait !== undefined ? !NEGATED.test(portrait) && !SHAVEN.test(portrait) : parts.some((c) => ASKS_FOR.test(c) || (/\b(cartoon|drawing|ours)\b/i.test(c) && NEGATED.test(c))) ? true : undefined;
+      if (verdict !== undefined) {
+        out[kind] = verdict;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/** A hair colour as the word the part families read ("black", "grey"…), from #RRGGBB. */
+export function hairWord(hex: string | undefined): string {
+  if (!hex || !HEX.test(hex)) return "dark";
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255) as [number, number, number];
+  const l = (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+  const fam = colourFamily(hex);
+  if (l > 0.85) return "white";
+  if (fam === "grey") return l > 0.45 ? "grey" : "black";
+  if (l < 0.22) return "black";
+  if (fam === "red" && l < 0.6) return "red";
+  if ((fam === "olive" || fam === "brown") && l > 0.55) return "blond";
+  return "brown";
+}
+
+/**
+ * A note's text without its "clean-shaven" claim, for a likeness that wears the beard or moustache its portrait shows:
+ * the wardrobe and the side-by-side check get the portrait's face, not the historian's memory of it.
+ */
+export function withoutShavenClaims(text: string): string {
+  return text
+    .replace(/(,\s*|;\s*|\band\s+)?\b(clean[- ]?shaven|beardless)\b(\s+and\s+(younger|young)[- ]looking)?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;])/g, "$1")
+    .trim();
+}
+
+/** A period portrait counts as evidence of the face from this period score on (the judge's 0–10 "dönem"). */
+export const PORTRAIT_PERIOD_FIT = 7;
+
+/**
+ * The beard and moustache a likeness keeps, decided after the designer's sheet (pure). Evidence beats the historian's
+ * note: the art director's side-by-side differences first, then what the portrait shows (the designer's "portre_kil",
+ * the judge's description). A beard the evidence shows and the sheet left off is put back — the writer's own order when
+ * they asked for one, else a free family part in the person's hair colour ("yeni:Murad IV's full black beard"). A
+ * writer's order the sheet removed is kept unless the portrait shows none (`keepWriter`; until 13 Nov 2026 a sheet's
+ * null dropped it silently: Tayyar Mehmed Pasha's "thick black moustache", Siege of Baghdad). Every change is said.
+ */
+export function settleFacialHair(input: {
+  readonly writer: CastCostume;
+  readonly designed: CastCostume;
+  readonly owner: string;
+  readonly portrait?: FacialHair;
+  readonly artDirector?: FacialHair;
+  readonly keepWriter: boolean;
+  readonly evidence?: string;
+}): { kostum: CastCostume; notlar: string[] } {
+  const k: Record<string, unknown> = { ...input.designed };
+  const notlar: string[] = [];
+  const colour = hairWord(input.designed.yuz?.kas_renk ?? input.designed.sac?.renk);
+  const said = input.evidence ?? "";
+  for (const [field, kind, name] of [["sakal", "beard", "sakal"], ["biyik", "moustache", "bıyık"]] as const) {
+    const director = input.artDirector?.[kind];
+    const want = director ?? input.portrait?.[kind];
+    const from = director !== undefined ? "sanat yönetmeni portrede gördü" : "portre gösteriyor";
+    const writer = input.writer[field];
+    if (k[field]) continue;
+    if (want === true) {
+      const shape = kind === "beard" ? (/\b(short|trimmed|kısa|kisa)\b[^.;]*beard|beard[^.;]*\b(short|trimmed)\b/i.test(said) ? "short trimmed" : "full") : /\b(thin|pencil|ince)\b/i.test(said) ? "thin" : /\b(handlebar|curled|upturned|pala)\b/i.test(said) ? "handlebar" : "thick";
+      k[field] = writer ?? `yeni:${input.owner}'s ${shape} ${colour} ${kind}`.slice(0, 85);
+      notlar.push(`${name} eklendi (${from}; tasarım kartı ${name}sızdı): ${String(k[field])}`);
+    } else if (writer && input.keepWriter) {
+      if (want === false) notlar.push(`yazarın ${name} siparişi (${writer}) çıkarıldı: portrede ${name} yok`);
+      else {
+        k[field] = writer;
+        notlar.push(`yazarın ${name} siparişi (${writer}) korundu: tasarım kartı kaldırmıştı, portre kanıtı yok`);
+      }
+    }
+  }
+  return { kostum: k as unknown as CastCostume, notlar };
 }
 
 function slug(text: string): string {
@@ -508,10 +661,24 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       }
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
-      const next = withCostume(current, c.id, { ...withNoteUniform(withNoteCloak(stored.kostum, stored.not), stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
+      // A kept design whose check said the portrait's beard or moustache is missing gets it here, free (a part family
+      // draws it): a stuck likeness is not redesigned, so nothing else would add it.
+      const storedPeriod = (stored.portre as { donemPuani?: unknown } | undefined)?.donemPuani;
+      const hair = settleFacialHair({
+        writer: c.kostum!,
+        designed: withNoteUniform(withNoteCloak(stored.kostum, stored.not), stored.not),
+        owner: partOwner(wiki),
+        ...(typeof storedPeriod !== "number" || storedPeriod >= PORTRAIT_PERIOD_FIT ? { artDirector: facialHairFixes(best.farklar) } : {}),
+        keepWriter: false,
+        evidence: best.farklar.join(". "),
+      });
+      const next = withCostume(current, c.id, { ...hair.kostum, ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
       if (!found && resolvable && validateEpisode(next).ok) {
         current = next;
-        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), ...(stuck && best.benzerlik !== undefined ? { benzerlik: best.benzerlik, farklar: best.farklar } : {}), siparisler: [], sorunlar: [] });
+        const look = hair.kostum.yuz ? toLook(hair.kostum.yuz) : undefined;
+        for (const o of likenessOrders(hair.kostum)) if (!references.has(partKey(o)) && look) references.set(partKey(o), { look });
+        for (const n of hair.notlar) log(`  benzerlik: ${c.ad} — ${n}`);
+        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), ...(stuck && best.benzerlik !== undefined ? { benzerlik: best.benzerlik, farklar: best.farklar } : {}), siparisler: [], sorunlar: [], ...(hair.notlar.length ? { duzeltmeler: hair.notlar } : {}) });
         if (stuck) {
           const tries = history.filter((v) => v.benzerlik !== undefined).length;
           log(`  benzerlik: ${c.ad} — ${tries} tasarım ${LIKENESS_OK}/10'a ulaşamadı; en iyisi (${best.benzerlik}/10) kullanılıyor, yeniden çizilmiyor`);
@@ -543,7 +710,23 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       continue;
     }
     const sheetApplied = applySheet(c.kostum!, sheet);
-    const applied = { ...sheetApplied, kostum: withNoteUniform(withNoteCloak(sheetApplied.kostum, note), note) };
+    // The portrait's beard beats the note's "clean-shaven"; a portrait of another age (period score under the fit) is
+    // not evidence of the face in this year (Holbein's bearded Henry for the young Henry of 1509).
+    const fit = !portrait || portrait.secim.donem === undefined || portrait.secim.donem >= PORTRAIT_PERIOD_FIT;
+    const hair = settleFacialHair({
+      writer: c.kostum!,
+      designed: withNoteUniform(withNoteCloak(sheetApplied.kostum, note), note),
+      owner: partOwner(wiki),
+      ...(portrait && fit ? { portrait: portraitFacialHair(sheet.portre_kil, portrait.secim.gosterilen) } : {}),
+      ...(fixes && fit ? { artDirector: facialHairFixes(fixes) } : {}),
+      keepWriter: true,
+      evidence: [...(fixes ?? []), portrait?.secim.gosterilen ?? ""].join(". "),
+    });
+    const applied = { ...sheetApplied, kostum: hair.kostum };
+    for (const n of hair.notlar) {
+      log(`  benzerlik: ${c.ad} — ${n}`);
+      talk.push({ rol: "Kostüm beyni", metin: n });
+    }
     // Catalog refs the sheet named but the wardrobe lacks become orders, like the script normalizer does.
     const rec = applied.kostum as unknown as Record<string, unknown>;
     for (const f of SHEET_PARTS) {
@@ -560,12 +743,13 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     current = next;
     const orders = likenessOrders(applied.kostum);
     const look = applied.kostum.yuz ? toLook(applied.kostum.yuz) : undefined;
+    const gorunus = applied.kostum.sakal || applied.kostum.biyik ? withoutShavenClaims(note?.gorunus ?? "") : (note?.gorunus ?? "");
     for (const o of orders) {
       // The portrait is the reference for what is on the person (head, hair, beard, chest); a held object is looked
       // up among real museum pieces by the wardrobe as usual.
       const ref: PartReference | undefined =
         portrait && o.slot !== "hand"
-          ? { title: portrait.candidate.title, url: portrait.candidate.descriptionUrl, credit: portrait.candidate.credit, description: `${wiki} as in this portrait, drawn as they looked in ${episode.donem}. ${note?.gorunus ?? ""} ${note?.giyim ?? ""}`.replace(/\s+/g, " ").trim().slice(0, 400), imageB64: portrait.preview.toString("base64") }
+          ? { title: portrait.candidate.title, url: portrait.candidate.descriptionUrl, credit: portrait.candidate.credit, description: `${wiki} as in this portrait, drawn as they looked in ${episode.donem}. ${gorunus} ${note?.giyim ?? ""}`.replace(/\s+/g, " ").trim().slice(0, 400), imageB64: portrait.preview.toString("base64") }
           : undefined;
       references.set(partKey(o), { ...(ref ? { ref } : {}), ...(look ? { look } : {}), ...(fixes ? { redraw: true } : {}) });
     }
@@ -580,6 +764,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       tarif: applied.tarif,
       siparisler: orders.map((o) => o.tarif),
       sorunlar: applied.sorunlar,
+      ...(hair.notlar.length ? { duzeltmeler: hair.notlar } : {}),
     });
     log(`  benzerlik: ${c.ad} — ${applied.tarif || "kart yazıldı"}${orders.length ? ` (${orders.length} parça sipariş)` : ""}`);
     deps.council?.debate("kostum", `benzerlik: ${c.ad} (${episode.donem})`, talk);
@@ -649,8 +834,11 @@ export async function checkLikenesses(input: {
     const pair = path.join(input.workDir, `benzerlik-${member.id}.jpg`);
     await fs.writeFile(left, portrait.preview);
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", left, "-i", crops[i]!, "-filter_complex", "[0]scale=-2:640[a];[1]scale=-2:640[b];[a][b]hstack=inputs=2", "-q:v", "3", pair]);
+    const note = outcome.records[r]!.not;
+    const worn = input.episode.oyuncu_kadrosu.find((c) => c.id === member.id)?.kostum;
+    const looks = note ? (worn?.sakal || worn?.biyik ? withoutShavenClaims(note.gorunus) : note.gorunus) : "";
     const prompt = `LEFT: a portrait of ${outcome.records[r]!.kisi}. RIGHT: our flat cartoon of them as they looked in ${input.episode.donem}, in the style of OverSimplified (simple puppet body, flat colours, bold outlines; a different age than the portrait may be intended).
-${outcome.records[r]!.not ? `HISTORIAN'S NOTE for ${input.episode.donem}: ${outcome.records[r]!.not!.gorunus} Dress: ${outcome.records[r]!.not!.giyim}\n` : ""}Would a viewer who knows this person's portraits recognise the cartoon (headwear, hair, beard, face shape, clothes, colours)? "benzerlik" 0–10.
+${note ? `HISTORIAN'S NOTE for ${input.episode.donem}: ${looks} Dress: ${note.giyim}\n` : ""}Would a viewer who knows this person's portraits recognise the cartoon (headwear, hair, beard, face shape, clothes, colours)? "benzerlik" 0–10.
 Judge only what a caricature should carry. Never count against it: the flat cartoon style itself (simple shapes, flat colours, no wrinkles, texture or realistic shading), the puppet body, headwear and clothes the person wore in ${input.episode.donem} (see the note) that a bust or a head-only portrait cannot show, or a light skin where the portrait's old varnish or paint looks brown or yellow (${OLD_COMPLEXION}). ${PORTRAIT_OVER_NOTE} Name only what you see in the cartoon on the right.
 List at most 3 concrete, fixable differences that matter most (e.g. "hair too dark", "the face should be longer", "no beard in the portrait").
 Return ONLY JSON: {"benzerlik": <0-10>, "farklar": ["…"]}`;
