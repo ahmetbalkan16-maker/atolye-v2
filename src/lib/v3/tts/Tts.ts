@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { decodeMono } from "../mix/AudioQuality";
 import type { V3Emotion } from "../render/RenderPlanTypes";
 import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
@@ -294,22 +295,150 @@ export async function audioDuration(paths: V3Paths, file: string): Promise<numbe
 }
 
 /**
- * Trim leading/trailing silence, apply the character's pitch/tempo (+vibrato), level-match to −18 LUFS
- * and write 48 kHz mono 16-bit PCM with 40 ms of air at both ends.
+ * After the trim (trimVoice): apply the character's pitch/tempo (+vibrato), level-match to −18 LUFS and write 48 kHz
+ * mono 16-bit PCM with 40 ms of air at both ends. Until 13 Nov 2026 the trim was FFmpeg's silenceremove at the head
+ * of this chain (LEGACY_TRIM_FILTER), which wrote the ticks.
  */
 export function postProcessFilter(voice: VoiceProfile, speed: number): string {
+  return filterChain(voice, speed, false);
+}
+
+function filterChain(voice: VoiceProfile, speed: number, legacy: boolean): string {
   const ratio = Math.pow(2, voice.perde / 12);
   const tempo = voice.hiz * speed;
-  const parts = [
-    "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.04",
-    "areverse",
-    "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.06",
-    "areverse",
-  ];
+  const parts: string[] = [];
   if (Math.abs(voice.perde) > 0.01 || Math.abs(tempo - 1) > 0.005) parts.push(`rubberband=pitch=${ratio.toFixed(5)}:tempo=${tempo.toFixed(4)}`);
-  if (voice.titreme) parts.push("vibrato=f=5.5:d=0.06");
+  // FFmpeg's vibrato reads its delay line before writing it (uninitialised memory): measured 13 Nov 2026, one run
+  // in 8–15 of the same take opened the line with a full-scale sample (−6 dBFS after loudnorm). It gets 20 ms of zeros to read
+  // first, cut off again, so the line keeps its length.
+  if (voice.titreme) parts.push(...(legacy ? ["vibrato=f=5.5:d=0.06"] : [`adelay=delays=${VIBRATO_PREROLL}S`, "vibrato=f=5.5:d=0.06", `atrim=start_sample=${VIBRATO_PREROLL}`, "asetpts=PTS-STARTPTS"]));
   parts.push("loudnorm=I=-18:TP=-2:LRA=9", "aresample=48000", "adelay=40", "apad=pad_dur=0.04");
   return parts.join(",");
+}
+
+/** Samples of silence the vibrato reads before the voice (20 ms at TTS_RATE; its delay line is 5 ms). */
+const VIBRATO_PREROLL = 960;
+
+/**
+ * The silence trim every line went through until 13 Nov 2026. FFmpeg's silenceremove with start_silence writes one
+ * sample as 0 where the kept silence meets the sound (a plain 300 Hz sine: 0.061 0.000 0.061), and loudnorm smears it
+ * into a dip: a tick about 80 ms into a line and 100 ms before its end (Guadalcanal 17, Taranto 20, Çanakkale 24).
+ * Never run again; it stays only in the take key, so a line voiced again after the fix keeps its old seed.
+ */
+export const LEGACY_TRIM_FILTER = "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.04,areverse,silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.06,areverse";
+
+/** Sample rate of the trim and of every finished line. */
+export const TTS_RATE = 48_000;
+/** Sound starts where a 20 ms RMS window centred on the sample reaches −42 dBFS (the level silenceremove used). */
+export const TRIM_THRESHOLD_DB = -42;
+export const TRIM_WINDOW_S = 0.02;
+/** Natural quiet kept before the first and after the last sound (silenceremove's start_silence 0.04 / 0.06). */
+export const TRIM_PAD_START_S = 0.04;
+export const TRIM_PAD_END_S = 0.06;
+/** Shortest raised-cosine fade at the clip's ends, used when the take itself starts or stops mid-sound. */
+export const TRIM_FADE_IN_MIN_S = 0.01;
+export const TRIM_FADE_OUT_MIN_S = 0.02;
+/** Below this (−80 dBFS) a pad sample counts as digital silence: the fades start where the pad is live. */
+export const TRIM_FLOOR = 1e-4;
+/** Part of every line's cache key: a change to the trim voices the lines again instead of reusing old takes. */
+export const TRIM_SPEC = `node-trim-v1:${TRIM_THRESHOLD_DB}dB:${TRIM_WINDOW_S}:${TRIM_PAD_START_S}:${TRIM_PAD_END_S}:cos${TRIM_FADE_IN_MIN_S}/${TRIM_FADE_OUT_MIN_S}:floor${TRIM_FLOOR}`;
+
+export interface TrimmedVoice {
+  readonly samples: Float32Array;
+  /** First and last sample (in the input) judged to be sound; -1 when the whole take is below the threshold. */
+  readonly soundStart: number;
+  readonly soundEnd: number;
+}
+
+/**
+ * A take without its leading and trailing silence, cut in Node so nothing is written into the sound (owner, 13 Nov
+ * 2026: "ses kaynağını da düzelt"): TRIM_PAD_* of the take's own quiet is kept around the sound and faded in/out over
+ * that whole pad with a raised cosine — never shorter than TRIM_FADE_*_MIN_S, so a take that starts or stops mid-sound
+ * does not step out of the digital silence the filter chain adds (the second kind of tick); over digital silence inside
+ * the pad (TRIM_FLOOR) the fade starts where the pad comes alive, for the same reason. A take with no sound at all is kept whole, faded at both ends.
+ * Measured on 12 raw VoxCPM2 takes and the owner's two reference clips through the voices' own filters: 14 ticks with
+ * the old trim, 0 with this one, lengths within 10 ms.
+ */
+export function trimVoice(samples: Float32Array, rate: number): TrimmedVoice {
+  const n = samples.length;
+  const half = Math.max(1, Math.round((TRIM_WINDOW_S * rate) / 2));
+  const prefix = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) prefix[i + 1] = prefix[i]! + samples[i]! * samples[i]!;
+  const threshold = Math.pow(10, TRIM_THRESHOLD_DB / 20);
+  const loud = (i: number) => {
+    const a = Math.max(0, i - half), b = Math.min(n, i + half);
+    return Math.sqrt((prefix[b]! - prefix[a]!) / Math.max(1, b - a)) >= threshold;
+  };
+  let soundStart = 0;
+  while (soundStart < n && !loud(soundStart)) soundStart++;
+  let soundEnd = n - 1;
+  while (soundEnd > soundStart && !loud(soundEnd)) soundEnd--;
+  const silent = soundStart >= n;
+  // The centred window hears the sound up to half a window into digital silence next to it: the sound ends where the
+  // samples do.
+  while (!silent && soundStart < soundEnd && Math.abs(samples[soundStart]!) < TRIM_FLOOR) soundStart++;
+  while (!silent && soundEnd > soundStart && Math.abs(samples[soundEnd]!) < TRIM_FLOOR) soundEnd--;
+  const from = silent ? 0 : Math.max(0, soundStart - Math.round(TRIM_PAD_START_S * rate));
+  const to = silent ? n - 1 : Math.min(n - 1, soundEnd + Math.round(TRIM_PAD_END_S * rate));
+  const x = samples.slice(from, to + 1);
+  // The fades run over the pad's live part: over digital silence (TRIM_FLOOR) they would leave the sound stepping out
+  // of it. The silence itself stays, so the line keeps its length.
+  let head = 0;
+  while (!silent && from + head < soundStart && Math.abs(x[head]!) < TRIM_FLOOR) x[head++] = 0;
+  let tail = x.length - 1;
+  while (!silent && from + tail > soundEnd && Math.abs(x[tail]!) < TRIM_FLOOR) x[tail--] = 0;
+  const span = tail - head + 1;
+  const nIn = Math.min(Math.floor(span / 2), Math.max(silent ? 0 : soundStart - from - head, Math.round(TRIM_FADE_IN_MIN_S * rate)));
+  const nOut = Math.min(Math.floor(span / 2), Math.max(silent ? 0 : from + tail - soundEnd, Math.round(TRIM_FADE_OUT_MIN_S * rate)));
+  for (let k = 0; k < nIn; k++) x[head + k]! *= 0.5 - 0.5 * Math.cos((Math.PI * k) / nIn);
+  for (let k = 0; k < nOut; k++) x[tail - k]! *= 0.5 - 0.5 * Math.cos((Math.PI * k) / nOut);
+  return { samples: x, soundStart: silent ? -1 : soundStart, soundEnd: silent ? -1 : soundEnd };
+}
+
+/**
+ * One line's post-processing: the raw take decoded to TTS_RATE mono, trimmed and faded (trimVoice), then
+ * postProcessFilter into `out` (48 kHz mono 16-bit WAV).
+ */
+export async function postProcessLine(paths: Pick<V3Paths, "ffmpeg" | "asciiTemp">, raw: string, out: string, voice: VoiceProfile, speed: number): Promise<void> {
+  const { samples } = trimVoice(await decodeMono(paths, raw, TTS_RATE), TTS_RATE);
+  const f32 = path.join(paths.asciiTemp, `tts-trim-${randomUUID()}.f32`);
+  try {
+    await fs.writeFile(f32, Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength));
+    await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "f32le", "-ar", String(TTS_RATE), "-ac", "1", "-i", f32, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", out]);
+  } finally {
+    await fs.rm(f32, { force: true });
+  }
+}
+
+/** What a line's cache file and its take seed are derived from. */
+export interface LineKeyParts {
+  readonly model: string;
+  readonly speech: string;
+  readonly voice: VoiceProfile;
+  readonly provider: TtsProviderId;
+  readonly boost: number;
+  readonly speed: number;
+  readonly refHash: string;
+  readonly language: TtsLanguage;
+  readonly emotion: V3Emotion;
+  readonly directions: readonly string[];
+}
+
+function lineKey(p: LineKeyParts, filter: string, trim?: string): string {
+  return createHash("sha256")
+    .update(JSON.stringify({ v: 1, model: p.model, speech: p.speech, voice: p.voice, provider: p.provider, boost: p.boost, speed: p.speed, refHash: p.refHash, filter, ...(trim ? { trim } : {}), ...(p.language !== "tr" ? { language: p.language } : {}), ...(p.provider === "voxcpm" ? { emotion: p.emotion, description: voxcpmDescription(p.voice) ?? "", directions: p.directions } : {}) }))
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * `cache`: the line's file name — it carries the trim (TRIM_SPEC) and the filter, so no take made with the old
+ * silenceremove trim is reused (those files stay where they are). `take`: the key the old code used for the same line,
+ * which still gives the synthesis seed, so a line voiced again is asked for with the seed of the take the owner heard.
+ */
+export function lineKeys(p: LineKeyParts): { cache: string; take: string } {
+  const filter = postProcessFilter(p.voice, p.speed);
+  return { cache: lineKey(p, filter, TRIM_SPEC), take: lineKey(p, `${LEGACY_TRIM_FILTER},${filterChain(p.voice, p.speed, true)}`) };
 }
 
 /** Longest stuck stretch a spoken line may hold (speech never keeps one loud sample value for this long). */
@@ -414,10 +543,7 @@ export class TtsService {
     const boost = this.voices.duygu_ayari[req.emotion] ?? 0;
     const speed = req.speed ?? 1;
     const refHash = voice.referans && (provider === "chatterbox" || provider === "voxcpm") ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";
-    const key = createHash("sha256")
-      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}), ...(provider === "voxcpm" ? { emotion: req.emotion, description: voxcpmDescription(voice) ?? "", directions } : {}) }))
-      .digest("hex")
-      .slice(0, 32);
+    const { cache: key, take } = lineKeys({ model: engine.model, speech, voice, provider, boost, speed, refHash, language, emotion: req.emotion, directions });
     const file = path.join(this.cacheDir, `${key}.wav`);
     if (existsSync(file)) {
       const stuck = stuckSeconds(await fs.readFile(file));
@@ -430,14 +556,14 @@ export class TtsService {
     await fs.mkdir(this.cacheDir, { recursive: true });
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const raw = path.join(this.paths.asciiTemp, `tts-${key}-raw.wav`);
-    const seed = parseInt(key.slice(0, 8), 16) % 1_000_000;
+    const seed = parseInt(take.slice(0, 8), 16) % 1_000_000;
     const tmp = `${file}.tmp.wav`;
     let stuck = 0;
     // A take whose signal sticks is tried once more with other seeds; a second broken take fails the line (VoxCPM's
     // failure code sends the whole episode to the voices' own engines).
     for (const s of [seed, seed + 1000]) {
       await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, s, language, req.emotion, directions);
-      await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
+      await postProcessLine(this.paths, raw, tmp, voice, speed);
       await fs.rm(raw, { force: true });
       stuck = stuckSeconds(await fs.readFile(tmp));
       if (stuck <= STUCK_MAX_S) {
