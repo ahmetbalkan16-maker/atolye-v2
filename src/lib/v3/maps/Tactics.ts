@@ -233,6 +233,151 @@ export function fitBattleMap(map: Obj, where = "harita", maxKm?: number): string
 }
 
 /**
+ * A siege's order outside the walls (km, at least; else shares of the map's width, as the blocks are drawn at a screen
+ * size): the battery's line, the foot soldiers' behind it, a charge at the wall's foot. The Baghdad trial's 14 km map
+ * with 0.35 km between the lines drew guns, foot and horse into one another.
+ */
+export const SIEGE_GUNS_KM = 0.3;
+export const SIEGE_LINE_GAP_KM = 0.35;
+const SIEGE_GUNS_SHARE = 0.04;
+const SIEGE_GAP_SHARE = 0.055;
+const SIEGE_FOOT_KM = 0.06;
+
+/** Whether a point lies inside a ring (even–odd rule). */
+function insideRing(p: P, ring: readonly P[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [a, b] = [ring[i]!, ring[j]!];
+    if (a[1] > p[1] !== b[1] > p[1] && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
+}
+
+/** The ring's edge nearest a point: its ends and the nearest point on it. */
+function nearestEdge(p: P, ring: readonly P[]): { a: P; b: P; at: P } {
+  let best: { a: P; b: P; at: P; d: number } | undefined;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const ab = sub(b, a);
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / Math.max(1e-12, ab[0] ** 2 + ab[1] ** 2)));
+    const at = add(a, mul(ab, t));
+    const d = len(sub(p, at));
+    if (!best || d < best.d) best = { a, b, at, d };
+  }
+  return best!;
+}
+
+/**
+ * A siege's order of battle (owner, 13 Nov 2026, the Siege of Baghdad Short: "askerlerin sıralaması, topların nizami
+ * savaşa uygun olması lazım"). The writer put the Janissaries and the Ottoman guns inside Baghdad's walls before the
+ * breach and the garrison as one heap in the middle of the town. On a close map with `surlar`: the side whose units
+ * stand inside the walls holds them; until the breach's line (`gedik.satir`, else the first line) every besieger standing
+ * inside is set outside the wall they attack (the breach, else the wall facing them) in order — the guns in a battery
+ * line parallel to it, the foot behind, the horse on the wings, the rest in reserve, a charge at the wall's foot — and the
+ * defenders' heap stands along that wall. After the breach a unit may be inside: that is the story. Changed in place;
+ * returns what was done (for the log).
+ */
+export function siegeOrder(map: Obj, where = "harita"): string[] {
+  const centre = map.merkez;
+  const width = map.genislik_km;
+  const walls = Array.isArray(map.surlar) ? (map.surlar as unknown[]).filter(isObj) : [];
+  const wall = walls.find((w) => Array.isArray(w.noktalar) && (w.noktalar as unknown[]).filter(isPt).length >= 3);
+  if (!isPt(centre) || typeof width !== "number" || width > CLOSE_MAP_MAX_KM || !wall || !Array.isArray(map.birlikler)) return [];
+  const kmLon = 111.32 * Math.max(0.2, Math.cos((centre[1] * Math.PI) / 180));
+  const toKm = (p: P): P => [(p[0] - centre[0]) * kmLon, (p[1] - centre[1]) * 110.57];
+  const toLL = (p: P): [number, number] => [Math.round((centre[0] + p[0] / kmLon) * 1e5) / 1e5, Math.round((centre[1] + p[1] / 110.57) * 1e5) / 1e5];
+  const ring = (wall.noktalar as unknown[]).filter(isPt).map(toKm);
+  const mid: P = [ring.reduce((a, p) => a + p[0], 0) / ring.length, ring.reduce((a, p) => a + p[1], 0) / ring.length];
+  const gedik = isObj(wall.gedik) && isPt(wall.gedik.konum) ? { at: toKm(wall.gedik.konum), satir: typeof wall.gedik.satir === "number" ? wall.gedik.satir : 0 } : undefined;
+  const units = (map.birlikler as unknown[]).flatMap((u, index) => (isObj(u) && typeof u.taraf === "string" && Array.isArray(u.yerler) ? [{ u, index, side: u.taraf.trim().toLocaleLowerCase("en-US"), entries: (u.yerler as unknown[]).filter(isObj) }] : []));
+  const centreOf = (y: Obj): P | undefined => {
+    if (Array.isArray(y.cephe)) {
+      const pts = (y.cephe as unknown[]).filter(isPt).map(toKm);
+      return pts.length ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length] : undefined;
+    }
+    return isPt(y.kume) ? toKm(y.kume) : isPt(y.kusatma) ? toKm(y.kusatma) : undefined;
+  };
+  const lineOf = (y: Obj) => (typeof y.satir === "number" ? y.satir : 0);
+  const first = (x: (typeof units)[number]) => [...x.entries].sort((a, b) => lineOf(a) - lineOf(b))[0];
+  // The defender: the side with the largest share of its units inside the walls on their first line.
+  const sides = [...new Set(units.map((x) => x.side))];
+  if (sides.length < 2) return [];
+  const share = (side: string) => {
+    const own = units.filter((x) => x.side === side).map(first).flatMap((y) => (y && centreOf(y) ? [centreOf(y)!] : []));
+    return own.length ? own.filter((c) => insideRing(c, ring)).length / own.length : 0;
+  };
+  const ranked = sides.map((s) => ({ s, v: share(s) })).sort((a, b) => b.v - a.v);
+  if (ranked[0]!.v === 0 || ranked[0]!.v === ranked[1]!.v) return [];
+  const defender = ranked[0]!.s;
+  const until = gedik?.satir ?? 0;
+  const before = (y: Obj) => (gedik ? lineOf(y) < until : lineOf(y) === 0);
+  const attackers = units.filter((x) => x.side !== defender);
+  const wrong = attackers.flatMap((x) => x.entries.filter((y) => before(y) && centreOf(y) && insideRing(centreOf(y)!, ring)).map((y) => ({ x, y })));
+  const heaps = units.filter((x) => x.side === defender).flatMap((x) => x.entries.filter((y) => before(y) && y.kume !== undefined).map((y) => ({ x, y })));
+  if (!wrong.length && !heaps.length) return [];
+  // The wall they attack: the breach's, else the one the besiegers outside (else all of them) stand towards.
+  const outside = attackers.flatMap((x) => x.entries.filter(before).flatMap((y) => (centreOf(y) && !insideRing(centreOf(y)!, ring) ? [centreOf(y)!] : [])));
+  const pool = outside.length ? outside : attackers.flatMap((x) => x.entries.filter(before).flatMap((y) => (centreOf(y) ? [centreOf(y)!] : [])));
+  const towards: P = pool.length ? [pool.reduce((a, p) => a + p[0], 0) / pool.length, pool.reduce((a, p) => a + p[1], 0) / pool.length] : add(mid, [0, 1]);
+  const aim = gedik?.at ?? add(mid, mul(unit(sub(towards, mid)), 1e3));
+  const edge = nearestEdge(aim, ring);
+  const along = unit(sub(edge.b, edge.a), [1, 0]);
+  const normal0 = leftOf(along);
+  const out = len(sub(add(edge.at, normal0), mid)) > len(sub(sub(edge.at, normal0), mid)) ? normal0 : mul(normal0, -1);
+  const foot = gedik?.at ?? edge.at;
+  const fixes: string[] = [];
+  const name = (x: (typeof units)[number]) => `${where}.birlikler[${x.index}] "${typeof x.u.ad === "string" ? x.u.ad : x.u.taraf}"`;
+  const place = (y: Obj, c: P, w: number) => {
+    y.cephe = [toLL(add(c, mul(along, -w / 2))), toLL(add(c, mul(along, w / 2)))];
+    delete y.kume;
+    delete y.kusatma;
+    delete y.km;
+  };
+  const widthOf = (y: Obj) => {
+    const pts = Array.isArray(y.cephe) ? (y.cephe as unknown[]).filter(isPt).map(toKm) : [];
+    const w = pts.length > 1 ? len(sub(pts[pts.length - 1]!, pts[0]!)) : 0;
+    return Math.min(Math.max(w, 0.25), Math.max(0.4, width * 0.08));
+  };
+  // The order outside: a row per kind, each row's units side by side round the wall's point.
+  const kindOf = (x: (typeof units)[number]) => (x.u.tur === "topcu" ? "guns" : x.u.tur === "suvari" ? "horse" : x.u.tur === "piyade" || x.u.tur === undefined ? "foot" : "rest");
+  const rows: Record<string, { x: (typeof units)[number]; y: Obj }[]> = { guns: [], foot: [], horse: [], rest: [], charge: [] };
+  for (const w of wrong) (w.y.hareket === "hucum" ? rows.charge! : rows[kindOf(w.x)]!).push(w);
+  const gap = Math.max(0.08, width * 0.012);
+  const guns = Math.max(SIEGE_GUNS_KM, width * SIEGE_GUNS_SHARE);
+  const line = Math.max(SIEGE_LINE_GAP_KM, width * SIEGE_GAP_SHARE);
+  const rowAt = (list: { x: (typeof units)[number]; y: Obj }[], dist: number, note: string, from = 0) => {
+    const ws = list.map((w) => widthOf(w.y));
+    const total = ws.reduce((a, b) => a + b, 0) + gap * Math.max(0, ws.length - 1);
+    let o = -total / 2 + from;
+    list.forEach((w, i) => {
+      place(w.y, add(add(foot, mul(out, dist)), mul(along, o + ws[i]! / 2)), ws[i]!);
+      o += ws[i]! + gap;
+      fixes.push(`${name(w.x)} ${lineOf(w.y)}. satır: surun içindeydi — ${note}`);
+    });
+    return total;
+  };
+  rowAt(rows.guns!, guns, "toplar surun dışında, gediğe karşı batarya hattında");
+  const footW = rowAt(rows.foot!, guns + line, "piyade topların arkasında saf tuttu");
+  rows.horse!.forEach((w, i) => {
+    const side = w.x.u.kanat === "sol" ? 1 : w.x.u.kanat === "sag" ? -1 : i % 2 ? 1 : -1;
+    const wd = widthOf(w.y);
+    // The attackers face the wall (-out): their left hand is leftOf(-out).
+    const left = leftOf(mul(out, -1));
+    const sign = left[0] * along[0] + left[1] * along[1] > 0 ? side : -side;
+    rowAt([w], guns + line, "süvari kanatta", sign * (Math.max(footW, 0.3) / 2 + gap + wd / 2 + Math.floor(i / 2) * (wd + gap)));
+  });
+  rowAt(rows.rest!, guns + 2 * line, "ihtiyatta, piyadenin arkasında");
+  rowAt(rows.charge!, SIEGE_FOOT_KM, "hücum surun dibine kadar");
+  for (const h of heaps) {
+    const w = Math.min(len(sub(edge.b, edge.a)) * 0.8, Math.max(0.4, widthOf(h.y)));
+    place(h.y, add(foot, mul(out, -0.08)), w);
+    fixes.push(`${name(h.x)} ${lineOf(h.y)}. satır: savunanlar şehrin ortasında yığılıydı — saldırılan surda`);
+  }
+  return fixes;
+}
+
+/**
  * Fills the close map's missing unit formations from `kanat` and `hareket`; returns what was done (for the log). The
  * map object is changed in place. `year`: the story's year (guns before DIRECT_FIRE_UNTIL stand in front).
  */

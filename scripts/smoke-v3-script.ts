@@ -17,7 +17,7 @@ import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingProm
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
-import { clearBattleCards, fitBattleMap, resolveTactics } from "../src/lib/v3/maps/Tactics";
+import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
 import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
 import { TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
@@ -1144,6 +1144,27 @@ async function main() {
     };
     assert.ok(battery(1526) > 45.92, "1526: the guns in front of the Janissaries");
     assert.ok(battery(1916) < 45.92, "1916: the guns behind (indirect fire)");
+    // A siege (the Siege of Baghdad Short, 13 Nov 2026: Janissaries and guns inside the walls before the breach, the
+    // garrison one heap mid-town): besiegers outside in order — guns nearest the attacked wall, foot behind — the
+    // garrison on that wall; the breach's own line is the story's and stays.
+    const siege = {
+      merkez: [44.42, 33.35], genislik_km: 8,
+      surlar: [{ ad: "Walls", noktalar: [[44.41, 33.34], [44.43, 33.34], [44.43, 33.36], [44.41, 33.36]], gedik: { konum: [44.42, 33.36], satir: 1 } }],
+      birlikler: [
+        { ...OTT, ad: "Janissaries", tur: "piyade", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[44.415, 33.355], [44.425, 33.355]] }, { satir: 1, cephe: [[44.418, 33.358], [44.422, 33.358]] }] },
+        { ...OTT, ad: "Guns", tur: "topcu", kanat: "on", sayi: 3, yerler: [{ satir: 0, cephe: [[44.416, 33.349], [44.424, 33.349]] }] },
+        { ...OTT, ad: "Horse", tur: "suvari", kanat: "sag", sayi: 3, yerler: [{ satir: 0, cephe: [[44.404, 33.37], [44.408, 33.37]] }] },
+        { taraf: "Safavids", ad: "Garrison", tur: "piyade", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, kume: [44.42, 33.35] }] },
+      ],
+    };
+    const siegeFixes = siegeOrder(siege as never);
+    const sMid = (u: number, e = 0) => { const c = (siege.birlikler[u]!.yerler[e] as unknown as { cephe: [number, number][] }).cephe; return [(c[0]![0] + c[1]![0]) / 2, (c[0]![1] + c[1]![1]) / 2] as const; };
+    assert.equal(siegeFixes.length, 3, siegeFixes.join("\n"));
+    assert.ok(sMid(1)[1] > 33.36 && sMid(0)[1] > sMid(1)[1], `guns outside the north wall, the foot behind them: ${sMid(1)} ${sMid(0)}`);
+    assert.ok(Math.abs(sMid(3)[1] - 33.36) < 0.002, `the garrison on the attacked wall: ${sMid(3)}`);
+    assert.deepEqual(sMid(0, 1).map((v) => Math.round(v * 1e4) / 1e4), [44.42, 33.358], "the storm through the breach is the story's");
+    assert.deepEqual(sMid(2).map((v) => Math.round(v * 1e4) / 1e4), [44.406, 33.37], "a unit already outside keeps its place");
+    assert.deepEqual(siegeOrder({ merkez: [44.42, 33.35], genislik_km: 8, birlikler: siege.birlikler } as never), [], "no walls, no siege order");
     const packed = mapProblems({ donem: "1526", oyuncu_kadrosu: [], sahneler: [{
       id: "s5", mekan: "Close map: Mohács",
       satirlar: [{ karakter: "anlatici", metin: "The Hungarians charge, the Ottomans hold, then surround them.", duygu: "notr" }, { karakter: "ibrahim", metin: "A plan!", duygu: "mutlu" }, { karakter: "suleiman", metin: "Classic.", duygu: "notr" }],

@@ -489,6 +489,18 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
 }
 
 /**
+ * How far apart two badges' places must be, across and up/down, so neither covers the other (world px at `k` = the
+ * frame's px per world px): the boxes MapView draws (hudLayout.badgeExtent: the scroll's ends too, the relief or the
+ * flat map's badge — remotion-v3 is not imported from the studio's modules), room for the speaker to swell (+14 %) and,
+ * up and down, for its words over its ring (MapView's labelAvoid, ShotView's bubble ~120 px).
+ */
+export function badgeRoom(a: string, b: string, k: number, relief = true, tall = 1): { x: number; y: number } {
+  const extent = (label: string) => (relief ? { half: Math.max(49, (label.length * 11.5 + 34) / 2 + 12), up: 131 } : { half: Math.max(54, label.length * 9 + 18), up: 175 });
+  const [ea, eb] = [extent(a), extent(b)];
+  return { x: (ea.half + eb.half + 0.14 * Math.max(ea.half, eb.half) + 16) * k, y: (Math.max(ea.up, eb.up) * 1.14 + 6 + 120) * k * tall };
+}
+
+/**
  * Badges never rest on each other (the Kosovo 1389 trial: Murad's badge marched to Pristina and stopped on Lazar's,
  * their names one over the other). Where two badges are on the map at the same time and their resting places (a route's
  * end, or where they stand) are closer than the badges and their name scrolls are wide — at the camera's zoom when the
@@ -499,18 +511,14 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
  * another. The badges are settled in arrival order, each at the nearest place — beside or under/over one already there —
  * free of all of them: Guadalcanal (12 Nov 2026) set Callaghan's badge just wide enough from Abe's by the scroll alone,
  * then away from Scott's back towards Abe's, and the swollen speaker covered both (14 %, his words 32 % of Scott's).
+ * `tall`: how much more of the map an upright badge and its words take up and down (TILT_BADGE_TALL on a tilted map,
+ * whose ground is foreshortened under them; the Siege of Baghdad Short: one set over a speaker landed under his words).
  */
-export function spaceBadges<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(badges: readonly B[], camera: V3GeoMap["camera"], height: number, relief = true): B[] {
+export function spaceBadges<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(badges: readonly B[], camera: V3GeoMap["camera"], height: number, relief = true, tall = 1): B[] {
   const zoomAt = (frame: number) => (camera?.length ? ([...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]!).zoom : 1);
   const out = badges.map((b) => ({ ...b, path: b.path.map((p) => ({ x: p.x, y: p.y })) }));
   const rest = (b: (typeof out)[number]) => b.path[b.path.length - 1];
   const arrives = (b: (typeof out)[number]) => (b.path.length > 1 ? (b.moveStart ?? b.start) : b.start);
-  // hudLayout.badgeExtent (remotion-v3 is not imported from the studio's modules).
-  const extent = (label: string) => (relief ? { half: Math.max(49, (label.length * 11.5 + 34) / 2 + 12), up: 131 } : { half: Math.max(54, label.length * 9 + 18), up: 175 });
-  const SWELL = 0.14;
-  const GAP = 16;
-  // MapView keeps a speaker's words ~120 px over its badge (labelAvoid); ShotView's bubble is about that tall.
-  const WORDS_UP = 120;
   const order = out.map((_, i) => i).sort((a, b) => arrives(out[a]!) - arrives(out[b]!) || a - b);
   const settled: (typeof out)[number][] = [];
   for (const i of order) {
@@ -519,11 +527,7 @@ export function spaceBadges<B extends { readonly label: string; readonly start: 
     if (!pb) continue;
     // The later arrival moves; its zoom then decides how big the badges are on the world.
     const k = height / 1080 / zoomAt(arrives(b));
-    const eb = extent(b.label);
-    const others = settled.filter((a) => !((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start)).map((a) => {
-      const ea = extent(a.label);
-      return { at: rest(a)!, x: (ea.half + eb.half + SWELL * Math.max(ea.half, eb.half) + GAP) * k, y: (Math.max(ea.up, eb.up) * (1 + SWELL) + 6 + WORDS_UP) * k };
-    });
+    const others = settled.filter((a) => !((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start)).map((a) => ({ at: rest(a)!, ...badgeRoom(a.label, b.label, k, relief, tall) }));
     settled.push(b);
     const clashes = (x: number, y: number) => others.filter((o) => Math.abs(x - o.at.x) < o.x && Math.abs(y - o.at.y) < o.y).length;
     if (!clashes(pb.x, pb.y)) continue;
@@ -1515,6 +1519,11 @@ export const CLOSE_MAP_TILT_DEG = 30;
  * never shows ground past it (remotion-v3 scene/tilt.ts TILT_WORLD_PAST), and the smoke checks the two agree.
  */
 export const TILT_WORLD_SPAN = 1.5;
+/**
+ * How much more of a tilted close map an upright badge and its words take up and down than on a flat one: the ground under
+ * them is foreshortened (remotion-v3 tiltRoom: ~1.05 in the middle to ~1.35 at the far side), the badge is not.
+ */
+export const TILT_BADGE_TALL = 1.35;
 
 /**
  * The close battle map's camera tilt (degrees), or none: every close map (genislik_km ≤ 120) is tilted (owner, 13 Nov
@@ -1912,7 +1921,7 @@ function projectGeoMap(
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
       })
-    : badges, armyMarks, camera, height), camera, height, Boolean(opts.relief));
+    : badges, armyMarks, camera, height), camera, height, Boolean(opts.relief), tilt !== undefined ? TILT_BADGE_TALL : 1);
   const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
   for (const [i, s] of (opts.sideBadges ?? []).entries()) {
     const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);
@@ -1931,10 +1940,20 @@ function projectGeoMap(
     const middle = yerler[k] && "kume" in yerler[k]! ? 0 : Math.floor(pts.length / 2);
     const order = Array.from({ length: pts.length }, (_, j) => pts[(middle + (j % 2 ? (j + 1) / 2 : -j / 2) + pts.length * 2) % pts.length]!);
     const views = viewsFor(s.satirlar);
-    const at = order.reduce((best, p) => (badgeCost(p, marks, views) < badgeCost(best, marks, views) ? p : best), order[0]!);
-    sideBadges.push({ castId: s.karakter, label: opts.castName?.(s.karakter) ?? s.karakter, start: lineStart(s.satir, (map.rozetler?.length ?? 0) + i), path: [at] });
+    // A token free of the other badges' whole boxes first (badgeRoom: their scrolls too, not hides' ~150 px).
+    const label = opts.castName?.(s.karakter) ?? s.karakter;
+    const start = lineStart(s.satir, (map.rozetler?.length ?? 0) + i);
+    const zoom = camera?.length ? ([...camera].reverse().find((c) => c.frame <= start) ?? camera[0]!).zoom : 1;
+    const near = [...placed, ...sideBadges].flatMap((o) => (o.path.at(-1) && !((o.end ?? Infinity) <= start) ? [{ at: o.path.at(-1)!, ...badgeRoom(o.label, label, height / 1080 / zoom, Boolean(opts.relief), tilt !== undefined ? TILT_BADGE_TALL : 1) }] : []));
+    const covers = (p: XY) => near.filter((o) => Math.abs(p.x - o.at.x) < o.x && Math.abs(p.y - o.at.y) < o.y).length * 1000;
+    const cost = (p: XY) => covers(p) + badgeCost(p, marks, views);
+    const at = order.reduce((best, p) => (cost(p) < cost(best) ? p : best), order[0]!);
+    sideBadges.push({ castId: s.karakter, label, start, path: [at] });
   }
-  const allBadges = [...placed, ...sideBadges];
+  // A unit's spokesman stands on its tokens, the cheapest of them — but the badges counted there are only ~150 px wide
+  // (hides), not their scrolls (the Siege of Baghdad Short, 13 Nov 2026: "Safavid Infantryman" landed 40 px beside
+  // Bektash Khan's badge, his name under it). Spaced with the others like every badge (the earlier ones stay).
+  const allBadges = sideBadges.length ? spaceBadges([...placed, ...sideBadges], camera, height, Boolean(opts.relief), tilt !== undefined ? TILT_BADGE_TALL : 1) : placed;
   // Marks over the map (DFT Tarih): the strength bar, white flags, flames, glows and the date stamp.
   // A state named by a glow: the territory under that name on screen when it starts (a conquest's later land shares it).
   const territoryNamed = (name: string, at: number) => {

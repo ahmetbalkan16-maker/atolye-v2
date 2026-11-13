@@ -503,6 +503,19 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
         const d = tilt ? tiltProject(tilt.t, W / 2 + cam.zoom * (p.placed.x - cam.x), H / 2 + cam.zoom * (p.placed.y - cam.y)) : { scale: 1, scaleY: 1 };
         return [p.box, ...(p.priority ? [{ x0: p.placed.x - Math.max(p.size.half, (280 * k) / d.scale), x1: p.placed.x + Math.max(p.size.half, (280 * k) / d.scale), y0: p.box.y0 - (120 * k) / d.scaleY, y1: p.box.y0 }] : [])];
       }),
+    // A white flag's name over its pole (MapMarks' WhiteFlag: 26 px, centred 23 px right of the pole and 108 px over its
+    // foot): the Siege of Baghdad Short (13 Nov 2026) wrote "Defenders" under "BAGHDAD SURRENDERS".
+    ...(map.flags ?? []).flatMap((f) => {
+      if (!f.label || frame < f.start) return [];
+      const lines = labelLines(f.label.toLocaleUpperCase("en-US"));
+      const r = room(f.x, f.y);
+      const hw = ((Math.max(...lines.map((l) => l.length)) * (relief ? 0.58 : 0.78) * 26 * k) / 2 + 8 * k) * r.fx;
+      const hh = ((lines.length * 26 * (relief ? 0.98 : 1.1) * k) / 2 + 6 * k) * r.fy;
+      const cx = f.x + 23 * k * r.fx;
+      const cy = f.y - 108 * k * r.fy;
+      // The flag itself too: its pole from the foot up, the cloth to its right.
+      return [{ x0: cx - hw, x1: cx + hw, y0: cy - hh, y1: cy + hh }, { x0: f.x - 8 * k * r.fx, x1: f.x + 52 * k * r.fx, y0: f.y - 84 * k * r.fy, y1: f.y + 6 * k * r.fy }];
+    }),
   ];
   // A place's name under a badge gives way while the badge is there (Zanzibar Short, 3 Nov 2026: "HOUSE OF WONDERS"
   // lay under the scroll of "Sultan Khalid bin Barghash", where no other place was free): the speaker is the moment's

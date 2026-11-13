@@ -27,7 +27,7 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
-import { CLOSE_MAP_TILT_DEG, closeMapTilt, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
+import { badgeRoom, CLOSE_MAP_TILT_DEG, closeMapTilt, TILT_BADGE_TALL, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
 import { TILT_WORLD_PAST, tiltAt, tiltSeen } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
@@ -948,7 +948,15 @@ async function main() {
     const badges = shot.geoMap!.badges!;
     assert.deepEqual(badges.map((b) => b.castId), ["mehmed", "szilagyi"]);
     const tokens = shot.geoMap!.units!;
-    for (const [bi, side] of [[0, 0], [1, 1]] as const) assert.ok(tokens[side]!.steps[0]!.points.some((p) => p.x === badges[bi]!.path[0]!.x && p.y === badges[bi]!.path[0]!.y), `${badges[bi]!.castId} stands at a token of his side`);
+    assert.ok(tokens[0]!.steps[0]!.points.some((p) => p.x === badges[0]!.path[0]!.x && p.y === badges[0]!.path[0]!.y), "mehmed stands at a token of his side");
+    // The besieged side's tokens all lie 135–167 px under Mehmed's badge (the ring round them): at a token, Szilágyi's
+    // words would cover Mehmed (the Siege of Baghdad Short, 13 Nov 2026, the same clash). He stands beside his tokens,
+    // within about a badge's width, clear of Mehmed's whole badge and words (MapBuilder.badgeRoom).
+    const szi = badges[1]!.path[0]!;
+    const nearest = Math.min(...tokens[1]!.steps[0]!.points.map((p) => Math.hypot(p.x - szi.x, p.y - szi.y)));
+    const room = badgeRoom("Mehmed II", "Michael Szilágyi", 1, true, TILT_BADGE_TALL);
+    assert.ok(nearest <= 320, `szilagyi stands beside his side's tokens (${nearest.toFixed(0)} px)`);
+    assert.ok(Math.abs(szi.x - badges[0]!.path[0]!.x) >= room.x || Math.abs(szi.y - badges[0]!.path[0]!.y) >= room.y, `szilagyi clear of mehmed: ${JSON.stringify(szi)}`);
     const lines = tl.lines.filter((l) => l.sceneIndex === 0);
     const local = (sec: number) => Math.round(sec * 30) - shot.start;
     assert.deepEqual(badges[0]!.talk!.speaking, [{ start: local(lines[1]!.start), end: local(lines[1]!.end) }], "the sultan's badge speaks on his line only");

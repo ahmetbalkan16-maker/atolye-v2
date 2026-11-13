@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { ARCH_STYLES, BUILDING_KINDS, type BuildingKind, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
-import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
+import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics, siegeOrder } from "../maps/Tactics";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
 /**
@@ -361,6 +361,8 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       // The ceiling for the second fit: the writer's width, or the wider map that took in what was off it.
       const ceiling = written !== undefined && typeof s.harita.genislik_km === "number" ? Math.max(written, s.harita.genislik_km) : written;
       fixes.push(...resolveTactics(s.harita, where, typeof draft.donem === "string" ? periodEndYear(draft.donem) : undefined));
+      // A siege: besiegers outside the walls in order (guns, foot, horse) until the breach, defenders on the wall.
+      fixes.push(...siegeOrder(s.harita, where));
       fixes.push(...fitBattleMap(s.harita, where, ceiling));
     }
     if (Array.isArray(s.sahne_duzeni)) {
