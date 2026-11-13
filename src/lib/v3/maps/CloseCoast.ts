@@ -39,8 +39,13 @@ export async function ohmOverpass(query: string, timeoutMs = 60_000): Promise<{ 
 }
 /** The main Overpass server and public mirrors, tried in turn (the main one answers 502/504 when busy; on 23 Oct 2026 only VK's mirror answered at all). */
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
-/** Bump when the assembly changes, so the library builds the coast again. */
-const COAST_VERSION = 1;
+/**
+ * Bump when the assembly changes, so the library builds the coast again. 2 (13 Nov 2026): a tiny island simplified to a
+ * closed sliver, or a stray coast piece ending inside the box, is no longer joined along the box's edge (the tilted 1453
+ * map's far band showed a straight-edged sea from such a point to the box's corner). A flat map keeps reading its box's
+ * coast built by version 1 (closeCoastFor `legacy`): its picture must not change.
+ */
+const COAST_VERSION = 2;
 /** Coast points closer than this to the simplified line are dropped (~13 m). */
 const SIMPLIFY_DEG = 0.00012;
 
@@ -244,6 +249,12 @@ export function clipChain(chain: readonly Pt[], box: Box): Pt[][] {
   return runs;
 }
 
+/** Whether a point lies on the box's edge (where clipChain cut a run, within rounding). */
+function onEdge(p: Pt, b: Box): boolean {
+  const e = 1e-7;
+  return Math.abs(p[0] - b.west) < e || Math.abs(p[0] - b.east) < e || Math.abs(p[1] - b.south) < e || Math.abs(p[1] - b.north) < e;
+}
+
 /** Where a point on the box's edge lies going round it anticlockwise from the south-west corner (0..4). */
 function edgeT(p: Pt, b: Box): number {
   const fx = (p[0] - b.west) / (b.east - b.west);
@@ -277,8 +288,13 @@ function ringArea(r: readonly (readonly [number, number])[]): number {
  */
 export function assembleLand(ways: readonly (readonly Pt[])[], box: Box, centreIsLand: boolean): CloseCoast {
   const runs = chainWays(ways).flatMap((c) => clipChain(simplifyLine(c, SIMPLIFY_DEG), box));
-  const closed = runs.filter((r) => r.length > 3 && same(r[0]!, r[r.length - 1]!));
-  const open = runs.filter((r) => !(r.length > 3 && same(r[0]!, r[r.length - 1]!))).map((r) => ({ pts: r, from: edgeT(r[0]!, box), to: edgeT(r[r.length - 1]!, box) }));
+  // A run ending where it starts is a ring (an island, or water inside the land): one of three points or fewer is a
+  // sliver simplification left of a tiny island, dropped. A run ending inside the box at both ends (a coast piece cut
+  // off from the rest) cannot be joined along the box's edge: dropped too — joined, it drew a straight shore from
+  // its end to the box's corner.
+  const ring = (r: readonly Pt[]) => same(r[0]!, r[r.length - 1]!);
+  const closed = runs.filter((r) => r.length > 3 && ring(r));
+  const open = runs.filter((r) => !ring(r) && (onEdge(r[0]!, box) || onEdge(r[r.length - 1]!, box))).map((r) => ({ pts: r, from: edgeT(r[0]!, box), to: edgeT(r[r.length - 1]!, box) }));
   const land: Polygon[] = [];
   const water: Polygon[] = [];
   const used = new Set<number>();
@@ -311,18 +327,27 @@ export function assembleLand(ways: readonly (readonly Pt[])[], box: Box, centreI
 
 /**
  * The close map's coast from OpenStreetMap for a world's box, from the library or fetched once; undefined when the
- * map is wider than a close map or Overpass does not answer (the map then keeps Natural Earth's coast).
+ * map is wider than a close map or Overpass does not answer (the map then keeps Natural Earth's coast). `legacy`: a
+ * coast the library holds from an older assembly is used as it is when there is none of this one (a flat map's).
  */
-export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pick<MapWorld, "bounds">, fallbackLand: readonly Polygon[], log: (s: string) => void = () => {}): Promise<CloseCoast | undefined> {
+export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pick<MapWorld, "bounds">, fallbackLand: readonly Polygon[], log: (s: string) => void = () => {}, legacy = false): Promise<CloseCoast | undefined> {
   // A little past the world on every side: where the land is closed along the box's edge, that edge (no coast) is
   // never in sight (a straight "shore" ran along the top of the first Constantinople map).
   const b = world.bounds;
   const mx = (b.east - b.west) * 0.05;
   const my = (b.north - b.south) * 0.05;
   const box: Box = { west: round(b.west - mx), east: round(b.east + mx), south: round(b.south - my), north: round(b.north + my) };
-  const key = createHash("sha256").update(JSON.stringify({ v: COAST_VERSION, box })).digest("hex").slice(0, 20);
-  const lib = path.join(paths.workRoot, "_kutuphane", "osm-kiyi", `${key}.json`);
+  const libOf = (v: number) => path.join(paths.workRoot, "_kutuphane", "osm-kiyi", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+  const lib = libOf(COAST_VERSION);
   if (existsSync(lib)) return JSON.parse(await fs.readFile(lib, "utf8")) as CloseCoast;
+  const older = async () => {
+    for (let v = COAST_VERSION - 1; v >= 1; v--) if (existsSync(libOf(v))) return JSON.parse(await fs.readFile(libOf(v), "utf8")) as CloseCoast;
+    return undefined;
+  };
+  if (legacy) {
+    const old = await older();
+    if (old) return old;
+  }
   // Far from any sea (the Kosovo field, 1389): no coast to fetch — Natural Earth's land covers the box and ~20 km round it.
   if (inland(box, fallbackLand)) return undefined;
   const query = `[out:json][timeout:90];way["natural"="coastline"](${box.south},${box.west},${box.north},${box.east});out geom;`;
@@ -336,8 +361,10 @@ export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pic
     if (!existsSync(lib)) await fs.writeFile(lib, JSON.stringify(coast));
     return coast;
   } catch (e) {
-    log(`⚠ yakın harita kıyısı alınamadı (${(e as Error).message.slice(0, 120)}); Natural Earth kıyısı kullanılır`);
-    return undefined;
+    // Offline: the box's coast from an older assembly, when the library has one, is still far finer than Natural Earth's.
+    const old = await older();
+    log(`⚠ yakın harita kıyısı alınamadı (${(e as Error).message.slice(0, 120)}); ${old ? "kütüphanedeki eski kıyı" : "Natural Earth kıyısı"} kullanılır`);
+    return old;
   }
 }
 

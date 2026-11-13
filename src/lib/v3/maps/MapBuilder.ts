@@ -1507,22 +1507,23 @@ export interface MapWorld {
   readonly keys: readonly { readonly satir?: number; readonly view: MapView }[];
 }
 
-/** The close map's tilted camera trial: degrees from straight down (owner, 12 Nov 2026, "Kings and Generals"-like). */
+/** The close map's tilted camera: degrees from straight down (owner, 12 Nov 2026, "Kings and Generals"-like). */
 export const CLOSE_MAP_TILT_DEG = 30;
 /**
  * How much wider and taller than each camera view the tilted close map's world is: the tilted camera sees ground beyond
- * the framed view (most at the far side's corners, ~1.43× the view's half height above its middle at 30°); the smoke
- * checks this against the renderer's geometry (remotion-v3 scene/tilt.ts).
+ * the framed view (most at the far side's corners, ~1.43× the view's half height above its middle at 30°); the renderer
+ * never shows ground past it (remotion-v3 scene/tilt.ts TILT_WORLD_PAST), and the smoke checks the two agree.
  */
 export const TILT_WORLD_SPAN = 1.5;
 
 /**
- * The close battle map's camera tilt (degrees), or none: a trial switched on only by `ATOLYE_V3_EGIK_HARITA=1` when the
- * plan is made (the renderer runs in Chrome and reads no settings), and only on a close map (genislik_km ≤ 120).
- * Every map-world consumer (the ground's relief and coast, the castle lookup, the plan) asks this, so they agree.
+ * The close battle map's camera tilt (degrees), or none: every close map (genislik_km ≤ 120) is tilted (owner, 13 Nov
+ * 2026: "düzeltip aç" — on after the trial's armies, crowded far names and straight-edged far water were fixed) unless
+ * `ATOLYE_V3_EGIK_HARITA=0` when the plan is made (the renderer runs in Chrome and reads no settings); a wider map
+ * never. Every map-world consumer (the ground's relief and coast, the castle lookup, the plan) asks this, so they agree.
  */
 export function closeMapTilt(map: SceneMap, env: Readonly<Record<string, string | undefined>> = process.env): number | undefined {
-  return env.ATOLYE_V3_EGIK_HARITA?.trim() === "1" && map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? CLOSE_MAP_TILT_DEG : undefined;
+  return env.ATOLYE_V3_EGIK_HARITA?.trim() !== "0" && map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? CLOSE_MAP_TILT_DEG : undefined;
 }
 
 /**

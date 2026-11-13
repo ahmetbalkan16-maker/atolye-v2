@@ -17,6 +17,13 @@ Owner 12 Kas akşamı: işi Opus 5.5 ajanlarına dağıt; "fotoğraflarda hala k
   kapalıyken 9 kare md5 aynı (bağımsız tekrar: Cannae 300 aynı). Kareler `private/temp/egik-final-*` / `egik-before-*`.
   Sınırlar: ordular ~%13 küçük görünür, Cannae'de "Battle of Cannae" adı + kılıçlar Maharbal rozetine biniyor, 1453 açılışında
   uzak bantta düz kenarlı su, harita karelerinde render +%45. Owner kararı bekliyor (aç / açı / kırpma).
+- Owner 13 Kas: "düzeltip aç" → eğik kamera artık her yakın haritada VARSAYILAN AÇIK (`ATOLYE_V3_EGIK_HARITA=0` düz çizer).
+  Düzeltmeler: `tiltAt` her kamera anahtarının eylemini (bloklar, konuşan rozet, savaşlar) çerçeveler → ordular en az düz kadar
+  büyük; dik öğeler `U()` ile mutlak dünya px'inde (kılıçlar kayıyordu), etiket kaçınması `TILT_TALL` 1,25 ile uzak isimleri
+  ayırır; rozet kenar kaydırması satırın kendi şeridiyle (`badgeEdgeFits` görünüm dizisi); kıyı `COAST_VERSION 2` kutu içinde
+  biten kıyı parçalarını ve kıymık adaları birleştirmez (1453 düz kenarlı su), düz harita eski v1 kıyısını okur; çevrimdışıyken
+  kütüphanedeki eski kıyı. Kanıt: kapalıda 4 kare HEAD ile md5 aynı (`private/temp/egik2-head-*` = `egik2-off-*`), açık kareler
+  `egik2-after-*`; smoke-v3-motion 22, director 75, mix 22 PASS; kök + remotion tsc 0, lint 0/0. Canlı DEĞİL (toplu alınacak).
 - Sıradaki: canlıya toplu alma (owner isteğiyle), gerçek bir kara savaşı siparişiyle yazarın yeni kuralları ve çizimin denenmesi.
 
 ## 12 Kasım 2026 (8) — yakın savaş haritası: kalabalık ordular, kendi yönüne dönen bloklar, ok yağmuru, yerde kalan ölüler, sahne sonuna taşan kayıplar (feature dalı, canlı DEĞİL)

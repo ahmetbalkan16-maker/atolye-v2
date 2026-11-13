@@ -38,8 +38,23 @@ writer's data alone, so improve these files rather than adding a second path:
 - Ground: `scripts/v3/terrain_close.py` bakes the painted relief once per place (bump `Relief.CLOSE_RELIEF_VERSION`
   after a change); `MapCloseGround.tsx` + `mapNature.ts` draw woods, fields, hills, rivers' banks and cloud shadows.
 - Anything that moves is a pure function of the frame (Remotion renders frames in any order, in parallel); no per-frame
-  blur filters. Proof: `smoke-v3-motion` (J–S), `smoke-v3-episode-director`, `smoke-v3-mix`, and stills from
+  blur filters. Proof: `smoke-v3-motion` (J–U), `smoke-v3-episode-director`, `smoke-v3-mix`, and stills from
   `npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> --sahne <id> --kare 4,10` looked at before and after.
+- Tilted camera (2.5D, on for every close map since 13 Nov 2026; `ATOLYE_V3_EGIK_HARITA=0` at plan time draws it flat,
+  bit for bit as before — prove "off" with md5 of stills rendered from HEAD first). Plan: `MapBuilder.closeMapTilt` sets
+  `V3GeoMap.tilt` (30°) and a world 1.5× each view (`TILT_WORLD_SPAN`; coast, rivers, relief and castles ask the same
+  switch). Geometry: `remotion-v3/src/scene/tilt.ts` — `tiltAt` frames each camera key's action (`tiltItems`: blocks,
+  speaking badges, battles and their names) so the armies look at least as large as flat, everything kept stays inside
+  the pushed frame (or as near the edge as flat had it) and off the atlas corner, the picture pans if needed, the ground
+  never shows past the world; MapView and ShotView's bubbles (`badgeAnchor`) must ask the same `tiltAt`. Upright things
+  (names, badges, flags, swords, unit labels) go through `U(x, y, node)` with `node` in absolute world px — never inside a
+  translated group (the swords landed off their place) — at `uprightScale` (≤ 1); label avoidance stays in world px but
+  every upright box is its flat box × `tiltRoom` (taller up the far ground), placeCloseLabels' screen offsets go through
+  `spotAt`, and edge slides use the row's own strip (`viewAt`). The upright layer draws only upright things (`layer`
+  props of CloseGround, UnitTokens, MapMarks; `G()` in MapView) — ground drawn twice cost +45 %. A coast assembled for a
+  bigger box must drop stray coast pieces (CloseCoast `assembleLand`, `COAST_VERSION`); a flat map keeps its library coast.
+  Proof: `smoke-v3-motion` T–U, `smoke-v3-episode-director` (tilt and coast scenarios), stills flat vs tilted measured
+  with token boxes, and `--dikey` once (a Short is the 16:9 turned 90°).
 - Period photos move only as one flat picture (Ken Burns); the depth warp is off (`ATOLYE_V3_DERINLIK=1` to try).
 
 ## House style (match the file you are in)

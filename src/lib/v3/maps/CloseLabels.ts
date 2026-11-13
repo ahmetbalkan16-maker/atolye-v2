@@ -44,6 +44,12 @@ const STOP_FULL_FRAMES = 180;
 const STOP_MAX_FRAMES = 360;
 /** How bad a name hidden under a token is (a moving formation can still cross it). */
 const TOKEN_WEIGHT = 8;
+/**
+ * On a tilted close map (V3GeoMap.tilt) names, badges and swords stand upright at their screen height while the ground
+ * under them is foreshortened (the renderer's tiltRoom: ~1.05 in the middle to ~1.35 at the far side): their screen
+ * parts take this much more of the map up and down, so names placed apart stay apart on the tilted screen.
+ */
+const TILT_TALL = 1.25;
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const overlap = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
@@ -115,12 +121,17 @@ function samples(points: readonly XY[], gap: number): XY[] {
   return out;
 }
 
-const rectAt = (o: Pick<Obstacle, "x" | "y" | "w" | "s">, k: number): Rect => {
+/** `ky`: how much more of the map a screen part takes up and down (TILT_TALL on a tilted map, else 1). */
+const rectAt = (o: Pick<Obstacle, "x" | "y" | "w" | "s">, k: number, ky = 1): Rect => {
   const w = o.w ?? ZERO;
   const s = o.s ?? ZERO;
+  if (ky !== 1) return { x0: o.x + w.x0 + s.x0 * k, y0: o.y + w.y0 + s.y0 * k * ky, x1: o.x + w.x1 + s.x1 * k, y1: o.y + w.y1 + s.y1 * k * ky };
   return { x0: o.x + w.x0 + s.x0 * k, y0: o.y + w.y0 + s.y0 * k, x1: o.x + w.x1 + s.x1 * k, y1: o.y + w.y1 + s.y1 * k };
 };
-const nameRect = (c: Candidate, k: number): Rect => ({ x0: c.spot.x + (c.spot.dx - c.box.w / 2) * k, y0: c.spot.y + (c.spot.dy - c.box.h / 2) * k, x1: c.spot.x + (c.spot.dx + c.box.w / 2) * k, y1: c.spot.y + (c.spot.dy + c.box.h / 2) * k });
+const nameRect = (c: Candidate, k: number, ky = 1): Rect =>
+  ky !== 1
+    ? { x0: c.spot.x + (c.spot.dx - c.box.w / 2) * k, y0: c.spot.y + (c.spot.dy - c.box.h / 2) * k * ky, x1: c.spot.x + (c.spot.dx + c.box.w / 2) * k, y1: c.spot.y + (c.spot.dy + c.box.h / 2) * k * ky }
+    : { x0: c.spot.x + (c.spot.dx - c.box.w / 2) * k, y0: c.spot.y + (c.spot.dy - c.box.h / 2) * k, x1: c.spot.x + (c.spot.dx + c.box.w / 2) * k, y1: c.spot.y + (c.spot.dy + c.box.h / 2) * k };
 const inside = (p: XY, r: Rect) => p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1;
 
 /** The upright box of a name turned by `angle` degrees (a road's name). */
@@ -141,7 +152,7 @@ function readableAngle(t: XY): number {
  * Picks the candidate covering the least over the stops it is seen in (from `start` on). Off-screen marks do not count
  * at a stop where the name's own anchor is out of the picture (the name leaves with its mark).
  */
-function choose(cands: readonly Candidate[], start: number, stops: readonly Stop[], obstacles: readonly Obstacle[]): Candidate {
+function choose(cands: readonly Candidate[], start: number, stops: readonly Stop[], obstacles: readonly Obstacle[], ky = 1): Candidate {
   let best = cands[0]!;
   let bestCost = Infinity;
   cands.forEach((c, i) => {
@@ -152,19 +163,19 @@ function choose(cands: readonly Candidate[], start: number, stops: readonly Stop
       const from = Math.max(start, st.from);
       // A stop counts by how long it is on screen: a covered name for a moment matters less than for a whole line.
       const time = Math.min(STOP_MAX_FRAMES, st.to - from) / STOP_FULL_FRAMES;
-      const r = nameRect(c, st.k);
+      const r = nameRect(c, st.k, ky);
       const area = (r.x1 - r.x0) * (r.y1 - r.y0) || 1;
       const margin = 20 * st.k;
       const shown = { x0: st.view.x0 + margin, y0: st.view.y0 + margin, x1: st.view.x1 - margin, y1: st.view.y1 - margin };
       // Cut by the picture's edge only as far as the place pushes it out: a mark at the edge may have its name cut.
-      const centred = nameRect({ ...c, spot: { ...c.spot, dx: 0, dy: 0 } }, st.k);
+      const centred = nameRect({ ...c, spot: { ...c.spot, dx: 0, dy: 0 } }, st.k, ky);
       const cut = 1 - overlap(r, shown) / area - (1 - overlap(centred, shown) / area);
       let here = Math.max(0, cut) * EDGE_WEIGHT;
       const corner = { x0: st.view.x0 + CORNER.x0 * st.k, x1: st.view.x0 + CORNER.x1 * st.k, y0: st.view.y1 - CORNER.up * st.k, y1: st.view.y1 - CORNER.down * st.k };
       if (overlap(r, corner) > 0) here += CORNER_WEIGHT;
       for (const o of obstacles) {
         if (o.to <= from || o.from >= st.to) continue;
-        const a = overlap(r, rectAt(o, st.k));
+        const a = overlap(r, rectAt(o, st.k, ky));
         if (a > 0) here += o.weight * (0.35 + 0.65 * Math.min(1, a / area));
       }
       cost += here * time;
@@ -252,7 +263,7 @@ export function placeCloseLabels(m: V3GeoMap, width: number, height: number): V3
   const stops = cameraStops(m, width, height);
   const obstacles = marksOf(m, close, relief);
   const place = (cands: readonly Candidate[], start: number): V3LabelSpot => {
-    const c = choose(cands, start, stops, obstacles);
+    const c = choose(cands, start, stops, obstacles, m.tilt ? TILT_TALL : 1);
     // A placed name is a mark the later names leave free.
     obstacles.push({ x: c.spot.x, y: c.spot.y, s: { x0: c.spot.dx - c.box.w / 2, y0: c.spot.dy - c.box.h / 2, x1: c.spot.dx + c.box.w / 2, y1: c.spot.dy + c.box.h / 2 }, from: start, to: Infinity, weight: NAME_WEIGHT });
     return c.spot;

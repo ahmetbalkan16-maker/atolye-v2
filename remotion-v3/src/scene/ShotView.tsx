@@ -14,6 +14,7 @@ import { InfoCardView } from "./InfoCard";
 import { mapBubbleSize } from "./mapEffects";
 import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } from "./MapView";
+import { tiltAt } from "./tilt";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
@@ -361,10 +362,11 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
             return a ? <NameTag key={`n-${i}`} tag={tag} anchor={a} language={language} /> : null;
           })}
       {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the
-          scale counts every zoom the map is seen through: its own camera, the shot camera and the slow push. */}
+          scale counts every zoom the map is seen through: its own camera, the shot camera, the slow push and a tilted
+          map's camera (its scale at the picture's middle row). */}
       {shot.geoMap?.relief && shot.geoMap.kmPerPx && !insertOn ? (
         <svg width={OW} height={OH} style={{ position: "absolute", left: 0, top: 0 }}>
-          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom * fit)} height={OH} width={OW} />
+          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom * fit * (shot.geoMap.tilt ? tiltAt(shot.geoMap, frame, fps, W, H)!.s : 1))} height={OH} width={OW} />
         </svg>
       ) : null}
       {/* The narrator's headline strips (photo documentaries), over the pictures. */}

@@ -4,7 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
 import { BAR_W, barTop, plateWidth } from "./hudLayout";
-import type { Up } from "./tilt";
+import type { TiltLayer, Up } from "./tilt";
 
 /**
  * Marks over the living map (owner, 23 Oct 2026, after DFT Tarih's Belgrade 1521): white flags of surrender, flames over
@@ -91,15 +91,17 @@ const GLOW_FADE_S = 0.5;
 /**
  * Flags, flames and glows of a map, in world pixels (drawn over the territories, under the tokens and badges).
  * `up`: a tilted map's layer (MapView) — a white flag stands upright over the tilted ground; absent, drawn as it is.
+ * `layer`: which of a tilted map's layers this is — the upright one draws only the flags (the ground is drawn once).
  */
-export function MapMarks({ map, frame, fps, k, label, up }: { map: V3GeoMap; frame: number; fps: number; k: number; label: (text: string, size: number) => React.ReactNode; up?: Up }) {
+export function MapMarks({ map, frame, fps, k, label, up, layer }: { map: V3GeoMap; frame: number; fps: number; k: number; label: (text: string, size: number) => React.ReactNode; up?: Up; layer?: TiltLayer }) {
+  const ground = layer !== "upright";
   const fade = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * GLOW_FADE_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end - Math.round(fps * GLOW_FADE_S), end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   };
   return (
     <g>
-      {(map.glows ?? []).map((g, i) => {
+      {(ground ? (map.glows ?? []) : []).map((g, i) => {
         if (frame < g.start || frame >= g.end) return null;
         const a = fade(g.start, g.end);
         const pulse = 0.7 + 0.3 * Math.sin((frame - g.start) * 0.22);
@@ -129,7 +131,7 @@ export function MapMarks({ map, frame, fps, k, label, up }: { map: V3GeoMap; fra
           </g>
         );
       })}
-      {(map.fires ?? []).map((f, i) => (frame < f.start ? null : <Fire key={`fi${i}`} x={f.x} y={f.y} size={f.size} alpha={fade(f.start, f.end)} frame={frame} k={k} seed={i * 13 + 5} />))}
+      {(ground ? (map.fires ?? []) : []).map((f, i) => (frame < f.start ? null : <Fire key={`fi${i}`} x={f.x} y={f.y} size={f.size} alpha={fade(f.start, f.end)} frame={frame} k={k} seed={i * 13 + 5} />))}
       {(map.flags ?? []).map((f, i) => {
         if (frame < f.start) return null;
         const flag = <WhiteFlag key={`fl${i}`} x={f.x} y={f.y} start={f.start} frame={frame} fps={fps} k={k} {...(f.label ? { label: label(f.label, 26) } : {})} />;

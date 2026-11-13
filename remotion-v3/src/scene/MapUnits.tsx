@@ -7,7 +7,7 @@ import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
 import { type Box, labelSpot } from "./hudLayout";
 import { crowdFigures, crowdGrid, facingDir, type Foe, marching, menOf, thinShare, type UnitKind } from "./unitCrowd";
-import type { Up } from "./tilt";
+import type { TiltLayer, Up } from "./tilt";
 
 /**
  * Unit tokens and battle effects on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map
@@ -618,6 +618,19 @@ export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number
   return placed;
 }
 
+let lastPlaced: { map: V3GeoMap; frame: number; fps: number; k: number; placed: ReturnType<typeof placeTokens> } | undefined;
+
+/**
+ * placeTokens for a tilted map's two layers (MapView draws the ground and the upright labels apart, at the same frame):
+ * the second asks for what the first just placed. One entry (a tab renders one frame at a time); read only.
+ */
+function placedOnce(map: V3GeoMap, frame: number, fps: number, k: number): ReturnType<typeof placeTokens> {
+  if (lastPlaced && lastPlaced.map === map && lastPlaced.frame === frame && lastPlaced.fps === fps && lastPlaced.k === k) return lastPlaced.placed;
+  const placed = placeTokens(map, frame, fps, k);
+  lastPlaced = { map, frame, fps, k, placed };
+  return placed;
+}
+
 /** A burst where fighting happens: dust and sparks before gunpowder, a fireball and smoke after. `p` 0..1. */
 export function Burst({ x, y, r, p, era, seed }: { x: number; y: number; r: number; p: number; era: V3GeoMap["era"]; seed: number }) {
   if (p <= 0 || p >= 1) return null;
@@ -973,18 +986,24 @@ function DustTrail({ x, y, dx, dy, r, amount, horse, frame, seed }: { x: number;
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
 /**
  * `up`: a tilted map's layer (MapView) — the labels stand upright over the tilted ground; absent, drawn as they are.
+ * `layer`: which of a tilted map's two layers this is — the ground draws the blocks and no labels, the upright one only
+ * the labels (each was drawn on both: +45 % render time). `room`: a label's room on the flat picture against its flat
+ * size at a world point there (tilt.tiltRoom), so labels kept apart in world px stay apart on the tilted screen; `viewAt`:
+ * the world the tilted frame shows at a row (wider at the far rows than `view`, the narrowest).
  * `view`: the world rectangle the camera shows at this frame (MapView); a label stays inside it. `avoid`: the badges and
  * screen marks in world px (MapView), which no label is printed over (labelSpot).
  */
-export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: Box; avoid?: readonly Box[]; up?: Up }) {
+export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, viewAt }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: Box; avoid?: readonly Box[]; up?: Up; layer?: TiltLayer; room?: (x: number, y: number) => { fx: number; fy: number }; viewAt?: (y: number) => Box }) {
   const units = map.units ?? [];
   if (!units.length) return null;
   const r = TOKEN_R * k;
-  // Spaced on screen for this frame's zoom, all sides together, and closing in where they fight.
-  const placed = placeTokens(map, frame, fps, k);
+  // Spaced on screen for this frame's zoom, all sides together, and closing in where they fight (a tilted map's two
+  // layers ask for the same frame: placedOnce).
+  const placed = layer ? placedOnce(map, frame, fps, k) : placeTokens(map, frame, fps, k);
+  const labels = layer !== "ground";
   // Where two sides' standing tokens nearly touch, the front flickers with clashes.
   const clashes: { x: number; y: number; seed: number }[] = [];
-  for (let a = 0; a < units.length; a++)
+  for (let a = 0; a < (layer === "upright" ? 0 : units.length); a++)
     for (let b = a + 1; b < units.length; b++)
       if (units[a]!.side !== units[b]!.side)
         placed[a]!.forEach((p, i) =>
@@ -994,7 +1013,7 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3Geo
       );
   const period = Math.round(fps * 1.1);
   // Each block's way, its unit's men behind a block, and how thin its ranks have worn as the unit lost blocks.
-  const facings = steadyFacingsAt(map, placed, frame, fps, k);
+  const facings = layer === "upright" ? [] : steadyFacingsAt(map, placed, frame, fps, k);
   const men = units.map((_, ui) => menPerBlock(units, ui));
   const thin = units.map((u) => {
     const count = Math.max(1, ...u.steps.map((st) => st.points.length));
@@ -1029,14 +1048,16 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3Geo
   // The labels of this frame settle in turn — the unit the narrator names first, then each side's strength — each kept
   // inside the frame and off the badges, the screen marks and the labels settled before it (labelSpot).
   const taken: Box[] = [...(avoid ?? [])];
-  const settle = (at: { x: number; y: number }, half: { x: number; y: number }, anchor: { x: number; y: number }) => {
+  const settle = (at: { x: number; y: number }, wanted: { x: number; y: number }, anchor: { x: number; y: number }) => {
     if (!view) return { ...at, alpha: 1 };
-    const spot = labelSpot(at, half, anchor, view, taken, { margin: 12 * s, fade: 40 * s, reach: half.y * 8 });
+    const f = room?.(at.x, at.y);
+    const half = f ? { x: wanted.x * f.fx, y: wanted.y * f.fy } : wanted;
+    const spot = labelSpot(at, half, anchor, viewAt ? viewAt(at.y) : view, taken, { margin: 12 * s, fade: 40 * s, reach: half.y * 8 });
     if (spot.alpha > 0) taken.push({ x0: spot.x - half.x, x1: spot.x + half.x, y0: spot.y - half.y, y1: spot.y + half.y });
     return spot;
   };
   // A unit's own name at it while the narrator speaks of it or it moves ("Bayezid's right wing" as it sweeps).
-  const callouts = units.map((u, ui) => {
+  const callouts = (labels ? units : []).map((u, ui) => {
     const c = (u.callouts ?? []).find((x) => frame >= x.start - fps * 0.2 && frame < x.end + fps * 0.4);
     const pts = standing[ui]!;
     const own = centres[ui];
@@ -1053,7 +1074,7 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3Geo
     return spot.alpha > 0 ? { name: u.name, color: u.color, w, x: spot.x, y: spot.y, a: a * spot.alpha } : undefined;
   });
   // Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men").
-  const strengths = units.map((u, ui) => {
+  const strengths = (labels ? units : []).map((u, ui) => {
     let label = u.label;
     for (const st of u.steps) if (st.start <= frame && st.label) label = st.label;
     const own = centres[ui];
@@ -1077,6 +1098,29 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3Geo
     const spot = settle({ x: own.x + before.x + (now.x - before.x) * blend, y: own.y + before.y + (now.y - before.y) * blend }, { x: w / 2, y: 17 * s }, own);
     return spot.alpha > 0 ? { label, color: u.color, w, x: spot.x, y: spot.y, a: a * spot.alpha } : undefined;
   });
+  const strengthNodes = strengths.map((l, ui) =>
+    l ? (
+      U(l.x, l.y, <g key={`lb${ui}`} {...yer("etiket", l.label)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+        <rect x={-l.w / 2} y={-17 * s} width={l.w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={l.color} strokeWidth={3.5 * s} />
+        <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
+          {l.label}
+        </text>
+      </g>)
+    ) : null,
+  );
+  // A unit's own name at it while the narrator speaks of it or it moves.
+  const calloutNodes = callouts.map((l, ui) =>
+    l ? (
+      U(l.x, l.y, <g key={`ad${ui}`} {...yer("etiket", l.name)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+        <rect x={-l.w / 2} y={-14 * s} width={l.w} height={28 * s} rx={14 * s} fill={l.color} stroke="#ffffff" strokeWidth={2.5 * s} />
+        <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
+          {l.name}
+        </text>
+      </g>)
+    ) : null,
+  );
+  // A tilted map's upright layer: the labels only.
+  if (layer === "upright") return <g>{strengthNodes}{calloutNodes}</g>;
   return (
     <g>
       {/* The side the narrator speaks of is framed in light while the line is told (DFT Tarih's highlight). */}
@@ -1189,27 +1233,9 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3Geo
         return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era="orta" seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;
       })}
       {/* Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men"). */}
-      {strengths.map((l, ui) =>
-        l ? (
-          U(l.x, l.y, <g key={`lb${ui}`} {...yer("etiket", l.label)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
-            <rect x={-l.w / 2} y={-17 * s} width={l.w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={l.color} strokeWidth={3.5 * s} />
-            <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
-              {l.label}
-            </text>
-          </g>)
-        ) : null,
-      )}
+      {strengthNodes}
       {/* A unit's own name at it while the narrator speaks of it or it moves. */}
-      {callouts.map((l, ui) =>
-        l ? (
-          U(l.x, l.y, <g key={`ad${ui}`} {...yer("etiket", l.name)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
-            <rect x={-l.w / 2} y={-14 * s} width={l.w} height={28 * s} rx={14 * s} fill={l.color} stroke="#ffffff" strokeWidth={2.5 * s} />
-            <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
-              {l.name}
-            </text>
-          </g>)
-        ) : null,
-      )}
+      {calloutNodes}
     </g>
   );
 }

@@ -474,9 +474,10 @@ export interface V3GeoMap {
     readonly losses?: readonly number[];
   }[];
   /**
-   * A trial (owner, 12 Nov 2026, "Kings and Generals"-like): the close battle map's ground and armies seen from a camera
-   * tilted this many degrees from straight down, the far side smaller; names, badges and flags stay upright at their
-   * places (remotion-v3 scene/tilt.ts). Only on a close map, only when `ATOLYE_V3_EGIK_HARITA=1` at plan time
+   * Owner, 12 Nov 2026 ("Kings and Generals"-like; on by default since 13 Nov 2026): the close battle map's ground and
+   * armies seen from a camera tilted this many degrees from straight down, the far side smaller, the camera framing the
+   * action so the armies look at least as large as flat; names, badges and flags stay upright at their places
+   * (remotion-v3 scene/tilt.ts). Only on a close map, unless `ATOLYE_V3_EGIK_HARITA=0` at plan time
    * (MapBuilder.closeMapTilt); absent, the map is drawn flat exactly as before.
    */
   readonly tilt?: number;

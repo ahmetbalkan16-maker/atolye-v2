@@ -3,7 +3,7 @@ import { interpolate } from "remotion";
 import type { V3GeoMap, V3LabelSpot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Burst } from "./MapUnits";
 import { cloudShadowsAt, FIELD_TONES, fieldLayout, WOOD_TONES, woodLayout } from "./mapNature";
-import type { Up } from "./tilt";
+import type { TiltLayer, Up } from "./tilt";
 
 /**
  * The close battle map's ground (owner, 22 Oct 2026, after DFT Tarih's Osman Bey documentary: "the ground there, the
@@ -306,6 +306,8 @@ export function CloseGround({
   gid,
   clouds,
   up,
+  layer,
+  room,
 }: {
   close: Close;
   frame: number;
@@ -321,10 +323,22 @@ export function CloseGround({
   clouds?: { width: number; height: number };
   /** A tilted map's layer (MapView): the place names stand upright over the tilted ground; absent, drawn as they are. */
   up?: Up;
+  /** Which of a tilted map's layers this is: the upright one carries only the upright names (the ground is drawn once). */
+  layer?: TiltLayer;
+  /**
+   * A tilted map's room for an upright name at a world point against its flat size (tilt.tiltRoom): a spot's screen
+   * offset stays on the screen as on the flat map, so a name keeps to its mark up the foreshortened ground.
+   */
+  room?: (x: number, y: number) => { fx: number; fy: number };
 }) {
   const u = close.unit;
   const gradId = gid ?? "close";
-  const xy = (spot: Spot, x: number, y: number) => (spot ? { x: spot.x + spot.dx * k, y: spot.y + spot.dy * k } : { x, y });
+  const xy = (spot: Spot, x: number, y: number) => {
+    if (!spot) return { x, y };
+    if (!room) return { x: spot.x + spot.dx * k, y: spot.y + spot.dy * k };
+    const f = room(spot.x, spot.y);
+    return { x: spot.x + spot.dx * k * f.fx, y: spot.y + spot.dy * k * f.fy };
+  };
   const at = (spot: Spot, x: number, y: number) => {
     const p = xy(spot, x, y);
     return `translate(${p.x} ${p.y})`;
@@ -337,7 +351,8 @@ export function CloseGround({
   const names: React.ReactNode[] = [];
   // A place's name upright at its spot on a tilted map (a road's name stays painted along its road).
   const U = (spot: Spot, x: number, y: number, node: React.ReactNode) => (up ? up(xy(spot, x, y).x, xy(spot, x, y).y, node) : node);
-  (close.roadNames ?? []).forEach((rn, i) => {
+  // A road's name is painted along its road: on the tilted ground, not with the upright names.
+  (layer === "upright" ? [] : (close.roadNames ?? [])).forEach((rn, i) => {
     const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
     if (!p) return;
     names.push(
@@ -346,7 +361,7 @@ export function CloseGround({
       </g>,
     );
   });
-  return (
+  const tree = (
     <g>
       <defs>
         {/* A wood's shadow on the ground and a cloud's: dark in the middle, fading to nothing at the edge. */}
@@ -464,4 +479,6 @@ export function CloseGround({
       {names}
     </g>
   );
+  // The upright layer: only the names (gathered while the ground's shapes were laid out above).
+  return layer === "upright" ? <g>{names}</g> : tree;
 }

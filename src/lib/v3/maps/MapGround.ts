@@ -1,7 +1,7 @@
 import { CLOSE_MAP_MAX_KM, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3Paths } from "../V3Paths";
 import { type CloseCoast, closeCoastFor, closeRiversFor } from "./CloseCoast";
-import { mapWorld, type Polygon } from "./MapBuilder";
+import { closeMapTilt, mapWorld, type Polygon } from "./MapBuilder";
 import { closeReliefFor, reliefFor } from "./Relief";
 
 /**
@@ -11,7 +11,9 @@ import { closeReliefFor, reliefFor } from "./Relief";
 export async function mapGroundFor(paths: V3Paths, map: SceneMap, publicDir: string, baseLand: readonly Polygon[], log: (s: string) => void = () => {}): Promise<{ relief?: string; coast?: CloseCoast }> {
   const world = mapWorld(map, 1920, 1080);
   if (map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM) {
-    const coast = await closeCoastFor(paths, world, baseLand, log);
+    // A flat close map (ATOLYE_V3_EGIK_HARITA=0) keeps the coast the library already holds for its box, so its picture
+    // stays as it was; a tilted one's wider box is assembled anew.
+    const coast = await closeCoastFor(paths, world, baseLand, log, closeMapTilt(map) === undefined);
     // Its rivers and lakes too (an inland battle's front, crossing or fleet road), joined to the coast it has.
     const water = await closeRiversFor(paths, world, log);
     const relief = await closeReliefFor(paths, world, publicDir, log);

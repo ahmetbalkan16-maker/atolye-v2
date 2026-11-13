@@ -10,7 +10,7 @@ import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type 
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
-import { applyMatrix, MAX_TILT_DEG, tiltFor, tiltMatrix, tiltProject, tiltSeen, tiltUnproject } from "../remotion-v3/src/scene/tilt";
+import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -627,6 +627,79 @@ async function main() {
     const p = tiltProject(flat, 321, 654);
     assert.ok(Math.abs(p.x - 321) < 1e-9 && Math.abs(p.y - 654) < 1e-9 && flat.s === 1);
     assert.equal(tiltFor(70, W, H).deg, MAX_TILT_DEG);
+  });
+
+  await scenario("U the tilted close map frames the action (owner, 13 Nov 2026: \"düzeltip aç\", \"ordu sayısı daha fazla gözüksün\"): the armies at least as large as flat, the action, speakers and battle whole in the frame, the ground never past the world, names' room up the foreshortened ground", () => {
+    const W = 1920;
+    const H = 1080;
+    const fps = 30;
+    // A one-view close map (MapBuilder: a world 1.5× the view, the camera holding the view at its middle).
+    const world = { width: 2976, height: 1674 };
+    const cam = { frame: 0, x: world.width / 2, y: world.height / 2, zoom: 1 };
+    const wx = (x: number) => cam.x + x - W / 2;
+    const wy = (y: number) => cam.y + y - H / 2;
+    const units = [
+      { side: "A", color: "#c0392b", emblem: "hilal", kind: "piyade" as const, steps: [{ start: 9, points: [700, 760, 820, 880].map((x) => ({ x: wx(x), y: wy(560) })), alive: 4 }, { start: 200, points: [760, 820, 880, 940].map((x) => ({ x: wx(x), y: wy(520) })), alive: 4 }] },
+      { side: "B", color: "#2e86c1", emblem: "hac", kind: "suvari" as const, steps: [{ start: 9, points: [1100, 1160, 1220].map((x) => ({ x: wx(x), y: wy(380) })), alive: 3 }] },
+    ];
+    const badge = { castId: "x", label: "Hannibal", start: 9, path: [{ x: wx(520), y: wy(700) }], talk: { speaking: [{ start: 120, end: 180 }], visemes: [], faces: [] } };
+    const map = { land: "", lakes: "", rivers: "", territories: [], cities: [], armies: [], arrows: [], relief: "bg/r.jpg", world, camera: [cam], units, badges: [badge], battles: [{ x: wx(640), y: wy(470), label: "Battle of Somewhere", start: 9, labelSpot: { x: wx(640), y: wy(470), dx: 0, dy: -144 } }], tilt: 30 } as unknown as V3GeoMap;
+    const t = tiltAt(map, 150, fps, W, H)!;
+    const base = tiltFor(30, W, H);
+    assert.ok(t.s > base.s + 0.1, `closer than the whole picture's fit: ${t.s} vs ${base.s}`);
+    // The armies at least as large as flat: every block at least as wide, their mean area at least as large.
+    const pts = units.flatMap((u) => u.steps.flatMap((st) => st.points)).map((q) => ({ x: W / 2 + q.x - cam.x, y: H / 2 + q.y - cam.y }));
+    const pr = pts.map((q) => tiltProject(t, q.x, q.y));
+    assert.ok(Math.min(...pr.map((q) => q.scale)) >= 1 - 1e-6, `every block as wide: ${Math.min(...pr.map((q) => q.scale))}`);
+    assert.ok(pr.reduce((a, q) => a + q.scale * q.scaleY, 0) / pr.length >= 1 - 1e-6, "their mean area as large");
+    // Everything the camera keeps (tiltItems: blocks, the speaking badge, the battle and its name) whole inside the frame
+    // the shot's push leaves.
+    const [key] = tiltItems(map, fps, W, H);
+    assert.ok(key!.items.length === 4 + 4 + 3 + 1 + 2, `items ${key!.items.length}`);
+    const inX = (W / 2 - 0.03 * H) / TILT_SHOT_PUSH;
+    const inY = (H / 2 - 0.03 * H) / TILT_SHOT_PUSH;
+    for (const it of key!.items) {
+      const q = tiltProject(t, it.x, it.y);
+      const sx = it.ground ? q.scale : uprightScale(q);
+      const sy = it.ground ? q.scaleY : uprightScale(q);
+      assert.ok(q.x - it.l * sx >= W / 2 - inX - 1e-3 && q.x + it.r * sx <= W / 2 + inX + 1e-3, `across: ${JSON.stringify(it)}`);
+      assert.ok(q.y - it.u * sy >= H / 2 - inY - 1e-3 && q.y + it.d * sy <= H / 2 + inY + 1e-3, `up and down: ${JSON.stringify(it)}`);
+    }
+    // The ground the frame shows lies on the world (a quarter of the picture past it on every side).
+    const { cover } = tiltSeen(t, { x0: 0, y0: 0, x1: W, y1: H });
+    assert.ok(cover.x0 >= -W * TILT_WORLD_PAST - 1e-3 && cover.x1 <= W * (1 + TILT_WORLD_PAST) + 1e-3 && cover.y0 >= -H * TILT_WORLD_PAST - 1e-3 && cover.y1 <= H * (1 + TILT_WORLD_PAST) + 1e-3, JSON.stringify(cover));
+    // A panned tilt: the browser's matrix and the projection still agree, unproject still undoes it.
+    const panned = { ...t, cx: W / 2 + 140 };
+    const m = tiltMatrix(panned, 300, 200);
+    for (const [x, y] of [[-100, -50], [400, 300], [1500, 900], [2000, 1200]] as const) {
+      const a = applyMatrix(m, x + 300, y + 200);
+      const b = tiltProject(panned, x, y);
+      assert.ok(Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6, "matrix = projection with a pan");
+      const back = tiltUnproject(panned, b.x, b.y);
+      assert.ok(Math.abs(back.x - x) < 1e-6 && Math.abs(back.y - y) < 1e-6, "unproject undoes a panned project");
+    }
+    // Upright names: never larger than flat; up the foreshortened far ground they take more of the flat picture.
+    assert.ok(uprightScale(tiltProject(t, W / 2, H)) === 1 && uprightScale(tiltProject(t, W / 2, 0)) < 1);
+    const far = tiltRoom(t, W / 2, 100);
+    const near = tiltRoom(t, W / 2, 1000);
+    assert.ok(far.fy > 1.2 && far.fy > near.fy && near.fx < 1 && far.fx <= 1 + 1e-9, JSON.stringify({ far, near }));
+    // Pure in the frame (asked twice, the same), and glides with the map's camera between keys: no jump.
+    assert.deepEqual(tiltAt(map, 150, fps, W, H), t);
+    const moving = { ...map, camera: [cam, { frame: 240, x: cam.x + 300, y: cam.y, zoom: 1.4 }] } as V3GeoMap;
+    let last = tiltAt(moving, 230, fps, W, H)!;
+    for (let f = 231; f < 330; f++) {
+      const now = tiltAt(moving, f, fps, W, H)!;
+      assert.ok(Math.abs(now.s - last.s) < 0.01 && Math.abs(now.ys - last.ys) < 8 && Math.abs(now.cx - last.cx) < 8, `frame ${f}: ${JSON.stringify({ last, now })}`);
+      last = now;
+    }
+    // Nothing to frame: the whole picture's tilt. An item the flat picture's edge already cuts is cut no more.
+    assert.deepEqual(tiltFit(30, W, H, []), base);
+    const edge = { x: 5, y: 540, l: 80, r: 80, u: 80, d: 80, ground: true };
+    const te = tiltFit(30, W, H, [edge]);
+    const qe = tiltProject(te, edge.x, edge.y);
+    assert.ok(qe.x - edge.l * qe.scale >= edge.x - edge.l - 1e-3, JSON.stringify(te));
+    // A flat map has no tilt.
+    assert.equal(tiltAt({ ...map, tilt: undefined } as V3GeoMap, 150, fps, W, H), undefined);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

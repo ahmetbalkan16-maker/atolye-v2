@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { promises as fs } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
@@ -25,8 +27,8 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
-import { CLOSE_MAP_TILT_DEG, closeMapTilt } from "../src/lib/v3/maps/MapBuilder";
-import { tiltFor, tiltSeen } from "../remotion-v3/src/scene/tilt";
+import { CLOSE_MAP_TILT_DEG, closeMapTilt, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
+import { TILT_WORLD_PAST, tiltAt, tiltSeen } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
@@ -34,7 +36,7 @@ import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, stand
 import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
-import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
+import { assembleLand, chainWays, closeCoastFor, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { applyAtlasErrata, ATLAS_ERRATA, atlasYear, clipToConvex, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -752,7 +754,8 @@ async function main() {
     const inland = buildGeoMap({ merkez: [28.95, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.95, 41.04], satir: 1, yol: [[29.03, 41.04]] }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: wide as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
     assert.equal(inland.vehicles![0]!.overland, undefined, "pointed from 4 km inland: no haul");
     const deep = buildGeoMap({ merkez: [28.95, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.95, 41.04], satir: 0 }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: wide as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
-    assert.equal(deep.vehicles![0]!.path[0]!.x, 960, "4 km inland: left where the writer put it");
+    // (Where the camera holds the view's middle: a tilted close map's world is wider than its view.)
+    assert.equal(deep.vehicles![0]!.path[0]!.x, deep.camera?.[0]?.x ?? 960, "4 km inland: left where the writer put it");
     assert.deepEqual(cutRoute([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }], 0, 0.75), [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 0 }]);
     // Only where the water is known: on Natural Earth's coast (no OpenStreetMap coast or rivers) a route over land is no haul.
     const unknown = buildGeoMap({ merkez: [28.98, 41.03], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.97, 41.04]] }] }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0, { year: 1453 });
@@ -1997,8 +2000,11 @@ async function main() {
     const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(2.5), fakeAudio(3)]]);
     const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(cast, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: { land: [square], lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
     const m = plan.shots.find((s) => s.id === "s7-battle-turns")!.geoMap!;
+    // The picture the camera frames (a tilted close map's world is wider than its view, the camera holding the view).
+    const c0 = m.camera?.[0];
+    const view = c0 ? { x0: c0.x - 960 / c0.zoom, y0: c0.y - 540 / c0.zoom, x1: c0.x + 960 / c0.zoom, y1: c0.y + 540 / c0.zoom } : { x0: 0, y0: 0, x1: 1920, y1: 1080 };
     const lazar = m.badges!.find((b) => b.castId === "lazar")!.path[0]!;
-    assert.ok(lazar.y - 140 >= 0 && lazar.y < 1080, `Lazar's portrait is not cut at the top edge: ${JSON.stringify(lazar)}`);
+    assert.ok(lazar.y - 140 >= view.y0 && lazar.y < view.y1, `Lazar's portrait is not cut at the top edge: ${JSON.stringify(lazar)}`);
     const ar = m.arrows[0]!;
     const box = nameBox(ar.label!, 32, Boolean(m.relief));
     const name = { x0: ar.labelX! - box.w / 2, y0: ar.labelY! - box.h / 2, x1: ar.labelX! + box.w / 2, y1: ar.labelY! + box.h / 2 };
@@ -2006,7 +2012,7 @@ async function main() {
     for (const side of m.units!) for (const p of side.steps[0]!.points) assert.ok(!hit({ x0: p.x - 34, y0: p.y - 34, x1: p.x + 34, y1: p.y + 34 }), `the arrow's name is off the token at ${p.x},${p.y}: ${JSON.stringify(name)}`);
     const bay = m.badges!.find((b) => b.castId === "bayezid")!.path[0]!;
     assert.ok(!hit({ x0: bay.x - 200, y0: bay.y - 240, x1: bay.x + 200, y1: bay.y + 6 }), "nor under Bayezid's badge and his words");
-    assert.ok(name.x0 >= 0 && name.x1 <= 1920 && name.y0 >= 0 && name.y1 <= 1080, "inside the picture");
+    assert.ok(name.x0 >= view.x0 && name.x1 <= view.x1 && name.y0 >= view.y0 && name.y1 <= view.y1, "inside the picture");
   });
 
   await scenario("O30 Kosovo 1389 final review: a character a line tells killed falls on the stage at that word and stays down; a death to come or a capture does not", () => {
@@ -2865,7 +2871,7 @@ async function main() {
     assert.equal(wrappedLines("Supercalifragilistic", 100, 26), 1, "a word wider than the line keeps its own line");
   });
 
-  await scenario("the tilted close map is a trial only ATOLYE_V3_EGIK_HARITA=1 switches on (owner, 12 Nov 2026): off, the map and its world are as before; on, a close map gets its tilt and a world its tilted camera never sees past; a wide map never", () => {
+  await scenario("the tilted close map is on for every close map unless ATOLYE_V3_EGIK_HARITA=0 (owner, 13 Nov 2026: \"düzeltip aç\"): =0, the map and its world are as before; on, a close map gets its tilt and a world its tilted camera never sees past; a wide map never", () => {
     const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
     const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
     const close: SceneMap = {
@@ -2875,26 +2881,32 @@ async function main() {
     };
     const wide: SceneMap = { merkez: [28.95, 41.02], genislik_km: 600 };
     const saved = process.env.ATOLYE_V3_EGIK_HARITA;
-    delete process.env.ATOLYE_V3_EGIK_HARITA;
+    process.env.ATOLYE_V3_EGIK_HARITA = "0";
     try {
       const offGeo = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
       const offWorld = mapWorld(close, 1920, 1080);
       const offWide = buildGeoMap(wide, data, 1920, 1080, () => 0);
-      assert.equal(closeMapTilt(close), undefined, "off unless switched on");
+      assert.equal(closeMapTilt(close), undefined, "=0 turns it off");
       assert.equal(offGeo.tilt, undefined);
       assert.equal(offGeo.world, undefined, "a one-view close map keeps the frame as its world");
+      assert.equal(closeMapTilt(close, {}), CLOSE_MAP_TILT_DEG, "on by default");
       assert.equal(closeMapTilt(close, { ATOLYE_V3_EGIK_HARITA: "1" }), CLOSE_MAP_TILT_DEG);
-      assert.equal(closeMapTilt(close, { ATOLYE_V3_EGIK_HARITA: "0" }), undefined);
-      assert.equal(closeMapTilt(wide, { ATOLYE_V3_EGIK_HARITA: "1" }), undefined, "only a close map");
-      process.env.ATOLYE_V3_EGIK_HARITA = "1";
+      assert.equal(closeMapTilt(close, { ATOLYE_V3_EGIK_HARITA: " 0 " }), undefined);
+      assert.equal(closeMapTilt(wide, {}), undefined, "only a close map");
+      delete process.env.ATOLYE_V3_EGIK_HARITA;
       const on = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
       assert.equal(on.tilt, CLOSE_MAP_TILT_DEG);
       assert.ok(on.world && on.camera?.length === 1 && on.camera[0]!.zoom === 1, JSON.stringify({ world: on.world, camera: on.camera }));
-      // Everything the renderer's tilted camera shows (tiltSeen's cover of the frame) lies on the world's ground.
+      // The renderer never shows ground past a quarter of the picture beyond it (TILT_WORLD_PAST), which the world holds.
+      assert.equal(TILT_WORLD_SPAN, 1 + 2 * TILT_WORLD_PAST);
+      // Everything the renderer's tilted camera shows (tiltSeen's cover of the frame, framing the action: tiltAt) lies on
+      // the world's ground, at every frame of the scene.
       const cam = on.camera![0]!;
-      const c = tiltSeen(tiltFor(on.tilt!, 1920, 1080), { x0: 0, y0: 0, x1: 1920, y1: 1080 }).cover;
-      assert.ok(cam.x + c.x0 - 960 >= 0 && cam.x + c.x1 - 960 <= on.world!.width, `x ${cam.x + c.x0 - 960}..${cam.x + c.x1 - 960} of ${on.world!.width}`);
-      assert.ok(cam.y + c.y0 - 540 >= 0 && cam.y + c.y1 - 540 <= on.world!.height, `y ${cam.y + c.y0 - 540}..${cam.y + c.y1 - 540} of ${on.world!.height}`);
+      for (const frame of [0, 30, 300]) {
+        const c = tiltSeen(tiltAt(on, frame, 30, 1920, 1080)!, { x0: 0, y0: 0, x1: 1920, y1: 1080 }).cover;
+        assert.ok(cam.x + c.x0 - 960 >= 0 && cam.x + c.x1 - 960 <= on.world!.width, `x ${cam.x + c.x0 - 960}..${cam.x + c.x1 - 960} of ${on.world!.width}`);
+        assert.ok(cam.y + c.y0 - 540 >= 0 && cam.y + c.y1 - 540 <= on.world!.height, `y ${cam.y + c.y0 - 540}..${cam.y + c.y1 - 540} of ${on.world!.height}`);
+      }
       // The units stand where they stood against the view (the world only grew round it).
       const offU = offGeo.units![0]!.steps[0]!.points[0]!;
       const onU = on.units![0]!.steps[0]!.points[0]!;
@@ -2904,12 +2916,40 @@ async function main() {
       assert.ok(offGround.length > 5 && on.close!.ground.length > offGround.length, `${offGround.length} → ${on.close!.ground.length}`);
       for (const g of offGround) assert.ok(on.close!.ground.some((h) => h.seed === g.seed && h.kind === g.kind && Math.abs(h.x - cam.x - (g.x - 960)) < 1.5 && Math.abs(h.y - cam.y - (g.y - 540)) < 1.5), `ground ${g.seed} kept`);
       assert.deepEqual(buildGeoMap(wide, data, 1920, 1080, () => 0), offWide, "a wide map is untouched");
-      delete process.env.ATOLYE_V3_EGIK_HARITA;
+      process.env.ATOLYE_V3_EGIK_HARITA = "0";
       assert.deepEqual(mapWorld(close, 1920, 1080), offWorld, "switched off again: the same world");
       assert.deepEqual(buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" }), offGeo, "switched off again: the same map");
     } finally {
       if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
       else process.env.ATOLYE_V3_EGIK_HARITA = saved;
+    }
+  });
+
+  await scenario("a close map's coast never runs a straight shore from a stray coast piece to the box's corner (tilted 1453, 13 Nov 2026), and a flat map keeps the coast the library already holds", async () => {
+    const box = { west: 0, east: 10, south: 0, north: 10 };
+    const shore: [number, number][] = [[-1, 5], [4, 5], [11, 5]];
+    const clean = assembleLand([shore], box, false);
+    // A tiny island simplified to a closed sliver of three points, and a coast piece ending inside the box at both ends.
+    const sliver: [number, number][] = [[7, 8], [7.0001, 8.0002], [7, 8]];
+    const stray: [number, number][] = [[2, 7], [2.5, 7.4], [3, 7.2]];
+    assert.deepEqual(assembleLand([shore, sliver, stray], box, false), clean, "dropped, not joined along the box's edge");
+    // The library: a flat map reads the coast an older assembly left for its box; a tilted one does not (inland here,
+    // so nothing is fetched).
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kiyi-"));
+    try {
+      const world = { bounds: { west: 28.9, east: 29.0, south: 41.0, north: 41.05 } };
+      const b = world.bounds;
+      const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
+      const lbox = { west: r4(b.west - (b.east - b.west) * 0.05), east: r4(b.east + (b.east - b.west) * 0.05), south: r4(b.south - (b.north - b.south) * 0.05), north: r4(b.north + (b.north - b.south) * 0.05) };
+      const key = createHash("sha256").update(JSON.stringify({ v: 1, box: lbox })).digest("hex").slice(0, 20);
+      const old = { land: [[[[28.9, 41.0], [29.0, 41.0], [29.0, 41.02], [28.9, 41.0]]]], water: [] };
+      mkdirSync(path.join(root, "_kutuphane", "osm-kiyi"), { recursive: true });
+      writeFileSync(path.join(root, "_kutuphane", "osm-kiyi", `${key}.json`), JSON.stringify(old));
+      const everywhere = [[[[20, 30], [40, 30], [40, 50], [20, 50], [20, 30]]]] as never;
+      assert.deepEqual(await closeCoastFor({ workRoot: root }, world, everywhere, () => {}, true), old, "flat: the library's coast as it was");
+      assert.equal(await closeCoastFor({ workRoot: root }, world, everywhere, () => {}, false), undefined, "tilted: built anew (inland: no coast)");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

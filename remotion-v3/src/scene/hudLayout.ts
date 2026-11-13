@@ -72,17 +72,20 @@ const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b
  * spaceBadges had set them apart, wider than a Short's window. Badges are settled in turn — the one speaking
  * (`priority`) first, then the least cut — and each keeps its slide unless it would land on one already settled; then
  * it stays and is gone as soon as the edge cuts into it (a tenth). Two half-cut, half-faded badges read worse than
- * one whole. `shown`: each badge's own visibility now (0 = not on the map).
+ * one whole. `shown`: each badge's own visibility now (0 = not on the map). `view`: the world the frame shows, or each
+ * badge's own (a tilted map shows a wider strip at its far rows: MapView's viewAt).
  */
 export function badgeEdgeFits(
   badges: readonly { readonly at: { x: number; y: number }; readonly size: { half: number; up: number }; readonly shown: number; readonly priority?: number }[],
-  view: Box,
+  views: Box | readonly Box[],
   margin: number,
   fade: number,
 ): { dx: number; dy: number; alpha: number }[] {
-  const first = badges.map((b) => badgeEdgeFit(b.at, b.size, view, margin, fade));
+  const viewOf = (i: number): Box => (Array.isArray(views) ? (views as readonly Box[])[i]! : (views as Box));
+  const first = badges.map((b, i) => badgeEdgeFit(b.at, b.size, viewOf(i), margin, fade));
   const cutOf = (i: number) => {
     const own = boxOf(badges[i]!.at, badges[i]!.size);
+    const view = viewOf(i);
     return Math.max(0, view.x0 - own.x0, own.x1 - view.x1, view.y0 - own.y0) / Math.max(1e-6, 2 * badges[i]!.size.half);
   };
   const order = badges.map((_, i) => i).sort((a, b) => (badges[b]!.priority ?? 0) - (badges[a]!.priority ?? 0) || cutOf(a) - cutOf(b) || a - b);
