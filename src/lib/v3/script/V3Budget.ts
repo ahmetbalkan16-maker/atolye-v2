@@ -64,6 +64,17 @@ export interface V3SpendEntry {
   readonly reason: string;
 }
 
+/**
+ * The fact-check calls the cap sent to the free local model instead of the paid checker (`fellBackFrom`), split into
+ * the script's history gate (`dogrulama`, its second looks, the order and support checks, a long video's chapters) and
+ * the rest (the retouch's rewrite check, `dogrulama-rotus`). Until 13 Nov 2026 nobody read `fellBackFrom`: near the cap
+ * the history gate quietly ran on gemma4 and the video was delivered as checked.
+ */
+export function fellBackChecks(ledger: readonly Partial<V3SpendEntry>[]): { readonly gate: V3SpendEntry[]; readonly other: V3SpendEntry[] } {
+  const fell = ledger.filter((e): e is V3SpendEntry => typeof e.step === "string" && /^dogrulama(?:-|$)/.test(e.step) && typeof e.fellBackFrom === "string" && e.fellBackFrom !== "");
+  return { gate: fell.filter((e) => e.step !== "dogrulama-rotus"), other: fell.filter((e) => e.step === "dogrulama-rotus") };
+}
+
 export class V3BudgetError extends Error {
   constructor(readonly code: "V3_BUDGET_EXCEEDED" | "V3_BUDGET_UNKNOWN_PRICE" | "V3_BUDGET_INPUT", message: string) {
     super(`${code}: ${message}`);

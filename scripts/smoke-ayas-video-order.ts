@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
 import { answerAyasVideoIntent, detectAyasVideoIntent, lengthOf, ordersReport, periodOf, SHORT_ORDER_LENGTH } from "../src/lib/ayas/AyasVideoOrder";
-import { DEFAULT_ORDER_LENGTH, listOrders, MAX_ORDER_TOPIC, MAX_RESUMES, orderProgress, placeOrder, PRODUCTION_STEPS, productionCommand, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
+import { DEFAULT_ORDER_LENGTH, listOrders, MAX_ORDER_TOPIC, MAX_RESUMES, orderProgress, placeOrder, PRODUCTION_STEPS, productionCommand, type ProductionOrder, recoverInterrupted, resumePoint, resumeStep, roundStartLine } from "../src/lib/v3/orders/ProductionOrders";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -83,6 +83,32 @@ async function main() {
     recoverInterrupted(order, "");
     assert.equal(order.durum, "hata", "assert.equal(order.durum, \"hata\")");
     assert.match(order.ozet ?? "", /yarıda kesildi/);
+  });
+
+  await scenario("E2 an order interrupted inside a retouch round resumes that round from its own steps (13 Nov 2026 audit)", () => {
+    const round0 = ["✓ senaryo (40 sn)", "✓ gardirop (90 sn)", "✓ ses (1 sn)", "✓ senkron (1 sn)", "✓ gorsel (1 sn)", "✓ render (1 sn)", "✓ kapak (1 sn)", "✓ miks (1 sn)", "✓ birlestir (51 sn)"];
+    // The crash right after round 1 started: it resumes at the round's own first step, never at birlestir as round 0.
+    const started = [...round0, roundStartLine(1, "gardirop")].join("\n");
+    assert.match(started, /^↺ rötuş beyni: 1\. tur başlıyor \("gardirop" adımından\)$/m, "the line the production writes is the line the queue reads");
+    assert.deepEqual(resumePoint(started), { step: "gardirop", round: 1 }, "a crash before the round's first step resumes the round at that step");
+    assert.equal(resumeStep(started), "gardirop", "resumeStep reads only the round's part of the log");
+    const midRound = [started, "  sağlık: iyi", "✓ gardirop (80 sn)", "✓ ses (100 sn)", "  render 300/3155"].join("\n");
+    assert.deepEqual(resumePoint(midRound), { step: "senkron", round: 1 }, "assert.deepEqual(resumePoint(midRound), { step: \"senkron\", round: 1 })");
+    // Round 2 started from the voices after round 1 finished: round 1's ✓ lines do not count for it.
+    const round2 = [midRound, "✓ senkron (1 sn)", "✓ birlestir (1 sn)", roundStartLine(2, "ses")].join("\n");
+    assert.deepEqual(resumePoint(round2), { step: "ses", round: 2 }, "assert.deepEqual(resumePoint(round2), { step: \"ses\", round: 2 })");
+    assert.deepEqual(resumePoint(round0.slice(0, 3).join("\n")), { step: "senkron", round: 0 }, "no round line: the first production as before");
+    const order = { id: "x", konu: "k", donem: "49 BC", sure: "120sn", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "t", durum: "calisiyor" } as ProductionOrder;
+    recoverInterrupted(order, midRound);
+    assert.deepEqual([order.durum, order.devamAdimi, order.rotusTuru], ["bekliyor", "senkron", 1], "the order keeps the round it was in");
+    assert.match(order.ozet ?? "", /1\. rötuş turu, senkron adımından devam/);
+    const args = productionCommand("/repo", order, "/out", "openai").args;
+    assert.deepEqual(args.slice(args.indexOf("--from-step"), args.indexOf("--from-step") + 2), ["--from-step", "senkron"], "assert --from-step senkron");
+    assert.deepEqual(args.slice(args.indexOf("--rotus-turu"), args.indexOf("--rotus-turu") + 2), ["--rotus-turu", "1"], "the resumed run is told its round");
+    // A round resumed at the script step still names it: without --from-step every file of the round before counts as done.
+    const atScript = productionCommand("/repo", { ...order, devamAdimi: "senaryo", rotusTuru: 1 }, "/out", "openai").args;
+    assert.ok(atScript.includes("--from-step") && atScript.includes("--rotus-turu"), "a round at senaryo passes --from-step");
+    assert.ok(!productionCommand("/repo", { ...order, devamAdimi: "senaryo", rotusTuru: 0 }, "/out", "openai").args.includes("--from-step"), "the first production at senaryo needs no --from-step");
   });
 
   await scenario("F the owner's length reaches the order; none keeps the long default; numbers in the topic are no length", async () => {

@@ -34,6 +34,7 @@ import {
   recordGrade,
   recordGuess,
   recordLesson,
+  relevantLessons,
   researchMarkdown,
   researchNote,
   say,
@@ -273,7 +274,8 @@ export async function guessTask(
     ozetler[f] = facts.ozet;
     bildirimler[f] = facts.bildirimler;
   }
-  const lessons = (await listLessons(d.workRoot)).slice(-6).map((l) => l.metin);
+  // The written lessons nearest this task (the newest six were handed whatever the task was).
+  const lessons = relevantLessons(await listLessons(d.workRoot), input.gorev, 6).map((l) => l.metin);
   // The code of the most similar past changes (never the task's own: `benzer` already leaves it out).
   const kod = await codeOf(d.workRoot, benzer.map((c) => c.id));
   const codeById = new Map(kod.map((x) => [x.id, x]));

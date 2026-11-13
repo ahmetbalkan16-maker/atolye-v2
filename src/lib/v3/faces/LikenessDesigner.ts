@@ -2,6 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CouncilLog, type DebateEntry, readJsonAnswer } from "../council/Council";
+import { brainCases } from "../council/BrainBriefing";
 import { recall } from "../council/ExperienceMemory";
 import { LIKENESS_OK } from "../council/RetouchBrain";
 import { toLook, toRenderCast } from "../costumes/CastMapper";
@@ -691,7 +692,9 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const sentences = article ? appearanceSentences(article.text) : [];
     talk.push({ rol: "Araştırmacı", metin: article ? `"${article.title}" makalesinde görünüş/giyim üzerine ${sentences.length} cümle` : `"${wiki}" makalesi okunamadı` });
     // What the costume brain learned about this person before (a wrong "clean-shaven" or age is not repeated).
-    const personLessons = (await recall(paths.workRoot, "kostum", { konu: `${wiki} ${episode.donem} benzerlik`, tur: "ders", limit: 3 }).catch(() => [])).map((l) => l.metin);
+    // And up to 2 past costume cases near this person or the episode (BrainBriefing, 13 Nov 2026: Murad IV's lost beard).
+    const personCases = await brainCases(paths.workRoot, ["kostum"], [`${wiki} ${c.ad} ${episode.konu}`, `${episode.konu} ${episode.donem}`], 2);
+    const personLessons = [...(await recall(paths.workRoot, "kostum", { konu: `${wiki} ${episode.donem} benzerlik`, tur: "ders", limit: 3 }).catch(() => [])).map((l) => l.metin), ...personCases];
     const noteOut = await deps.budget.generate("benzerlik-tarihci", deps.critic, periodNotePrompt(c, episode, wiki, sentences, personLessons), { maxTokens: 450 }).catch((e: Error) => (log(`  benzerlik: ${c.ad} tarihçi notu alınamadı (${e.message.slice(0, 100)})`), undefined));
     const note = noteOut ? readPeriodNote(noteOut.result.content) : undefined;
     talk.push({ rol: "Tarihçi", metin: note ? `${episode.donem}: ${note.yas !== undefined ? `${note.yas} yaşında; ` : ""}${note.gorunus} | giyim: ${note.giyim}${note.fark ? ` | portrelerden farkı: ${note.fark}` : ""}` : "not yazılamadı" });
@@ -699,7 +702,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     if (portrait) portraits.set(c.id, portrait);
     talk.push({ rol: "Resim araştırmacısı", metin: portrait ? `portre: ${portrait.candidate.title.replace(/^File:/, "")} (kişi ${portrait.secim.puan}/10, dönem ${portrait.secim.donem ?? "?"}/10)` : "uygun portre yok; tarihçinin notundan çizilecek" });
     // The costume brain's memory: the owner's standing rules and lessons about this person or their dress.
-    const lessons = (await recall(paths.workRoot, "kostum", { konu: `${wiki} ${c.rol} ${episode.donem} ${note?.giyim ?? ""}`, limit: 3 }).catch(() => [])).map((l) => l.metin);
+    const lessons = [...(await recall(paths.workRoot, "kostum", { konu: `${wiki} ${c.rol} ${episode.donem} ${note?.giyim ?? ""}`, limit: 3 }).catch(() => [])).map((l) => l.metin), ...personCases];
     const sheetOut = await deps.budget
       .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, current, wiki, note, portrait?.candidate.title, fixes, lessons, historyLines(history)), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
       .catch((e: Error) => (log(`  benzerlik: ${c.ad} kart yazılamadı (${e.message.slice(0, 100)})`), undefined));

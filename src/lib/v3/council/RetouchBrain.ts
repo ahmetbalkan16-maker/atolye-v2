@@ -254,6 +254,20 @@ export async function restoreRound(work: string, finalName: string, tur: number)
 }
 
 /**
+ * The delivery line after a failed round: always "UYARIYLA" (13 Nov 2026 audit: a kept round with no shortfall kept
+ * "- Teslim: teslim edildi", and the order watcher, which reads the first Teslim line, marked a failed round's order
+ * clean). What the kept round's own line warned about stays after the failure.
+ */
+export function failedRoundDelivery(qc: string, failed: number, deliveredRound: number, why: string): string {
+  const head = `UYARIYLA teslim — tur ${failed} başarısız (${why}); tur ${deliveredRound} teslim edildi`;
+  const m = /^- Teslim: (.*)$/m.exec(qc);
+  if (!m) return `${qc}${qc.endsWith("\n") || !qc ? "" : "\n"}- Teslim: ${head}\n`;
+  const earlier = m[1]!.trim().replace(/^UYARIYLA teslim\s*—\s*/, "");
+  const line = `- Teslim: ${head}${earlier && earlier !== "teslim edildi" ? `; ${earlier}` : ""}`;
+  return qc.slice(0, m.index) + line + qc.slice(m.index + m[0].length);
+}
+
+/**
  * A retouch round that failed no longer loses the video (the third Caesar Short, 3 Nov 2026: OpenAI answered 429 to
  * the last round's cover four times and the whole order failed with two finished cuts on disk): the best round kept
  * before it is put back and delivered with a warning, as the last round would have delivered it. Undefined when no
@@ -265,7 +279,7 @@ export async function deliverAfterFailedRound(work: string, finalName: string, f
   if (!best) return undefined;
   await restoreRound(work, finalName, best.tur);
   const qc = path.join(work, "QC.md");
-  if (existsSync(qc)) await fs.writeFile(qc, finalDelivery(await fs.readFile(qc, "utf8"), best));
+  if (existsSync(qc)) await fs.writeFile(qc, failedRoundDelivery(finalDelivery(await fs.readFile(qc, "utf8"), best), failed, best.tur, why));
   const section = `\n## Rötuş turları\n\n${rounds.map((r) => `- ${roundLine(r)}${r.tur === best.tur ? " — **teslim edilen**" : ""}`).join("\n")}\n- Tur ${failed} başarısız oldu (${why}); teslim: tur ${best.tur} (${roundVideo(finalName, best.tur)})\n`;
   for (const name of ["QC.md", "KURUL.md"]) if (existsSync(path.join(work, name))) await fs.appendFile(path.join(work, name), section);
   return best;

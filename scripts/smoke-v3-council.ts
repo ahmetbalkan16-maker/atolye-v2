@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { openai } from "../src/lib/ai/client";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, isMeasureBrain, MEASURE_BRAINS, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutReview, layoutSkip, narratedSpans, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { cutSides, layoutFaults, MIN_PROBES, overlapShare } from "../src/lib/v3/council/LayoutCheck";
@@ -157,6 +157,9 @@ async function main() {
     assert.deepEqual(items, [{ baslik: "Eski adlarla ara.", neden: "" }, { baslik: "Süre", neden: "satır ekle", beyin: "kurgu" }, { baslik: "yalnız neden", neden: "" }]);
     const md = councilMarkdown("Roma", new CouncilLog(), { ozet: "Özet.", onlemler: items, gelistirmeler: [] });
     assert.ok(md.includes("- Eski adlarla ara.\n") && md.includes("- Süre — satır ekle _(") && !md.includes("undefined"), md);
+    // 13 Nov 2026: a measure is written only to a brain some prompt reads (43 sound measures were never read).
+    assert.deepEqual([isMeasureBrain("kurgu"), isMeasureBrain("mizah"), isMeasureBrain("ses"), isMeasureBrain("sef"), isMeasureBrain(undefined)], [true, true, false, false, false]);
+    assert.ok(!(MEASURE_BRAINS as readonly string[]).includes("ses"));
     const plan = { fps: 30, shots: [{ start: 0, titleCards: [{ style: "kapak" as const, start: 0, end: 105 }] }, { start: 2664, titleCards: [{ style: "abone" as const, start: 342, end: 492 }, { style: "bilgi" as const, start: 0, end: 60 }] }] };
     const windows = designedWindows(plan as unknown as Parameters<typeof designedWindows>[0]);
     assert.deepEqual(windows.map((w) => [w.from.toFixed(1), w.to.toFixed(1)]), [["0.0", "3.5"], ["100.2", "105.2"]]);
@@ -231,6 +234,12 @@ async function main() {
     assert.deepEqual((await recall(root, "kurgu", { konu: "completely unrelated words" })).map((l) => l.tur), ["kural"], "a rule needs no shared words");
     assert.deepEqual((await recall(root, "kurgu", { tur: "ders" })).map((l) => l.tur), ["ders"], "a type filter leaves rules out (the part drawer asks for ders)");
     assert.equal((await recall(root, "kurgu", { tur: "kural" })).length, 1);
+    // 13 Nov 2026: a list of types — the costume historian and part drawer ask for rules, lessons and the chief's measures.
+    await remember(root, { bolum: "x", beyin: "kurgu", tur: "onlem", konu: "Short süre", metin: "Kısa satırlar yaz." });
+    await remember(root, { bolum: "x", beyin: "kurgu", tur: "ilac", konu: "s | e", metin: "bekle" });
+    assert.deepEqual((await recall(root, "kurgu", { tur: ["kural", "ders", "onlem"], limit: 5 })).map((l) => l.tur), ["kural", "onlem", "ders"], "rules first, then lessons and measures (newest first); a remedy stays out");
+    assert.deepEqual((await recall(root, "kurgu", { tur: ["ders", "onlem"], limit: 5 })).map((l) => l.tur), ["onlem", "ders"], "no 'kural' in the list: no rules; newest first");
+    assert.deepEqual((await recall(root, "kurgu", { tur: ["kural"] })).map((l) => l.tur), ["kural"]);
     await remember(root, { bolum: "rubicon", beyin: "kurgu", tur: "kural", konu: "boş sahne", metin: "Never leave a scene to the narrator alone: put a visible character on stage." });
     assert.equal((await recall(root, "kurgu", { tur: "kural" })).length, 1, "the same rule twice is recalled once");
     for (let i = 0; i < MAX_RULES + 3; i++) await remember(root, { bolum: "x", beyin: "kalite", tur: "kural", konu: "k", metin: `rule ${i}` });

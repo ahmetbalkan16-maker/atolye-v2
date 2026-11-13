@@ -17,7 +17,7 @@ import { costumeProblems, ensureEra, eraPrompt, readEraAnswer, withArchive } fro
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, colourFamily, facialHairFixes, facialHairSaid, hairWord, portraitFacialHair, settleFacialHair, withoutShavenClaims, uniformColourFromNote, withNoteUniform, partOwner, partWords, historyLines, keepLikenesses, type LikenessRecord, likenessHistory, likenessOrders, likenessPlateau, noteColours, OLD_COMPLEXION, PORTRAIT_OVER_NOTE, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
-import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, deliverAfterFailedRound, failedRoundDelivery, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
@@ -526,7 +526,20 @@ async function main() {
     assert.equal(best?.tur, 0);
     assert.equal(readFileSync(path.join(work, "final.mp4"), "utf8"), "video 0");
     const qc = readFileSync(path.join(work, "QC.md"), "utf8");
-    assert.match(qc, /^- Teslim: UYARIYLA teslim — rötuş turlarından sonra eşik altında kaldı/m);
+    assert.match(qc, /^- Teslim: UYARIYLA teslim — tur 2 başarısız \(çıkış 1; ayrıntı uret\.log\); tur 0 teslim edildi; rötuş turlarından sonra eşik altında kaldı/m);
+    assert.equal(qc.match(/^- Teslim:/gm)?.length, 1, "one delivery line, the watcher reads the first");
+    // A kept round with no shortfall: a failed round still delivers with a warning (13 Nov 2026 audit — its QC said
+    // "teslim edildi" and the watcher marked the order clean).
+    const clean = mkdtempSync(path.join(os.tmpdir(), "v3-rotus-temiz-"));
+    writeFileSync(path.join(clean, "final.mp4"), "video 0");
+    writeFileSync(path.join(clean, "QC.md"), `- Bulgular: 0 eksik\n- Teslim: teslim edildi\n`);
+    await keepRound(clean, "final.mp4", score(0, 9));
+    writeFileSync(path.join(clean, "final.mp4"), "video 1, half made");
+    assert.equal((await deliverAfterFailedRound(clean, "final.mp4", 1, "çıkış 3"))?.tur, 0);
+    const cleanQc = readFileSync(path.join(clean, "QC.md"), "utf8");
+    assert.equal(/Teslim: (.+)/.exec(cleanQc)?.[1], "UYARIYLA teslim — tur 1 başarısız (çıkış 3); tur 0 teslim edildi", "the watcher's first Teslim line says UYARIYLA");
+    assert.equal(failedRoundDelivery("- Teslim: UYARIYLA teslim — eksikler AYAS'a bildirildi\n", 2, 1, "x"), "- Teslim: UYARIYLA teslim — tur 2 başarısız (x); tur 1 teslim edildi; eksikler AYAS'a bildirildi\n");
+    assert.equal(failedRoundDelivery("# QC\n", 1, 0, "x"), "# QC\n- Teslim: UYARIYLA teslim — tur 1 başarısız (x); tur 0 teslim edildi\n", "a QC without a delivery line gets one");
     assert.match(qc, /tur 0: caesar 7\/10 .* — \*\*teslim edilen\*\*\n- tur 1: caesar 6\/10.*\n- Tur 2 başarısız oldu \(çıkış 1; ayrıntı uret\.log\); teslim: tur 0 \(final-tur0\.mp4\)/);
     assert.match(readFileSync(path.join(work, "KURUL.md"), "utf8"), /^kurul 0\n\n## Rötuş turları/);
     // Nothing kept: the failure stands.

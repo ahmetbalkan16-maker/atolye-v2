@@ -546,9 +546,10 @@ export async function designParts(input: {
       p.talk.push({ rol: "Araştırmacı", metin: ref ? `gerçek örnek bulundu: ${ref.title.replace(/^File:/, "")} — ${ref.description}` : "gerçek örnek bulunamadı; tariften çizilecek" });
     }
   }
-  // The costume brain's experience: why similar parts could not be drawn before.
+  // The costume brain's experience: why similar parts could not be drawn before, the owner's costume rules and the
+  // chief's measures (13 Nov 2026: a "ders" filter had left the rules and measures out).
   for (const p of pending) {
-    const lessons = (await recall(paths.workRoot, "kostum", { konu: p.order.tarif, tur: "ders", limit: 3 }).catch(() => [])).map((l) => l.metin);
+    const lessons = (await recall(paths.workRoot, "kostum", { konu: p.order.tarif, tur: ["kural", "ders", "onlem"], limit: 3 }).catch(() => [])).map((l) => l.metin);
     if (lessons.length) {
       p.lessons = lessons;
       p.talk.push({ rol: "Hafıza", metin: `benzer parçalardan dersler: ${lessons.join(" | ")}` });

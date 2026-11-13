@@ -10,11 +10,13 @@ import os from "node:os";
 import path from "node:path";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { commitCases, commitLessons, derivedCase, learnAyasCode, learnCommitLessons, learnRefs, MAX_LESSON_CHARS } from "../src/lib/v3/council/CommitLessons";
-import { ayasGradedFiles, ayasPastChanges, caseLine, devBrainDir, isAyasSmoke, listAyasCodeExperience, listCases, listChanges, listCodeExperience, listLessons, MAX_CASE_FIELD, recordCase, similarCaseLines, similarCases } from "../src/lib/v3/council/DevBrain";
+import { ayasGradedFiles, ayasPastChanges, briefCaseLine, caseLine, devBrainDir, isAyasSmoke, listAyasCodeExperience, listCases, listChanges, listCodeExperience, listLessons, MAX_CASE_FIELD, recentTalk, recordCase, relevantLessons, similarCaseLines, similarCases } from "../src/lib/v3/council/DevBrain";
+import { brainCases, criticBriefing, factCheckBriefing } from "../src/lib/v3/council/BrainBriefing";
+import { FACT_CHECK_LESSON_CHARS, FACT_CHECK_LESSONS, factCheckPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { ayasTaskPacket, pastCasesSection, taskPacket } from "../src/lib/v3/council/DevQueue";
 import { learnFromCommits } from "../src/lib/v3/council/DevResearch";
 import { decideRepair, REPAIR_CASES_CHARS, type RepairContext, repairPrompt } from "../src/lib/v3/council/RepairBrain";
-import { allLessons } from "../src/lib/v3/council/ExperienceMemory";
+import { allLessons, remember } from "../src/lib/v3/council/ExperienceMemory";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { runProcess } from "../src/lib/v3/util/Proc";
 
@@ -247,6 +249,79 @@ async function run() {
     assert.deepEqual([action.tur, action.kaynak], ["dur", "model"]);
     assert.match(asked, /SIMILAR PAST CASES[^\n]*\n- \[siege map attacker inside walls\][^\n]*fix: MapBuilder\.siegeLayout/);
     assert.ok(repairPrompt({ ...ctx, vakalar: Array.from({ length: 5 }, () => "x".repeat(900)) }).length <= repairPrompt(ctx).length + REPAIR_CASES_CHARS + 200);
+  });
+
+  await scenario("K Turkish case keys and brain names are read; an unknown key or brain is warned about, never glued onto the field above", async () => {
+    const warned: string[] = [];
+    const cases = commitCases(
+      [
+        "fix(v3): x",
+        "Vaka[sayı kayboldu]: The retouch dropped a sourced number.",
+        "Vaka-neden: the director's rewrite had no source check.",
+        "Vaka-çözüm: RetouchGuard keeps sourced numbers.",
+        "Vaka-kanıt: smoke-v3-director-council scenario R.",
+        "Vaka-beyinler: araştırma, kurgu, sesçi",
+        "Vaka-bölüm: bagdat-1638",
+        "Vaka-sonuç: unknown key",
+        "Vaka-yakala: a sourced number missing after a retouch.",
+      ].join("\n"),
+      (w) => warned.push(w),
+    );
+    assert.equal(cases.length, 1);
+    const c = cases[0]!;
+    assert.deepEqual([c.belirti, c.cozum, c.kanit, c.bolum, c.beyinler, c.yakala], ["The retouch dropped a sourced number.", "RetouchGuard keeps sourced numbers.", "smoke-v3-director-council scenario R.", "bagdat-1638", ["arastirma", "kurgu"], "a sourced number missing after a retouch."]);
+    assert.equal(warned.length, 2, warned.join(" | "));
+    assert.match(warned[0]!, /bilinmeyen beyin sesçi/);
+    assert.match(warned[1]!, /^Vaka-sonuç: bilinmeyen alan/);
+    // Warned once through the learner, into the developer brain's talk.
+    await g(["checkout", "-q", "feature/cop-adam-v3"]);
+    await g(["commit", "-q", "--allow-empty", "-m", "fix(v3): türkçe vaka", "-m", "Vaka[türkçe anahtar]: a case with Turkish keys.\nVaka-çözüm: read them.\nVaka-nedenler: typo"]);
+    await g(["checkout", "-q", "main"]);
+    const logged: string[] = [];
+    await learnCommitLessons({ repoRoot: repo, workRoot: work, refs, log: (s) => logged.push(s) });
+    assert.ok(logged.some((s) => /Vaka-nedenler: bilinmeyen alan/.test(s)), logged.join(" | "));
+    assert.ok((await recentTalk(work, 5)).some((t) => /Vaka-nedenler/.test(t.metin)));
+    assert.equal((await listCases(work)).find((x) => x.konu === "türkçe anahtar")!.cozum, "read them.");
+  });
+
+  await scenario("L content brains get short, relevant cases of their own brain; critics get newest lessons besides topical ones; dev lessons by relevance", async () => {
+    const root = path.join(base, "beyinler");
+    const at = (n: number) => `2026-11-13T1${n}:00:00Z`;
+    await recordCase(root, { id: "el-a", tarih: at(0), kaynak: "el", konu: "retouch removes sourced numbers (Baghdad)", belirti: "Siege of Baghdad Short, retouch round 1: the director replaced the sourced 108,589 men with a vague 'many'.", neden: "The retouch guard did not know which numbers were sourced.", cozum: "RetouchGuard.sourcedNumbers", yakala: "Compare the sourced numbers before and after a retouch; one missing is a fault.", beyinler: ["arastirma", "kurgu", "mizah"], dosyalar: ["src/x.ts"] });
+    await recordCase(root, { id: "el-b", tarih: at(1), kaynak: "el", konu: "portrait beard lost", belirti: "Siege of Baghdad Short: Murad IV drawn clean-shaven although every portrait shows a beard.", neden: "The note's clean-shaven beat the portrait.", yakala: "A portrait with a beard must keep the beard.", beyinler: ["kostum", "kalite"] });
+    await recordCase(root, { id: "el-c", tarih: at(2), kaynak: "el", konu: "narrator clipped", belirti: "Cannae Short: the narrator's last word was clipped.", beyinler: ["ses"] });
+    const lines = await similarCaseLines(root, "1638 Siege of Baghdad", 3, 400, { beyin: "arastirma", brief: true });
+    assert.equal(lines.length, 1);
+    assert.match(lines[0]!, /^past case \[retouch removes sourced numbers \(Baghdad\)\] seen: .*\| cause: .*\| catch: Compare/);
+    assert.ok(!lines[0]!.includes("RetouchGuard.sourcedNumbers") && !lines[0]!.includes("src/x.ts"), "no fix, no files for a content brain");
+    assert.ok(briefCaseLine({ ...(await listCases(root))[0]!, belirti: "z".repeat(2_000) }, 400).length <= 400);
+    assert.equal((await similarCaseLines(root, "1638 Siege of Baghdad", 3)).length, 2, "without a brain every close case (ses's Cannae case is not close)");
+    assert.deepEqual(await brainCases(root, ["kostum"], ["Murad IV 1638", undefined, "Siege of Baghdad 1638"]), [briefCaseLine((await listCases(root))[1]!)], "the topic query finds it; a one-word match does not");
+    assert.equal((await brainCases(root, ["kurgu", "mizah"], ["Siege of Baghdad"])).length, 1, "a case of two asked brains comes once");
+    assert.deepEqual(await brainCases(root, ["ses"], ["Siege of Baghdad"]), []);
+    // Critics: rules, the topical lessons, the newest whatever their topic, then their own cases.
+    await remember(root, { bolum: "owner", beyin: "kurgu", tur: "kural", konu: "abone", metin: "End with the subscribe invitation." });
+    await remember(root, { bolum: "commit 1", beyin: "kurgu", tur: "ders", konu: "siege walls", metin: "The attacker of a siege stands outside the walls until the breach." });
+    await remember(root, { bolum: "x", beyin: "kurgu", tur: "ders", konu: "rotus", metin: "Keep the jokes in a retouch." });
+    await remember(root, { bolum: "x", beyin: "kurgu", tur: "onlem", konu: "Short süre", metin: "Short süre: write shorter lines." });
+    await remember(root, { bolum: "x", beyin: "kurgu", tur: "ilac", konu: "s | e", metin: "a remedy" });
+    const critic = await criticBriefing(root, "kurgu", "1638 Siege of Baghdad walls", "harita: saldıran sur içinde");
+    assert.deepEqual(critic.slice(0, 4), ["End with the subscribe invitation.", "The attacker of a siege stands outside the walls until the breach.", "Short süre: write shorter lines.", "Keep the jokes in a retouch."]);
+    assert.ok(critic.length === 5 && critic[4]!.startsWith("past case [retouch removes sourced numbers"), critic.join(" | "));
+    assert.ok(!critic.includes("a remedy"));
+    // The history editor: research lessons from productions and commits (never a studied video's), and research cases.
+    await remember(root, { bolum: "referans abc", beyin: "arastirma", tur: "ders", konu: "pace", metin: "Open with a question." });
+    await remember(root, { bolum: "commit 2", beyin: "arastirma", tur: "ders", konu: "bilgi kutusu", metin: "Battle strengths are often only in the infobox." });
+    const editor = await factCheckBriefing(root, ["Bağdat Kuşatması 1638", "Siege of Baghdad (1638)"]);
+    assert.deepEqual(editor.map((l) => l.slice(0, 30)), ["Battle strengths are often onl", "past case [retouch removes sou"]);
+    const prompt = factCheckPrompt("{}", "en", undefined, undefined, editor);
+    assert.match(prompt, /YOUR LESSONS AND PAST CASES[^\n]*\n- Battle strengths[^\n]*\n- past case \[retouch removes sourced numbers[\s\S]*EPISODE:\n\{\}$/);
+    assert.equal(factCheckPrompt("{}", "en", undefined, undefined, []), factCheckPrompt("{}", "en"), "without lessons the prompt is as before");
+    assert.ok(factCheckPrompt("{}", "en", undefined, undefined, Array.from({ length: 20 }, () => "w".repeat(2_000))).length < factCheckPrompt("{}", "en").length + FACT_CHECK_LESSONS * (FACT_CHECK_LESSON_CHARS + 3) + 200);
+    // The developer brain's written lessons: the relevant ones, the newest on a tie.
+    const dev = [{ tarih: "1", id: "a", metin: "Snap ships to water in MapBuilder." }, { tarih: "2", id: "b", metin: "Mixer keeps the narrator's tail." }, { tarih: "3", id: "c", metin: "Render workers halve on a crash." }];
+    assert.deepEqual(relevantLessons(dev, "the narrator voice tail was clipped by the mixer", 2).map((l) => l.id), ["b", "c"]);
+    assert.deepEqual(relevantLessons(dev, "unrelated", 2).map((l) => l.id), ["c", "b"]);
   });
 
   console.log(`V3 commit lessons smoke: PASS (${scenarios} scenarios)`);

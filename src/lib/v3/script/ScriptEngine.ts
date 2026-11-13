@@ -229,6 +229,11 @@ export function writerMaxTokens(brief: ScriptBrief): number {
 }
 
 const FACT_CHECK_MAX_TOKENS = 3_000;
+/**
+ * The second look at an unreadable fact check (13 Nov 2026 audit: 3,000 tokens cut a long script's claims mid-JSON and
+ * the episode went on unchecked); one more chance with room, then the episode is reported unchecked.
+ */
+export const FACT_CHECK_RETRY_MAX_TOKENS = 8_000;
 const MAX_LINE_CHARS = 240;
 
 type Parsed = { ok: true; value: unknown } | { ok: false; error: string };
@@ -514,7 +519,7 @@ export interface ScriptEngineInput {
  * chapter's fact check applied to the joined episode — a correction that would break it is reported instead.
  */
 async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome> {
-  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
+  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, readableCheck: (text) => readFactCheck(text) !== undefined, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
   const written = withBankSources(draft.episode, input.brief.kaynakBankasi);
   const validation = validateEpisode(written);
   if (!validation.ok) throw new ScriptError("V3_SCRIPT_INVALID", `birleşen bölümler: ${validation.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);
@@ -531,7 +536,8 @@ async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome
     episode,
     validation: validateEpisode(episode),
     factCheck: {
-      durum: reports.some((r) => r) ? "tamam" : "okunamadi",
+      // Every chapter checked, or the episode is unchecked (until 13 Nov 2026 one readable chapter of fifteen passed it).
+      durum: reports.length && reports.every((r) => r) ? "tamam" : "okunamadi",
       iddialar: checked.claims,
       ...(notes.length ? { genel_not: notes.join(" ") } : {}),
       uygulanan: checked.applied,
@@ -584,8 +590,9 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const livened = livenStillMaps(state.value as Episode);
   for (const fix of livened.fixes) input.log?.(`  senaryo: ${fix}`);
 
+  // The episode is validated once at the end (the history check's result); until 13 Nov 2026 an unchecked one returned
+  // a validation tracked here that missed the battle-map pass.
   let written = livened.episode;
-  let validation = livened.fixes.length ? validateEpisode(written) : state.validation!;
   const targetWords = wordBudget(brief);
   const band = lengthBand(brief);
   const short = isShorts(brief.hedefSureSn);
@@ -626,50 +633,50 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     written = revised.value as Episode;
-    validation = revised.validation!;
   }
   // A group the narrator tells that no round put on the stage gets its crowd as a last resort.
   const crowded = addToldCrowds(written, isShorts(brief.hedefSureSn));
   for (const fix of crowded.fixes) input.log?.(`  senaryo: ${fix}`);
-  if (crowded.episode !== written) {
-    written = crowded.episode;
-    validation = validateEpisode(written);
-  }
+  if (crowded.episode !== written) written = crowded.episode;
   // A Short's map scene still without its picture line gets its first narrator line (owner, 11 Nov 2026).
   const pictured = markMapPictures(written, brief.hedefSureSn);
   for (const fix of pictured.fixes) input.log?.(`  senaryo: ${fix}`);
-  if (pictured.episode !== written) {
-    written = pictured.episode;
-    validation = validateEpisode(written);
-  }
+  if (pictured.episode !== written) written = pictured.episode;
   // Armies the narrator counts off the map get their card (Cannae, 9 Nov 2026: numbers over standing puppets).
   const counted = addToldStrengths(written, brief.dil);
   for (const fix of counted.fixes) input.log?.(`  senaryo: ${fix}`);
-  if (counted.episode !== written) {
-    written = counted.episode;
-    validation = validateEpisode(written);
-  }
+  if (counted.episode !== written) written = counted.episode;
   // The director's pass on the battle maps (badges with the line naming them, a fallen ruler's X, routs, charge arrows).
   const directed = directBattleMaps(written);
   for (const fix of directed.fixes) input.log?.(`  senaryo: ${fix}`);
   written = withBankSources(directed.episode, brief.kaynakBankasi);
   const lengthFields = { lengthRounds, spokenWords: spokenWords(written), targetWords };
   const checked = await checkScriptHistory(written, brief, input);
-  if (!checked) {
-    return { episode: written, validation, factCheck: { durum: "okunamadi", iddialar: [], uygulanan: 0 }, repairs, ...lengthFields, writerUsed };
-  }
   return { episode: checked.episode, validation: validateEpisode(checked.episode), factCheck: checked.factCheck, repairs, ...lengthFields, writerUsed };
 }
 
 /**
  * The script's history review as the script step runs it: the editor's fact check (with the order), its corrections,
- * then the history gate. Undefined when the editor's answer could not be read (the episode counts as unchecked).
- * Throws V3_SCRIPT_HISTORY when a wrong line stays. Also run by hand on a kept script (owner checks, experiments).
+ * then the history gate. An editor's answer unreadable twice gives `durum: "okunamadi"` (the episode counts as
+ * unchecked; the order's facts are still compared). Throws V3_SCRIPT_HISTORY when a wrong line stays. Also run by hand
+ * on a kept script (owner checks, experiments).
  */
-export async function checkScriptHistory(written: Episode, brief: ScriptBrief, input: Pick<ScriptEngineInput, "budget" | "checker" | "log">): Promise<{ episode: Episode; factCheck: FactCheckReport } | undefined> {
-  const editor = await input.budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
-  const report = readFactCheck(editor.result.content);
-  if (!report) return undefined;
+export async function checkScriptHistory(written: Episode, brief: ScriptBrief, input: Pick<ScriptEngineInput, "budget" | "checker" | "log">): Promise<{ episode: Episode; factCheck: FactCheckReport }> {
+  const prompt = factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi, brief.konu, brief.denetciDersleri);
+  const editor = await input.budget.generate("dogrulama", input.checker, prompt, { maxTokens: FACT_CHECK_MAX_TOKENS });
+  let report = readFactCheck(editor.result.content);
+  // An unreadable answer (often cut at the token cap on a long script) is asked once more with room for its claims.
+  if (!report) {
+    input.log?.(`  senaryo: tarih doğrulamasının yanıtı okunamadı${editor.result.truncated || editor.result.finishReason === "length" ? " (yanıt kesildi)" : ""} — bir kez daha, daha geniş yanıt payıyla soruluyor`);
+    const again = await input.budget.generate("dogrulama-tekrar", input.checker, prompt, { maxTokens: FACT_CHECK_RETRY_MAX_TOKENS }).catch((e: Error) => (input.log?.(`  senaryo: ikinci tarih doğrulaması yapılamadı: ${e.message.slice(0, 120)}`), undefined));
+    report = again ? readFactCheck(again.result.content) : undefined;
+  }
+  // Still unreadable: the episode stays unchecked ("okunamadi" — the production's QC raises it as a missing piece), but
+  // the order's facts are still compared (the history gate without the editor's claims).
+  if (!report) {
+    const gated = await historyGate({ episode: written, claims: [], applied: 0 }, brief, input);
+    return { episode: gated.episode, factCheck: { durum: "okunamadi", iddialar: gated.claims, uygulanan: gated.applied } };
+  }
   const claims = await confirmSupport(written, report.iddialar, supportOf(brief), input);
   const fixed = applyFactCheck(written, claims, { support: supportOf(brief) });
   // A correction must never break a valid episode; if one would, the written text stays and the claims are reported.
@@ -714,7 +721,7 @@ async function historyGate(
   if (scenes.length) throw historyStop(scenes, episode);
   if (!unresolvedErrors(claims).length) return { episode, claims, applied };
   // A wrong line still standing: the editor reads the corrected script once more; what it still calls wrong must go.
-  const second = await input.budget.generate("dogrulama-2", input.checker, factCheckPrompt(JSON.stringify(episode), brief.dil, brief.kaynakBankasi, brief.konu), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  const second = await input.budget.generate("dogrulama-2", input.checker, factCheckPrompt(JSON.stringify(episode), brief.dil, brief.kaynakBankasi, brief.konu, brief.denetciDersleri), { maxTokens: FACT_CHECK_MAX_TOKENS });
   const report = readFactCheck(second.result.content);
   const fixed = report ? applyFactCheck(episode, await confirmSupport(episode, report.iddialar, supportOf(brief), input), { support: supportOf(brief) }) : undefined;
   const left = fixed ? unresolvedErrors(fixed.claims) : unresolvedErrors(claims);

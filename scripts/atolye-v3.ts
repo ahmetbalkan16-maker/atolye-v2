@@ -45,7 +45,7 @@ import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { canvaCoverFor } from "../src/lib/v3/thumbnail/CanvaClient";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
-import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, isMeasureBrain, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate, sourcedNumberFacts } from "../src/lib/v3/council/DirectorCouncil";
@@ -53,6 +53,7 @@ import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listRefe
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { similarCaseLines } from "../src/lib/v3/council/DevBrain";
+import { brainCases, criticBriefing, factCheckBriefing } from "../src/lib/v3/council/BrainBriefing";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { bestRound, cutFaults, deliverAfterFailedRound, faultsDecided, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
@@ -84,14 +85,14 @@ import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/scri
 import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
-import { EXTRA_CAP_MAX_USD, V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
+import { EXTRA_CAP_MAX_USD, fellBackChecks, V3Budget, type V3ModelChoice, type V3SpendEntry, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, V3_OLLAMA_THERMAL, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { healthDirs, healthLine, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
-import { PRODUCTION_STEPS } from "../src/lib/v3/orders/ProductionOrders";
+import { PRODUCTION_STEPS, roundStartLine } from "../src/lib/v3/orders/ProductionOrders";
 import { loadV3Settings, resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
 // One list with the order queue, which resumes an interrupted production after its last finished step.
@@ -511,9 +512,9 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const drawn: { si: number; d: DesignedSet }[] = [];
     try {
       for (const si of todo) {
-        // The setting brain's lessons: why similar sets were rejected before.
+        // The setting brain's lessons: why similar sets were rejected before, its rules and the chief's measures for it.
         const sc = sceneFor(si);
-        const lessons = await recall(paths.workRoot, "ortam", { konu: `${sc.mekan} ${sc.arka_plan_sorgusu.tasarim ?? sc.arka_plan_sorgusu.en} ${episode.donem}`, tur: "ders", limit: 3 });
+        const lessons = await recall(paths.workRoot, "ortam", { konu: `${sc.mekan} ${sc.arka_plan_sorgusu.tasarim ?? sc.arka_plan_sorgusu.en} ${episode.donem}`, tur: ["kural", "ders", "onlem"], limit: 3 });
         const design = designFor(sc, episode, [], lessons.map((l) => l.metin.slice(0, 120)));
         for (const k of [0, 1]) {
           // A retouched set gets fresh seeds (rounds 2–3), so it is not the same drawing again.
@@ -772,7 +773,10 @@ async function main() {
   if (need("senaryo", "episode.json")) {
     scriptWritten = true;
     await step("senaryo", async () => {
-      const { budget, providerName } = scriptBudget(paths, capUsd);
+      // The video's spend so far counts, as in every other paid step (13 Nov 2026 audit: each repair retry of this step got
+      // a fresh cap and its maliyet.json kept only the last attempt; a --from-step senaryo rerun forgot the earlier spend).
+      const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+      const { budget, providerName } = scriptBudget(paths, Math.max(0, capUsd - before.toplamUsd));
       const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_WRITER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
       const checker: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CHECKER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
       try {
@@ -816,13 +820,20 @@ async function main() {
         // Words per minute only from references in the script's language (a Turkish line needs fewer, longer words).
         const targets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(seconds(arg("--sure") ?? "90")), dil);
         // Each source keeps its share, so the many lessons of studied videos never push the productions' own out:
-        // the owner's rules and 4 production lessons, 3 reference lessons, 2 of the humourist's (the writer writes the jokes).
-        const dersler = [
+        // the owner's rules and 4 production lessons, 3 reference lessons, 2 of the humourist's (the writer writes the jokes)
+        // from references and 2 from productions and commits (13 Nov 2026: a commit's Ders-mizah was never read), then up
+        // to 3 past cases of the script and humour brains near the topic (BrainBriefing; the owner's words and Wikipedia's).
+        const dersler: string[] = [...new Set([
           ...(targets && targetsLine(targets) ? [targetsLine(targets)] : []),
           ...(await recall(paths.workRoot, "kurgu", { limit: 4, filter: (l) => !isReferenceLesson(l) }).catch(() => [])).map((l) => l.metin),
           ...(await recall(paths.workRoot, "kurgu", { tur: "ders", limit: 3, filter: isReferenceLesson }).catch(() => [])).map((l) => l.metin),
           ...(await recall(paths.workRoot, "mizah", { tur: "ders", limit: 2, filter: isReferenceLesson }).catch(() => [])).map((l) => l.metin),
-        ];
+          ...(await recall(paths.workRoot, "mizah", { konu: `${konu} ${period}`, tur: ["kural", "ders", "onlem"], limit: 1, filter: (l) => !isReferenceLesson(l) }).catch(() => [])).map((l) => l.metin),
+          ...(await recall(paths.workRoot, "mizah", { tur: ["ders", "onlem"], limit: 2, filter: (l) => !isReferenceLesson(l) }).catch(() => [])).map((l) => l.metin),
+          ...(await brainCases(paths.workRoot, ["kurgu", "mizah"], [`${konu} ${period}`, topic?.konu ? `${topic.konu} ${period}` : undefined])),
+        ])];
+        // The history editor's lessons and research cases (BrainBriefing; the research brain's lessons were never read).
+        const denetciDersleri = await factCheckBriefing(paths.workRoot, [`${konu} ${period}`, topic?.konu ? `${topic.konu} ${period}` : undefined]).catch(() => [] as string[]);
         // The historical atlas's polities nearest the episode's year, for real borders on the maps.
         const year = periodEndYear(period);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
@@ -842,7 +853,7 @@ async function main() {
         // earlier draft of this very script got wrong goes to the writer of the next one.
         const historyErrors = existsSync(f("tarih-hatalari.json")) ? (await readJson<{ hatalar: string[] }>(f("tarih-hatalari.json"))).hatalar : [];
         for (const h of historyErrors) dersler.push(`An earlier draft of THIS script got this history wrong — tell it right, with the deed or words given to the person history gives them to: ${h}`);
-        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}), ...(donemKiyafetleri ? { donemKiyafetleri } : {}) };
+        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: shortS, ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(denetciDersleri.length ? { denetciDersleri } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}), ...(kisaZamanHaritasi ? { kisaZamanHaritasi } : {}), ...(donemKiyafetleri ? { donemKiyafetleri } : {}) };
         // Invented people (owner, 11 Nov 2026, the Taranto Short's "Admiral Luigi de Pignati"): a character called real
         // must have their Wikipedia article, an invented one no rank and full name — else the history gate's redraft.
         const wikiCache = path.join(paths.workRoot, "_onbellek", "wikipedia");
@@ -877,7 +888,10 @@ async function main() {
         if (series) await recordEpisode(paths.workRoot, series.ad, { no: series.no, konu, baslik: written.baslik, ozet: episodeSummary(written), cikti: work });
         await writeJson(f("dogrulama.json"), out.factCheck);
       } finally {
-        await writeJson(f("maliyet.json"), { tavanUsd: budget.capUsd, toplamUsd: budget.spentUsd, adimlar: budget.ledger });
+        await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
+        // A fact check the cap sent to the free model is named now; QC raises it as a finding from maliyet.json.
+        const fell = fellBackChecks(budget.ledger);
+        for (const e of [...fell.gate, ...fell.other]) log(`  bütçe: ${e.step} tavan yüzünden ${e.fellBackFrom} yerine ${e.provider} ile yapıldı`);
       }
     });
   }
@@ -954,7 +968,12 @@ async function main() {
         if (brain) {
           // The costume brain's lessons on this period and cast (the Gallipoli review of 10 Nov 2026 had none and dressed
           // a 1915 commander in armour).
-          const castLessons = (await recall(paths.workRoot, "kostum", { konu: `${episode.konu} ${episode.donem} ${episode.oyuncu_kadrosu.map((c) => `${c.ad} ${c.rol}`).join(" ")}`, tur: "ders", limit: 4 }).catch(() => [])).map((l) => l.metin);
+          // Since 13 Nov 2026 also the owner's costume rules, the chief's measures and up to 3 past costume cases near the
+          // topic or the cast (BrainBriefing; a "ders" filter had left the rules and measures out).
+          const castLessons = [
+            ...(await recall(paths.workRoot, "kostum", { konu: `${episode.konu} ${episode.donem} ${episode.oyuncu_kadrosu.map((c) => `${c.ad} ${c.rol}`).join(" ")}`, tur: ["kural", "ders", "onlem"], limit: 4 }).catch(() => [])).map((l) => l.metin),
+            ...(await brainCases(paths.workRoot, ["kostum"], [`${episode.konu} ${episode.donem}`, `${episode.konu} ${episode.oyuncu_kadrosu.map((c) => c.ad).join(" ")}`])),
+          ];
           episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain, castLessons);
         }
         const designer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
@@ -1332,7 +1351,7 @@ async function main() {
     const voices = (await readJson<{ sesler: Record<string, string> }>(f("ses.json"))).sesler;
     const lipsync = synced.flat();
     const factCheck = existsSync(f("dogrulama.json")) ? await readJson<{ durum: string; uygulanan: number; iddialar: unknown[] }>(f("dogrulama.json")) : undefined;
-    const cost = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number }>(f("maliyet.json")) : { toplamUsd: 0 };
+    const cost = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar?: Partial<V3SpendEntry>[] }>(f("maliyet.json")) : { toplamUsd: 0 };
     const dialogScenes = dialogueSceneRatio(episode, { short: shorts });
     const target = episode.hedef_sure_sn;
     const lengthRight = lengthOk(durationS, target);
@@ -1420,8 +1439,17 @@ async function main() {
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin" || claim.sonuc === "dayanaksiz") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
+    // An unchecked script is a missing piece, never a clean delivery (13 Nov 2026 audit: an unreadable fact check passed
+    // the video as if it had been checked). An episode given from outside has no record and is only stated in QC.
+    if (factCheck && factCheck.durum !== "tamam") council.find({ beyin: "arastirma", onem: "eksik", baslik: "senaryonun tarih doğrulaması okunamadı", ayrinti: `dogrulama.json durum "${factCheck.durum}": editörün yanıtı iki denemede de okunamadı; satırlar kaynak bankasına karşı denetlenmeden seslendirildi (${factCheck.uygulanan} sipariş düzeltmesi uygulandı)`, oneri: "senaryoyu scripts/v3 ile yeniden denetlet ya da --from-step senaryo ile yeniden yazdır; yanıt kesildiyse FACT_CHECK_RETRY_MAX_TOKENS'a bak", tur: "veri", yer: "senaryo" });
+    // A fact check the cap sent to the free local model (V3Budget fellBackFrom): the history gate's is a missing piece.
+    const fellBack = fellBackChecks(cost.adimlar ?? []);
+    const fellLine = (xs: readonly V3SpendEntry[]) => [...new Set(xs.map((e) => `${e.step} (${e.fellBackFrom} → ${e.provider})`))].join(", ");
+    if (fellBack.gate.length) council.find({ beyin: "arastirma", onem: "eksik", baslik: "tarih kapısı tavan yüzünden yerel modelle yapıldı", ayrinti: `ücretli denetçi yerine: ${fellLine(fellBack.gate)}`, oneri: "ek-tavan.json ile bu videoya pay ver ve senaryoyu yeniden denetlet; tavana neyin yaklaştırdığına maliyet.json'dan bak", tur: "ayar", yer: "senaryo" });
+    if (fellBack.other.length) council.find({ beyin: "arastirma", onem: "uyari", baslik: "rötuş satır doğrulaması tavan yüzünden yerel modelle yapıldı", ayrinti: `ücretli denetçi yerine: ${fellLine(fellBack.other)}`, tur: "ayar", yer: "senaryo" });
     // The owner's rules and the quality brain's own prompt additions that its exam measured better (SelfImprovement).
-    const qualityRules = [...(await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin), ...(await activeAdditions(paths.workRoot, "kalite").catch(() => []))];
+    // Since 13 Nov 2026 also up to 2 past quality cases near the topic (BrainBriefing): faults found after an earlier cut.
+    const qualityRules = [...(await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin), ...(await activeAdditions(paths.workRoot, "kalite").catch(() => [])), ...(await brainCases(paths.workRoot, ["kalite"], [`${episode.konu} ${episode.donem}`], 2, 300))];
     // Showing taught frames as examples: the environment decides, else what the brain chose by its exam.
     const qualityExamples = process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1" || (process.env.ATOLYE_V3_QUALITY_EXAMPLES !== "0" && (await tunedSetting(paths.workRoot, "kalite", "ornekler").catch(() => undefined)) === true);
     // Each frame is asked its kind's pointed questions with its top and bottom edges shown at full size; the frames it judged
@@ -1477,7 +1505,9 @@ async function main() {
           canRevise,
           context: { baslik: episode.baslik, sureSn: durationS, shorts, tempo, qc: qc.filter((r) => r.startsWith("- [ ]")).map((r) => r.slice(6)), bulgular: council.findings.filter((x) => x.onem !== "bilgi").slice(0, 30).map((x) => `${BRAIN_NAMES[x.beyin]}: ${x.baslik}${x.yer ? ` (${x.yer})` : ""} — ${x.ayrinti.slice(0, 160)}`), kaynakSayilari: sourcedNumberFacts(bank, episode) },
           times: timeline,
-          lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),
+          // Each critic: its rules, 2 lessons about the episode, its 2 newest, and 2 past cases of its own brain near the
+          // topic or near its findings in this production (BrainBriefing, 13 Nov 2026).
+          lessons: (b) => criticBriefing(paths.workRoot, b, `${episode.konu} ${episode.donem}`, council.findings.filter((x) => x.beyin === b && x.onem !== "bilgi").slice(0, 8).map((x) => `${x.baslik} ${x.ayrinti.slice(0, 160)}`).join(" ")).catch(() => []),
           earlier,
           check: (e) => void assertEpisode(e),
           // Rewritten lines pass the script's own fact check against the source bank (a flagged one keeps its old text).
@@ -1505,11 +1535,18 @@ async function main() {
       if (prev !== undefined && session.puan > 0) await remember(paths.workRoot, { bolum: episode.konu, beyin: "sef", tur: "ders", konu: "yönetmen turu", metin: `${applied.length} fixes (${[...new Set(applied.map((e) => e.tur))].join(", ")}) — ${retouch!.yonetmen!.ozet}: council ${prev} → ${session.puan}`, sonuc: session.puan > prev ? "ise_yaradi" : "ise_yaramadi" }).catch(() => undefined);
     }
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
+    // The chief's few cents count against the video's own cap and stand in its maliyet.json like every other paid call
+    // (until 13 Nov 2026 they were spent beside the ledger).
+    const chiefBefore = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+    let chiefBudget: V3Budget | undefined;
     try {
-      const chief = scriptBudget(paths, 0.05);
+      const chief = scriptBudget(paths, Math.min(0.05, Math.max(0, capUsd - chiefBefore.toplamUsd)));
+      chiefBudget = chief.budget;
       chiefPlan = await chiefReview({ budget: chief.budget, model: chief.providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, konu: episode.konu, log: council });
     } catch (e) {
       log(`şef değerlendirmesi yapılamadı: ${(e as Error).message.slice(0, 120)}`);
+    } finally {
+      if (chiefBudget?.ledger.length) await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: chiefBefore.toplamUsd + chiefBudget.spentUsd, adimlar: [...chiefBefore.adimlar, ...chiefBudget.ledger] });
     }
     // The experience memory: what this episode taught the script brain, and the chief's measures for next time.
     const lessons: { beyin: "kurgu"; metin: string }[] = [];
@@ -1519,8 +1556,9 @@ async function main() {
     if (dialogScenes < 0.4) lessons.push({ beyin: "kurgu", metin: `Only ${Math.round(dialogScenes * 100)}% of the scenes had dialogue: let the characters speak more, a quip after the narrator.` });
     if (!episode.sahneler.some((sc) => sc.satirlar.some((l) => l.sfx))) lessons.push({ beyin: "kurgu", metin: "The script gave no sfx at all: put one on a gag, a hit or an entrance in every scene." });
     for (const l of lessons) await remember(paths.workRoot, { bolum: episode.konu, beyin: l.beyin, tur: "ders", konu: "senaryo", metin: l.metin }).catch(() => undefined);
-    // A measure the chief tied to no brain stays in the report only (no brain would recall it).
-    for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
+    // A measure the chief tied to no brain, or to one whose memory no prompt reads (ses, onarim, sef), stays in the report
+    // only (no brain would recall it).
+    for (const o of chiefPlan?.onlemler ?? []) if (isMeasureBrain(o.beyin)) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const scored = { likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) };
     // The measured faults of this cut, the second key between rounds: its open QC checks with the layout and pixel faults.
@@ -1606,7 +1644,8 @@ async function main() {
     }
     const keep = process.argv.slice(2).filter((a, i, all) => !["--from-step", "--rotus-turu"].includes(a) && !["--from-step", "--rotus-turu"].includes(all[i - 1] ?? ""));
     const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];
-    log(`↺ rötuş beyni: ${retouchPlan.tur}. tur başlıyor ("${retouchPlan.adim}" adımından)`);
+    // The order queue resumes an interrupted round from this line (ProductionOrders.resumePoint).
+    log(roundStartLine(retouchPlan.tur, retouchPlan.adim));
     const r = await runProcess(process.execPath, args, { onLine: log, env: process.env });
     if (r.code !== 0) {
       // A failed round delivers the best round kept before it, with a warning, instead of failing the order.

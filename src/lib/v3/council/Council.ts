@@ -98,6 +98,16 @@ export function chiefItems(value: unknown): ChiefItem[] {
 }
 
 /**
+ * The brains a chief's measure ("onlem") may be tied to: those whose memory some prompt reads before it works (13 Nov
+ * 2026: 43 measures written to the sound brain were never read by anything). A measure for another brain stays in the
+ * report only.
+ */
+export const MEASURE_BRAINS = ["arastirma", "kurgu", "mizah", "kostum", "ortam", "kalite"] as const satisfies readonly BrainId[];
+
+/** Whether a chief's measure tied to `beyin` is read by some brain (and so worth writing to its memory). */
+export const isMeasureBrain = (beyin: BrainId | undefined): beyin is (typeof MEASURE_BRAINS)[number] => !!beyin && (MEASURE_BRAINS as readonly string[]).includes(beyin);
+
+/**
  * The chief's reading of a production (AYAS's role until the live AYAS takes the report itself): a short verdict, the
  * measures Atölye can take on its own (data, settings) and the developments to propose (code), each tied to a brain.
  */
@@ -113,7 +123,7 @@ Decide, in Turkish:
 - "ozet": two sentences on the production's state.
 - "onlemler": up to 6 measures the studio can take by itself next time WITHOUT changing code (library data, search words, settings, regenerating a scene), most useful first.
 - "gelistirmeler": up to 5 code developments to PROPOSE to the owner (they are approved by the owner before anyone builds them), most valuable first.
-Each item: {"baslik": "...", "neden": "...", "beyin": "arastirma|kurgu|kostum|ortam|ses|kalite"}.
+Each item: {"baslik": "...", "neden": "...", "beyin": "${MEASURE_BRAINS.join("|")}"}.
 Return ONLY JSON: {"ozet": "...", "onlemler": [...], "gelistirmeler": [...]}`;
   const out = await input.budget.generate("sef-degerlendirme", input.model, prompt, { maxTokens: 1_500 });
   const raw = readJsonAnswer<{ ozet?: unknown; onlemler?: unknown; gelistirmeler?: unknown }>(out.result.content);

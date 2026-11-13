@@ -223,7 +223,13 @@ export interface LongFormDeps {
   readonly budget: V3Budget;
   readonly maxRepairs?: number;
   readonly log?: (s: string) => void;
+  /** Whether a chapter's fact-check answer can be read (ScriptEngine's reader); an unreadable one is asked once more. */
+  readonly readableCheck?: (text: string) => boolean;
 }
+
+/** A chapter's fact check; a second look at an unreadable one gets room for a long chapter's claims (a cut answer). */
+const CHAPTER_CHECK_MAX_TOKENS = 3_000;
+const CHAPTER_CHECK_RETRY_MAX_TOKENS = 8_000;
 
 /** The pieces writeScript needs back from a long episode (its fact check and outcome are assembled there). */
 export interface LongFormDraft {
@@ -319,7 +325,14 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     scenes.push(...chapterScenes);
     previous = chapterEnding(chapterScenes, outline.header.oyuncu_kadrosu);
     log(`  bölüm ${i + 1}/${outline.bolumler.length} "${ch.baslik}": ${chapterScenes.length} sahne, ${wordsOf(chapterScenes)}/${want} kelime`);
-    factChecks.push((await d.budget.generate(`dogrulama-${i + 1}`, d.checker, factCheckPrompt(JSON.stringify(chapterEpisode(outline, i, chapterScenes)), d.brief.dil, d.brief.kaynakBankasi, d.brief.konu), { maxTokens: 3_000 })).result.content);
+    const checkPrompt = factCheckPrompt(JSON.stringify(chapterEpisode(outline, i, chapterScenes)), d.brief.dil, d.brief.kaynakBankasi, d.brief.konu, d.brief.denetciDersleri);
+    let checkText = (await d.budget.generate(`dogrulama-${i + 1}`, d.checker, checkPrompt, { maxTokens: CHAPTER_CHECK_MAX_TOKENS })).result.content;
+    if (d.readableCheck && !d.readableCheck(checkText)) {
+      log(`  bölüm ${i + 1}: tarih doğrulamasının yanıtı okunamadı — bir kez daha, daha geniş yanıt payıyla soruluyor`);
+      const again = await d.budget.generate(`dogrulama-${i + 1}-tekrar`, d.checker, checkPrompt, { maxTokens: CHAPTER_CHECK_RETRY_MAX_TOKENS }).catch((e: Error) => (log(`  bölüm ${i + 1}: ikinci doğrulama yapılamadı: ${e.message.slice(0, 120)}`), undefined));
+      if (again) checkText = again.result.content;
+    }
+    factChecks.push(checkText);
   }
   // 3) The story editor reads the whole and mends each break with one line; mends that would break the episode are dropped.
   let joined = scenes;

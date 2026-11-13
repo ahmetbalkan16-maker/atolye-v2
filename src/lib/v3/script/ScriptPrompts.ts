@@ -83,6 +83,11 @@ export interface ScriptBrief {
   readonly donemKiyafetleri?: string;
   /** The script brain's lessons from earlier episodes and the chief's measures (experience memory). */
   readonly dersler?: readonly string[];
+  /**
+   * The history editor's (fact check's) own lessons and past research cases (BrainBriefing.factCheckBriefing; 13 Nov
+   * 2026: the research brain's lessons were written but never read before the render).
+   */
+  readonly denetciDersleri?: readonly string[];
   /** Real historical borders available near the episode's year (HistoricalBorders): snapshot year → polity names. */
   readonly tarihiSinirlar?: readonly { readonly yil: number; readonly adlar: readonly string[] }[];
   /** The series this episode belongs to, with what its earlier episodes told (Series). */
@@ -797,8 +802,22 @@ Say how the fact relates to what the line states:
 Return ONLY JSON: {"iliski":"celisir|sessiz|ekler|uyumlu","neden":"one short sentence"}`;
 }
 
-export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank, order?: string): string {
+/** At most this many of the history editor's lessons and cases go into one fact check, each at most this long. */
+export const FACT_CHECK_LESSONS = 8;
+export const FACT_CHECK_LESSON_CHARS = 400;
+
+/**
+ * `lessons`: the research brain's lessons and past cases (ScriptBrief.denetciDersleri) — what earlier fact checks
+ * missed or got wrong — shown before the episode, bounded.
+ */
+export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank, order?: string, lessons?: readonly string[]): string {
   const lang = dil === "tr" ? "Turkish" : "American English";
+  const learned = lessons?.length
+    ? `\nYOUR LESSONS AND PAST CASES (what earlier checks missed or got wrong — a guide to where to look; never a source of facts):\n${lessons
+        .slice(0, FACT_CHECK_LESSONS)
+        .map((l) => `- ${l.length > FACT_CHECK_LESSON_CHARS ? `${l.slice(0, FACT_CHECK_LESSON_CHARS - 1)}…` : l}`)
+        .join("\n")}\n`
+    : "";
   const facts = bank ? bankFactLines(bank, EVIDENCE_CHARS.checker) : undefined;
   const truth = bank
     ? `\nVERIFIED FACTS (ground truth, checked against the cited works): a line that agrees with one of these is "dogru" — never rewrite it or hedge it.\n${facts!.text}\n${facts!.shown ? `A fact's "evidence" is the source's own sentence: judge exact names, ranks, ships, dates and numbers by it; "dayanak" may copy the fact or its evidence.\n` : ""}`
@@ -822,7 +841,7 @@ For each problem line decide: "tartismali" (disputed / traditional account), "ya
 List ONLY problem lines (never correct ones). "sahne" is the scene id, "satir" the 0-based line index.
 Return ONLY this JSON:
 {"iddialar":[{"sahne":"s1-kanca","satir":0,"karar":"yanlis","gerekce":"…","yeni_metin":"…","karakter":"<only when another character says it>","dayanak":"<the verified fact or order sentence, copied>","kaynak_onerisi":"…"}],"genel_not":"…"}
-
+${learned}
 EPISODE:
 ${episodeJson}`;
 }

@@ -651,9 +651,35 @@ export function caseLine(c: DevCase, max = 900): string {
   return cut(`- [${c.konu.slice(0, 80)}] (${c.commit ? c.commit.slice(0, 10) : c.id}, ${c.tarih.slice(0, 10)}${c.kaynak === "turetilmis" ? ", derived from the commit" : ""}) ${parts.join(" | ")}`, max)!;
 }
 
-/** The nearest past cases as prompt lines (a few, each bounded); none when nothing is close or the library is unreadable. */
-export async function similarCaseLines(workRoot: string, text: string, n = 3, max = 900): Promise<string[]> {
-  return (await similarCases(workRoot, text, n).catch(() => [])).map((c) => caseLine(c, max));
+/**
+ * One case as a content brain's short prompt line (13 Nov 2026): only what was seen, why and how to catch it — the
+ * files and the proof are a developer's business, and a writer or a critic must not pay for them in every prompt. No
+ * leading "- ": the brains' prompts put their own bullet before each lesson.
+ */
+export function briefCaseLine(c: DevCase, max = 400): string {
+  const cut = (s: string | undefined, n: number) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  const parts = [`seen: ${cut(c.belirti, 200)}`, c.neden ? `cause: ${cut(c.neden, 140)}` : "", c.yakala ? `catch: ${cut(c.yakala, 140)}` : ""].filter(Boolean);
+  return cut(`past case [${c.konu.slice(0, 60)}] ${parts.join(" | ")}`, max)!;
+}
+
+/**
+ * The nearest past cases as prompt lines (a few, each bounded); none when nothing is close or the library is unreadable.
+ * `beyin` keeps only the cases that concern that brain (Vaka-beyin); `brief` gives briefCaseLine's short form.
+ */
+export async function similarCaseLines(workRoot: string, text: string, n = 3, max = 900, opts: { readonly beyin?: string; readonly brief?: boolean } = {}): Promise<string[]> {
+  return (await similarCases(workRoot, text, n, opts.beyin ? { beyin: opts.beyin } : {}).catch(() => [])).map((c) => (opts.brief ? briefCaseLine(c, max) : caseLine(c, max)));
+}
+
+/**
+ * The developer brain's written lessons most relevant to a task (shared words), the newer first on a tie and when
+ * nothing is shared (13 Nov 2026: the newest six were handed whatever the task was).
+ */
+export function relevantLessons(lessons: readonly DevLesson[], text: string, n: number): DevLesson[] {
+  return lessons
+    .map((l, i) => ({ l, i, s: similarity(text, l.metin) }))
+    .sort((a, b) => b.s - a.s || b.i - a.i)
+    .slice(0, Math.max(0, n))
+    .map((x) => x.l);
 }
 
 export async function say(workRoot: string, metin: string, kime?: string, now = new Date()): Promise<void> {

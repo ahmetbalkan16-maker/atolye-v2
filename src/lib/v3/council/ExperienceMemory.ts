@@ -241,8 +241,10 @@ export const MAX_RULES = 12;
  * wins a tie), each text once; a lesson is relevant when it shares enough words OR is close enough in meaning. Without
  * `konu` the newest come first. The owner's standing rules ("kural") come first and do not count against `limit`
  * whenever no type is asked for; a type filter ("ders") leaves them out. `filter` narrows the other lessons (by source).
+ * `tur` may also be a list (13 Nov 2026: the chief's "onlem" measures and the owner's kostum rules were written but no
+ * reader asked for them): `["ders", "onlem", "kural"]` gives the rules first plus the relevant lessons and measures.
  */
-export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number; readonly minCosine?: number; readonly filter?: (l: Lesson) => boolean } = {}): Promise<Lesson[]> {
+export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"] | readonly Lesson["tur"][]; readonly limit?: number; readonly minOverlap?: number; readonly minCosine?: number; readonly filter?: (l: Lesson) => boolean } = {}): Promise<Lesson[]> {
   const everything = await readAll(workRoot, beyin);
   const seen = new Set<string>();
   const once = (l: Lesson) => {
@@ -251,9 +253,10 @@ export async function recall(workRoot: string, beyin: BrainId, opts: { readonly 
     seen.add(key);
     return true;
   };
-  const rules = !opts.tur || opts.tur === "kural" ? everything.filter((l) => l.tur === "kural").reverse().filter(once).slice(0, MAX_RULES).reverse() : [];
-  if (opts.tur === "kural") return rules;
-  const all = everything.filter((l) => l.tur !== "kural" && (!opts.tur || l.tur === opts.tur) && (!opts.filter || opts.filter(l)));
+  const turs = opts.tur === undefined ? undefined : new Set<Lesson["tur"]>(typeof opts.tur === "string" ? [opts.tur] : opts.tur);
+  const rules = !turs || turs.has("kural") ? everything.filter((l) => l.tur === "kural").reverse().filter(once).slice(0, MAX_RULES).reverse() : [];
+  if (turs && [...turs].every((t) => t === "kural")) return rules;
+  const all = everything.filter((l) => l.tur !== "kural" && (!turs || turs.has(l.tur)) && (!opts.filter || opts.filter(l)));
   const scored = all.map((l, i) => ({ l, s: opts.konu ? Math.max(overlap(opts.konu, l.konu), overlap(opts.konu, l.metin)) : 0, i, c: -1 }));
   const cos = opts.konu && scored.length ? await cosines(workRoot, opts.konu, scored.map((x) => `${x.l.konu} — ${x.l.metin}`)) : undefined;
   if (cos) scored.forEach((x, j) => (x.c = cos[j]!));

@@ -3,7 +3,7 @@ import path from "node:path";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runProcess } from "../util/Proc";
 import { readJsonAnswer } from "./Council";
-import { codeExperienceLines, devBrainDir, gradedFiles, isV3Smoke, listLessons, listWriteExams, recordLesson, recordWriteExam, say, similarChanges, listChanges, type WriteExam, writeReadiness } from "./DevBrain";
+import { codeExperienceLines, devBrainDir, gradedFiles, isV3Smoke, listLessons, listWriteExams, recordLesson, recordWriteExam, relevantLessons, say, similarChanges, listChanges, type WriteExam, writeReadiness } from "./DevBrain";
 import { forbiddenChanges } from "./DevQueue";
 import { dropWorktree, linkShared } from "./Developer";
 import { codeOf, commitFiles, commitTask, guessTask, meaningNeighbours, type ResearchDeps, v3Commits } from "./DevResearch";
@@ -145,7 +145,7 @@ async function context(d: ResearchDeps, input: { readonly id: string; readonly g
     dosyalar,
     semboller: [...new Set([...(input.extraNames ?? []), ...(guess.semboller ?? [])])],
     benzer,
-    dersler: (await listLessons(d.workRoot)).slice(-8).map((l) => l.metin),
+    dersler: relevantLessons(await listLessons(d.workRoot), input.gorev, 8).map((l) => l.metin),
     rehber: skillsText(pickSkills(await listSkills(d.repoRoot), input.gorev, dosyalar)),
   };
 }

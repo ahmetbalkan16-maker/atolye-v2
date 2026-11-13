@@ -72,35 +72,48 @@ export function commitLessons(message: string): CommitLesson[] {
 /** A commit's `Vaka` block before it is recorded (DevBrain.DevCase without id, date, commit and files). */
 export type CommitCase = Pick<DevCase, "konu" | "belirti" | "neden" | "cozum" | "kanit" | "yakala" | "beyinler" | "bolum">;
 
-const CASE_FIELDS = { neden: "neden", cozum: "cozum", kanit: "kanit", yakala: "yakala", beyin: "beyinler", bolum: "bolum" } as const;
+/**
+ * A case field's key as written, Turkish letters folded ("çözüm" → "cozum", "kanıt" → "kanit", "bölüm" → "bolum"), to
+ * the field it fills; "beyinler" is an alias of "beyin" (13 Nov 2026: such lines were silently glued onto the field above).
+ */
+const CASE_FIELDS: Readonly<Record<string, "neden" | "cozum" | "kanit" | "yakala" | "beyinler" | "bolum">> = { neden: "neden", cozum: "cozum", kanit: "kanit", yakala: "yakala", beyin: "beyinler", beyinler: "beyinler", bolum: "bolum" };
+const fold = (s: string) => s.replace(/ı/g, "i").replace(/İ/g, "I").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 /** A line that starts something else (a lesson, a case field, a trailer such as Co-Authored-By), never a continuation. */
-const OTHER_LINE = /^(Ders-[a-z]+(\[[^\]]*\])?:|Vaka(\[[^\]]*\])?:|Vaka-[a-z]+:|[A-Z][\w-]+:\s)/;
+const OTHER_LINE = /^(Ders-[a-z]+(\[[^\]]*\])?:|Vaka(\[[^\]]*\])?:|Vaka-\p{L}+:|[A-Z][\w-]+:\s)/u;
 
 /**
  * The whole cases of a commit message (owner, 13 Nov 2026: every fix reaches the brains as a case, CLAUDE.md's standing
  * order): `Vaka[<konu>]: <symptom>` opens a case; `Vaka-neden:`, `Vaka-cozum:`, `Vaka-kanit:`, `Vaka-yakala:`,
  * `Vaka-beyin: kurgu, kalite` (LESSON_BRAINS; none named: gelistirici) and `Vaka-bolum: <video>` fill the latest one.
  * A line wrapped by an editor continues the field above it; a blank line ends that. Each field is cut at
- * MAX_CASE_FIELD characters; a commit may carry several cases.
+ * MAX_CASE_FIELD characters; a commit may carry several cases. Keys and brain names may carry Turkish letters
+ * (`Vaka-çözüm:`, `Vaka-beyinler: araştırma`); an unknown key or brain is left out and told to `warn`.
  */
-export function commitCases(message: string): CommitCase[] {
+export function commitCases(message: string, warn?: (s: string) => void): CommitCase[] {
   type Text = "belirti" | "neden" | "cozum" | "kanit" | "yakala" | "bolum";
   const out: ({ -readonly [K in Text]?: string } & { konu: string; beyinler: string[] })[] = [];
   let last: { c: (typeof out)[number]; k: Text | "beyinler" } | undefined;
   for (const raw of message.split(/\r?\n/)) {
     const line = raw.trim();
     const open = /^Vaka(?:\[([^\]]{1,120})\])?:\s*(\S.*)$/.exec(line);
-    const field = /^Vaka-([a-z]+):\s*(.*)$/.exec(line);
+    const field = /^Vaka-(\p{L}+):\s*(.*)$/u.exec(line);
+    const k = field ? CASE_FIELDS[fold(field[1]!)] : undefined;
     if (open) {
       const c = { konu: (open[1] ?? open[2]!).trim().slice(0, 120), belirti: open[2]!.trim(), beyinler: [] };
       out.push(c);
       last = { c, k: "belirti" };
-    } else if (field && out.length && field[1]! in CASE_FIELDS) {
+    } else if (field && out.length && k) {
       const c = out[out.length - 1]!;
-      const k = CASE_FIELDS[field[1] as keyof typeof CASE_FIELDS];
-      if (k === "beyinler") c.beyinler = field[2]!.split(/[\s,]+/).filter((b) => (LESSON_BRAINS as readonly string[]).includes(b));
-      else c[k] = field[2]!.trim();
+      if (k === "beyinler") {
+        const named = field[2]!.split(/[\s,]+/).filter(Boolean);
+        c.beyinler = named.map(fold).filter((b) => (LESSON_BRAINS as readonly string[]).includes(b));
+        const unknown = named.filter((b) => !(LESSON_BRAINS as readonly string[]).includes(fold(b)));
+        if (unknown.length) warn?.(`Vaka-${field[1]}: bilinmeyen beyin ${unknown.join(", ")} (bilinenler: ${LESSON_BRAINS.join(", ")})`);
+      } else c[k] = field[2]!.trim();
       last = { c, k };
+    } else if (field && out.length) {
+      warn?.(`Vaka-${field[1]}: bilinmeyen alan, yok sayıldı (bilinenler: neden, cozum, kanit, yakala, beyin, bolum)`);
+      last = undefined;
     } else if (!line || OTHER_LINE.test(line)) last = undefined;
     else if (last && last.k !== "beyinler") last.c[last.k] = `${last.c[last.k] ?? ""} ${line}`.trim();
   }
@@ -171,7 +184,13 @@ export async function learnCommitLessons(d: { readonly repoRoot: string; readonl
     if (!sha || !tarih) continue;
     const message = body.join("\x1f");
     if (!cased.has(sha)) {
-      const own = commitCases(message);
+      const warnings: string[] = [];
+      const own = commitCases(message, (w) => warnings.push(w));
+      // A mistyped Vaka line is said once, when the commit's cases are recorded (it used to vanish into the field above).
+      for (const w of warnings) {
+        d.log?.(`commit ${sha.slice(0, 10)} vaka bloğu: ${w}`);
+        await say(d.workRoot, `Commit ${sha.slice(0, 10)} vaka bloğunda: ${w}`);
+      }
       const derived = own.length ? undefined : derivedCase(message);
       const dosyalar = [...new Set(files.split(/\r?\n/).map((f) => f.trim().replace(/\\/g, "/")).filter(Boolean))];
       const list: (CommitCase & { readonly id: string; readonly kaynak: DevCase["kaynak"] })[] = derived ? [{ ...derived, id: `${sha}#t`, kaynak: "turetilmis" }] : own.map((c, k) => ({ ...c, id: `${sha}#${k + 1}`, kaynak: "commit" }));

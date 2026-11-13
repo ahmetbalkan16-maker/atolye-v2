@@ -10,6 +10,7 @@
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { criticBriefing } from "../../src/lib/v3/council/BrainBriefing";
 import { brainBudget } from "../../src/lib/v3/council/BrainModels";
 import { BRAIN_NAMES, type Finding } from "../../src/lib/v3/council/Council";
 import { councilCapUsd, holdCouncil, sessionDebate, sourcedNumberFacts } from "../../src/lib/v3/council/DirectorCouncil";
@@ -75,7 +76,8 @@ async function main() {
       kaynakSayilari: sourcedNumberFacts(existsSync(f("kaynak-bankasi.json")) ? await read<SourceBank>("kaynak-bankasi.json") : undefined, episode),
     },
     times: timeline,
-    lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),
+    // As the production's council: rules, lessons by topic and newest, past cases near the topic or the brain's findings.
+    lessons: (b) => criticBriefing(paths.workRoot, b, `${episode.konu} ${episode.donem}`, findings.filter((x) => x.beyin === b && x.onem !== "bilgi" && x.baslik !== "kurul notu").slice(0, 8).map((x) => `${x.baslik} ${x.ayrinti.slice(0, 160)}`).join(" ")).catch(() => []),
     earlier: (await recall(paths.workRoot, "sef", { tur: "ders", limit: 5 }).catch(() => [])).map((l) => l.metin),
     check: (e) => void assertEpisode(e),
     log: console.log,

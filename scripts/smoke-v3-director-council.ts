@@ -252,8 +252,16 @@ async function main() {
     assert.ok(logged.some((l) => /doğrulamadan geçmedi.*Hamad died/.test(l)));
     const passing = await run(async () => [{ sahne: STAGE, satir: 5, karar: "dogru" }]);
     assert.equal(passing.karar!.yeniden.length, 1);
+    // An unchecked rewrite is never voiced: an unreadable or failed check drops every rewrite, the old lines stay.
+    logged.length = 0;
     const unread = await run(async () => undefined);
-    assert.equal(unread.karar!.yeniden.length, 1, "an unreadable check drops nothing");
+    assert.deepEqual([unread.karar!.yeniden.length, unread.karar!.duzeltmeler.map((d) => d.tur)], [0, ["oyun"]], "an unreadable check drops every rewrite");
+    assert.ok(logged.some((l) => /1 satır doğrulanamadı, eskileri kalıyor: .*#5/.test(l)));
+    const thrown = await run(async () => {
+      throw new Error("429 rate limit");
+    });
+    assert.deepEqual([thrown.karar!.yeniden.length, thrown.karar!.duzeltmeler.map((d) => d.tur)], [0, ["oyun"]], "a failed check drops every rewrite");
+    assert.ok(logged.some((l) => /doğrulaması hata verdi: 429/.test(l)));
     assert.deepEqual(droppedRewrites([{ sahne: "a", satir: 1, eski: "x", metin: "y" }], [{ sahne: "a", satir: 1, karar: "tartismali" }]).map((d) => d.gerekce), ["tartismali"]);
     // The check that needs no model: a rewrite brings no number, month or unknown name of its own (the fact check let
     // "At exactly 9:00 AM, August 27, Rawson delivered his ultimatum" through — it was delivered on the 26th).

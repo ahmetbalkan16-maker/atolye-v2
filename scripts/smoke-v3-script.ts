@@ -3,7 +3,7 @@
  * Run: npx tsx scripts/smoke-v3-script.ts
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
@@ -13,7 +13,7 @@ import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/research/Infobox";
 import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
-import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
@@ -26,7 +26,7 @@ import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { cachedDiscountUsd, cachedTokensOf, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
+import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
@@ -156,6 +156,22 @@ async function main() {
     assert.equal(budget.spentUsd, 0);
   });
 
+  await scenario("B2 a fact check the cap sent to the free model is found in the ledger (13 Nov 2026 audit: fellBackFrom was read by nobody)", async () => {
+    const budget = new V3Budget({ capUsd: 0.01, providers: { openai: new FakeProvider([]), ollama: new FakeProvider(["a", "b", "c", "d", "e"]) }, fallback: { provider: "ollama" } });
+    for (const step of ["senaryo", "dogrulama", "dogrulama-3-tekrar", "dogrulama-rotus", "dogrulamax"]) await budget.generate(step, { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 });
+    const fell = fellBackChecks([...budget.ledger, { step: "dogrulama-2", provider: "openai", model: "gpt-4.1", ceilingUsd: 0.01, costUsd: 0.01, reason: "WITHIN_RESERVED_CAP" }]);
+    assert.deepEqual(fell.gate.map((e) => e.step), ["dogrulama", "dogrulama-3-tekrar"], "the history gate's checks; a paid one and the script itself are not");
+    assert.deepEqual(fell.other.map((e) => e.step), ["dogrulama-rotus"]);
+    assert.deepEqual(fellBackChecks([{ step: "dogrulama" }, {}]).gate, [], "a ledger read from maliyet.json may hold anything");
+    // Every paid step of the production adds to the video's maliyet.json, the script step and the chief included (the
+    // script step's repair retries each got a fresh cap and wrote only their own spend).
+    const producer = readFileSync(path.join(process.cwd(), "scripts", "atolye-v3.ts"), "utf8");
+    const writes = [...producer.matchAll(/writeJson\(f\("maliyet\.json"\), \{([^\n]*)\}\)/g)].map((m) => m[1]!);
+    assert.ok(writes.length >= 5, `${writes.length} maliyet.json writes`);
+    for (const w of writes) assert.match(w, /toplamUsd: \w+\.toplamUsd \+ [\w.]+\.spentUsd, adimlar: \[\.\.\.\w+\.adimlar, /, w);
+    assert.ok(!/scriptBudget\(paths, (capUsd|0\.05)\)/.test(producer), "no paid step starts from the whole cap");
+  });
+
   await scenario("C without a fallback the over-cap call stops the run before spending", async () => {
     const openai = new FakeProvider(["pahalı"]);
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
@@ -206,9 +222,37 @@ async function main() {
   });
 
   await scenario("G an unreadable fact-check answer marks the episode unchecked instead of passing it", async () => {
-    const openai = new FakeProvider([validJson(), "üzgünüm, yapamam"]);
-    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }) });
+    const openai = new FakeProvider([validJson(), "üzgünüm, yapamam", '{"iddialar": [{"sahne": "s1-kanca", "satir": 1, "kar']);
+    const budget = new V3Budget({ providers: { openai } });
+    const logged: string[] = [];
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget, log: (s) => logged.push(s) });
     assert.equal(out.factCheck.durum, "okunamadi");
+    assert.equal(out.validation.ok, true);
+    // 13 Nov 2026 audit: an unreadable answer is asked once more, with room for a long script's claims.
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-tekrar");
+    assert.deepEqual(openai.calls.slice(1).map((c) => c.options?.maxTokens), [3_000, FACT_CHECK_RETRY_MAX_TOKENS]);
+    assert.equal(openai.calls[2]!.prompt, openai.calls[1]!.prompt, "the same question, asked again");
+    assert.ok(logged.some((l) => /tarih doğrulamasının yanıtı okunamadı/.test(l)));
+    // The second look reads: the episode is checked after all.
+    const again = new FakeProvider([validJson(), '{"iddialar": [{"sahne": "s1-kanca", "satir": 1, "kar', JSON.stringify({ iddialar: [] })]);
+    const b2 = new V3Budget({ providers: { openai: again } });
+    const ok = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b2 });
+    assert.equal(ok.factCheck.durum, "tamam");
+    assert.equal(b2.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-tekrar");
+  });
+
+  await scenario("G2 an unchecked script still has the order compared fact by fact (the history gate is not skipped)", async () => {
+    const order = "Rumeli Hisarı (1452): II. Mehmed Boğazkesen'i dört ayda yaptırır; Çandarlı Halil Paşa savaşa karşı çıkar, Zağanos Paşa savaşı ister; hisar Ağustos 1452'de biter ve Bizans'ın Karadeniz yolu kesilir.";
+    const swapped = JSON.parse(validJson());
+    swapped.sahneler[0].satirlar[0].metin = "Zağanos Paşa hisarı dört ayda bitirir.";
+    const fidelity = JSON.stringify({ olgular: [{ olgu: "II. Mehmed Boğazkesen'i dört ayda yaptırır", sahne: "s1-kanca", satir: 0, karar: "celisir", gerekce: "hisarı yaptıran Mehmed", yeni_metin: "Mehmed hisarı dört ayda bitirtir." }] });
+    const openai = new FakeProvider([JSON.stringify(swapped), "???", "!!!", fidelity]);
+    const budget = new V3Budget({ providers: { openai } });
+    const out = await writeScript({ brief: { konu: order, donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-tekrar,dogrulama-siparis");
+    assert.equal(out.factCheck.durum, "okunamadi", "still unchecked: QC raises it");
+    assert.equal(out.episode.sahneler[0]!.satirlar[0]!.metin, "Mehmed hisarı dört ayda bitirtir.", "the order's deed back to Mehmed");
+    assert.equal(out.factCheck.uygulanan, 1);
   });
 
   await scenario("H a correction too long for a line is reported, not written", () => {
@@ -1101,6 +1145,27 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal(read.outline!.bolumler.reduce((n, b) => n + b.sure_sn, 0), 720);
     assert.ok(readOutline({ ...outline, bolumler: [] }, { hedefSureSn: 720 }).problems.some((p) => p.includes("4–16 chapters")));
     assert.ok(prefixScenes([{ id: "s1" }, { id: "b2-x-s2" }], "b2-x").every((s) => String(s.id).startsWith("b2-x-")));
+  });
+
+  await scenario("L1 a long episode is checked only when every chapter's fact check reads; an unreadable one is asked once more (13 Nov 2026 audit)", async () => {
+    const { sahneler, ...header } = episode();
+    const outline = { ...header, hedef_sure_sn: 720, bolumler: Array.from({ length: 6 }, (_, i) => ({ id: `b${i + 1}-bolum`, baslik: `Bölüm ${i + 1}`, ozet: `Bu bölümde olay ${i + 1} anlatılır, yerleri ve yılları ile birlikte.`, sure_sn: 100, ...(i ? { baglanti: `Bölüm ${i}'in sonundaki divandan devam eder.` } : {}) })) };
+    const run = async (checks: (i: number) => string[]) => {
+      const answers = [JSON.stringify(outline)];
+      for (let i = 0; i < 6; i++) answers.push(JSON.stringify({ sahneler }), JSON.stringify({ ...header, sahneler }), ...checks(i));
+      answers.push(JSON.stringify({ kopukluklar: [] }));
+      const openai = new FakeProvider(answers);
+      const budget = new V3Budget({ providers: { openai }, capUsd: 4 });
+      const out = await writeScript({ brief: { konu: "Uzun konu", donem: "1453", hedefSureSn: 720, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
+      return { out, steps: budget.ledger.map((e) => e.step).filter((s) => s.startsWith("dogrulama")) };
+    };
+    const empty = JSON.stringify({ iddialar: [] });
+    // Chapter 3's answer was cut and reads on the second look; chapter 5's never reads: the episode is unchecked.
+    const cut = await run((i) => (i === 2 ? ['{"iddialar": [{"sahne": "s1', empty] : i === 4 ? ["?", "?"] : [empty]));
+    assert.deepEqual(cut.steps, ["dogrulama-1", "dogrulama-2", "dogrulama-3", "dogrulama-3-tekrar", "dogrulama-4", "dogrulama-5", "dogrulama-5-tekrar", "dogrulama-6"]);
+    assert.equal(cut.out.factCheck.durum, "okunamadi", "one unreadable chapter of six leaves the episode unchecked");
+    const healed = await run((i) => (i === 2 ? ["?", empty] : [empty]));
+    assert.equal(healed.out.factCheck.durum, "tamam", "every chapter read (one on its second look)");
   });
 
   await scenario("map rules (owner, 21 Oct 2026): between places on the living map — a map-named scene needs a map, a map needs something happening, a voyage needs its route", () => {

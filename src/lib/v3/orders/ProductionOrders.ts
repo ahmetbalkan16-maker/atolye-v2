@@ -75,11 +75,41 @@ export interface OrderPublish {
   readonly elle?: boolean;
 }
 
-/** The step after the last one the production log shows done ("✓ ses (141 sn)"); the first step when none is. */
-export function resumeStep(log: string): ProductionStep {
+/**
+ * The line the production logs when it starts a retouch round (scripts/atolye-v3.ts):
+ * `↺ rötuş beyni: 1. tur başlıyor ("gardirop" adımından)`.
+ */
+const ROUND_START = /^↺ rötuş beyni: (\d+)\. tur başlıyor \("([a-z]+)" adımından\)/gm;
+
+/** The round-start line itself (written only here, so resumePoint always reads what the production wrote). */
+export function roundStartLine(round: number, step: ProductionStep): string {
+  return `↺ rötuş beyni: ${round}. tur başlıyor ("${step}" adımından)`;
+}
+
+/**
+ * Where an interrupted production resumes: the retouch round the log last started (0 = the first production) and the
+ * step after the last one that round shows done ("✓ ses (141 sn)") — the round's own first step when it shows none.
+ * Until 13 Nov 2026 the highest "✓" of the whole appended log decided and the round was forgotten: a crash in round 1
+ * resumed from `birlestir` as round 0 and overwrote tur0/.
+ */
+export function resumePoint(log: string): { readonly step: ProductionStep; readonly round: number } {
+  let round = 0;
+  let from = 0;
+  let roundStep: ProductionStep | undefined;
+  for (const m of log.matchAll(ROUND_START)) {
+    round = Number(m[1]);
+    from = m.index + m[0].length;
+    roundStep = PRODUCTION_STEPS.includes(m[2] as ProductionStep) ? (m[2] as ProductionStep) : undefined;
+  }
   let last = -1;
-  for (const m of log.matchAll(/^✓ ([a-z]+) \(/gm)) last = Math.max(last, PRODUCTION_STEPS.indexOf(m[1] as ProductionStep));
-  return PRODUCTION_STEPS[Math.min(last + 1, PRODUCTION_STEPS.length - 1)]!;
+  for (const m of log.slice(from).matchAll(/^✓ ([a-z]+) \(/gm)) last = Math.max(last, PRODUCTION_STEPS.indexOf(m[1] as ProductionStep));
+  if (last < 0 && roundStep) return { step: roundStep, round };
+  return { step: PRODUCTION_STEPS[Math.min(last + 1, PRODUCTION_STEPS.length - 1)]!, round };
+}
+
+/** The step an interrupted production resumes from (resumePoint without the round). */
+export function resumeStep(log: string): ProductionStep {
+  return resumePoint(log).step;
 }
 
 /**
@@ -93,8 +123,8 @@ export function recoverInterrupted(order: ProductionOrder, log: string, now = ne
     Object.assign(order, { durum: "hata", bitis: now.toISOString(), ozet: `üretim ${resumes + 1}. kez yarıda kesildi (bilgisayar kapandı ya da süreç çöktü); ayrıntı uret.log` });
     return;
   }
-  const step = resumeStep(log);
-  Object.assign(order, { durum: "bekliyor", devam: resumes + 1, devamAdimi: step, ozet: `yarıda kesildi; ${step} adımından devam edecek` });
+  const { step, round } = resumePoint(log);
+  Object.assign(order, { durum: "bekliyor", devam: resumes + 1, devamAdimi: step, rotusTuru: round, ozet: `yarıda kesildi; ${round ? `${round}. rötuş turu, ` : ""}${step} adımından devam edecek` });
 }
 
 /**
@@ -110,7 +140,8 @@ export function productionCommand(repoRoot: string, order: ProductionOrder, out:
       path.join(repoRoot, "scripts", "atolye-v3.ts"),
       "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", provider, "--cikti", out,
       ...(order.dizi ? ["--dizi", order.dizi.ad, "--dizi-no", String(order.dizi.no)] : []),
-      ...(order.devamAdimi && order.devamAdimi !== "senaryo" ? ["--from-step", order.devamAdimi] : []),
+      // A retouch round always names its step: without --from-step every file of the round before counts as done.
+      ...(order.devamAdimi && (order.devamAdimi !== "senaryo" || (order.rotusTuru ?? 0) > 0) ? ["--from-step", order.devamAdimi] : []),
       ...(order.rotusTuru && order.rotusTuru > 0 ? ["--rotus-turu", String(order.rotusTuru)] : []),
     ],
   };

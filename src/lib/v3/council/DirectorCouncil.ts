@@ -670,7 +670,13 @@ export async function holdCouncil(input: {
     const rw = await input.budget.generate("ayas-yeniden-yazim", input.director, rewritePrompt(input.episode, decision.duzeltmeler, input.dil, short), { maxTokens: 2_000 }).catch(() => undefined);
     yeniden = rw ? parseRewrites(input.episode, decision.duzeltmeler, rw.result.content, { ...short, refused: reddedilen }) : [];
     if (yeniden.length && input.factCheck) {
-      const claims = await input.factCheck(applyEdits(input.episode, decision.duzeltmeler, yeniden)).catch(() => undefined);
+      const claims = await input.factCheck(applyEdits(input.episode, decision.duzeltmeler, yeniden)).catch((e: Error) => (log(`  yeniden yazılan satırların doğrulaması hata verdi: ${e.message.slice(0, 120)}`), undefined));
+      // An unchecked rewrite is never voiced (13 Nov 2026 audit: a thrown or unreadable check kept every new line): the
+      // old lines, already checked by the script step, stay.
+      if (!claims) {
+        log(`  AYAS'ın yeniden yazdığı ${yeniden.length} satır doğrulanamadı, eskileri kalıyor: ${yeniden.map((r) => `${r.sahne}#${r.satir}`).join(", ")}`);
+        yeniden = [];
+      }
       const flagged = droppedRewrites(yeniden, claims ?? []);
       for (const d of flagged) log(`  AYAS'ın yeniden yazdığı satır doğrulamadan geçmedi, eskisi kalıyor: ${d.sahne}#${d.satir} "${d.metin.slice(0, 90)}" — ${d.gerekce.slice(0, 160)}`);
       if (flagged.length) yeniden = yeniden.filter((r) => !flagged.some((d) => d.sahne === r.sahne && d.satir === r.satir));
