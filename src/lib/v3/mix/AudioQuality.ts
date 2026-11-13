@@ -241,6 +241,135 @@ export function brokenStretches(samples: Float32Array, rate: number): BrokenStre
   return out;
 }
 
+/**
+ * A horn where a noise belongs (owner, 13 Nov 2026: "savaş borazanı sesi de garip çıkıyordu, hala videonun bazı yerlerinde
+ * o ses var"; first on 26 Oct, Kosovo). The generators turn a short noise into a held tone: MOSS's modern "small desk
+ * bell ringing twice" (Guadalcanal 35 s, Çanakkale 130 s) is a 441 Hz tone held for its whole 3 s, 93% of the 200–3000 Hz
+ * energy in that one line and loudest at 2.5 s; its "war drums and a bronze horn call" (22 Oct) held 594 Hz the same way.
+ * Every recorded effect and ambience in the library holds no such line for a second (a struck bell's partial dies within
+ * half a second, water, steps, guns and crowds have none). A held tone is a narrow peak (HORN_LINE_DB over its ±100 Hz
+ * neighbourhood) at the same frequency (±1 bin, 3.9 Hz) frame after frame, carrying HORN_SHARE of the band's energy for
+ * HORN_MIN_S, and sustained: within HORN_HOLD_DB of its loudest for HORN_HOLD_S.
+ */
+export const HORN_LOW_HZ = 200;
+export const HORN_HIGH_HZ = 3000;
+export const HORN_LINE_DB = 12;
+export const HORN_SHARE = 0.5;
+export const HORN_MIN_S = 1;
+export const HORN_HOLD_S = 1;
+export const HORN_HOLD_DB = 6;
+/** Frames 50 ms apart, each ~256 ms long (a 3.9 Hz bin at 8 kHz). */
+const HORN_HOP_S = 0.05;
+
+export interface HeldTone {
+  readonly start: number;
+  readonly end: number;
+  /** The strongest held line, Hz. */
+  readonly hz: number;
+  /** Mean share of the 200–3000 Hz energy in held lines over the stretch. */
+  readonly share: number;
+  /** Where its loudest frame lies, seconds after its start (a swell peaks late). */
+  readonly peakAtS: number;
+  /** How long it stays within HORN_HOLD_DB of that loudest frame, seconds. */
+  readonly holdS: number;
+}
+
+/** Stretches of a signal where held lines carry HORN_SHARE of the 200–3000 Hz energy for HORN_MIN_S or more. */
+export function heldTones(samples: Float32Array, rate: number): HeldTone[] {
+  let n = 2;
+  while (n < rate * 0.256) n <<= 1;
+  const hop = Math.max(1, Math.round(rate * HORN_HOP_S));
+  const binHz = rate / n;
+  const lo = Math.max(2, Math.round(HORN_LOW_HZ / binHz));
+  const hi = Math.min(n / 2 - 2, Math.round(HORN_HIGH_HZ / binHz));
+  const around = Math.max(2, Math.round(100 / binHz));
+  const hann = Float64Array.from({ length: n }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1)));
+  const frames: { db: number; band: number; peaks: Map<number, number> }[] = [];
+  for (let c = 0; c < samples.length; c += hop) {
+    const re = new Float64Array(n);
+    const im = new Float64Array(n);
+    for (let i = 0; i < n; i++) re[i] = (samples[c - n / 2 + i] ?? 0) * hann[i]!;
+    let e = 0;
+    for (let i = c - hop; i < c + hop; i++) e += (samples[i] ?? 0) ** 2;
+    fft(re, im);
+    const p = new Float64Array(n / 2);
+    for (let k = 0; k < n / 2; k++) p[k] = re[k]! * re[k]! + im[k]! * im[k]!;
+    const db = Array.from(p, (v) => 10 * Math.log10(v + 1e-30));
+    let band = 0;
+    for (let k = lo; k <= hi; k++) band += p[k]!;
+    const peaks = new Map<number, number>();
+    for (let k = lo; k <= hi; k++) {
+      if (!(db[k]! > db[k - 1]! && db[k]! >= db[k + 1]!)) continue;
+      const near = db.slice(Math.max(0, k - around), k + around + 1).sort((a, b) => a - b);
+      if (db[k]! - near[near.length >> 1]! >= HORN_LINE_DB) peaks.set(k, p[k - 1]! + p[k]! + p[k + 1]!);
+    }
+    frames.push({ db: 10 * Math.log10(e / (2 * hop) + 1e-12), band, peaks });
+  }
+  if (!frames.length) return [];
+  // How many frames in a row a line has been there (back) and will be there (ahead), within ±1 bin.
+  const run = (order: number[]) => {
+    const out: Map<number, number>[] = frames.map(() => new Map());
+    let prev: Map<number, number> | undefined;
+    for (const i of order) {
+      for (const k of frames[i]!.peaks.keys()) out[i]!.set(k, 1 + Math.max(prev?.get(k - 1) ?? 0, prev?.get(k) ?? 0, prev?.get(k + 1) ?? 0));
+      prev = out[i];
+    }
+    return out;
+  };
+  const idx = frames.map((_, i) => i);
+  const back = run(idx);
+  const ahead = run([...idx].reverse());
+  const need = Math.round(HORN_MIN_S / HORN_HOP_S);
+  const floor = Math.max(...frames.map((f) => f.db)) - 30;
+  const held = frames.map((f, i) => {
+    let s = 0;
+    let best = 0;
+    let bestK = 0;
+    for (const [k, e] of f.peaks) {
+      if (back[i]!.get(k)! + ahead[i]!.get(k)! - 1 < need) continue;
+      s += e;
+      if (e > best) [best, bestK] = [e, k];
+    }
+    return { share: f.band > 0 ? s / f.band : 0, k: bestK };
+  });
+  const out: HeldTone[] = [];
+  let from = -1;
+  const close = (to: number) => {
+    if (from >= 0 && (to - from) * HORN_HOP_S >= HORN_MIN_S) {
+      const seg = frames.slice(from, to);
+      let top = 0;
+      seg.forEach((f, j) => {
+        if (f.db > seg[top]!.db) top = j;
+      });
+      const ks = held.slice(from, to).map((h) => h.k).sort((a, b) => a - b);
+      out.push({
+        start: from * HORN_HOP_S,
+        end: to * HORN_HOP_S,
+        hz: Math.round(ks[ks.length >> 1]! * binHz),
+        share: held.slice(from, to).reduce((a, h) => a + h.share, 0) / (to - from),
+        peakAtS: top * HORN_HOP_S,
+        holdS: seg.filter((f) => f.db > seg[top]!.db - HORN_HOLD_DB).length * HORN_HOP_S,
+      });
+    }
+    from = -1;
+  };
+  for (let i = 0; i < frames.length; i++) {
+    const on = frames[i]!.db > floor && held[i]!.share >= HORN_SHARE;
+    if (on && from < 0) from = i;
+    else if (!on) close(i);
+  }
+  close(frames.length);
+  return out;
+}
+
+/** Why an effect or an ambience bed sounds like a horn (empty when it does not): its held, sustained tones. */
+export function hornProblems(samples: Float32Array, rate: number): string[] {
+  const num = (v: number) => v.toFixed(1).replace(".", ",");
+  return heldTones(samples, rate)
+    .filter((h) => h.holdS >= HORN_HOLD_S)
+    .map((h) => `borazan gibi: ${h.hz} Hz'lik ton ${num(h.end - h.start)} sn tutuyor (${num(h.start)}–${num(h.end)} sn, en yüksek yeri ${num(h.start + h.peakAtS)} sn'de)`);
+}
+
 /** The broken stretches of a file (the mix before delivery). */
 export async function measureBroken(paths: Pick<V3Paths, "ffmpeg" | "asciiTemp">, file: string): Promise<BrokenStretch[]> {
   return brokenStretches(await decodeMono(paths, file), 48_000);

@@ -9,13 +9,13 @@ import os from "node:os";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
-import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, declickClip, fadeClipEdges, LINE_PROMINENCE_DB, MAX_NOTCHES, ticks, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
+import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, declickClip, fadeClipEdges, heldTones, HORN_LOW_HZ, HORN_MIN_S, HORN_SHARE, hornProblems, LINE_PROMINENCE_DB, MAX_NOTCHES, ticks, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { armsOf } from "../src/lib/v3/episode/Period";
 import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps/MapBuilder";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
-import { composeBeds, compositionCaption, compositionKey, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
+import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -275,6 +275,13 @@ async function main() {
     const cap = compositionCaption(rome, "comedic");
     assert.match(cap, /^Instrumental underscore for an animated history cartoon set in 49 BC\. playful and comedic/);
     assert.match(cap, /No vocals, no singing, no lyrics/);
+    // No bed asks for brass, horns or a zurna (owner, 13 Nov 2026: "savaş borazanı sesi ... hala videonun bazı yerlerinde"):
+    // the 10 "bold brass fanfare" battle beds are the library's brightest, buzzing 8–16 kHz band.
+    const horns = /\b(brass|horns?|fanfare|trumpets?|bugles?|trombones?|tubas?|zurna|shawms?|cornets?)\b/i;
+    const ages = [rome, { donem: "1453", konu: "Fatih Sultan Mehmed takes Constantinople" }, { donem: "1389", konu: "Battle of Kosovo, Ottoman army" }, { donem: "1066", konu: "Battle of Hastings" }, { donem: "1571", konu: "Lepanto" }, { donem: "1815", konu: "Waterloo" }, { donem: "1942", konu: "Guadalcanal" }, { donem: "30 BC", konu: "Cleopatra of Egypt" }, { donem: "?", konu: "x" }];
+    for (const age of ages) for (const mood of ["epic", "dramatic", "tense", "calm", "historical", "comedic"] as const) assert.doesNotMatch(compositionCaption(age, mood), horns, `${age.donem} ${mood}`);
+    assert.ok(HORN_WORDS.test("bold brass fanfare") && !HORN_WORDS.test("big war drums, timpani"));
+    assert.match(compositionCaption(rome, "epic"), /heroic and triumphant.*big war drums/, "a battle bed is still heroic, with its drums");
     const req = { mood: "comedic" as const, seconds: 31.4, caption: cap, seed: 7 };
     assert.equal(compositionKey(req), compositionKey({ ...req, seconds: 31.2 }), "the length counts to the second");
     assert.notEqual(compositionKey(req), compositionKey({ ...req, seed: 8 }));
@@ -632,6 +639,38 @@ async function main() {
     assert.deepEqual(brokenStretches(new Float32Array(rate * 3), rate), [], "silence is not broken");
     const blip = new Float32Array(rate * 3); blip.fill(0.9, rate, rate + rate / 2); // half a second: under BROKEN_MIN_S
     assert.deepEqual(brokenStretches(blip, rate), []);
+  });
+
+  await scenario("the ear hears a horn where a noise belongs (owner, 13 Nov 2026: \"savaş borazanı sesi ... hala videonun bazı yerlerinde\"): a held swelling tone and a horn call are refused; a struck bell, a splash, a jingle and a wind bed are not", () => {
+    const rate = 8000;
+    let seed = 7;
+    const noise = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff) * 2 - 1;
+    const tone = (s: number, f: (t: number) => number) => Float32Array.from({ length: Math.round(rate * s) }, (_, i) => f(i / rate));
+    const sin = (hz: number, t: number) => Math.sin(2 * Math.PI * hz * t);
+    // MOSS's modern "small desk bell ringing twice" (Guadalcanal 35 s): 441 Hz and 1031 Hz held for 3 s, swelling to 2.5 s.
+    const deskBell = tone(3, (t) => (0.3 + 0.7 * Math.min(1, t / 2.5)) * (0.75 + 0.25 * sin(2, t)) * (0.3 * sin(441, t) + 0.05 * sin(1031, t)) + 0.003 * noise());
+    const bad = hornProblems(deskBell, rate);
+    assert.equal(bad.length, 1, bad.join(" | "));
+    assert.match(bad[0]!, /^borazan gibi: 44[01] Hz'lik ton 3,0 sn tutuyor \(0,0–3,0 sn, en yüksek yeri 2,\d sn'de\)$/);
+    // "war drums and a bronze horn call" (22 Oct): a steady call on the harmonics of 198 Hz.
+    const call = tone(3, (t) => 0.2 * sin(396, t) + 0.18 * sin(594, t) + 0.1 * sin(792, t) + 0.02 * noise());
+    assert.ok(hornProblems(call, rate).length >= 1, "a held horn call");
+    const held = heldTones(call, rate)[0]!;
+    assert.ok(held.share > HORN_SHARE && held.end - held.start >= HORN_MIN_S, JSON.stringify(held));
+    // A struck bell rings twice and dies away each time (the library's own bell passes).
+    const struck = tone(3, (t) => [0, 0.8].reduce((a, at) => a + (t >= at ? Math.exp(-(t - at) / 0.15) * (0.4 * sin(523, t - at) + 0.2 * sin(1310, t - at)) : 0), 0) + 0.002 * noise());
+    assert.deepEqual(hornProblems(struck, rate), [], "a struck bell decays");
+    // Water: bursts of noise, no line held at all.
+    const splash = tone(3, (t) => Math.exp(-((t % 0.9) / 0.25)) * 0.5 * noise());
+    assert.deepEqual(heldTones(splash, rate), []);
+    // A cartoon jingle (the Kenney "hata"): five notes of 0.15 s, none held for a second.
+    const jingle = tone(0.8, (t) => 0.4 * sin([461, 418, 371, 332, 297, 262][Math.min(5, Math.floor(t / 0.15))]!, t));
+    assert.deepEqual(hornProblems(jingle, rate), []);
+    // An ambience bed: wind (low-passed noise) with a faint whistle 25 dB down — a place, not a horn.
+    let lp = 0;
+    const wind = tone(20, (t) => (lp = 0.97 * lp + 0.03 * noise()) * 3 + 0.004 * sin(620, t));
+    assert.deepEqual(hornProblems(wind, rate), []);
+    assert.ok(HORN_LOW_HZ >= 200, "a rumble under 200 Hz is the place's ground, not a horn");
   });
 
   await scenario("the ear hears a tick (owner, 12 Nov 2026: \"arkada bazı yerlerde cızıltı\"): a dropped sample and a line cut at silence are found and mended; a gunshot, hiss, a square wave and a soft onset are not ticks", () => {

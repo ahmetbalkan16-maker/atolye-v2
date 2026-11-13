@@ -10,6 +10,7 @@ import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
+import { hornProblems } from "./AudioQuality";
 import { measurePiece, type PieceStats } from "./MusicComposer";
 
 /**
@@ -288,12 +289,12 @@ export class SfxDesigner {
   async make(req: SoundRequest): Promise<SoundOutcome> {
     const file = this.fileFor(req);
     if (existsSync(file)) {
-      // Kept in the library before the impact check existed: checked again, never deleted (append-only).
-      if (req.impact) {
-        await fs.mkdir(this.paths.asciiTemp, { recursive: true });
-        const problems = impactProblems(await this.samples8k(file), 8000);
-        if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`), take: true };
-      }
+      // Kept in the library before the impact and horn checks existed: checked again, never deleted (append-only). The
+      // modern desk bell (a 3 s held 441 Hz tone, Guadalcanal and Çanakkale) is refused here and its next seed is tried.
+      await fs.mkdir(this.paths.asciiTemp, { recursive: true });
+      const pcm = await this.samples8k(file);
+      const problems = [...(req.impact ? impactProblems(pcm, 8000) : []), ...hornProblems(pcm, 8000)];
+      if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`), take: true };
       return { file, cached: true };
     }
     const refused = this.refusedFor(req);
@@ -346,9 +347,10 @@ export class SfxDesigner {
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${shape},aresample=48000`, "-ac", "1", tmp]);
     await fs.rm(raw, { force: true });
     const stats = await measurePiece(this.paths, tmp);
-    const pcm = req.percussive || req.impact ? await this.samples8k(tmp) : undefined;
-    const contrast = req.percussive && pcm ? onsetContrastDb(pcm, 8000) : undefined;
-    const problems = [...soundProblems(stats, req, contrast), ...(req.impact && pcm ? impactProblems(pcm, 8000) : [])];
+    const pcm = await this.samples8k(tmp);
+    const contrast = req.percussive ? onsetContrastDb(pcm, 8000) : undefined;
+    // No effect or bed may come out a held tone (owner, 13 Nov 2026: "savaş borazanı sesi ... hala videonun bazı yerlerinde").
+    const problems = [...soundProblems(stats, req, contrast), ...(req.impact ? impactProblems(pcm, 8000) : []), ...hornProblems(pcm, 8000)];
     if (problems.length) {
       await fs.rm(tmp, { force: true });
       await fs.writeFile(refused, `${JSON.stringify({ model: MOSS_SFX_MODEL_ID, ...req, problems, stats, created: new Date().toISOString() }, null, 2)}\n`);

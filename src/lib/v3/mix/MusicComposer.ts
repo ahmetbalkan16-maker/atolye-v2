@@ -28,11 +28,21 @@ export const ACESTEP_MODEL_ID = "ACE-Step/Ace-Step1.5@acestep-v15-turbo";
  */
 export const TURBO_SHIFT = 3;
 
+/**
+ * Words the composer is never given: brass, horns and loud reeds (owner, 13 Nov 2026: "savaş borazanı sesi de garip
+ * çıkıyordu, hala videonun bazı yerlerinde o ses var"; first on 26 Oct, Kosovo). Measured over the 64 shift-3 pieces in the
+ * library, against each piece's own 100–1000 Hz band: the 10 composed for "bold brass fanfare" (the epic bed every
+ * battle gets) are the brightest there, 8–16 kHz at −15 to −21 dB and 1.5–4 kHz at −8 to −12 dB; of the other 54 only
+ * three reach −21 dB up high (two of them asked for brass or zurna) and the calm beds sit at −15 to −25 dB in the
+ * presence band. The turbo model's brass is that bright buzz, and it plays under every battle.
+ */
+export const HORN_WORDS = /\b(brass|horns?|fanfare|trumpets?|bugles?|trombones?|tubas?|zurna|shawms?|cornets?)\b/i;
+
 /** What the bed should sound like, by music bucket (the reference channel's playful, cinematic underscore). */
 const MOOD_WORDS: Readonly<Record<MusicMood, string>> = {
-  epic: "heroic and triumphant, bold brass fanfare, big war drums, full orchestra",
+  epic: "heroic and triumphant, soaring strings, driving string ostinato, big war drums, timpani",
   dramatic: "dramatic and building, sweeping strings, timpani rolls",
-  tense: "tense and suspenseful, low ostinato strings, ticking percussion, ominous horns",
+  tense: "tense and suspenseful, low ostinato strings, ticking percussion, deep low drums",
   calm: "calm and reflective, slow, warm soft strings, gentle harp",
   historical: "stately and curious documentary underscore, light strings and woodwinds, steady pace",
   comedic: "playful and comedic, bouncy pizzicato strings, bassoon and clarinet, light percussion, cartoon timing",
@@ -42,12 +52,12 @@ const MOOD_WORDS: Readonly<Record<MusicMood, string>> = {
 export function periodInstruments(episode: Pick<Episode, "donem" | "konu">): string {
   const year = periodEndYear(episode.donem);
   const text = episode.konu.toLowerCase();
-  if (/ottoman|osmanl|sultan|istanbul|constantinople|janissar|yeniçeri/.test(text)) return "Ottoman instruments: ney flute, oud, kanun, zurna and davul drums";
+  if (/ottoman|osmanl|sultan|istanbul|constantinople|janissar|yeniçeri/.test(text)) return "Ottoman instruments: ney flute, oud, kanun and davul drums";
   if (year === undefined) return "orchestral instruments";
-  if (year < 500) return /egypt|pharaoh|mısır/.test(text) ? "ancient Egyptian colour: harp, frame drums, reed flute" : "ancient Mediterranean colour: lyre, aulos reed pipe, frame drums, horns";
+  if (year < 500) return /egypt|pharaoh|mısır/.test(text) ? "ancient Egyptian colour: harp, frame drums, reed flute" : "ancient Mediterranean colour: lyre, aulos reed pipe, frame drums";
   if (year < 1450) return "medieval colour: lute, recorder, hurdy-gurdy, tabor drum, plainchant-like melody";
-  if (year < 1750) return "renaissance and baroque colour: harpsichord, viols, recorder, natural trumpets";
-  if (year < 1900) return "nineteenth-century orchestra with brass band colour";
+  if (year < 1750) return "renaissance and baroque colour: harpsichord, viols, recorder, kettle drums";
+  if (year < 1900) return "nineteenth-century orchestra with military snare drums";
   return "modern cinematic orchestra";
 }
 

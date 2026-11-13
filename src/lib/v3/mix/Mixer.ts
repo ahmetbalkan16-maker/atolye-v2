@@ -8,7 +8,7 @@ import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
-import { cleanAudioFile, declickClip, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S, fadeClipEdges, ticks } from "./AudioQuality";
+import { cleanAudioFile, declickClip, decodeMono, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S, fadeClipEdges, hornProblems, ticks } from "./AudioQuality";
 
 /**
  * V3 audio mix: dialogue and effects are placed sample-exactly in Node, music beds are cut, looped and
@@ -16,7 +16,7 @@ import { cleanAudioFile, declickClip, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S, fadeC
  * the effects (mixGraph), and the whole mix is brought to
  * −14 LUFS / −1 dBTP in two loudnorm passes (measure, then apply), 48 kHz stereo. Music, effects and ambience go in
  * without the generators' whine lines (AudioQuality.cleanAudioFile); voiced lines and effects go in without ticks
- * (AudioQuality.declickClip, fadeClipEdges).
+ * (AudioQuality.declickClip, fadeClipEdges); an effect or ambience bed that is a held tone is left out (AudioQuality.hornProblems).
  */
 export const SAMPLE_RATE = 48_000;
 /** Overlap between two music beds. */
@@ -362,6 +362,14 @@ export interface MixResult {
   readonly cleanup: readonly MixCleanup[];
   /** Ticks in the dialogue (AudioQuality.ticks) before and after the repair; `sonra` above 0 is a fault before delivery. */
   readonly declick: MixDeclick;
+  /** Effects and ambience beds left out because they sound like a horn (AudioQuality.hornProblems), with why. */
+  readonly borazan: readonly MixHorn[];
+}
+
+/** A source the mixer would not play: its file name, what it was and why. */
+export interface MixHorn {
+  readonly kaynak: string;
+  readonly sorun: string;
 }
 
 /** Lines that had ticks, and the dialogue's ticks as voiced (`once`) and as mixed (`sonra`). */
@@ -416,9 +424,21 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
     placeSamples(dialogue, fixed.samples, d.start);
   }
   const declick: MixDeclick = { satir: ticked, once: ticks(asVoiced, SAMPLE_RATE).length, sonra: ticks(dialogue, SAMPLE_RATE).length };
+  // The last ear before the mix (owner, 13 Nov 2026: "savaş borazanı sesi ... hala videonun bazı yerlerinde o ses var"):
+  // whatever made it here, an effect or a bed that is a held tone is not played. Each file is measured once.
+  const borazan: MixHorn[] = [];
+  const hornOf = new Map<string, boolean>();
+  const playable = async (file: string, kind: string): Promise<boolean> => {
+    const known = hornOf.get(file);
+    if (known !== undefined) return !known;
+    const problems = hornProblems(await decodeMono(paths, file, 8000), 8000);
+    hornOf.set(file, problems.length > 0);
+    if (problems.length) borazan.push({ kaynak: `${kind} ${path.basename(file)}`, sorun: problems.join("; ") });
+    return !problems.length;
+  };
   // An effect never steps out of or into silence either (a boing began at −2 dBFS on its first sample).
   const effects = new Float32Array(total);
-  for (const s of input.sfx) placeSamples(effects, fadeClipEdges(await monoAt48k(paths, await clean(s.file, "efekt"), tmp), SAMPLE_RATE, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S), s.t, SFX_GAIN[s.id]);
+  for (const s of input.sfx) if (await playable(s.file, `efekt ${s.id}`)) placeSamples(effects, fadeClipEdges(await monoAt48k(paths, await clean(s.file, "efekt"), tmp), SAMPLE_RATE, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S), s.t, SFX_GAIN[s.id]);
   const dlgFile = path.join(tmp, "dialogue.wav");
   const sfxFile = path.join(tmp, "sfx.wav");
   await fs.writeFile(dlgFile, wavFloat32(dialogue));
@@ -452,7 +472,9 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
       `[${i + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=-26:TP=-8:LRA=11,afade=t=in:d=${fadeIn}:curve=${FADE_CURVE},afade=t=out:st=${Math.max(0, len - CROSSFADE_S).toFixed(3)}:d=${CROSSFADE_S}:curve=${FADE_CURVE},adelay=${ms}|${ms}[m${i}]`,
     );
   }
-  const ambience = ambienceRuns(input.ambience ?? [], input.duration);
+  const heard: { start: number; end: number; file: string }[] = [];
+  for (const a of input.ambience ?? []) if (await playable(a.file, "ortam")) heard.push(a);
+  const ambience = ambienceRuns(heard, input.duration);
   const places: string[] = [];
   for (const [i, a] of ambience.entries()) {
     const len = Math.max(0.5, a.end - a.start);
@@ -479,5 +501,5 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const loud = await measureLoudness(paths, out);
   await fs.rm(tmp, { recursive: true, force: true });
   const credits = [...new Set(input.music.map((m) => m.track.attribution ?? `${m.track.title} — ${m.track.license ?? "lisans bilinmiyor"}`))];
-  return { file: out, ...loud, credits, cleanup, declick };
+  return { file: out, ...loud, credits, cleanup, declick, borazan };
 }
