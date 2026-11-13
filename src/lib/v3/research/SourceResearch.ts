@@ -3,6 +3,7 @@ import { cachedJson } from "../backgrounds/CommonsProvider";
 import type { EpisodeSource } from "../episode/EpisodeTypes";
 import type { SourceBank } from "../script/ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, V3BudgetError, type V3ModelChoice } from "../script/V3Budget";
+import { infoboxFacts, parseInfobox, sectionWikitext } from "./Infobox";
 import { cleanUrl, openAIWebSearch, type PageFetch, readWebCache, readWebPage, reputableScore, safePageFetch, WEB_SEARCH_MAX_OUTPUT, WEB_SEARCH_MODELS, webQueries, webRefusal, type WebHit, type WebPage, type WebSearchCall, webSearchCeilingUsd, webSearchCostUsd, webSearchPrompt, webSource, writeWebCache } from "./WebResearch";
 
 /**
@@ -48,6 +49,21 @@ export async function fetchArticle(cacheDir: string, title: string, get: JsonGet
   const rev = page?.revisions?.[0];
   if (!page || page.missing !== undefined || !page.extract || !rev) return undefined;
   return { title: page.title, revid: rev.revid, timestamp: rev.timestamp, text: page.extract };
+}
+
+/**
+ * The battle infobox's facts of an article at the revision read (Infobox.ts), each kept only when its quote stands in the
+ * rendered infobox, like any model's quote in its article; none when the article has no battle infobox or it is
+ * malformed. One request for section 0's wikitext, pinned to `revid` — its own cache entry, so an extract cached before
+ * 13 Nov 2026 reads as it did.
+ */
+export async function fetchInfoboxFacts(get: JsonGet, article: WikiArticle, dil: "tr" | "en", limit = 16): Promise<ResearchFact[]> {
+  const params = new URLSearchParams({ action: "query", format: "json", formatversion: "2", prop: "revisions", revids: String(article.revid), rvprop: "ids|content", rvslots: "main", rvsection: "0" });
+  const wikitext = sectionWikitext(await get(`${WIKI}?${params}`), article.revid);
+  const box = wikitext ? parseInfobox(wikitext) : undefined;
+  if (!box) return [];
+  const { facts, text } = infoboxFacts(article.title, box, sourceId(article.title), dil, limit);
+  return verifyFacts({ olgular: facts }, [{ title: article.title, text }]).kept;
 }
 
 /** The article titles an article links to (main namespace), up to `pages` × 500. */
@@ -778,6 +794,8 @@ export async function researchTopic(input: {
   readonly seconds?: number;
   /** Read the cast's articles (people, ships, places the main article names most); default on. */
   readonly cast?: boolean;
+  /** Add the topic articles' battle infobox fields (strength, casualties, commanders, result, date, place); default on. */
+  readonly infobox?: boolean;
   /** Add the topic's Wikidata dates, place and counts; default on. */
   readonly wikidata?: boolean;
   /** The JSON GET (tests pass a fake); default the 24 h cache with Wikimedia's polite fetch. */
@@ -806,6 +824,25 @@ export async function researchTopic(input: {
   log(`araştırma: ${articles.map((a) => `"${a.title}" (rev ${a.revid})`).join(", ")}`);
   const out = await input.budget.generate("arastirma", input.model, factPrompt(input.konu, input.donem, articles, input.dil, input.seconds), { maxTokens: depth.maxTokens, jsonSchema: { type: "object" } });
   const main = verifyFacts(jsonOf(out.result.content), articles);
+
+  // The topic articles' battle infoboxes (Siege of Baghdad 1638, 13 Nov 2026: the defenders' strength and losses stood
+  // only there): free, without a model, the main article's up to 16 fields, each other's up to 8; fail-soft per article.
+  const infobox: ResearchFact[] = [];
+  if (input.infobox !== false) {
+    const seenText = new Set(main.kept.map((f) => f.metin));
+    const read: string[] = [];
+    for (const [i, a] of articles.entries()) {
+      try {
+        const facts = (await fetchInfoboxFacts(get, a, input.dil, i === 0 ? 16 : 8)).filter((f) => !seenText.has(f.metin));
+        for (const f of facts) seenText.add(f.metin);
+        infobox.push(...facts);
+        if (facts.length) read.push(`"${a.title}" ${facts.length}`);
+      } catch (e) {
+        log(`araştırma: "${a.title}" bilgi kutusu okunamadı (${(e as Error).message.slice(0, 120)}); atlandı`);
+      }
+    }
+    log(read.length ? `araştırma: bilgi kutusu olguları (güç, kayıp, komutan, sonuç) ${read.join(", ")}` : "araştırma: konu makalelerinde savaş bilgi kutusu yok; atlandı");
+  }
 
   // The cast: optional, and nothing it fails at stops the research (a missing article, offline, a budget stop).
   const cast: { article: WikiArticle; excerpt: string }[] = [];
@@ -867,7 +904,7 @@ export async function researchTopic(input: {
         model: input.model,
         searchModel: opts.model ?? env.ATOLYE_V3_WEB_SEARCH_MODEL ?? "gpt-4.1-mini",
         names: cast.map((c) => c.article.title),
-        known: [...main.kept, ...castKept, ...(wikidata?.facts ?? [])].map((f) => f.metin),
+        known: [...main.kept, ...infobox, ...castKept, ...(wikidata?.facts ?? [])].map((f) => f.metin),
         wikiTexts: [...articles, ...cast.map((c) => c.article)].map((a) => a.text),
         search: opts.search ?? openAIWebSearch(fetch, env),
         fetchPage: opts.fetchPage ?? safePageFetch(),
@@ -883,14 +920,14 @@ export async function researchTopic(input: {
   const webKept = web?.facts ?? [];
   const rejected = main.rejected + castRejected + (web?.rejected ?? 0);
   const verifiedCount = main.kept.length + castKept.length + webKept.length;
-  log(`araştırma: ${verifiedCount} olgu alıntısıyla doğrulandı (ana makaleler ${main.kept.length}, kadro ${castKept.length}${web ? `, web ${webKept.length}` : ""})${wikidata ? ` + Wikidata ${wikidata.facts.length}` : ""}, ${rejected} olgu alıntısı kaynağında bulunamadığı için atıldı`);
+  log(`araştırma: ${verifiedCount} olgu alıntısıyla doğrulandı (ana makaleler ${main.kept.length}, kadro ${castKept.length}${web ? `, web ${webKept.length}` : ""})${wikidata ? ` + Wikidata ${wikidata.facts.length}` : ""}${infobox.length ? ` + bilgi kutusu ${infobox.length}` : ""}, ${rejected} olgu alıntısı kaynağında bulunamadığı için atıldı`);
   if (verifiedCount < 5) throw new Error(`V3_RESEARCH_THIN: yalnız ${verifiedCount} doğrulanmış olgu (en az 5 gerekli)`);
-  const seen = new Set([...main.kept, ...castKept].map((f) => f.metin));
-  const kept = [...main.kept, ...(wikidata?.facts ?? []).filter((f) => !seen.has(f.metin)), ...castKept, ...webKept];
+  const seen = new Set([...main.kept, ...infobox, ...castKept].map((f) => f.metin));
+  const kept = [...main.kept, ...infobox, ...(wikidata?.facts ?? []).filter((f) => !seen.has(f.metin)), ...castKept, ...webKept];
   const used = new Set(kept.map((f) => f.kaynak));
   return {
     bank: {
-      aciklama: `Otomatik kaynak bankası (${new Date().toISOString().slice(0, 10)}): olgular okunan Wikipedia revizyonlarından çıkarıldı; her olgunun alıntısı makale metninde birebir bulundu${wikidata ? "; tarih/yer/sayı olguları Wikidata'dan (CC0)" : ""}${webKept.length ? "; açık webdeki tarih sitelerinden okunan sayfaların olguları da aynı kuralla (alıntısı sayfa metninde birebir) alındı, görselleri alınmadı" : ""}. Alıntılar yalnız doğrulama içindir, metne kopyalanmaz.`,
+      aciklama: `Otomatik kaynak bankası (${new Date().toISOString().slice(0, 10)}): olgular okunan Wikipedia revizyonlarından çıkarıldı; her olgunun alıntısı makale metninde birebir bulundu${infobox.length ? "; güç, kayıp, komutan, sonuç gibi bilgi kutusu (infobox) olguları aynı revizyonun vikimetninden okundu, alıntıları alanın kendi metnidir" : ""}${wikidata ? "; tarih/yer/sayı olguları Wikidata'dan (CC0)" : ""}${webKept.length ? "; açık webdeki tarih sitelerinden okunan sayfaların olguları da aynı kuralla (alıntısı sayfa metninde birebir) alındı, görselleri alınmadı" : ""}. Alıntılar yalnız doğrulama içindir, metne kopyalanmaz.`,
       kaynaklar: [...articles, ...cast.map((c) => c.article)].filter((a) => used.has(sourceId(a.title))).map(articleSource).concat(wikidata && used.has(wikidata.source.id) ? [wikidata.source] : []).concat((web?.pages ?? []).filter((p) => used.has(p.id)).map(webSource)),
       olgular: kept.map((f) => ({ metin: f.metin, kaynak: f.kaynak })),
       reddedilen: rejected,
