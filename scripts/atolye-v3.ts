@@ -42,6 +42,7 @@ import { CLOSE_RELIEF_CREDIT, RELIEF_CREDIT, reliefAvailable } from "../src/lib/
 import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames, withAtlasYears, yearLabel } from "../src/lib/v3/maps/HistoricalBorders";
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
+import { canvaCoverFor } from "../src/lib/v3/thumbnail/CanvaClient";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
@@ -1141,7 +1142,9 @@ async function main() {
         await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
       const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind, ...(b.drawn ? { drawn: b.drawn } : {}) })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
-      const result: YoutubeFile = { paket, ...(kapak ? { kapak } : {}) };
+      // Optional Canva cover (ATOLYE_V3_CANVA=1, owner 13 Nov 2026): kapak-canva.jpg becomes the uploaded thumbnail; kapak.jpg stays.
+      const canva = kapak ? await canvaCoverFor({ paths, episode, workDir: work, publicDir: path.join(work, "public"), cover: kapak, headline: paket.kapakBasliklari[0], title: paket.basliklar[0], shorts, log }) : undefined;
+      const result: YoutubeFile = { paket, ...(kapak ? { kapak: canva ? { ...kapak, file: canva } : kapak } : {}) };
       await writeJson(f("youtube.json"), result);
       return result;
     }, async () => undefined);
