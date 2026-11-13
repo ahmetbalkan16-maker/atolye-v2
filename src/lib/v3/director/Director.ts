@@ -1298,7 +1298,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       props,
       camera: geo
         ? mapShotCamera(fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps))
-        : fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
+        : fillTempo(noOpeningFlash(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
       mapArrows,
@@ -1492,6 +1492,21 @@ export function fillTempo(camera: readonly V3CameraKey[], events: readonly numbe
     }
   }
   return added.length ? normalizeCamera([...camera, ...added]) : [...camera];
+}
+
+/** A shot's opening frame that a cut replaces this soon is never seen as its own shot (seconds). */
+export const OPENING_HOLD_S = 1.5;
+
+/**
+ * No flash of the opening frame (owner, 13 Nov 2026, Siege of Baghdad Short: "1:34–1:36'da yine yakın çekimi yarım
+ * saniye gözüküp geçiyor"): every stage scene opened on the whole set for 9 frames, then cut to its first speaker as
+ * the line began. A cut sooner than OPENING_HOLD_S after the start becomes the shot's opening: the camera starts
+ * there and the keys before it are dropped (the transition in still shows the new set).
+ */
+export function noOpeningFlash(keys: readonly V3CameraKey[], fps: number): V3CameraKey[] {
+  const cut = keys.find((k) => k.ease === "cut" && k.frame > 0);
+  if (!cut || cut.frame >= OPENING_HOLD_S * fps) return [...keys];
+  return [{ ...cut, frame: 0, ease: "smooth" }, ...keys.filter((k) => k.frame > cut.frame)];
 }
 
 /** Camera keys strictly increasing in time; at equal frames the later instruction wins. */

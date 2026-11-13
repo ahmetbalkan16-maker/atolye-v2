@@ -17,7 +17,7 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
+import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
@@ -231,6 +231,11 @@ async function main() {
     assert.deepEqual(autoSlots(2).map((x) => Math.round(x * 100)), [27, 73]);
     const keys = normalizeCamera([{ frame: 10, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: 5, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: 10, zoom: 2, cx: 0.5, cy: 0.5 }]);
     assert.deepEqual(keys.map((k) => [k.frame, k.zoom]), [[5, 1], [10, 2]]);
+    // A stage scene opened wide for 9 frames, then cut to its speaker (Baghdad Short, 13 Nov 2026): it opens on the speaker.
+    const opening = [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5, ease: "smooth" as const }, { frame: 8, zoom: 1, cx: 0.5, cy: 0.5, ease: "smooth" as const }, { frame: 9, zoom: 1.62, cx: 0.32, cy: 0.58, ease: "cut" as const }, { frame: 64, zoom: 1.18, cx: 0.5, cy: 0.57, ease: "cut" as const }];
+    assert.deepEqual(noOpeningFlash(opening, 30).map((k) => [k.frame, k.zoom, k.ease]), [[0, 1.62, "smooth"], [64, 1.18, "cut"]]);
+    const held = [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: 60, zoom: 1.6, cx: 0.3, cy: 0.5, ease: "cut" as const }];
+    assert.deepEqual(noOpeningFlash(held, 30), held, "a wide opening held 2 s stays");
     const pages = captionPages({ file: "", duration: 4, visemes: [], words: [], lipSync: "rms", sceneIndex: 0, lineIndex: 0, speaker: "x", start: 1, end: 5 }, 30, ["surlar"], "Bir iki üç dört beş altı yedi sekiz dokuz on surlar");
     assert.equal(pages.length, 2);
     assert.ok(pages[1]!.words.some((w) => w.emphasis));
