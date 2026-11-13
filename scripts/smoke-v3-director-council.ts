@@ -32,8 +32,13 @@ import {
   withoutSpeakerLabel,
   droppedRewrites,
   newFacts,
+  lostNumbers,
+  numbersIn,
+  refuseInstruction,
+  type RefusedFix,
   rewritePrompt,
   sessionDebate,
+  sourcedNumberFacts,
 } from "../src/lib/v3/council/DirectorCouncil";
 import { bestRound, cutFaults, faultsDecided, keepRound, restoreRound, retouchDebate, roundImproved, type RoundScore, roundLine, roundScore, roundShortfall, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -257,6 +262,55 @@ async function main() {
     assert.deepEqual(newFacts(episode, "Right behind you, sir! Mostly.", "Right behind you, Caesar! Well... mostly."), [], "a known name, no number");
     assert.deepEqual(newFacts(episode, "January, 49 BC. Night.", "Night in January, 49 BC."), [], "the old line's own date may move");
     assert.equal(parseRewrites(episode, edit, JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir! Since 49 BC." }] })).length, 0, "a rewrite with a new number is not used");
+  });
+
+  await scenario("E3 the Baghdad Short's retouch (13 Nov 2026): no sourced number blurred, no joke made serious in a humorous video", async () => {
+    // The five line fixes AYAS really ordered, on lines of this test episode given Baghdad's words.
+    const baghdad: typeof episode = {
+      ...episode,
+      ton: "mizahi",
+      sahneler: episode.sahneler.map((sc, si) =>
+        si !== 1 ? sc : { ...sc, satirlar: sc.satirlar.map((l, li) => (li === 2 ? { ...l, metin: "Murad IV marches from Istanbul with 108,589 men. Ottomans, meet Safavid Persia." } : li === 4 ? { ...l, metin: "Baghdad's walls are 25 meters tall, 7 to 10 meters thick, and now, mostly dented." } : l)) },
+      ),
+    };
+    const fix = (satir: number, talimat: string): Extract<DirectorEdit, { tur: "satir" }> => ({ tur: "satir", sahne: STAGE, satir, talimat, neden: "" });
+    const refused = (satir: number, talimat: string) => refuseInstruction(baghdad, fix(satir, talimat))?.neden;
+    assert.match(refused(2, "Rewrite the line to avoid a precise number; say 'tens of thousands' instead of '108,589 men', keeping the rest of the facts and tone.") ?? "", /kaynaklı sayı/);
+    assert.match(refused(4, "Rewrite the line to describe the walls as 'high and thick' instead of giving exact measurements, and keep the rest of the facts and tone.") ?? "", /kaynaklı sayı/);
+    assert.match(refused(1, "Rewrite the line so Tayyar Mehmed Pasha responds with a determined and serious attitude, avoiding slyness or shrugging, and keeping the meaning.") ?? "", /espri/);
+    assert.match(refused(5, "Rewrite Bektash Khan's line to be more dramatic and less humorous, fitting the seriousness of the situation.") ?? "", /espri/);
+    assert.match(refused(5, "Rewrite the Safavid infantry's joke to be subtler and more fitting for the character, avoiding clichés and not undermining the seriousness of the moment.") ?? "", /espri/);
+    // What stays allowed: a sharper joke, a number kept, a line without numbers, and seriousness in a serious video.
+    assert.equal(refused(5, "Make the punchline sharper and funnier"), undefined);
+    assert.equal(refused(2, "Keep the exact numbers but make the second sentence punchier"), undefined);
+    assert.equal(refused(5, "Avoid the precise wording of the old joke, find a new one"), undefined, "no number on that line");
+    assert.equal(refuseInstruction({ ...baghdad, ton: "ciddi" }, fix(5, "Make it more dramatic")), undefined);
+    // The rewrite itself may not drop a number of the old line, and the refusal is reported.
+    assert.deepEqual(numbersIn("108,589 men, including 35,000 infantry; walls 7 to 10 m"), ["108589", "35000", "7", "10"]);
+    assert.deepEqual(lostNumbers("with 108,589 men", "with tens of thousands"), ["108589"]);
+    assert.deepEqual(lostNumbers("with 108,589 men", "with 108589 soldiers"), []);
+    const sink: RefusedFix[] = [];
+    const kept = parseRewrites(baghdad, [fix(2, "punchier")], JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 2, metin: "Murad IV marches from Istanbul with tens of thousands. Ottomans, meet Safavid Persia." }] }), { refused: sink });
+    assert.equal(kept.length, 0);
+    assert.match(sink[0]!.neden, /108589/);
+    // The historian sees the bank's numbered facts the script says; others do not.
+    const bank = { olgular: [{ metin: "The Ottoman army numbered 108,589 men.", kaynak: "w" }, { metin: "The siege lasted 39 days.", kaynak: "w" }] };
+    assert.deepEqual(sourcedNumberFacts(bank, baghdad), ["The Ottoman army numbered 108,589 men."]);
+    const ctx = { baslik: "", sureSn: 150, shorts: true, ton: "mizahi", kaynakSayilari: sourcedNumberFacts(bank, baghdad) };
+    assert.match(criticPrompt("arastirma", "", ctx, []), /VERIFIED IN THE SOURCE BANK[\s\S]*108,589/);
+    assert.doesNotMatch(criticPrompt("mizah", "", ctx, []), /VERIFIED IN THE SOURCE BANK/);
+    assert.match(criticPrompt("mizah", "", ctx, []), /humorous video: never make a line serious/);
+    assert.match(rewritePrompt(baghdad, [fix(2, "x")], "en"), /every number and measurement exactly as written[\s\S]*stays a joke/);
+    // The council refuses before the writer is asked, and the transcript says so.
+    const model = new CouncilModel({
+      critic: () => critic(5, [{ sahne: STAGE, satir: 2, sorun: "sayı abartılı", oneri: "genel söyle", eylem: "satir" }]),
+      director: JSON.stringify({ ozet: "x", duzeltmeler: [fix(2, "Rewrite the line to avoid a precise number; say 'tens of thousands' instead of '108,589 men'."), fix(5, "Make the punchline sharper"), { tur: "oyun", sahne: STAGE, satir: 0, oyun: [{ karakter: "legionary", jest: "omuz_silk" }], neden: "" }] }),
+      rewrite: JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir! Roughly." }] }),
+    });
+    const s = await holdCouncil({ budget: budgetOf(model), critic: { provider: "ollama" }, director: { provider: "ollama" }, episode: baghdad, dil: "en", round: 0, canRevise: true, context: { baslik: "", sureSn: 150, shorts: true }, lessons: async () => [], earlier: [], check: () => {} });
+    assert.deepEqual(s.karar!.duzeltmeler.map((e) => `${e.tur}${e.tur === "set" ? "" : e.satir}`), ["satir5", "oyun0"]);
+    assert.deepEqual(s.karar!.reddedilen!.map((r) => r.satir), [2]);
+    assert.ok(sessionDebate(s).some((d) => d.rol === "Rötuş koruması" && /#2 reddedildi/.test(d.metin)));
   });
 
   await scenario("F AYAS is not asked when the cut passes, no round is left, or nothing is fixable; bad fixes are dropped", async () => {

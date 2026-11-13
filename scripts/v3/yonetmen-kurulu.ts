@@ -12,7 +12,8 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { brainBudget } from "../../src/lib/v3/council/BrainModels";
 import { BRAIN_NAMES, type Finding } from "../../src/lib/v3/council/Council";
-import { councilCapUsd, holdCouncil, sessionDebate } from "../../src/lib/v3/council/DirectorCouncil";
+import { councilCapUsd, holdCouncil, sessionDebate, sourcedNumberFacts } from "../../src/lib/v3/council/DirectorCouncil";
+import type { SourceBank } from "../../src/lib/v3/script/ScriptPrompts";
 import { recall } from "../../src/lib/v3/council/ExperienceMemory";
 import { cutMeasures, detectCuts, gapLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine } from "../../src/lib/v3/council/ReferenceStudy";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
@@ -71,6 +72,7 @@ async function main() {
       tempo: [`our cut: ${measuresLine(ours)}`, ...(targets ? [targetsLine(targets), ...measureGaps(ours, targets).map((g) => gapLesson(g).metin)] : [])],
       qc,
       bulgular: findings.filter((x) => x.onem !== "bilgi" && x.baslik !== "kurul notu").slice(0, 30).map((x) => `${BRAIN_NAMES[x.beyin]}: ${x.baslik}${x.yer ? ` (${x.yer})` : ""} — ${x.ayrinti.slice(0, 160)}`),
+      kaynakSayilari: sourcedNumberFacts(existsSync(f("kaynak-bankasi.json")) ? await read<SourceBank>("kaynak-bankasi.json") : undefined, episode),
     },
     times: timeline,
     lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),

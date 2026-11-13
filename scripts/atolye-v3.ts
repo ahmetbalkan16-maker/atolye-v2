@@ -48,7 +48,7 @@ import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploa
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
-import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate } from "../src/lib/v3/council/DirectorCouncil";
+import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate, sourcedNumberFacts } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
@@ -1466,6 +1466,7 @@ async function main() {
       try {
         const tempo = [ours ? `our cut: ${measuresLine(ours)}` : "", paceTargets ? targetsLine(paceTargets) : "", ...(ours && paceTargets ? measureGaps(ours, paceTargets).map((g) => gapLesson(g).metin) : [])].filter(Boolean);
         const earlier = (await recall(paths.workRoot, "sef", { tur: "ders", limit: 5 }).catch(() => [])).map((l) => `${l.metin}${l.sonuc ? ` (${l.sonuc === "ise_yaradi" ? "worked" : "did not work"})` : ""}`);
+        const bank = existsSync(f("kaynak-bankasi.json")) ? await readJson<SourceBank>(f("kaynak-bankasi.json")).catch(() => undefined) : undefined;
         session = await holdCouncil({
           budget: models.budget,
           critic: models.critic,
@@ -1474,13 +1475,13 @@ async function main() {
           dil,
           round: rotusTuru,
           canRevise,
-          context: { baslik: episode.baslik, sureSn: durationS, shorts, tempo, qc: qc.filter((r) => r.startsWith("- [ ]")).map((r) => r.slice(6)), bulgular: council.findings.filter((x) => x.onem !== "bilgi").slice(0, 30).map((x) => `${BRAIN_NAMES[x.beyin]}: ${x.baslik}${x.yer ? ` (${x.yer})` : ""} — ${x.ayrinti.slice(0, 160)}`) },
+          context: { baslik: episode.baslik, sureSn: durationS, shorts, tempo, qc: qc.filter((r) => r.startsWith("- [ ]")).map((r) => r.slice(6)), bulgular: council.findings.filter((x) => x.onem !== "bilgi").slice(0, 30).map((x) => `${BRAIN_NAMES[x.beyin]}: ${x.baslik}${x.yer ? ` (${x.yer})` : ""} — ${x.ayrinti.slice(0, 160)}`), kaynakSayilari: sourcedNumberFacts(bank, episode) },
           times: timeline,
           lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),
           earlier,
           check: (e) => void assertEpisode(e),
           // Rewritten lines pass the script's own fact check against the source bank (a flagged one keeps its old text).
-          factCheck: async (e) => checkFacts(e, dil, existsSync(f("kaynak-bankasi.json")) ? await readJson<SourceBank>(f("kaynak-bankasi.json")) : undefined, models.budget, models.critic),
+          factCheck: async (e) => checkFacts(e, dil, bank, models.budget, models.critic),
           log,
         });
       } catch (e) {
@@ -1494,7 +1495,10 @@ async function main() {
       council.debate("sef", "yönetmen kurulu", sessionDebate(session));
       // A note no menu item can fix stays a finding: the manager below reads it, the idle loop may turn it into a proposal.
       for (const n of session.raporlar.flatMap((r) => r.notlar).filter((x) => x.eylem === "yok")) council.find({ beyin: n.beyin, onem: "uyari", baslik: "kurul notu", ayrinti: `${n.sorun} → ${n.oneri}`, tur: "veri", yer: n.satir !== undefined ? `${n.sahne}#${n.satir}` : n.sahne });
-      log(`yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi` : session.kararYok} ($${session.maliyetUsd.toFixed(4)})`);
+      log(`yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi` : session.kararYok}${session.karar?.reddedilen?.length ? `, rötuş koruması ${session.karar.reddedilen.length} düzeltmeyi reddetti` : ""} ($${session.maliyetUsd.toFixed(4)})`);
+      // What the retouch guard refused becomes AYAS's own experience (read back as `earlier` by the next council), once
+      // per kind of refusal and episode — so the director stops asking for it.
+      for (const ders of new Set((session.karar?.reddedilen ?? []).map((r) => r.ders))) await remember(paths.workRoot, { bolum: episode.konu, beyin: "sef", tur: "ders", konu: "yönetmen turu", metin: `Retouch guard refused: ${ders}`, sonuc: "ise_yaramadi" }).catch(() => undefined);
       // AYAS's own experience: how the previous round's fixes moved the council's mean.
       const applied = retouch?.yonetmen?.duzeltmeler ?? [];
       const prev = applied.length ? (await keptRounds(work, final, rotusTuru)).find((r) => r.tur === rotusTuru - 1)?.kurul : undefined;

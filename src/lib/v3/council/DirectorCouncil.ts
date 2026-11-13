@@ -1,5 +1,6 @@
 import type { V3Landscape } from "../render/RenderPlanTypes";
 import { EFFECTS, EMOTIONS, type Episode, type EpisodeScene, GESTURES, LANDSCAPES, type LineAct, type SceneLine } from "../episode/EpisodeTypes";
+import type { SourceBank } from "../script/ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { BRAIN_NAMES, type DebateEntry, readJsonAnswer } from "./Council";
 
@@ -100,6 +101,20 @@ export interface DirectorDecision {
   readonly yeniden: readonly LineRewrite[];
   /** AYAS's fixes that broke the menu's rules (an unknown scene, an actor off stage, a set on a map) and were dropped. */
   readonly elenen?: number;
+  /**
+   * AYAS's line fixes the retouch guard refused (retouchGuard): an order to blur a sourced number or to take the humour
+   * out of a humorous video, and rewrites that dropped a sourced number. Turkish `neden`, English `ders` for the brains.
+   */
+  readonly reddedilen?: readonly RefusedFix[];
+}
+
+export interface RefusedFix {
+  readonly sahne: string;
+  readonly satir: number;
+  /** AYAS's instruction, or the rewrite that was refused. */
+  readonly talimat: string;
+  readonly neden: string;
+  readonly ders: string;
 }
 
 /** One round's council: the critics' reports and replies, the mean, AYAS's decision (when it was asked). */
@@ -179,11 +194,25 @@ export interface CouncilContext {
   readonly qc?: readonly string[];
   /** What the other brains and the measures found (quality frames, layout, sound…), one line each. */
   readonly bulgular?: readonly string[];
+  /** The episode's tone ("mizahi": the council never asks for the humour to go). Filled from the episode by holdCouncil. */
+  readonly ton?: string;
+  /**
+   * The source bank's facts that carry a number (sourcedNumberFacts), shown to the historian. On the Baghdad Short
+   * (13 Nov 2026) the historian, who never saw the bank, called "108,589 men" and "walls 25 metres tall" exaggerated and
+   * unclear in the sources — both are in the bank word for word — and AYAS ordered them blurred.
+   */
+  readonly kaynakSayilari?: readonly string[];
 }
 
-export function criticPrompt(beyin: Critic, script: string, ctx: CouncilContext, lessons: readonly string[], example = "s1"): string {
-  return `You are ${CRITIC_ROLES[beyin]} in the council of an animated history video studio. AYAS, the director, will decide what to fix in this first cut of "${ctx.baslik}" (${Math.round(ctx.sureSn)} s, ${ctx.shorts ? "a YouTube Short, watched on a phone and shown as the whole 16:9 picture" : "a YouTube video"}). Judge it ONLY from your discipline; another brain covers the rest.
+/** A humorous episode's standing rule for every critic, AYAS and the writer (owner, 13 Nov 2026). */
+const HUMOUR_RULE = "This is a humorous video: never make a line serious or take its joke out — a joke that falls flat is made funnier or subtler, and stays a joke; a grave moment is answered with a deadpan line, not with the humour removed.";
+const NUMBER_RULE = "Numbers, dates and measurements in the lines come from the verified source bank: never call them exaggerated or unclear, and never ask for one to be dropped or replaced by a vague phrase (\"tens of thousands\", \"high and thick\").";
 
+export function criticPrompt(beyin: Critic, script: string, ctx: CouncilContext, lessons: readonly string[], example = "s1"): string {
+  const bank = beyin === "arastirma" && ctx.kaynakSayilari?.length ? `\nVERIFIED IN THE SOURCE BANK (the script's numbers were checked against these):\n${ctx.kaynakSayilari.map((x) => `- ${x}`).join("\n")}\n${NUMBER_RULE}\n` : "";
+  const humour = ctx.ton === "mizahi" ? `\n${HUMOUR_RULE}\n` : "";
+  return `You are ${CRITIC_ROLES[beyin]} in the council of an animated history video studio. AYAS, the director, will decide what to fix in this first cut of "${ctx.baslik}" (${Math.round(ctx.sureSn)} s, ${ctx.shorts ? "a YouTube Short, watched on a phone and shown as the whole 16:9 picture" : "a YouTube video"}). Judge it ONLY from your discipline; another brain covers the rest.
+${bank}${humour}
 ${((m) => (m.length ? `\nWHAT WAS MEASURED IN THE CUT:\n${m.map((x) => `- ${x}`).join("\n")}\n` : ""))([...(CRITIC_SEES[beyin].includes("tempo") ? (ctx.tempo ?? []) : []), ...(CRITIC_SEES[beyin].includes("qc") ? (ctx.qc ?? []).map((q) => `QC failed: ${q}`) : []), ...(CRITIC_SEES[beyin].includes("bulgular") ? (ctx.bulgular ?? []) : [])])}${lessons.length ? `\nYOUR LESSONS (earlier episodes, studied reference videos, the owner's rules):\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : ""}
 SCRIPT (#n = line number; "on stage" = who can act; acts = what characters do while a line is said):
 ${script}
@@ -255,6 +284,7 @@ Decide what to fix in ONE revision round, using ONLY these fixes:
 3. {"tur": "set", "sahne", "manzara", "tasarim"} — a stage scene gets another place: manzara one of ${LANDSCAPES.join(", ")}, and/or "tasarim" a new English description of the drawn place with NO people in it (the characters stand on the stage in front of it).
 On stage: ${stages || "nobody"}. "sahne" is the scene id exactly as written after SCENE (like "${exampleScene(episode)}"); "satir" is the line's number as a plain number.
 Faces, likeness and costumes are not yours to fix here: the retouch brain redesigns them by its own measures; never use a set or an act for them.
+${NUMBER_RULE} A note asking for that is wrong: leave it out.${episode.ton === "mizahi" ? `\n${HUMOUR_RULE} A note asking for that is wrong: leave it out.` : ""}
 At most ${maxEdits} fixes, the most valuable first. Prefer what several brains support, weigh every objection, and leave out what these fixes cannot change. If the cut is good enough, order no fix. Every fix has "neden": its reason in Turkish.
 Return ONLY JSON: {"ozet": "<two Turkish sentences: your verdict and what you change>", "duzeltmeler": [...]}`;
 }
@@ -332,7 +362,7 @@ export function rewritePrompt(episode: Episode, edits: readonly DirectorEdit[], 
     const after = sc.satirlar[e.satir + 1];
     return [`- ${e.sahne}#${e.satir} — ${line.karakter} (${line.duygu}): "${line.metin}"${line.balon ? ` | bubble: "${line.balon}"` : ""}\n  before: ${before ? `${before.karakter}: "${before.metin}"` : "(scene start)"} | after: ${after ? `${after.karakter}: "${after.metin}"` : "(scene end)"}\n  AYAS: ${e.talimat}`];
   });
-  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries, and add no new fact (when AYAS asks for context, use only what the other lines already say); keep it at most 240 characters and ${opts.short ? "NO LONGER than its old line — this is a YouTube Short at its time limit; a funny line stays funny" : "within about ±40% of its old length"}; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. "metin" holds only the spoken words — never the speaker's name or a "NAME:" label. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
+  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries — every number and measurement exactly as written, never a vaguer phrase — and add no new fact (when AYAS asks for context, use only what the other lines already say);${episode.ton === "mizahi" ? " a line that was a joke stays a joke (a subtler joke is still a joke);" : ""} keep it at most 240 characters and ${opts.short ? "NO LONGER than its old line — this is a YouTube Short at its time limit; a funny line stays funny" : "within about ±40% of its old length"}; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. "metin" holds only the spoken words — never the speaker's name or a "NAME:" label. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
 ${rows.join("\n")}
 Return ONLY JSON, "sahne" and "satir" as given above: {"satirlar": [{"sahne": "${edits.find((e) => e.tur === "satir")?.sahne ?? exampleScene(episode)}", "satir": 3, "metin": "...", "balon": "..."}]}`;
 }
@@ -387,6 +417,45 @@ export function newFacts(episode: Episode, oldLine: string, newLine: string): st
   return [...new Set(out)];
 }
 
+/** The numbers a text carries, thousands separators dropped ("108,589" → "108589"). */
+export function numbersIn(s: string): string[] {
+  return [...new Set((s.match(/\d[\d,.]*\d|\d/g) ?? []).map((n) => n.replace(/,(?=\d{3}\b)/g, "").replace(/\.$/, "")))];
+}
+
+/** The numbers of the old line a rewrite no longer says (a line was fact-checked with them; a rewrite may not drop one). */
+export function lostNumbers(oldLine: string, newLine: string): string[] {
+  const now = new Set(numbersIn(newLine));
+  return numbersIn(oldLine).filter((n) => !now.has(n));
+}
+
+/**
+ * The source bank's facts whose numbers the script says, for the historian (at most `max`). Baghdad Short, 13 Nov
+ * 2026: "108,589 men" and "walls 25 metres tall, 7 to 10 wide" were bank facts word for word.
+ */
+export function sourcedNumberFacts(bank: Pick<SourceBank, "olgular"> | undefined, episode: Pick<Episode, "sahneler">, max = 12): string[] {
+  if (!bank) return [];
+  const said = new Set(episode.sahneler.flatMap((sc) => sc.satirlar.flatMap((l) => numbersIn(l.metin))));
+  return [...new Set(bank.olgular.filter((o) => numbersIn(o.metin).some((n) => said.has(n))).map((o) => o.metin.replace(/\s+/g, " ").trim().slice(0, 240)))].slice(0, max);
+}
+
+const BLUR_NUMBER = /\b(?:avoid|drop|remove|omit|instead of|replace|rather than|vaguer?|general(?:ise|ize)?|approximate|round(?:ed)?)\b[^.]{0,60}\b(?:numbers?|figures?|counts?|measurements?|statistics?|dimensions?|exact|precise)\b|\btens of thousands\b|\bthousands of\b|\bhigh and thick\b/i;
+const DROP_HUMOUR = /\bserious(?:ness|ly)?\b|\bless (?:humou?rous|funny|jokey|comic)\b|\bmore (?:dramatic|solemn|grave|sober)\b|\b(?:remove|drop|cut|avoid|lose|without|no|tone down)\b[^.]{0,30}\b(?:jokes?|humou?r|gags?|quips?|comedy)\b|\bnot (?:a |as a )?joke\b/i;
+
+/**
+ * Why a line fix must not be applied (Turkish reason + English lesson), or undefined. Baghdad Short, 13 Nov 2026: the
+ * council called sourced numbers exaggerated, and AYAS ordered "say 'tens of thousands' instead of '108,589 men'",
+ * walls "high and thick" instead of their sourced measurements, and three jokes made serious in a humorous video; the
+ * rewrite check only looked for added facts, so the round would have delivered a vaguer, flatter video.
+ */
+export function refuseInstruction(episode: Pick<Episode, "ton" | "sahneler">, edit: Extract<DirectorEdit, { tur: "satir" }>): Pick<RefusedFix, "neden" | "ders"> | undefined {
+  const line = episode.sahneler.find((s) => s.id === edit.sahne)?.satirlar[edit.satir]?.metin ?? "";
+  if (numbersIn(line).length && BLUR_NUMBER.test(edit.talimat))
+    return { neden: "kaynaklı sayıyı belirsiz ifadeyle değiştirmek istiyor", ders: "Never order a line's sourced number or measurement replaced by a vague phrase; the numbers were checked against the source bank." };
+  if (episode.ton === "mizahi" && DROP_HUMOUR.test(edit.talimat))
+    return { neden: "mizahi videoda espriyi ciddileştirmek istiyor", ders: "In a humorous video never order a joke made serious or dramatic; ask for a funnier or subtler joke instead." };
+  return undefined;
+}
+
 /**
  * A rewritten line without a leading speaker label. The Taranto Short's second retouch round (11 Nov 2026) got
  * "SWORDFISH PILOT : Flying slow biplanes at night into flak?…" from the writer, and the voice read the label aloud.
@@ -407,7 +476,7 @@ export function withoutSpeakerLabel(episode: Episode, metin: string): string {
 }
 
 /** The writer's rewrites that can be used: an ordered line, a new non-empty text of a sane length; a bubble only where one was. */
-export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string, opts: { readonly short?: boolean } = {}): LineRewrite[] {
+export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string, opts: { readonly short?: boolean; readonly refused?: RefusedFix[] } = {}): LineRewrite[] {
   const asked = new Set(edits.flatMap((e) => (e.tur === "satir" ? [lineKey(e.sahne, e.satir)] : [])));
   const v = readJsonAnswer<{ satirlar?: unknown }>(text);
   const out = new Map<string, LineRewrite>();
@@ -423,6 +492,13 @@ export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], 
     if (!metin || metin === line.metin || metin.length > longest || metin.length < Math.min(12, line.metin.length)) continue;
     // No new numbers, dates or names (the writer's facts are not checked against the sources line by line).
     if (newFacts(episode, line.metin, metin).length) continue;
+    // No number of the old line dropped: it was fact-checked with it (Baghdad Short, 13 Nov 2026: "108,589 men" →
+    // "tens of thousands"). Reported to the caller, so the brains learn it.
+    const lost = lostNumbers(line.metin, metin);
+    if (lost.length) {
+      opts.refused?.push({ sahne: sc.id, satir: Number(r.satir), talimat: metin, neden: `yeniden yazım kaynaklı sayıyı düşürdü (${lost.join(", ")})`, ders: "A rewrite must keep every number and measurement of the old line exactly; a vaguer phrase loses a sourced fact." });
+      continue;
+    }
     const balon = line.balon ? bubbleFor(metin, clip(r.balon, 70)) : "";
     out.set(key, { sahne: sc.id, satir: Number(r.satir), eski: line.metin, metin, ...(balon ? { balon } : {}) });
   }
@@ -500,6 +576,7 @@ export function sessionDebate(s: CouncilSession): DebateEntry[] {
     s.karar
       ? { rol: BRAIN_NAMES.sef, metin: `kurul ${s.puan}/10. ${s.karar.ozet}${s.karar.duzeltmeler.length ? ` Düzeltmeler: ${s.karar.duzeltmeler.map(editLine).join(" · ")}` : " Düzeltme yok."}${s.karar.elenen ? ` (${s.karar.elenen} düzeltme menü kurallarına uymadığı için elendi)` : ""}` }
       : { rol: BRAIN_NAMES.sef, metin: `kurul ${s.puan}/10 — ${s.kararYok ?? "karar istenmedi"}` },
+    ...(s.karar?.reddedilen ?? []).map((r) => ({ rol: "Rötuş koruması", metin: `${r.sahne}#${r.satir} reddedildi — ${r.neden}: "${r.talimat}"` })),
     ...(s.karar?.yeniden ?? []).map((r) => ({ rol: BRAIN_NAMES.kurgu, metin: `${r.sahne}#${r.satir}: "${r.eski}" → "${r.metin}"` })),
   ];
 }
@@ -536,10 +613,11 @@ export async function holdCouncil(input: {
   const log = input.log ?? (() => {});
   const spent0 = input.budget.spentUsd;
   const script = compactScript(input.episode, input.times);
+  const context: CouncilContext = { ...input.context, ton: input.context.ton ?? input.episode.ton };
   const raporlar: CriticReport[] = [];
   const okunamayan: { beyin: Critic; ham: string }[] = [];
   for (const beyin of COUNCIL_CRITICS) {
-    const prompt = criticPrompt(beyin, script, input.context, await input.lessons(beyin), exampleScene(input.episode));
+    const prompt = criticPrompt(beyin, script, context, await input.lessons(beyin), exampleScene(input.episode));
     // An unreadable answer is asked once more (the picture critic's JSON broke twice in the Caesar dry runs).
     let r: CriticReport | undefined;
     let last = "";
@@ -573,13 +651,24 @@ export async function holdCouncil(input: {
   if (puan >= DIRECTOR_BAR && !raporlar.some((r) => r.puan < DIRECTOR_BAR - 1)) return done({ kararYok: `kesim eşiği geçti (${puan}/10 ≥ ${DIRECTOR_BAR})` });
   if (!notes.some((n) => n.eylem !== "yok")) return done({ kararYok: "menüdeki düzeltmelerle giderilecek not yok" });
   const out = await input.budget.generate("ayas-yonetmen", input.director, directorPrompt(input.episode, script, raporlar, yanitlar, input.earlier, input.maxEdits), { maxTokens: 2_000 }).catch((e: Error) => (log(`  AYAS (yönetmen) karar veremedi: ${e.message.slice(0, 120)}`), undefined));
-  const decision = out ? parseDecision(input.episode, out.result.content, input.maxEdits) : undefined;
-  if (!decision) return done({ kararYok: "AYAS'ın kararı okunamadı" });
+  const parsed = out ? parseDecision(input.episode, out.result.content, input.maxEdits) : undefined;
+  if (!parsed) return done({ kararYok: "AYAS'ın kararı okunamadı" });
+  // The retouch guard (Baghdad Short, 13 Nov 2026): a line fix that would blur a sourced number or take the humour out
+  // of a humorous video is refused before the writer is asked.
+  const reddedilen: RefusedFix[] = [];
+  const decision = {
+    ...parsed,
+    duzeltmeler: parsed.duzeltmeler.filter((e) => {
+      const why = e.tur === "satir" ? refuseInstruction(input.episode, e) : undefined;
+      if (why && e.tur === "satir") reddedilen.push({ sahne: e.sahne, satir: e.satir, talimat: e.talimat, ...why });
+      return !why;
+    }),
+  };
   let yeniden: LineRewrite[] = [];
   if (decision.duzeltmeler.some((e) => e.tur === "satir")) {
     const short = { short: input.context.shorts };
     const rw = await input.budget.generate("ayas-yeniden-yazim", input.director, rewritePrompt(input.episode, decision.duzeltmeler, input.dil, short), { maxTokens: 2_000 }).catch(() => undefined);
-    yeniden = rw ? parseRewrites(input.episode, decision.duzeltmeler, rw.result.content, short) : [];
+    yeniden = rw ? parseRewrites(input.episode, decision.duzeltmeler, rw.result.content, { ...short, refused: reddedilen }) : [];
     if (yeniden.length && input.factCheck) {
       const claims = await input.factCheck(applyEdits(input.episode, decision.duzeltmeler, yeniden)).catch(() => undefined);
       const flagged = droppedRewrites(yeniden, claims ?? []);
@@ -587,12 +676,14 @@ export async function holdCouncil(input: {
       if (flagged.length) yeniden = yeniden.filter((r) => !flagged.some((d) => d.sahne === r.sahne && d.satir === r.satir));
     }
   }
+  for (const r of reddedilen) log(`  rötuş koruması reddetti: ${r.sahne}#${r.satir} — ${r.neden}: "${r.talimat.slice(0, 120)}"`);
+  const refused = reddedilen.length ? { reddedilen } : {};
   const duzeltmeler = effectiveEdits(decision.duzeltmeler, yeniden);
   try {
     if (duzeltmeler.length) input.check(applyEdits(input.episode, duzeltmeler, yeniden));
   } catch (e) {
     log(`  AYAS'ın düzeltmeleri geçersiz bölüm yapıyordu, uygulanmayacak: ${(e as Error).message.slice(0, 200)}`);
-    return done({ karar: { ozet: decision.ozet, duzeltmeler: [], yeniden: [] }, kararYok: "düzeltmeler bölüm doğrulamasından geçmedi" });
+    return done({ karar: { ozet: decision.ozet, duzeltmeler: [], yeniden: [], ...refused }, kararYok: "düzeltmeler bölüm doğrulamasından geçmedi" });
   }
-  return done({ karar: { ozet: decision.ozet, duzeltmeler, yeniden, ...(decision.elenen ? { elenen: decision.elenen } : {}) } });
+  return done({ karar: { ozet: decision.ozet, duzeltmeler, yeniden, ...(decision.elenen ? { elenen: decision.elenen } : {}), ...refused } });
 }
