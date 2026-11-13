@@ -9,7 +9,7 @@ import { headCenter, type PerformerState, performerState, turnStretch } from "..
 import { drift, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, coverShake, filmCamera, shakeAt } from "./camera";
 import { DepthFilter, depthFilterId, depthShift, useDepthMap } from "./DepthFilter";
-import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
+import { DrawnSetBack, DrawnSetFront, FIGURE_COVER, InWater, inRiver, riverDepth, type SetCover } from "./DrawnSet";
 import { InfoCardView } from "./InfoCard";
 import { mapBubbleSize } from "./mapEffects";
 import { MapHud } from "./MapMarks";
@@ -108,6 +108,24 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
     const centre = toScreen(st.px + (hc.x + ride.x) * k * s.mirror, st.py + (hc.y + ride.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
     // Headwear (turbans, crowns) reaches about one head radius above the head.
     heads.set(p.castId, { x: centre.x, top: centre.y - 2.05 * HEAD_R * k * cam.zoom, r: HEAD_R * k * cam.zoom });
+  }
+  // What stands in front of the set's torches, in the set's own (parallax) space: a torch hidden behind an actor or an
+  // extra gives no glow (Siege of Baghdad Short, 13 Nov 2026: "1 tane meşale gözüküyor, 2 tane parlıyor ekranda").
+  const toSet = (q: { x: number; y: number }) => ({ x: (q.x - W / 2 - shake.dx) / bgCam.zoom + bgCam.cx * W, y: (q.y - H / 2 - shake.dy) / bgCam.zoom + bgCam.cy * H });
+  const covers: SetCover[] = [];
+  const cover = (x: number, depth: number, k: number, lift: number) => {
+    const st = stageTransform(x, depth, W, H);
+    const a = toSet(toScreen(st.px - FIGURE_COVER.half * k, st.py + (FIGURE_COVER.top + lift) * k));
+    const b = toSet(toScreen(st.px + FIGURE_COVER.half * k, st.py));
+    covers.push({ x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+  };
+  if (drawn) {
+    for (const { p, s, m } of states) if (m && s.visible && (s.fallen ?? 0) < 0.5) cover(s.x, p.depth, stageTransform(s.x, p.depth, W, H).scale * m.scale, p.mount ? SADDLE_Y - HIP_Y : 0);
+    for (const e of extras) {
+      const m = cast.get(e.castId);
+      const s = m ? extraState(e, frame, fps) : undefined;
+      if (m && s?.visible && (s.fallen ?? 0) < 0.5) cover(s.x, e.depth, stageTransform(s.x, e.depth, W, H).scale * m.scale * e.scale, 0);
+    }
   }
   // A badge speaking on the map (MapSpeakers): its place on the map's screen, through the map layer's own transforms —
   // the slow push about the frame's middle, then the set's camera.
@@ -328,7 +346,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
           // Night grade, torch light, near fog, rain: over the actors, in the set's own (parallax) space.
           <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0", pointerEvents: "none" }}>
             <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-              <DrawnSetFront spec={drawn} W={W} H={H} frame={frame} />
+              <DrawnSetFront spec={drawn} W={W} H={H} frame={frame} covers={covers} />
             </svg>
           </AbsoluteFill>
         ) : null}

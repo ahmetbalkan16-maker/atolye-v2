@@ -5,6 +5,9 @@
  * Pure (no Remotion render). Run: npx tsx scripts/smoke-v3-motion.ts
  */
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { DrawnSetBack, DrawnSetFront, flameBox, lightSpots, type SetCover, torchSpots } from "../remotion-v3/src/scene/DrawnSet";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
@@ -12,7 +15,7 @@ import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
 import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
-import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
+import type { V3CameraKey, V3DrawnSet, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
 // type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
@@ -801,6 +804,44 @@ async function main() {
     const settled = placeTokens(opening, 89, 30, 1).flatMap((side, ui) => side.flatMap((t) => (t ? [{ ...t, ui }] : [])));
     const closest = Math.min(...settled.flatMap((a, i) => settled.slice(i + 1).filter((b) => b.ui !== a.ui).map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
     assert.ok(closest > 69 * 0.95, `units kept apart (${closest.toFixed(0)} px)`);
+  });
+
+  await scenario("X every torch glow belongs to a drawn, visible torch (Siege of Baghdad Short, 13 Nov 2026: \"1 tane meşale gözüküyor, 2 tane parlıyor ekranda\"): as many glows as flames in every set, where the flames stand, none for a torch hidden behind an actor", () => {
+    const W = 1920;
+    const H = 1080;
+    const FLAME = 'fill="#ff9f1c"';
+    const count = (s: string, needle: string) => s.split(needle).length - 1;
+    const scapes: V3DrawnSet["manzara"][] = ["nehir_kiyisi", "nehir_gecidi", "ova", "tepeler", "orman", "sahil", "sokak", "meydan", "saray_ici", "meclis", "ordugah", "sur_onu", "cadir_ici"];
+    for (const manzara of scapes) {
+      for (const isik of ["yok", "mesale", "kamp_atesi"] as const) {
+        const spec: V3DrawnSet = { zaman: "gece", manzara, uslup: "osmanli", hava: "acik", isik, tohum: 7 } as V3DrawnSet;
+        const back = renderToStaticMarkup(createElement("svg", null, createElement(DrawnSetBack, { spec, W, H, frame: 40 })));
+        const flames = count(back, FLAME);
+        const fire = back.includes("#ff8c1a") ? 1 : 0;
+        const glows = lightSpots(spec, W, H);
+        // The palace and the tent drew two torches at their walls but glowed at four outdoor spots: two glows on bare wall.
+        assert.equal(glows.length, flames + fire, `${manzara}/${isik}: ${flames} torches and ${fire} fire drawn, ${glows.length} glows`);
+        const torchXs = [...back.matchAll(/translate\(([-\d.e]+) ([-\d.e]+)\) scale\(0\.62?\)/g)].map((m) => Number(m[1]));
+        assert.equal(torchXs.length, flames, `${manzara}/${isik}: torch poles found`);
+        for (const x of torchXs) assert.ok(glows.some((g) => Math.abs(g.x - x) < 1), `${manzara}/${isik}: torch at ${x.toFixed(0)} has its glow`);
+        assert.ok(glows.every((g) => g.a === 1), `${manzara}/${isik}: nothing in front, every glow full`);
+      }
+    }
+    // The walls set: two actors stand at the auto slots 0.27/0.73, right in front of the torches at 0.32/0.68.
+    const walls = { zaman: "safak", manzara: "sur_onu", uslup: "erken_modern", hava: "sis", isik: "mesale", tohum: 3 } as V3DrawnSet;
+    const torches = torchSpots(walls, W, H);
+    const before = (t: (typeof torches)[number], share: number): SetCover => {
+      const f = flameBox(t);
+      return { x0: f.x0 - 200, x1: f.x0 + share * (f.x1 - f.x0), y0: f.y0 - 300, y1: H };
+    };
+    const hidden = lightSpots(walls, W, H, [before(torches[1]!, 1), before(torches[2]!, 0.5)]);
+    assert.equal(hidden[1]!.a, 0, "the torch wholly behind an actor gives no glow");
+    assert.ok(hidden[2]!.a > 0.4 && hidden[2]!.a < 0.6, `half a flame seen, half a glow (${hidden[2]!.a})`);
+    assert.ok(hidden[0]!.a === 1 && hidden[3]!.a === 1, "the torches in the open glow fully");
+    const front = renderToStaticMarkup(createElement("svg", null, createElement(DrawnSetFront, { spec: walls, W, H, frame: 40, covers: [before(torches[1]!, 1), before(torches[2]!, 1)] })));
+    assert.equal(count(front, "url(#ds-light)"), 2, "two torches hidden, two glows over the actors");
+    // A pure function of what is in front: the same frame gives the same light.
+    assert.deepEqual(lightSpots(walls, W, H, [before(torches[2]!, 0.5)]), lightSpots(walls, W, H, [before(torches[2]!, 0.5)]));
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

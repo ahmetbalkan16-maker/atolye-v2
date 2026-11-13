@@ -336,14 +336,82 @@ export function torchXs(spec: V3DrawnSet): number[] {
   return spots.filter((x) => x < a - 0.05 || x > b + 0.05);
 }
 
-/** Where the drawn set lights the night: torch and fire positions in screen space (for the glow over the actors). */
-export function lightSpots(spec: V3DrawnSet, W: number, H: number): { x: number; y: number; r: number }[] {
+/** A torch the set draws: its pole's foot (x, y) in set space and its size. */
+export interface TorchSpot {
+  readonly x: number;
+  readonly y: number;
+  readonly s: number;
+}
+
+/**
+ * Every torch a set draws, from one list — the set draws its torches from it and `lightSpots` lights them from it
+ * (Siege of Baghdad Short, 13 Nov 2026, owner: "1 tane meşale gözüküyor, 2 tane parlıyor ekranda": the glows came from a
+ * separate list of four outdoor spots, so the command tent and the palace, which draw two torches at their walls, glowed
+ * where no torch stood). A tent lit by any light has its two torches (no open fire inside a tent); a palace or council
+ * hall has two when torch-lit; aboard there are only the ship's lanterns.
+ */
+export function torchSpots(spec: V3DrawnSet, W: number, H: number): TorchSpot[] {
+  const m = spec.manzara;
+  if (m === "gemi_guvertesi" || m === "gemi_kamarasi") return [];
+  if (m === "cadir_ici") return spec.isik && spec.isik !== "yok" ? [0.07, 0.93].map((tx) => ({ x: tx * W, y: stageY(0.7, H), s: 0.6 })) : [];
+  if (spec.isik !== "mesale") return [];
+  if (m === "saray_ici" || m === "meclis") return [0.06, 0.94].map((tx) => ({ x: tx * W, y: stageY(0.7, H), s: 0.6 }));
+  return torchXs(spec).map((tx) => ({ x: tx * W, y: stageY(0.62, H), s: 0.62 }));
+}
+
+/** The flame of a torch as a box in set space (Torch's flame: 70 high, 36 wide above the pole's 250-high cup). */
+export function flameBox(t: TorchSpot): { x0: number; y0: number; x1: number; y1: number } {
+  return { x0: t.x - 18 * t.s, x1: t.x + 18 * t.s, y0: t.y - 320 * t.s, y1: t.y - 244 * t.s };
+}
+
+/** Something drawn over the set (an actor, an extra) as a box in set space: what stands there hides the torch behind it. */
+export interface SetCover {
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
+/**
+ * A standing figure's box in character space (feet at 0, head radius 100): a robe's or a coat's width either side and
+ * up to the top of a tall headdress — kept a little inside the drawing, so a flame peeking past a shoulder still glows.
+ */
+export const FIGURE_COVER = { half: 120, top: -620 } as const;
+
+/**
+ * How much of a torch's flame shows past the actors standing in front of it (0 hidden .. 1 all seen), sampled on an 8×8
+ * grid of the flame so the glow fades as someone walks across it instead of popping. The walls set of the Siege of
+ * Baghdad Short (13 Nov 2026) put two of its four torches right behind the two actors (auto slots 0.27/0.73 against
+ * torches at 0.32/0.68): the torches were hidden, their glows painted over the actors' faces.
+ */
+export function flameShown(t: TorchSpot, covers: readonly SetCover[]): number {
+  if (!covers.length) return 1;
+  const f = flameBox(t);
+  const N = 8;
+  let seen = 0;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const x = f.x0 + ((i + 0.5) / N) * (f.x1 - f.x0);
+      const y = f.y0 + ((j + 0.5) / N) * (f.y1 - f.y0);
+      if (!covers.some((c) => x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1)) seen++;
+    }
+  }
+  return seen / (N * N);
+}
+
+/**
+ * Where the drawn set lights the night (for the glow over the actors): each torch the set draws, as strong as its flame
+ * is seen past `covers`; the camp fire where it burns; a ship's lanterns. A glow always belongs to a drawn, visible light.
+ */
+export function lightSpots(spec: V3DrawnSet, W: number, H: number, covers: readonly SetCover[] = []): { x: number; y: number; r: number; a: number }[] {
   // Aboard, any light is the ship's lanterns (no torch or open fire on a wooden deck).
   const ship = spec.manzara === "gemi_guvertesi" ? DECK_LAMPS : spec.manzara === "gemi_kamarasi" ? CABIN_LAMPS : undefined;
-  if (ship) return spec.isik && spec.isik !== "yok" ? ship.map((l) => ({ x: l.x * W, y: l.y * H + 36, r: 300 })) : [];
-  if (spec.isik === "mesale") return torchXs(spec).map((tx) => ({ x: tx * W, y: stageY(0.62, H) - 250 * 0.62, r: 330 }));
-  if (spec.isik === "kamp_atesi") return [{ x: 0.5 * W, y: stageY(0.9, H) - 40, r: 520 }];
-  return [];
+  if (ship) return spec.isik && spec.isik !== "yok" ? ship.map((l) => ({ x: l.x * W, y: l.y * H + 36, r: 300, a: 1 })) : [];
+  const torches = torchSpots(spec, W, H).map((t) => ({ x: t.x, y: t.y - 250 * t.s, r: 330, a: flameShown(t, covers) }));
+  // The camp fire burns only outdoors (DrawnSetBack draws none in a tent, a palace or a council hall).
+  const outdoors = spec.manzara !== "cadir_ici" && spec.manzara !== "saray_ici" && spec.manzara !== "meclis";
+  const fire = spec.isik === "kamp_atesi" && outdoors ? [{ x: 0.5 * W, y: stageY(0.9, H) - 40, r: 520, a: 1 }] : [];
+  return [...torches, ...fire];
 }
 
 /** The river's banks at a screen height (crossing set): it widens toward the viewer. */
@@ -459,7 +527,7 @@ function TentInterior({ spec, p, c, W, H, frame }: { spec: V3DrawnSet; p: Palett
         <circle cx={0} cy={H * 0.27} r={60} fill="#ffd27a" opacity={0.18 + 0.05 * Math.sin(frame * 0.3)} />
         <path d={`M-18 ${H * 0.24} L18 ${H * 0.24} L12 ${H * 0.29} L-12 ${H * 0.29} Z`} fill={mix("#d9a63a", p.dimTo, p.dim)} {...outline(3)} />
       </g>
-      {spec.isik && spec.isik !== "yok" ? [0.07, 0.93].map((tx, i) => <Torch key={i} x={tx * W} y={stageY(0.7, H)} s={0.6} frame={frame} i={i} />) : null}
+      {torchSpots(spec, W, H).map((t, i) => <Torch key={i} x={t.x} y={t.y} s={t.s} frame={frame} i={i} />)}
     </g>
   );
 }
@@ -854,7 +922,7 @@ export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: numbe
         {Array.from({ length: 9 }, (_, i) => (
           <path key={i} d={`M${(i / 8) * W} ${floorTop} L${W / 2 + ((i / 8) * W - W / 2) * 2.2} ${H}`} stroke={mix("#a89c86", p.dimTo, p.dim)} strokeWidth={3} />
         ))}
-        {spec.isik === "mesale" ? [0.06, 0.94].map((tx, i) => <Torch key={i} x={tx * W} y={stageY(0.7, H)} s={0.6} frame={frame} i={i} />) : null}
+        {torchSpots(spec, W, H).map((t, i) => <Torch key={i} x={t.x} y={t.y} s={t.s} frame={frame} i={i} />)}
       </g>
     );
   }
@@ -987,7 +1055,7 @@ export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: numbe
         : null}
 
       {/* Torches behind the actors, or the camp fire. */}
-      {spec.isik === "mesale" ? torchXs(spec).map((tx, i) => <Torch key={`m${i}`} x={tx * W} y={stageY(0.62, H)} s={0.62} frame={frame} i={i} />) : null}
+      {torchSpots(spec, W, H).map((t, i) => <Torch key={`m${i}`} x={t.x} y={t.y} s={t.s} frame={frame} i={i} />)}
       {spec.isik === "kamp_atesi" ? (
         <g transform={`translate(${W * 0.5} ${stageY(0.9, H)})`}>
           <path d="M-60 0 L60 -14 M-56 -14 L58 0" stroke="#5a3e2a" strokeWidth={14} strokeLinecap="round" />
@@ -1025,10 +1093,13 @@ function Fog({ W, H, frame, y, opacity }: { W: number; H: number; frame: number;
   );
 }
 
-/** Over the actors: near fog, rain or snow, the night's grade and the torches' warm light. */
-export function DrawnSetFront({ spec, W, H, frame }: { spec: V3DrawnSet; W: number; H: number; frame: number }) {
+/**
+ * Over the actors: near fog, rain or snow, the night's grade and the torches' warm light. `covers`: the actors and
+ * extras in set space this frame — a torch hidden behind them gives no glow (`flameShown`).
+ */
+export function DrawnSetFront({ spec, W, H, frame, covers = [] }: { spec: V3DrawnSet; W: number; H: number; frame: number; covers?: readonly SetCover[] }) {
   const r = rng(spec.tohum + 5);
-  const lights = lightSpots(spec, W, H);
+  const lights = lightSpots(spec, W, H, covers).filter((l) => l.a > 0.01);
   // Indoors no rain, snow or ground fog falls on the actors (a tent, a palace, a council hall, a ship's cabin).
   if (spec.manzara === "cadir_ici" || spec.manzara === "saray_ici" || spec.manzara === "meclis" || spec.manzara === "gemi_kamarasi") spec = { ...spec, hava: "acik" };
   // Light enough that the actors keep their colours (the first try at 0.42 turned everyone grey).
@@ -1044,7 +1115,7 @@ export function DrawnSetFront({ spec, W, H, frame }: { spec: V3DrawnSet; W: numb
       </defs>
       {grade ? <rect x={-W * 0.1} y={-H * 0.1} width={W * 1.2} height={H * 1.2} fill={grade.c} opacity={grade.o} style={{ mixBlendMode: "multiply" }} /> : null}
       {lights.map((l, i) => (
-        <circle key={i} cx={l.x} cy={l.y} r={l.r * (1 + 0.05 * Math.sin(frame * 0.7 + i * 2))} fill="url(#ds-light)" style={{ mixBlendMode: "screen" }} />
+        <circle key={i} cx={l.x} cy={l.y} r={l.r * (1 + 0.05 * Math.sin(frame * 0.7 + i * 2))} fill="url(#ds-light)" opacity={l.a} style={{ mixBlendMode: "screen" }} />
       ))}
       {/* Near fog creeps along the ground only: over the feet, never across the faces. */}
       {spec.hava === "sis" ? <Fog W={W} H={H} frame={frame + 400} y={H * 1.0} opacity={0.2} /> : null}
