@@ -36,11 +36,27 @@ function surnameOf(ad: string): string | undefined {
 }
 
 /**
- * The cast's invented-person problems, as reasons for the next draft (English, the writer's language). A lookup that
- * fails ("error") decides nothing: an offline Wikipedia never stops a production.
+ * Whether the research's verified text names this person by their full name (titles off): the Siege of Baghdad Short
+ * (13 Nov 2026) was stopped for "Bektash Khan", the Safavid commander the siege article names in three quoted facts,
+ * because he has no article of his own — the next draft was told a real man was invented.
  */
-export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, lookup: ArticleLookup): Promise<string[]> {
+function namedBySources(ad: string, sources: string): boolean {
+  const words = nameWords(ad).words.filter((w) => /^\p{Lu}/u.test(w) && !ROLE.test(w));
+  if (!words.length || !sources) return false;
+  return ` ${sources} `.includes(` ${lettersOnly(words.join(" "))} `);
+}
+
+/** Lower-case words split by anything but letters and digits ("Khan," and "Khan's" end the word "khan"). */
+const lettersOnly = (s: string): string => normalizeForMatch(s).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * The cast's invented-person problems, as reasons for the next draft (English, the writer's language). A lookup that
+ * fails ("error") decides nothing: an offline Wikipedia never stops a production. `sources`: the research's verified
+ * text (the source bank's facts and quotes); a person it names is real even without an article of their own.
+ */
+export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, lookup: ArticleLookup, sources = ""): Promise<string[]> {
   const out: string[] = [];
+  const known = sources ? lettersOnly(sources) : "";
   for (const c of episode.oyuncu_kadrosu) {
     if (!c.gorunur) continue;
     const wiki = c.portre?.wiki?.trim();
@@ -49,6 +65,7 @@ export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, l
       if (found === "error") continue;
       const surname = surnameOf(c.ad);
       if (found === "missing") {
+        if (namedBySources(c.ad, known)) continue;
         out.push(`"${c.ad}" is not a real person: there is no Wikipedia article "${wiki}". Give the lines to the real person the sources name for this role (look them up), or make the character an unnamed role ("an Italian admiral", no name and no "portre") — never invent a name for a real officer or ruler.`);
       } else if (surname && !normalizeForMatch(`${found.title} ${found.text.slice(0, 1500)}`).includes(normalizeForMatch(surname))) {
         out.push(`"${c.ad}" does not match the article given as their "portre" ("${found.title}" is about someone else): give the exact article of this real person, or make the character an unnamed role.`);
@@ -57,7 +74,7 @@ export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, l
     }
     const { titled, words } = nameWords(c.ad);
     const personal = words.filter((w) => /^\p{Lu}/u.test(w) && !ROLE.test(w));
-    if (titled && personal.length >= 2) {
+    if (titled && personal.length >= 2 && !namedBySources(c.ad, known)) {
       out.push(`"${c.ad}" is an invented character with a rank and a full name, which viewers take for a real officer of this event: call them by their role ("Swordfish pilot", "Italian gunner") or a first name only, or use the real person the sources name (with "portre").`);
     }
   }

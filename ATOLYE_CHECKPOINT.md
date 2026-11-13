@@ -1,3 +1,14 @@
+## 13 Kasım 2026 (2) — Shorts 2:30–3:00, toplu canlıya alma, Bağdat 1638 Short'u
+
+- Owner: "yeni shorts videoları neden 2:30'un altında kalıyor, en fazla 3 dakika, 2:30'un altına fazla inmesin". Ölçüm:
+  Taranto 253 kelime/112 sn, Guadalcanal 254/107 sn; hız doğru (2,26–2,52 kelime/sn), yazar 359'luk bütçenin %70'iyle dönüyor,
+  Short bandı %65'e kadar kabul ediyordu. ff6172fd: SHORTS_FILL 0,92 (180 sn → 389 kelime), bant [0,9, 1,04],
+  `Format.shortsMinS` %80 (144 sn) QC'de. smoke-v3-script 45, director 75, council 18 PASS.
+- Toplu canlıya alma (owner "evet yap"): canlı dalın Remotion 4.0.543'ü (da584176, owner'ın Uygula'sı) birleştirildi →
+  aa1b00ca, canlı dal ff, kanonik pull, remotion tsc 0 (4.0.543, Chrome 158 var), Graphify aa1b00ca (eksik yok),
+  otomatik yayın `ayas-live-aa1b00ca` PUBLISHED, sipariş izleyici yeniden başladı (pid 16980).
+- Sipariş 20261113T091723-1638-siege-of-baghdad (3dk, en, mizahi) başladı — izleniyor.
+
 ## 13 Kasım 2026 — harita gerçekçiliği C+D, fotoğraf kayması, ses tıkırtısı, beyinlere öğretim (feature dalı, canlı DEĞİL)
 
 Owner 12 Kas akşamı: işi Opus 5.5 ajanlarına dağıt; "fotoğraflarda hala kayma var", "arkada cızıltı"; "yapılanları beyinlere

@@ -1288,6 +1288,12 @@ async function main() {
     assert.ok((await inventedPeople(cast([{ id: "a", ad: "Admiral Inigo Campioni", wiki: "Horatio Nelson" }]), lookup))[0]!.includes("someone else"));
     // An offline Wikipedia decides nothing.
     assert.deepEqual(await inventedPeople(cast([{ id: "p", ad: "Admiral Luigi de Pignati", wiki: "Luigi de Pignati" }]), async () => "error" as const), []);
+    // Siege of Baghdad (13 Nov 2026): the Safavid commander the verified facts name is real without his own article;
+    // the facts must name him in full (a surname alone, or another man, proves nothing).
+    const baghdad = "The Safavid commander, Bektash Khan, had made extensive repairs to the fortifications.";
+    assert.deepEqual(await inventedPeople(cast([{ id: "b", ad: "Bektash Khan", wiki: "Bektash Khan" }, { id: "s", ad: "General Saru Khan" }]), lookup, `${baghdad}\nKilling their commander Saru Khan in his own tent.`), []);
+    assert.equal((await inventedPeople(cast([{ id: "b", ad: "Bektash Khan", wiki: "Bektash Khan" }]), lookup)).length, 1);
+    assert.equal((await inventedPeople(cast([{ id: "x", ad: "Imam Quli Khan", wiki: "Imam Quli Khan (Baghdad)" }, { id: "y", ad: "Captain Rustam Mirza" }]), lookup, baghdad)).length, 2);
   });
 
   await scenario("the Guadalcanal Short's dawn map (12 Nov 2026): the planes a narrator line names fly on it, the ship it tells sunk goes down on it, a dawn map is no night map", async () => {

@@ -848,7 +848,9 @@ async function main() {
           }
         };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).then(async (o) => {
-          const people = await inventedPeople(o.episode, lookup);
+          // A person the verified research names (the 1638 siege's Bektash Khan) is real without an article of their own.
+          const sourced = bank ? [...bank.olgular.map((x) => x.metin), ...(bank.alintilar ?? []).flatMap((x) => [x.metin, x.alinti])].join("\n") : "";
+          const people = await inventedPeople(o.episode, lookup, sourced);
           if (people.length) throw new ScriptError("V3_SCRIPT_HISTORY", `uydurma kişi, üretim gardıroptan önce durdu — ${people.join(" | ")}`, JSON.stringify(o.episode, null, 2), people);
           return o;
         }).catch(async (e: unknown) => {
