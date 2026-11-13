@@ -233,7 +233,11 @@ This project is developed across many sequential AI sessions under strict, check
   - **Batched go-live for Claude sessions (owner 2026-11-13, permanent: "her zaman toplu canlı alma
     yapalım, sürekli canlı alma yapmayalım"):** commit and push the feature branch after every verified
     step, but never merge into the live branch at the end of a task; list what waits and go live only
-    in one batch when the owner asks for it.
+    in one batch when the owner asks for it. The same day the owner said "evet" to turning the
+    observer's automatic live publish off too: the canonical `.env.local` carries
+    `AYAS_AUTO_LIVE_PUBLISH=0` (executor dry run: `"autoLive":"DISABLED"`), so main-AYAS code-lane
+    commits also wait for the batch. A batch go-live runs `scripts/ayas-publish-live.ps1 -Commit <sha>
+    -Apply` by hand (or removes that line for one tick and puts it back).
 
 ## graphify
 
