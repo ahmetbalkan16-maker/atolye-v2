@@ -230,6 +230,10 @@ This project is developed across many sequential AI sessions under strict, check
     running access supervisor through its own handover between two cycles. This covers the live
     publish only: it grants no commit or push, which still need the approval described above (for a
     Claude session, the AGENTS.md session-end rule).
+  - **Batched go-live for Claude sessions (owner 2026-11-13, permanent: "her zaman toplu canlı alma
+    yapalım, sürekli canlı alma yapmayalım"):** commit and push the feature branch after every verified
+    step, but never merge into the live branch at the end of a task; list what waits and go live only
+    in one batch when the owner asks for it.
 
 ## graphify
 
