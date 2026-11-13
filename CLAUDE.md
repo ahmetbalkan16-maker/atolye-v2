@@ -144,6 +144,16 @@ This project is developed across many sequential AI sessions under strict, check
   branch too, before go-live). What code cannot say goes in as lesson lines, one English sentence each (≤300 chars):
   `Ders-<kurgu|arastirma|mizah|kalite|kostum|gelistirici>[<konu>]: <lesson>` — written into that brain's memory once,
   without a model (`src/lib/v3/council/CommitLessons.ts`; details in the `v3-gelistirici` skill).
+- **STANDING ORDER — every fix is a case the brains keep (owner 2026-11-13, "kesin emir", never to be asked again:
+  "claude'da yapılan her düzeltme, iyileştirme, hata beyinlere aktarılsın; nasıl olduğu, nasıl çözüldüğü, bütün gerekli
+  bilgiler; ileride böyle sorunları kendileri yapabilsin; her çıkan sorunda otomatik").** Every fix, improvement or error
+  handled in a Claude session — in code, in a production's data, or by hand in a running order — is handed to the brains
+  as a whole case, not only a one-line lesson: what was seen (symptom, where, which video/scene), the root cause, how it
+  was solved (files, functions, data changed), how it was proven, and how to catch it next time. In a commit this is the
+  `Vaka` block next to the `Ders-` lines (format in the `v3-gelistirici` skill); a hand fix with no commit (a patched
+  episode, a stopped and resumed order) is recorded the same way into the brains' case library. The brains must get
+  similar past cases automatically whenever a new problem shows up (a council finding, a failed step, a development job),
+  so they can solve it themselves. Never skip this, and never take a change live before its case is recorded.
 - Don't `git commit` or `git push` without explicit user approval, even after a change is verified
   — this holds regardless of how confident the change is.
   - **Standing exception (M18.1, user policy):** a human clicking **"BATCH ONAYLA VE UYGULA"** in

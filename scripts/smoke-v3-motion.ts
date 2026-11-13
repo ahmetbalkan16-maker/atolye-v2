@@ -10,13 +10,15 @@ import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type 
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
+import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
 import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
 // type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
 interface MapUnitsModule {
-  placeTokens(map: V3GeoMap, frame: number, fps: number, k: number): ({ x: number; y: number; lostAt?: number } | undefined)[][];
+  placeTokens(map: V3GeoMap, frame: number, fps: number, k: number, end?: number): ({ x: number; y: number; lostAt?: number } | undefined)[][];
+  slideFrames(steps: NonNullable<V3GeoMap["units"]>[number]["steps"], fps: number): number[];
   gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; gun: boolean; shot: number }[];
   volleysAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; shot: number }[];
   steadyFacingsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, frame: number, fps: number, k: number): number[][];
@@ -100,7 +102,7 @@ function metrics(values: readonly number[]): Metrics {
 }
 
 async function main() {
-  const { gunfireAt, placeTokens, volleysAt, steadyFacingsAt, lostTokens, fallenRest, menPerBlock } = (await import(MAP_UNITS)) as MapUnitsModule;
+  const { gunfireAt, placeTokens, volleysAt, steadyFacingsAt, lostTokens, fallenRest, menPerBlock, slideFrames } = (await import(MAP_UNITS)) as MapUnitsModule;
   const states = Array.from({ length: FRAMES }, (_, f) => performerState(performer, f, FPS));
   const table = CHANNELS.map((c) => ({ c, m: metrics(states.map(c.get)) }));
   for (const { c, m } of table) {
@@ -261,7 +263,7 @@ async function main() {
     let prevV: { x: number; y: number }[][] = [];
     let worstStep = 0;
     let worstAcc = 0;
-    for (let f = 0; f < 200; f++) {
+    for (let f = 0; f < 300; f++) {
       const now = placeTokens(map, f, 30, 1);
       const v: { x: number; y: number }[][] = [];
       now.forEach((side, ui) =>
@@ -278,11 +280,12 @@ async function main() {
       prev = now.map((side) => side.map((t) => (t ? { x: t.x, y: t.y } : undefined)));
       prevV = v;
     }
-    // A 1000 px charge in 2.8 s eased in and out peaks near 30 px a frame; a leap is a whole gap and more.
+    // A 1000 px charge eased in and out over its 7 s (slideFrames: at most SLIDE_MAX_S) peaks near 14 px a frame; a leap
+    // is a whole gap and more.
     assert.ok(worstStep < 40, `a token moved ${worstStep.toFixed(1)} px in one frame`);
     assert.ok(worstAcc < 12, `speed changed by ${worstAcc.toFixed(1)} px in one frame`);
     // Every token still ends in its formation, spaced: the line holds its tokens a room apart.
-    const end = placeTokens(map, 199, 30, 1);
+    const end = placeTokens(map, 299, 30, 1);
     const line = end[3]!.filter((t): t is NonNullable<typeof t> => t !== undefined);
     const closest = Math.min(...line.flatMap((a, i) => line.slice(i + 1).map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
     assert.ok(closest > 69 * 0.95, `the tight line is spaced (${closest.toFixed(0)} px)`);
@@ -700,6 +703,104 @@ async function main() {
     assert.ok(qe.x - edge.l * qe.scale >= edge.x - edge.l - 1e-3, JSON.stringify(te));
     // A flat map has no tilt.
     assert.equal(tiltAt({ ...map, tilt: undefined } as V3GeoMap, 150, fps, W, H), undefined);
+  });
+
+  /** A map's tokens frame by frame: the largest step, the largest change of speed and the turns back (> 170°, steps over 2 px). */
+  const motionOf = (map: V3GeoMap, frames: number, end?: number) => {
+    let prev: ({ x: number; y: number } | undefined)[][] | undefined;
+    let prevV: ({ x: number; y: number } | undefined)[][] = [];
+    let step = 0;
+    let acc = 0;
+    let flips = 0;
+    for (let f = 0; f < frames; f++) {
+      const now = placeTokens(map, f, 30, 1, end);
+      prevV = now.map((side, ui) =>
+        side.map((t, i) => {
+          const p = prev?.[ui]?.[i];
+          if (!t || !p) return undefined;
+          const d = { x: t.x - p.x, y: t.y - p.y };
+          const l = Math.hypot(d.x, d.y);
+          step = Math.max(step, l);
+          const b = prevV[ui]?.[i];
+          if (b) {
+            acc = Math.max(acc, Math.hypot(d.x - b.x, d.y - b.y));
+            const lb = Math.hypot(b.x, b.y);
+            if (l > 2 && lb > 2 && (d.x * b.x + d.y * b.y) / (l * lb) < Math.cos((170 * Math.PI) / 180)) flips++;
+          }
+          return d;
+        }),
+      );
+      prev = now.map((side) => side.map((t) => (t ? { x: t.x, y: t.y } : undefined)));
+    }
+    return { step, acc, flips };
+  };
+
+  await scenario("V a slide lasts as long as its way (owner, 13 Nov 2026: \"askerlerin hareketleri akıcı olması lazım\"): a long march keeps a steady pace, a short one its 2.8 s, a formation marches as one and ends before its shot", () => {
+    // Siege of Baghdad Short, measured: every slide took 2.8 s whatever its length — a 600 px way peaked at 15–21 px a frame.
+    const one = (dx: number, zoom = 1) =>
+      ({
+        units: [{ side: "A", color: "#3a5eb3", emblem: "kalkan", kind: "piyade" as const, steps: [{ start: 9, points: [{ x: 200, y: 500 }], alive: 1 }, { start: 30, points: [{ x: 200 + dx, y: 500 }], alive: 1 }] }],
+        camera: [{ frame: 0, x: 960, y: 540, zoom }],
+      }) as unknown as V3GeoMap;
+    // The first frame the token stands on its goal (the eased slide lands on it exactly).
+    const arrives = (map: V3GeoMap, end?: number) => {
+      const goal = map.units![0]!.steps[1]!.points[0]!.x;
+      for (let f = 30; f < 400; f++) if (placeTokens(map, f, 30, 1, end)[0]![0]!.x === goal) return f;
+      return Infinity;
+    };
+    assert.equal(arrives(one(200)), 30 + 84, "a short way keeps its 2.8 s");
+    assert.equal(arrives(one(600)), 30 + 150, "600 px at 120 px a second: 5 s");
+    const long = motionOf(one(600), 220);
+    assert.ok(long.step < 12.5, `600 px peaks at ${long.step.toFixed(1)} px a frame (2.8 s: 21.4)`);
+    assert.equal(arrives(one(600, 2)), 30 + 210, "seen twice as close it is twice as long on screen (10 s), at most 7 s");
+    assert.equal(arrives(one(2000)), 30 + 210, "at most 7 s");
+    assert.equal(arrives(one(600), 30 + 120), 30 + 102, "in a shot ending 4 s on, it arrives 0.6 s before the cut");
+    assert.equal(arrives(one(600), 30 + 60), 30 + 84, "never cut below its 2.8 s");
+    // A formation marches as one: both tokens take the longest way's time.
+    const pair = [{ start: 9, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], alive: 2 }, { start: 30, points: [{ x: 100, y: 0 }, { x: 700, y: 0 }], alive: 2 }];
+    assert.deepEqual(slideFrames(pair, 30), [84, 150]);
+  });
+
+  await scenario("W the spacing follows a token's real way and holds still (Siege of Baghdad trial, 13 Nov 2026): a column through a breach passes the unit standing at it, and formations fading in on each other ease apart", () => {
+    // Janissaries poured through the breach past the assault column standing at it: the pass test saw only the straight
+    // start-to-goal line, so the two were pushed apart one way and then the other (72 px in one frame).
+    const breach = { x: 1695.6, y: 623.8 };
+    const stand: TokenWay = { from: { x: 1678, y: 592 }, goal: { x: 1678, y: 592 }, t: 1 };
+    const straight: TokenWay = { from: { x: 1596, y: 468 }, goal: { x: 1701, y: 529 }, t: 0.5 };
+    const through: TokenWay = { ...straight, via: breach };
+    assert.equal(waysSwap(straight, stand), false, "the straight line misses the standing token");
+    assert.equal(waysSwap(through, stand), true, "the way through the breach passes it");
+    assert.ok(passShare(through, stand) > 0.99, "and lets it pass mid-way");
+    // Straight ways keep the old test: two cavalries swapping flanks head on pass, two marching side by side do not.
+    assert.equal(waysSwap({ from: { x: 0, y: 0 }, goal: { x: 1000, y: 0 }, t: 0.5 }, { from: { x: 1000, y: 0 }, goal: { x: 0, y: 0 }, t: 0.5 }), true);
+    assert.equal(waysSwap({ from: { x: 0, y: 0 }, goal: { x: 1000, y: 0 }, t: 0.5 }, { from: { x: 0, y: 80 }, goal: { x: 1000, y: 80 }, t: 0.5 }), false);
+    const pts = (xy: readonly (readonly [number, number])[]) => xy.map(([x, y]) => ({ x, y }));
+    const assault = {
+      units: [
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, name: "Janissaries", steps: [{ start: 9, points: pts([[1550, 489], [1596, 468], [1643, 446], [1690, 425]]), alive: 4 }, { start: 317, points: pts([[1741, 509], [1701, 529], [1662, 549], [1622, 569]]), alive: 3, losses: [2.4], via: breach, through: [1, 2, 3] }] },
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "suvari" as const, steps: [{ start: 9, points: pts([[1609, 686], [1600, 666], [1590, 645], [1581, 625]]), alive: 4 }] },
+        { side: "S", color: "#b33a3a", emblem: "gunes", kind: "piyade" as const, steps: [{ start: 9, points: pts([[1491, 1093], [1527, 1092], [1562, 1091], [1597, 1091], [1632, 1090]]), alive: 5 }, { start: 317, points: pts([[1686, 736], [1669, 736], [1652, 736], [1636, 736], [1619, 736]]), alive: 5 }] },
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, name: "Assault column", steps: [{ start: 9, points: pts([[1678, 592], [1652, 653]]), alive: 2 }] },
+      ],
+    } as unknown as V3GeoMap;
+    const m = motionOf(assault, 520, 1094);
+    assert.ok(m.step < 15 && m.flips === 0, `through the breach: ${m.step.toFixed(1)} px a frame, ${m.flips} turns back`);
+    // Guns, horse and garrison set down on each other as the map opens: they ease apart as they fade in (they shook 0.3 s,
+    // up to 15.6 px a frame, sorted one way and then the other).
+    const opening = {
+      units: [
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, steps: [{ start: 9, points: pts([[1348, 674], [1387, 657], [1425, 639], [1464, 621]]), alive: 4 }] },
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "suvari" as const, steps: [{ start: 9, points: pts([[1422, 845], [1427, 825], [1433, 804], [1439, 784]]), alive: 4 }] },
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "topcu" as const, steps: [{ start: 9, points: pts([[1407, 761], [1436, 748], [1465, 734], [1494, 721]]), alive: 4 }] },
+        { side: "S", color: "#b33a3a", emblem: "gunes", kind: "piyade" as const, steps: [{ start: 9, points: pts([[1481, 840], [1494, 834], [1506, 828], [1519, 823], [1531, 817]]), alive: 5 }] },
+      ],
+    } as unknown as V3GeoMap;
+    const o = motionOf(opening, 90);
+    assert.ok(o.step < 6 && o.acc < 5 && o.flips === 0, `opening: ${o.step.toFixed(1)} px a frame, speed change ${o.acc.toFixed(1)}, ${o.flips} turns back`);
+    // Settled, the units still keep their room.
+    const settled = placeTokens(opening, 89, 30, 1).flatMap((side, ui) => side.flatMap((t) => (t ? [{ ...t, ui }] : [])));
+    const closest = Math.min(...settled.flatMap((a, i) => settled.slice(i + 1).filter((b) => b.ui !== a.ui).map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
+    assert.ok(closest > 69 * 0.95, `units kept apart (${closest.toFixed(0)} px)`);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

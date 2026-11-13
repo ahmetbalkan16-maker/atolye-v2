@@ -760,6 +760,11 @@ export const TOLD_WORDS = {
    * before it, it is the place's ("caught fire", "on fire", "set fire").
    */
   yangin: /^(?:hit|struck|burn\p{L}*|ablaze|flames?|blaze\p{L}*|explod\p{L}*|vurul\p{L}*|yan(?:ar|dı|ıyor|gın)\p{L}*|alev\p{L}*|tutuş\p{L}*|isabet\p{L}*|(?:caught|catch\p{L}*|on|set\p{L}*) fire)$/iu,
+  /**
+   * A person killed: their badge's X (the Siege of Baghdad Short, 13 Nov 2026: Tayyar Mehmed Pasha was crossed out at
+   * the first word of "… leads the charge — and is shot down", seven seconds early).
+   */
+  olum: /^(?:killed|kills?|slain|slays?|shot|dies|died|dead|death|falls|fell|fallen|perish\p{L}*|executed|beheaded|öl(?:dü|ür|üm)\p{L}*|şehit\p{L}*|can\s?verdi)$/iu,
 } as const;
 
 /** Seconds from a ship's or gun's first shot to the fire it starts where it aims. */
@@ -1713,7 +1718,7 @@ function projectGeoMap(
   const starts = shipStarts(map, onLand, knownWater, width);
   // What points at a ship's written place follows it into the water: fire, planes flying at it, a badge on it.
   const aimAt = atDrawnShip(map, starts);
-  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: lineStart(r.x_satir, i) } : {}), path: [aimAt(r.konum), ...(r.yol ?? [])].map((p) => toPx(p)) }));
+  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: toldStart(opts, lineStart, r.x_satir, i, TOLD_WORDS.olum) } : {}), path: [aimAt(r.konum), ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const written = (map.araclar ?? []).map((a, i) => {
     const route = [starts[i]!, ...(a.tur === "ucak" ? routeFrom(a, starts[i]!, a.yol ?? []).map((p, k, all) => (k === all.length - 1 ? aimAt(p) : p)) : (a.yol ?? []))];
     // A haul goes from water to water (1453: the Bosphorus to the Golden Horn). A ship's route that starts or ends on

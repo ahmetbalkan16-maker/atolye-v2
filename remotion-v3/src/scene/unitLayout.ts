@@ -92,11 +92,62 @@ export function formationOrder(steps: readonly { readonly points: readonly XY[];
  * `weights` (0..1, default 1): a token fading in or out needs only that share of the room, so its neighbours ease into
  * the room it leaves instead of jumping when it is gone (owner, 26 Oct 2026: "takılarak hareket var").
  */
-/** Where a moving token set off from, where it goes, and how far it is on its way (0..1). */
+/**
+ * Where a moving token set off from, where it goes, and how far it is on its way (0..1). `via`: the breach it goes
+ * through on the way (its slide runs from → via → goal, `t` a share of that whole length).
+ */
 export interface TokenWay {
   readonly from: XY;
   readonly goal: XY;
   readonly t: number;
+  readonly via?: XY;
+}
+
+/** The point a share `u` (0..1) of the way along a token's way, by length (as MapUnits' slide runs it). */
+function wayPoint(w: TokenWay, u: number): XY {
+  if (!w.via) return { x: w.from.x + (w.goal.x - w.from.x) * u, y: w.from.y + (w.goal.y - w.from.y) * u };
+  const l1 = Math.hypot(w.via.x - w.from.x, w.via.y - w.from.y);
+  const l2 = Math.hypot(w.goal.x - w.via.x, w.goal.y - w.via.y);
+  const at = u * (l1 + l2);
+  if (at <= l1) {
+    const s = l1 > 1e-9 ? at / l1 : 1;
+    return { x: w.from.x + (w.via.x - w.from.x) * s, y: w.from.y + (w.via.y - w.from.y) * s };
+  }
+  const s = l2 > 1e-9 ? (at - l1) / l2 : 1;
+  return { x: w.via.x + (w.goal.x - w.via.x) * s, y: w.via.y + (w.goal.y - w.via.y) * s };
+}
+
+/** The share of a way's length at its breach (absent: none). */
+function viaShare(w: TokenWay): number | undefined {
+  if (!w.via) return undefined;
+  const l1 = Math.hypot(w.via.x - w.from.x, w.via.y - w.from.y);
+  const l2 = Math.hypot(w.goal.x - w.via.x, w.goal.y - w.via.y);
+  return l1 + l2 > 1e-9 ? l1 / (l1 + l2) : undefined;
+}
+
+/**
+ * Whether two ways swap sides: the line from one token to the other turns by more than a right angle from where they
+ * set off to where they arrive, followed along both ways together (each straight piece between the ways' corners turns
+ * it by the angle it sweeps). For two straight ways that is the old test (the start and end lines point apart). A way
+ * through a breach is followed through its breach (Siege of Baghdad trial, 13 Nov 2026: tested from start to goal in a
+ * straight line, a Janissary going through the breach and a unit standing at the breach were never let pass — the
+ * spacing pushed them apart one way, then the other: 72 px in one frame).
+ */
+export function waysSwap(a: TokenWay, b: TokenWay): boolean {
+  if (!a.via && !b.via) return (b.from.x - a.from.x) * (b.goal.x - a.goal.x) + (b.from.y - a.from.y) * (b.goal.y - a.goal.y) < 0;
+  const cuts = [0, viaShare(a), viaShare(b), 1].filter((u): u is number => u !== undefined).sort((p, q) => p - q);
+  let turn = 0;
+  let last: XY | undefined;
+  for (const u of cuts) {
+    const pa = wayPoint(a, u);
+    const pb = wayPoint(b, u);
+    const d = { x: pb.x - pa.x, y: pb.y - pa.y };
+    // The two ways meet at a corner: they pass through each other.
+    if (Math.hypot(d.x, d.y) < 1e-6) return true;
+    if (last) turn += Math.atan2(last.x * d.y - last.y * d.x, last.x * d.x + last.y * d.y);
+    last = d;
+  }
+  return Math.abs(turn) > Math.PI / 2;
 }
 
 /** Share of a slide at each end over which a passing pair lets go of its room (and takes it again). */
@@ -110,10 +161,9 @@ const PASS_EASE = 0.15;
  * leapt 138 px). Passing through each other for a moment reads as two bodies of troops going by.
  */
 export function passShare(a: TokenWay, b: TokenWay): number {
-  const swap = (b.from.x - a.from.x) * (b.goal.x - a.goal.x) + (b.from.y - a.from.y) * (b.goal.y - a.goal.y) < 0;
-  if (!swap) return 0;
+  if (!waysSwap(a, b)) return 0;
   const moving = (w: TokenWay) => {
-    if (w.t <= 0 || w.t >= 1 || (w.from.x === w.goal.x && w.from.y === w.goal.y)) return 0;
+    if (w.t <= 0 || w.t >= 1 || (w.from.x === w.goal.x && w.from.y === w.goal.y && !w.via)) return 0;
     const ramp = (v: number) => {
       const c = Math.min(1, Math.max(0, v / PASS_EASE));
       return c * c * (3 - 2 * c);
@@ -138,8 +188,26 @@ export function passMean(a: TokenWay | readonly (TokenWay | undefined)[] | undef
   return sum / n;
 }
 
-export function separateTokens(points: readonly { x: number; y: number }[], gap: number, weights?: readonly number[], ways?: readonly (TokenWay | readonly (TokenWay | undefined)[] | undefined)[], groups?: readonly number[]): { x: number; y: number }[] {
+/**
+ * `ids` (a stable number per token, ascending with its place in `points`): given, two tokens are pushed apart along the
+ * line between the places they were asked to stand at — not between where the pushing has moved them — until they are
+ * `gap` apart along it. The result then follows the places and the room continuously from frame to frame: pushed along
+ * where the rounds had moved them, overlapping formations fading in (their room growing with their fade) were sorted
+ * one way on one frame and another on the next — 0.3 s of shaking as a map opened (Siege of Baghdad trial, 13 Nov 2026:
+ * 15.6 px a frame among guns, horse and garrison that never moved). Two tokens asked to stand on one spot part in a
+ * direction of their own ids, the same every frame.
+ */
+export function separateTokens(points: readonly { x: number; y: number }[], gap: number, weights?: readonly number[], ways?: readonly (TokenWay | readonly (TokenWay | undefined)[] | undefined)[], groups?: readonly number[], ids?: readonly number[]): { x: number; y: number }[] {
   const p = points.map((q) => ({ x: q.x, y: q.y }));
+  // The fixed line of each pair (ids given): from the asked places, or the pair's own direction on one spot.
+  const axis = (a: number, b: number) => {
+    const dx = points[b]!.x - points[a]!.x;
+    const dy = points[b]!.y - points[a]!.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 1e-6) return { x: dx / d, y: dy / d };
+    const turn = ids![a]! * 2.4 + ids![b]! * 0.9;
+    return { x: Math.cos(turn), y: Math.sin(turn) };
+  };
   // A pair's room for this frame: less as their ways pass each other (passShare).
   const room = new Map<number, number>();
   const roomOf = (a: number, b: number) => {
@@ -155,6 +223,18 @@ export function separateTokens(points: readonly { x: number; y: number }[], gap:
         if (groups && groups[a] === groups[b]) continue;
         const g = gap * Math.min(1, weights?.[a] ?? 1, weights?.[b] ?? 1, roomOf(a, b));
         if (g <= 0) continue;
+        if (ids) {
+          const u = axis(a, b);
+          const along = (p[b]!.x - p[a]!.x) * u.x + (p[b]!.y - p[a]!.y) * u.y;
+          if (along >= g * 0.999) continue;
+          const push = (g - along) / 2;
+          p[a]!.x -= u.x * push;
+          p[a]!.y -= u.y * push;
+          p[b]!.x += u.x * push;
+          p[b]!.y += u.y * push;
+          moved = true;
+          continue;
+        }
         const dx = p[b]!.x - p[a]!.x;
         const dy = p[b]!.y - p[a]!.y;
         const d = Math.hypot(dx, dy);

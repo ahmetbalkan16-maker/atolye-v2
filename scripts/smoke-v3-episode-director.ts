@@ -2340,6 +2340,9 @@ async function main() {
     for (const w of ["sunk", "sank", "sinks", "destroyed", "battı", "batırıldı"]) assert.ok(TOLD_WORDS.kayip.test(w), w);
     for (const w of ["fire", "shelled", "bombardment", "ateş", "bombalandı"]) assert.ok(TOLD_WORDS.ates.test(w), w);
     for (const w of ["hit", "ablaze", "burning", "yandı", "alevler"]) assert.ok(TOLD_WORDS.yangin.test(w), w);
+    // A badge's X on the word telling the death (Siege of Baghdad, 13 Nov 2026: Tayyar Mehmed Pasha crossed out 7 s early).
+    for (const w of ["shot", "killed", "slain", "falls", "öldü", "öldürüldü", "şehit"]) assert.ok(TOLD_WORDS.olum.test(w), w);
+    for (const w of ["shoots", "fallback", "deadline"]) assert.ok(!TOLD_WORDS.olum.test(w), w);
     assert.ok(!TOLD_WORDS.kayip.test("sunset") && !TOLD_WORDS.ates.test("fireworks") && !TOLD_WORDS.yangin.test("history"));
     // "fire" alone is the guns'; "caught fire" (the remake's "The palace, made mostly of wood, caught fire immediately") the place's.
     assert.ok(!TOLD_WORDS.yangin.test("fire") && TOLD_WORDS.yangin.test("caught fire") && TOLD_WORDS.yangin.test("set fire"));
