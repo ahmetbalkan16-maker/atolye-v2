@@ -1,3 +1,15 @@
+## 13 Kasım 2026 (5) — Bağdat 1638 Short'u TESLİM EDİLDİ (tur 0, 2:37) — yüklemeyi owner bekliyor
+
+- 33769809 yuvarlak jeton ordusu (her yuvarlak 1.000 asker, DFT Tarih tarzı, garnizon sur içinde, lejant; blok için
+  ATOLYE_V3_BIRLIK_STILI=blok); 5972c52c sahne açılışında 0,3 sn geniş kare yanıp sönmesi (Director.noOpeningFlash).
+  Canlı 5972c52c, Graphify güncel.
+- Video: final.mp4 = final-tur0.mp4, 156,9 sn, yükleme dosyası 1638-animated-history.mp4 (1080×1920). Tam tarama: 1,5 sn
+  altı çekim yok, −14,3 LUFS, tık 0. Rötuş turu 1 DURDURULDU: AYAS kaynaklı "108,589 men" ve sur ölçülerini silip
+  esprileri ciddileştirmek istedi → tur 0 elle teslim (sipariş uyariyla_teslim). Vaka kaydedildi; rötuş isteklerinin
+  kaynak bankası ve ton ile denetlenmesi KOD olarak henüz yok (sıradaki iş adayı).
+- Açık: hareket-olcer yuvarlak jetonları değil blokları ölçüyor (s5 uyarısı yanıltıcı); beyinlerin günlük "ayar"
+  adımı ~1 sa Ollama görme çağrısı yapıyor (geceye alma owner kararı).
+
 ## 13 Kasım 2026 (4) — açık işler bitti, canlı 57067ffe; birlikler yuvarlak jeton olacak (ajan çalışıyor)
 
 - Commit'ler (hepsi Vaka bloklu): 2f0d9214 meşale halesi, 318c3b73 portredeki sakal-bıyık, 923d99a6 Wikipedia bilgi
