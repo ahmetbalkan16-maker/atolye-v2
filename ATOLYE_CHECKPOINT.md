@@ -1,3 +1,17 @@
+## 13 Kasım 2026 (4) — açık işler bitti, canlı 57067ffe; birlikler yuvarlak jeton olacak (ajan çalışıyor)
+
+- Commit'ler (hepsi Vaka bloklu): 2f0d9214 meşale halesi, 318c3b73 portredeki sakal-bıyık, 923d99a6 Wikipedia bilgi
+  kutusu, ce542eeb harita resmi ≥3 sn sonra + taraf renkleri + ana karakterin abone kapanışı (ClosingLine). Canlı dal
+  owner'ın Transformers.js güncellemesini almıştı → birleştirildi (57067ffe), kanonik tsc 0, Graphify 57067ffe.
+- Bu videonun verisi tamam: sur halkaları kapalı, s3 Osmanlı kuzeyde nizamda, garnizon "40,000 defenders" (infobox),
+  s2 güç çubuğu 108,589 / 40,000, Safevi turuncu, s6 son satır Murad IV abone daveti. El vakaları vaka.ts ile kayıtlı.
+- Ollama "sürekli çalıştı": beyinlerin gelişim döngüsü (sipariş durunca 15:31–16:39) kalite sınavı + "ayar" adımı
+  (SelfImprovement.TASK_EVERY_H sinav/ayar 24 sa; ayar sınavı 5 kez yeniden çalıştırdı ≈190 gemma4 görme çağrısı).
+  Beklenen davranış; owner isterse geceye alınabilir.
+- Owner: "askerler kaleden taşıyor, küçük yuvarlak olsun, her yuvarlak 1000 asker" → ajan: V3GeoMap.unitStyle "nokta"
+  (varsayılan), lejant, sur içine sığdırma. SIRADAKİ: doğrula + commit + canlı, sonra siparişi `devamAdimi: "ses"` ile
+  sürdür (yeni kapanış satırı seslendirilecek), videoyu baştan ffmpeg sahne kesimiyle tara (<1,5 sn çekim yok).
+
 ## 13 Kasım 2026 (3) — GÜVENLİ DURUŞ (owner: kullanım tokeni bitiyor, "yenilendiğinde kaldığımız yerden devam") — DEVAM BURADAN
 
 Durum (~15:30): Bağdat siparişi 20261113T091723 DURDU ve DURUYOR (üretici süreci 0, sipariş `hata`, izleyici `hata`yı
