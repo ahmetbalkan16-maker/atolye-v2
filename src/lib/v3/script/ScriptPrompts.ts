@@ -161,8 +161,9 @@ ANLATIM KURALLARI
    "rivayet": true alır ve metinde "rivayete göre", "anlatılır" gibi bir ifade geçer. Karakterlerin uydurma diyalogları
    "kurgu": true alır. Uydurma kaynak, uydurma sayfa numarası ya da uydurma alıntı YOK: emin olmadığın künyeyi yazma.
 6. Yaşayan kişiler saygılı bir karikatürdür; doğrulanmamış suçlama yok.
-7. Son sahnede bir sonraki videoya köprü cümlesi; EN SON satır anlatıcının izleyiciyi kanala abone olmaya (beğeni ve
-   yoruma) davet ettiği, konuya bağlı esprili bir cümle (en fazla 25 kelime).`,
+7. Son sahnede bir sonraki videoya köprü cümlesi; EN SON satırı ANA KARAKTER (en çok konuşan görünür karakter, son
+   sahnede sahnede) kendi üslubuyla söyler: izleyiciyi kanalımız Crowns & Doodles'a abone olmaya davet eden, konuya bağlı,
+   sıcak ve esprili bir cümle (en fazla 16 kelime).`,
   en: (b, words) => `You are Atölye's head writer: funny but historically accurate American-English YouTube documentaries told with puppet/stick-figure characters.
 
 TASK: Write the episode script for the topic below as ONE JSON object. Output nothing but the JSON. JSON keys stay exactly as in the shape below (they are Turkish); all text the viewer hears or sees ("metin", "balon", "baslik", card texts, the cast's "ad" and "rol") is natural American English, written for an American audience (explain who and where in a few words; no Turkish words they would not know, except names). Character names in their usual English form ("Mehmed II", "Constantine XI", "Halil Pasha").
@@ -188,8 +189,9 @@ STORYTELLING RULES
    and the line says so ("legend has it", "according to some sources"). Invented character dialogue gets "kurgu": true.
    NO invented sources, page numbers or quotations: leave out any citation you are not sure exists.
 6. Living people are drawn as respectful caricatures; no unverified accusations.
-7. The last scene bridges to the next video, and the VERY LAST line is the narrator inviting viewers to subscribe (and
-   like or comment) — witty and tied to the topic, at most 25 words.
+7. The last scene bridges to the next video, and the VERY LAST line is spoken by the MAIN CHARACTER (the visible character
+   with the most lines, on stage in the last scene), in their own voice: a warm, witty invitation to subscribe to our
+   channel Crowns & Doodles, tied to the topic, at most 16 words.
 8. Sound: every scene has at least one "sfx" on a gag, a hit, an entrance or a punchline (see the allowed values).`,
 };
 
@@ -263,8 +265,9 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
   karakter boş bir sette tek başına durmaz. Final anı da böyle oynanır. Harita sahnesinde bunu haritadaki rozetleri,
   pulları ve gemileri oynar.
 - "kelime" ve "bolum" yazı kartı YOK (tam ekran siyah kart akışta kaydırtır); en fazla ilk sahnede bir "yer_tarih".
-- "Ne öğreneceksin" vaadi, sonraki videoya köprü ve abone daveti YOK.
-- Son satır ilk satıra bağlanır: video başa döndüğünde cümle akıp gider (döngü).`,
+- "Ne öğreneceksin" vaadi ve sonraki videoya köprü YOK.
+- EN SON satırı ANA KARAKTER (en çok konuşan görünür karakter, son sahnede) kendi üslubuyla söyler: izleyiciyi kanalımız
+  Crowns & Doodles'a abone olmaya davet eden, konuya bağlı, sıcak ve esprili bir cümle (en fazla 14 kelime).`,
   en: (b, words) => `
 
 YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, watched on a phone in a feed and shown as the whole 16:9 picture (no narrow vertical window). Where these rules differ from the rules above or below, these win:
@@ -278,8 +281,10 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
   while the narration tells what others did. The payoff moment is acted the same way. In a map scene they act as their
   badges, tokens and ships on the map.
 - NO "kelime" or "bolum" title card (a full-screen black card makes a feed viewer swipe); at most one "yer_tarih" card on the first scene.
-- NO "what you'll learn" promise, NO bridge to the next video and NO subscribe line.
-- The last line leads back into the first: when the video starts over, the sentence runs on (a loop).`,
+- NO "what you'll learn" promise and NO bridge to the next video.
+- The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last
+  scene), in their own voice: a warm, witty invitation to subscribe to our channel Crowns & Doodles, tied to the topic,
+  at most 14 words.`,
 };
 
 function bankText(bank: SourceBank | undefined): string {

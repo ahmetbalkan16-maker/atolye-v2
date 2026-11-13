@@ -333,6 +333,46 @@ export const MAX_INSERT_S = 4.5;
 /** A period picture cut in over a map's narration stays a little longer: the map is not waiting behind actors. */
 export const MAP_INSERT_S = 6;
 
+/**
+ * A new map is on screen at least this long before a picture covers it (owner, 13 Nov 2026, the Baghdad 1638 Short:
+ * "10. saniyeden 12. saniyeye geçerken çok hızlı geçiyor, 2 farklı harita daha görülmeden geçiyor" — every map scene's
+ * picture came 0.5 s after its map, the close map at 41.5 s and 1:34 showed for half a second). Three seconds: the
+ * transition in (≤ 0.5 s) and the time to read where we are — the states and their names, or the walls and the armies.
+ */
+export const MAP_SEEN_S = 3;
+/** The map camera's glide to a new view: the renderer's `mapCamera.CAMERA_MOVE_S` (the director smoke pins them equal). */
+export const MAP_CAMERA_MOVE_S = 2.4;
+/** A view the map's camera glided to is held this long before a picture may cover it: the move's end is the look. */
+export const MAP_VIEW_HOLD_S = 1;
+
+/**
+ * The first frame of a map scene at which a picture may cover the map: `MAP_SEEN_S` in, and never while the map's camera
+ * is still on a move that began before then — a camera key before that point pushes it to the move's end plus
+ * `MAP_VIEW_HOLD_S` (the close map's opening zoom at 1:34 was covered while it zoomed). Keys in shot frames.
+ */
+export function mapPictureFrom(camera: readonly { readonly frame: number }[] | undefined, fps: number): number {
+  let from = Math.round(MAP_SEEN_S * fps);
+  for (const k of [...(camera ?? [])].sort((a, b) => a.frame - b.frame)) if (k.frame > 0 && k.frame < from) from = Math.max(from, k.frame + Math.round((MAP_CAMERA_MOVE_S + MAP_VIEW_HOLD_S) * fps));
+  return from;
+}
+
+/** The plates of a designed picture: `MomentPictures.designedCaption` in both languages (the smoke pins them equal). */
+export const DESIGNED_CAPTIONS: readonly string[] = ["Designed illustration of the moment · not a period image", "Tasarlanmış görsel · dönem görseli değil"];
+
+/**
+ * Whether a picture is itself a map, told only by clean signals: its file title names a map ("Map of Persia, 1640"), or
+ * it was designed from a moment text that is a map ("Map of the Ottoman and Safavid Empires in 1638…", the Baghdad
+ * Short's wide-map "illustration of the moment", 13 Nov 2026 — an old-style map of the region over the map). A map over
+ * a map scene shows nothing the scene does not; a moment that merely mentions a map ("Murad studies a map") stays.
+ */
+export function isMapPicture(caption: string | undefined, designedFrom?: string): boolean {
+  if (caption && !DESIGNED_CAPTIONS.includes(caption) && /\b(maps?|karte|carte|kaart|mappa|harita(s[ıi])?)\b/i.test(caption.split("·")[0]!)) return true;
+  // Up to four words before "map", each a proper name ("Ottoman Safavid war map") or a map's own adjective — never a
+  // verb ("studies a map"). No `i` flag: it would make \p{Lu} match small letters too.
+  const lead = "(?:[\\p{Lu}][\\p{L}'’-]*|\\d+(?:st|nd|rd|th)?|[Oo]ld|[Oo]ld-style|[Ee]arly|[Mm]odern|[Aa]ncient|[Aa]ntique|[Pp]eriod|[Hh]istoric(?:al)?|[Mm]edieval|[Ii]llustrated|[Ss]tyli[sz]ed|[Pp]ainted|[Hh]and-drawn|[Cc]ampaign|[Ww]ar|[Pp]olitical|[Dd]etailed|[Vv]intage|[Pp]archment|[Rr]egional|[Cc]entury)";
+  return designedFrom !== undefined && new RegExp(`^\\s*(?:[Aa]n?\\s+|[Tt]he\\s+)?(?:${lead}\\s+){0,4}(?:[Mm]aps?|[Aa]tlas|[Cc]hart)\\b(?!\\s+(?:table|room|case|maker|tent))`, "u").test(designedFrom);
+}
+
 export function insertWindows(lines: readonly { start: number; end: number; onScreen: boolean }[], duration: number, fps: number, hasPerformers = true): { start: number; end: number }[] {
   if (!lines.some((l) => l.onScreen)) {
     if (!hasPerformers) return [{ start: 0, end: duration }];
@@ -622,12 +662,13 @@ const drift = (i: number): V3Insert["kenBurns"] => (i % 2 === 0 ? { fromZoom: 1.
  * Tarih): from just after the line starts until just after it ends, at most `maxS`. Cutaways never overlap — an earlier
  * one gives way when the next begins — and one under 1.2 s is dropped.
  */
-export function withPictures(own: readonly V3Insert[], pictures: readonly SceneShotPicture[], lineAt: LineAt, local: (sec: number) => number, duration: number, fps: number, maxS: number): V3Insert[] {
+export function withPictures(own: readonly V3Insert[], pictures: readonly SceneShotPicture[], lineAt: LineAt, local: (sec: number) => number, duration: number, fps: number, maxS: number, notBefore = 0): V3Insert[] {
   const extra = pictures.flatMap((p, i): V3Insert[] => {
     const l = lineAt(p.satir);
     if (!l) return [];
     const ls = local(l.start);
-    const start = ls <= Math.round(0.5 * fps) ? 0 : ls + Math.round(0.2 * fps);
+    // On a map, `notBefore` (mapPictureFrom): the map is seen first; a picture on its opening line waits inside that line.
+    const start = Math.max(notBefore, ls <= Math.round(0.5 * fps) ? 0 : ls + Math.round(0.2 * fps));
     const end = Math.min(duration - Math.round(0.3 * fps), local(l.end) + Math.round(0.25 * fps), start + Math.round(maxS * fps));
     return [{ src: p.src, start, end, kenBurns: drift(i + own.length), ...(p.caption ? { caption: p.caption } : {}), ...(p.video ? { video: true } : {}) }];
   });
@@ -1213,8 +1254,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     // "fashionably late" quip played over Wellington's portrait): the picture goes over the nearest narrator line.
     const markedLine = geo && scene.ara_goruntu_satir !== undefined ? lines.find((l) => l.lineIndex === scene.ara_goruntu_satir) : undefined;
     const marked = markedLine && visibleIds.has(markedLine.speaker) ? ([...lines].filter((l) => !visibleIds.has(l.speaker)).sort((a, b) => Math.abs(a.lineIndex - markedLine.lineIndex) - Math.abs(b.lineIndex - markedLine.lineIndex) || a.lineIndex - b.lineIndex)[0] ?? markedLine) : markedLine;
-    const mapWindow = marked ? [{ start: local(marked.start) + f(0.2), end: Math.min(duration - f(0.3), local(marked.end) + f(0.25), local(marked.start) + f(MAP_INSERT_S)) }].filter((w) => w.end - w.start >= f(1.5)) : [];
-    const own: V3Insert[] = period && geo
+    // The picture waits until the map has been seen (mapPictureFrom; the Baghdad Short, 13 Nov 2026: each map showed for
+    // half a second) and stays inside its line; a line too short for both keeps the map. A picture that is itself a map
+    // never covers one (isMapPicture).
+    const seenFrom = geo ? mapPictureFrom(geo.camera, fps) : 0;
+    const mapWindow = marked ? [{ start: Math.max(seenFrom, local(marked.start) + f(0.2)), end: Math.min(duration - f(0.3), local(marked.end) + f(0.25), Math.max(seenFrom, local(marked.start)) + f(MAP_INSERT_S)) }].filter((w) => w.end - w.start >= f(1.5)) : [];
+    const ownQuery = scene.arka_plan_sorgusu;
+    const ownIsMap = Boolean(geo && period && isMapPicture(period.caption, period.designed ? (ownQuery?.an?.trim() || ownQuery?.en) : undefined));
+    const own: V3Insert[] = period && geo && ownIsMap
+      ? []
+      : period && geo
       ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}), ...(period.video ? { video: true } : {}) }))
       : period
       ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (vertical && !period.designed && actedLines.has(lt.lineIndex)) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
@@ -1228,7 +1277,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       : [];
     const inserts = photo
       ? photoSequence(period, input.pictures?.[si] ?? [], (i) => lines.find((l) => l.lineIndex === i), local, duration, fps)
-      : withPictures(own, input.pictures?.[si] ?? [], (i) => lines.find((l) => l.lineIndex === i), local, duration, fps, geo ? MAP_INSERT_S : PICTURE_INSERT_S);
+      : withPictures(
+          own,
+          (input.pictures?.[si] ?? []).filter((p) => !geo || !isMapPicture(p.caption, DESIGNED_CAPTIONS.includes(p.caption ?? "") ? (scene.gorseller?.find((g) => g.satir === p.satir)?.an?.trim() || scene.gorseller?.find((g) => g.satir === p.satir)?.en) : undefined)),
+          (i) => lines.find((l) => l.lineIndex === i),
+          local,
+          duration,
+          fps,
+          geo ? MAP_INSERT_S : PICTURE_INSERT_S,
+          seenFrom,
+        );
     const strips = stripsOf(scene, lines, local, duration, fps);
     shots.push({
       id: scene.id,

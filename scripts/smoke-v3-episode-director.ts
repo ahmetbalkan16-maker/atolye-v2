@@ -17,12 +17,12 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
-import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
+import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
@@ -1028,7 +1028,8 @@ async function main() {
     // nearest narrator line.
     const speaker = ep.oyuncu_kadrosu.find((c) => c.gorunur)!.id;
     const quip = { ...map, satirlar: [narrate("The army marches north."), { karakter: speaker, metin: "Did someone say fashionably late?", duygu: "mutlu" as const }, narrate("The siege begins.")] };
-    const tl2 = buildTimeline({ ...episode, sahneler: [quip, stage] }, [[fakeAudio(3), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    // The opening narrator line is long enough for the map to be seen first (MAP_SEEN_S; a 3-second one keeps the map).
+    const tl2 = buildTimeline({ ...episode, sahneler: [quip, stage] }, [[fakeAudio(6), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
     const onQuip = buildRenderPlan({ episode: { ...episode, sahneler: [quip, stage] }, timeline: tl2, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [{ src: "bg/m1-donem.jpg" }, undefined], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false }).shots.find((s) => s.id === "m1")!;
     const said = tl2.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 1)!;
     const first = tl2.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 0)!;
@@ -1060,6 +1061,51 @@ async function main() {
     // Validation: the marked line must be one of the scene's.
     assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 2)));
     assert.equal(validateEpisode({ ...episode, sahneler: [{ ...map, ara_goruntu_satir: 3 }, stage] }).ok, false);
+  });
+
+  await scenario("O15b the Baghdad Short (owner, 13 Nov 2026, \"2 farklı harita daha görülmeden geçiyor\"): a map scene's picture waits until its map is seen and its opening move ends, a line too short keeps the map, a picture that is a map never covers one", () => {
+    const fps = 30;
+    assert.equal(MAP_CAMERA_MOVE_S, CAMERA_MOVE_S, "the director's move length is the renderer's");
+    assert.deepEqual(DESIGNED_CAPTIONS, [designedCaption("en"), designedCaption("tr")]);
+    // The rule alone: 3 s in, or a move begun before then has ended and been held.
+    assert.equal(mapPictureFrom(undefined, fps), MAP_SEEN_S * fps);
+    assert.equal(mapPictureFrom([{ frame: 0 }, { frame: 9 }], fps), 9 + Math.round((MAP_CAMERA_MOVE_S + MAP_VIEW_HOLD_S) * fps), "the close map's opening zoom at 0.3 s (1:34)");
+    assert.equal(mapPictureFrom([{ frame: 0 }, { frame: 9 }, { frame: 105 }], fps), 105 + Math.round((MAP_CAMERA_MOVE_S + MAP_VIEW_HOLD_S) * fps), "a second move begun before the first could be seen pushes it again");
+    assert.equal(mapPictureFrom([{ frame: 0 }, { frame: 200 }], fps), MAP_SEEN_S * fps, "a later move is the picture's business no more");
+
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    // Marked on the opening line, with the camera closing in on that line (the Baghdad close map and wide map).
+    const map: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", mekan: "Map: Mesopotamia", harita: { merkez: [40, 36], genislik_km: 1600, kamera: [{ satir: 0, merkez: [44.4, 33.3], genislik_km: 900 }] }, ara_goruntu_satir: 0, arka_plan_sorgusu: { ...ep.sahneler[0]!.arka_plan_sorgusu, an: "Ottoman cannons battering the walls of Baghdad, defenders on the ramparts" }, satirlar: [narrate("Murad marches on Baghdad with a hundred thousand men."), narrate("The walls wait."), narrate("The siege begins.")] };
+    const stage: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "c1", ortam: { zaman: "gun", manzara: "ordugah", uslup: "osmanli" } };
+    const square = [[[[30, 28], [50, 28], [50, 44], [30, 44], [30, 28]]]];
+    const plan = (m: Episode["sahneler"][number], firstS: number, insert: { src: string; caption?: string; designed?: boolean }, pictures?: { satir: number; src: string; caption?: string }[]) => {
+      const episode: Episode = { ...ep, sahneler: [m, stage] };
+      const tl = buildTimeline(episode, [[fakeAudio(firstS), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+      const p = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [insert, undefined], ...(pictures ? { pictures: [pictures, undefined] } : {}), mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps, width: 1920, height: 1080, showCaptions: false });
+      return { shot: p.shots.find((s) => s.id === "m1")!, tl };
+    };
+    const { shot, tl } = plan(map, 7, { src: "bg/m1-donem.jpg", caption: "Verovering van Bagdad door de Turken, 1638" });
+    const line = tl.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 0)!;
+    const cam = shot.geoMap!.camera!;
+    assert.ok(cam.length >= 2 && cam[1]!.frame > 0 && cam[1]!.frame < fps, `the camera closes in on the opening line: ${JSON.stringify(cam)}`);
+    assert.equal(shot.inserts!.length, 1, JSON.stringify(shot.inserts));
+    const ins = shot.inserts![0]!;
+    // Before the fix the picture came 0.2 s into the line, 0.5 s after the map appeared, while the camera still moved.
+    assert.ok(ins.start >= MAP_SEEN_S * fps && ins.start >= cam[1]!.frame + Math.round((MAP_CAMERA_MOVE_S + MAP_VIEW_HOLD_S) * fps), `the map is seen first: ${JSON.stringify(ins)} camera ${JSON.stringify(cam)}`);
+    assert.ok(ins.end <= Math.round(line.end * fps) - shot.start + Math.round(0.25 * fps) + 1 && ins.end - ins.start >= Math.round(1.5 * fps), `inside its line, long enough: ${JSON.stringify(ins)}`);
+    // A line too short for the map and the picture: the map wins.
+    assert.equal(plan(map, 3.2, { src: "bg/m1-donem.jpg" }).shot.inserts!.length, 0);
+    // A further picture on the opening line waits the same way.
+    const extra = plan({ ...map, ara_goruntu_satir: undefined }, 7, { src: "bg/m1-donem.jpg" }, [{ satir: 0, src: "bg/m1-g1.jpg", caption: "Siege of Baghdad, 1638" }]).shot;
+    assert.ok(extra.inserts!.length === 1 && extra.inserts![0]!.start >= mapPictureFrom(extra.geoMap!.camera, fps), JSON.stringify(extra.inserts));
+    // The wide map's designed "illustration of the moment" was itself an old-style map of the region: never over a map.
+    const asMap = { ...map, arka_plan_sorgusu: { ...map.arka_plan_sorgusu, an: "Map of the Ottoman and Safavid Empires in 1638, with Sultan Murad IV's army marching to Baghdad" } };
+    assert.equal(plan(asMap, 7, { src: "bg/m1-an.png", caption: designedCaption("en"), designed: true }).shot.inserts!.length, 0, "a designed map over the map");
+    assert.equal(plan(map, 7, { src: "bg/m1-an.png", caption: designedCaption("en"), designed: true }).shot.inserts!.length, 1, "a designed moment that is no map stays");
+    assert.equal(plan(map, 7, { src: "bg/m1-donem.jpg", caption: "Map of Persia and Mesopotamia, 1640 · Source: Wikimedia Commons" }).shot.inserts!.length, 0, "a period map by its file title");
+    assert.ok(isMapPicture(undefined, "Ottoman Safavid war map 17th century") && isMapPicture(undefined, "An early modern map of the region") && isMapPicture("Karte von Persien, 1700"));
+    assert.ok(!isMapPicture(undefined, "Murad studies a map in his tent") && !isMapPicture(undefined, "Napoleon's map table at dawn") && !isMapPicture(designedCaption("en"), "Ottoman cannons battering the walls") && !isMapPicture("Detail-View of Baghdad, Tavernier 1713"));
   });
 
   await scenario("O16 marks over the map after DFT Tarih (owner, 23 Oct 2026): strength bar with its numbers, white flag, flames, a glowing state and a ring, the date stamp, a red X over a beaten ruler's badge", () => {

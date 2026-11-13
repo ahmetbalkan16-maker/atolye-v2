@@ -10,16 +10,19 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
+import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/research/Infobox";
+import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
 import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
+import { closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
+import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
 import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
-import { TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
+import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -359,7 +362,7 @@ async function main() {
     assert.ok(factCheckPrompt("{}", "en").includes("legend has it"));
     // A Short (60 s or less, owner 2 Nov 2026): hook in 2 s, one moment, no subscribe line, a loop; longer has none of it.
     const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
-    assert.ok(short.includes("YOUTUBE SHORT") && short.includes("within 2 seconds") && short.includes("ONE moment") && short.includes("NO subscribe line") && short.includes("a loop") && short.includes(`about ${wordBudget({ konu: "", donem: "", hedefSureSn: 60, ton: "mizahi", dil: "en" })} spoken words`), short.slice(0, 400));
+    assert.ok(short.includes("YOUTUBE SHORT") && short.includes("within 2 seconds") && short.includes("ONE moment") && short.includes("MAIN CHARACTER") && short.includes("Crowns & Doodles") && short.includes(`about ${wordBudget({ konu: "", donem: "", hedefSureSn: 60, ton: "mizahi", dil: "en" })} spoken words`), short.slice(0, 400));
     assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 45, ton: "mizahi", dil: "tr" }, CATALOG).includes("YOUTUBE SHORTS"));
     // A Short's shares (owner, 3 Nov 2026, after DFT Tarih's Shorts): ~70% on the map, the hook and the payoff on stage.
     assert.ok(short.includes("SHARES OF A SHORT") && short.includes("about 70% of the running time on the map") && short.includes("3–5 scenes") && short.includes("as their\n  badges"), short.slice(0, 400));
@@ -668,6 +671,102 @@ async function main() {
     assert.ok(logs.some((l) => l.startsWith("araştırma: Wikidata okunamadı (fetch failed)")) && logs.some((l) => l.startsWith("araştırma: kadro makaleleri okunamadı (COMMONS_HTTP_503)")), logs.slice(-4).join("\n"));
     assert.equal(offline.bank.olgular.length, 5);
     assert.ok(!offline.bank.kaynaklar.some((k) => k.id.startsWith("wikidata-")));
+  });
+
+  await scenario("N6b the battle infobox (Siege of Baghdad 1638, owner 13 Nov 2026: the defenders' strength was missing): strength, losses, commanders per side, each quoting its field; no box, a malformed or a person's box give nothing", async () => {
+    const wikitext = `{{Short description|Part of the Ottoman–Safavid War (1623–1639)}}
+{{Infobox military conflict
+| conflict          = Siege of Baghdad
+| part_of           = the [[Ottoman–Safavid War (1623–1639)]]
+| image             = Verovering van Bagdad door de Turken, 1638.jpg
+| caption           = ''Conquest of Baghdad by the Ottoman in 1638'', by [[Caspar Luyken]], 1896.
+| date              = 15 November – 25 December 1638
+| location          = [[Baghdad]]
+| coordinates       = {{coord|display=inline,title}}
+| territory         = The [[Ottoman Empire|Ottomans]] re-capture Baghdad and re-establish [[Ottoman Iraq]]
+| result            = Ottoman victory
+| combatant1        = {{flagicon image|Safavid Flag.svg}} [[Safavid Iran|Safavid Empire]]
+| combatant2        = {{Flagicon image|Flag of Ottoman Empire (1517-1793).svg}} [[Ottoman Empire]]
+| commander1        = {{flagicon image|Safavid Flag.svg}} [[Bektash Mirimanidze|Bektash Khan Gorji]]{{pow}}<ref name="pows">{{Cite book |last=X |title=Y |pages=165}}</ref><br>{{flagicon image|Safavid Flag.svg}} Saru Khan{{KIA}}
+| commander2        = {{Flagicon image|Flag of Ottoman Empire (1517-1793).svg}} [[Murad IV|Sultan Murad IV]]<br/> [[Tayyar Mehmed Pasha|Grand Vizier Tayyar Mehmed Pasha]]{{KIA}}
+| units1            =
+| strength1         = 40,000 infantry<br>211 fortified city towers<ref name="Islamic">{{cite book|last=Mikaberidze|title=Conflict and Conquest in the Islamic World|page=177}}</ref><br>100 cannons
+| strength2         = 108,589 (35,000 infantry and 73,589 cavalry)
+* 88,000 engaged<br>200 cannons<ref name="Islamic"/>
+| casualties1       = 20,000+ Massacred<ref name="pows"></ref>
+| casualties2       = Heavy
+| casualties3       = Most of the city residents were massacred by the Ottomans after the capture<ref name="Islamic"/>
+| campaignbox       = {{Campaignbox Ottoman–Safavid War (1623–39)}}
+}}
+The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter of 1638 marked the re-establishment of [[Ottoman Iraq|Ottoman control over Iraq]].`;
+    const box = parseInfobox(wikitext)!;
+    assert.equal(box.kind, "Infobox military conflict");
+    const field = (n: string) => box.fields.find((f) => f.name === n)?.value;
+    assert.equal(field("strength1"), "40,000 infantry; 211 fortified city towers; 100 cannons", "the defenders' garrison, footnote out");
+    assert.equal(field("strength2"), "108,589 (35,000 infantry and 73,589 cavalry); 88,000 engaged; 200 cannons");
+    assert.equal(field("casualties1"), "20,000+ Massacred");
+    assert.equal(field("commander1"), "Bektash Khan Gorji (prisoner of war); Saru Khan (killed in action)", "links to their label, flags gone, fates said");
+    assert.equal(field("location"), "Baghdad");
+    assert.ok(!box.fields.some((f) => /image|caption|campaignbox|coordinates|units1|part_of/.test(f.name)), "only the fields that matter for the story");
+    const { facts, text } = infoboxFacts("Siege of Baghdad (1638)", box, sourceId("Siege of Baghdad (1638)"), "en");
+    const strength1 = facts.find((f) => f.alinti.includes("strength1"))!;
+    assert.equal(strength1.metin, "Strength of the Safavid Empire side in the Siege of Baghdad (1638): 40,000 infantry; 211 fortified city towers; 100 cannons.");
+    assert.equal(strength1.alinti, 'Wikipedia infobox of "Siege of Baghdad (1638)", strength1 (Safavid Empire): 40,000 infantry; 211 fortified city towers; 100 cannons', "the quote is the field's own text, marked as the infobox's");
+    assert.ok(facts.some((f) => f.metin === "Casualties and losses of the Safavid Empire side in the Siege of Baghdad (1638): 20,000+ Massacred."));
+    assert.ok(facts.every((f) => f.alinti.length <= 300 && text.includes(f.alinti) && f.kaynak === "wikipedia-siege-of-baghdad-1638"));
+    assert.deepEqual(facts.slice(0, 4).map((f) => f.alinti.split(", ")[1]!.split(/[ :]/)[0]), ["strength1", "strength2", "casualties1", "casualties2"], "numbers first");
+    // Through the fetch, pinned to the revision read; a quote is still checked like any other.
+    const urls: string[] = [];
+    const answer = { query: { pages: [{ title: "Siege of Baghdad (1638)", revisions: [{ revid: 1378917458, slots: { main: { content: wikitext } } }] }] } };
+    const article = { title: "Siege of Baghdad (1638)", revid: 1378917458, timestamp: "2026-11-13T00:00:00Z", text: "The siege of Baghdad in the winter of 1638 marked the re-establishment of Ottoman control over Iraq." };
+    const fetched = await fetchInfoboxFacts(async (u) => (urls.push(u), answer), article, "tr");
+    assert.equal(fetched.length, facts.length);
+    assert.ok(fetched.some((f) => f.metin === "Siege of Baghdad (1638) — Safavid Empire tarafının gücü: 40,000 infantry; 211 fortified city towers; 100 cannons."));
+    const q = new URL(urls[0]!).searchParams;
+    assert.ok(q.get("revids") === "1378917458" && q.get("rvsection") === "0" && q.get("prop") === "revisions" && urls[0]!.startsWith("https://en.wikipedia.org/w/api.php?"));
+    assert.deepEqual(await fetchInfoboxFacts(async () => ({ query: { pages: [{ revisions: [{ revid: 999, slots: { main: { content: wikitext } } }] }] } }), article, "en"), [], "another revision's wikitext is not this article's");
+    assert.equal((await fetchInfoboxFacts(async () => answer, article, "en", 3)).length, 3, "bounded");
+    // Nothing: no infobox, a person's infobox, an unclosed one, an empty one, an old cache's or an odd answer.
+    assert.equal(parseInfobox("The siege of Baghdad in 1638 ended Safavid rule."), undefined);
+    assert.equal(parseInfobox("{{Infobox officeholder\n| name = Murad IV\n| strength1 = 1\n}}"), undefined, "not a battle's box");
+    assert.equal(parseInfobox("{{Infobox military conflict\n| strength1 = 40,000 infantry {{pow\n| result = Ottoman victory\n"), undefined, "malformed: never closed");
+    assert.equal(parseInfobox("{{Infobox military conflict\n| image = x.jpg\n| strength1 = <ref>only a note</ref>\n}}"), undefined, "no field with text");
+    for (const odd of [{ query: { pages: { "1": { title: "Siege of Baghdad (1638)", extract: "plain text", revisions: [{ revid: 1378917458, timestamp: "2026-11-13T00:00:00Z" }] } } } }, {}, null, "html", { query: { pages: [{ revisions: [{ revid: 1378917458, slots: { main: { content: 42 } } }] }] } }]) {
+      assert.deepEqual(await fetchInfoboxFacts(async () => odd, article, "en"), [], JSON.stringify(odd));
+    }
+    // Bounded in size: a huge field is cut at a list item, a huge wikitext is not walked past its limit.
+    const huge = parseInfobox(`{{Infobox battle\n| strength1 = ${Array.from({ length: 400 }, (_, i) => `${i + 1},000 men of unit ${i}`).join("<br>")}\n}}`)!;
+    assert.ok(huge.fields[0]!.value.length <= 220 && /men of unit \d+$/.test(huge.fields[0]!.value), huge.fields[0]!.value);
+    assert.equal(wikitextToPlain("{{ubl|[[Ottoman Empire]]|{{flagicon|Iran}} [[Safavid Iran|Safavids]]}}"), "Ottoman Empire; Safavids");
+    // Waterloo's box (13 Nov 2026): block templates and <hr> keep numbers apart, an approximate count and a flag-labelled count are said.
+    assert.equal(wikitextToPlain("{{tree list}}\n* '''Total''': 118,000\n** 7,500 gunners{{sfn|Bodart|1908|p=487}}{{tree list/end}}{{Ubl|{{*}}282{{ndash}}288 guns{{#tag:ref|Bodart's older estimate.{{sfn|Bodart|1908}}|group=nb}}}}<hr />Wellington's army: {{approximately|68,000}} soldiers\n** {{flagicon|Nassau}} 3,000"), "Total: 118,000; 7,500 gunners; 282 – 288 guns; Wellington's army: c. 68,000 soldiers; Nassau 3,000");
+    assert.equal(wikitextToPlain("26,000–27,000{{efn|24–26,000}}{{Ubl|{{*}}25,000 killed}}"), "26,000–27,000; 25,000 killed", "a footnote's number never joins the count");
+
+    // In the research: the infobox's facts join the bank with their evidence, free; offline or off they are skipped softly.
+    const mainText = `${article.text} ${"Murad IV led the army from Constantinople across Anatolia to the walls of the city. ".repeat(20)}`;
+    const fetchJson = async (url: string): Promise<unknown> => {
+      const p = new URL(url).searchParams;
+      if (p.get("list") === "search") return { query: { search: [{ title: "Siege of Baghdad (1638)" }] } };
+      if (p.get("prop") === "revisions" && p.get("revids")) return answer;
+      return { query: { pages: { "1": { title: "Siege of Baghdad (1638)", extract: mainText, revisions: [{ revid: 1378917458, timestamp: "2026-11-13T00:00:00Z" }] } } } };
+    };
+    const mid = sourceId("Siege of Baghdad (1638)");
+    const quoted = ["The siege of Baghdad in the winter of 1638 marked the re-establishment of Ottoman control over Iraq.", "Murad IV led the army from Constantinople across Anatolia"];
+    const modelAnswer = JSON.stringify({ olgular: [...quoted.map((alinti, i) => ({ metin: `Fact ${i}.`, kaynak: mid, alinti })), { metin: "Fact 2.", kaynak: mid, alinti: quoted[1] }, { metin: "Fact 3.", kaynak: mid, alinti: quoted[0] }, { metin: "Fact 4.", kaynak: mid, alinti: quoted[1] }, { metin: "Invented: the garrison was about 20,000.", kaynak: mid, alinti: "The Safavid garrison numbered about 20,000 men." }] });
+    const logs: string[] = [];
+    const research = (fj: (u: string) => Promise<unknown>, extra: { infobox?: boolean } = {}) =>
+      researchTopic({ cacheDir: os.tmpdir(), konu: "Siege of Baghdad", donem: "1638", dil: "en", budget: new V3Budget({ providers: { openai: new FakeProvider([modelAnswer]) } }), model: { provider: "openai", model: "gpt-4.1-mini" }, seconds: 60, cast: false, wikidata: false, web: false, fetchJson: fj, log: (s) => logs.push(s), ...extra });
+    const out = await research(fetchJson);
+    const defenders = out.bank.alintilar.find((f) => f.alinti.includes("strength1 (Safavid Empire)"))!;
+    assert.ok(defenders && out.bank.olgular.some((o) => o.metin === defenders.metin && o.kaynak === mid), "the defenders' strength is in the bank the writer reads");
+    assert.equal(out.bank.reddedilen, 1, "the invented garrison is still thrown out");
+    assert.equal(out.bank.olgular.length, 5 + facts.length);
+    assert.ok(logs.some((l) => l.includes(`bilgi kutusu olguları (güç, kayıp, komutan, sonuç) "Siege of Baghdad (1638)" ${facts.length}`)) && out.bank.aciklama.includes("bilgi kutusu"), logs.join("\n"));
+    logs.length = 0;
+    const offline = await research(async (u) => { if (new URL(u).searchParams.get("revids")) throw new Error("COMMONS_HTTP_503"); return fetchJson(u); });
+    assert.equal(offline.bank.olgular.length, 5);
+    assert.ok(logs.some((l) => l.startsWith('araştırma: "Siege of Baghdad (1638)" bilgi kutusu okunamadı (COMMONS_HTTP_503)')), logs.join("\n"));
+    assert.equal((await research(fetchJson, { infobox: false })).bank.olgular.length, 5);
   });
 
   await scenario("N9 the open web (owner, 12 Nov 2026): reputable pages read politely, a fact kept only with its quote in that page, searches booked; off, Ollama and offline skip softly", async () => {
@@ -1404,6 +1503,71 @@ async function main() {
     assert.equal((night.value as Episode).sahneler[0]!.harita!.zaman, "gece");
     assert.ok(night.fixes.includes(`sahneler[0].harita.zaman "night" → gece`), night.fixes.join(" | "));
     assert.ok(validateEpisode(night.value).ok);
+  });
+
+  await scenario("the Baghdad Short's two greens (owner, 13 Nov 2026, \"haritada ülkelerin rengi aynı\"): a side too close to another shown with it is recoloured everywhere, a side keeps one colour and its shades", () => {
+    // The writer's colours: Ottomans #3fae3a (their conquests #7fdc7a, a shade), Safavids #556B2F — both green.
+    const unit = (taraf: string, renk: string, ad: string) => ({ taraf, renk, ad, amblem: "kalkan", sayi: 4, yerler: [{ satir: 0, kume: [44.42, 33.35] }] });
+    const draft = () => ({
+      sahneler: [
+        { id: "wide", harita: { merkez: [40, 36], genislik_km: 2000, bolgeler: [{ ad: "Ottoman Empire", renk: "#3fae3a" }, { ad: "Ottoman Conquests 1600–1638", renk: "#7fdc7a" }, { ad: "Safavid Persia", renk: "#556B2F" }], guc: [{ satir: 0, taraflar: [{ ad: "Ottomans", renk: "#3fae3a", sayi: "108,589" }, { ad: "Safavids", renk: "#556B2F", sayi: "~20,000" }] }] } },
+        { id: "walls", harita: { merkez: [44.42, 33.35], genislik_km: 6, birlikler: [unit("Ottomans", "#3fae3a", "Janissaries"), unit("Safavids", "#556B2F", "Garrison")], oklar: [{ noktalar: [[44.4, 33.3], [44.42, 33.35]], renk: "#556B2F" }, { noktalar: [[44.4, 33.3], [44.42, 33.35]], renk: "#3fae3a" }] } },
+        // The writer's slip: the Ottomans in another green in the last scene.
+        { id: "assault", harita: { merkez: [44.42, 33.35], genislik_km: 6, birlikler: [unit("Ottomans", "#2e8b57", "Janissaries"), unit("Safavids", "#556B2F", "Garrison")] } },
+      ],
+    });
+    assert.ok(tooClose("#3fae3a", "#556B2F") && tooClose("#3fae3a", "#206040"), "green and olive, green and dark green: one colour to the eye");
+    assert.ok(!tooClose("#3fae3a", "#e67e22") && !tooClose("#c0392b", "#e67e22") && !tooClose("#3fae3a", "#7a64b8"), "green/orange, crimson/orange, green/purple tell apart");
+    const d = draft();
+    const fixes = sideColours(d.sahneler);
+    const [wide, walls, assault] = d.sahneler as unknown as { harita: { bolgeler?: { ad: string; renk: string }[]; birlikler?: { taraf: string; renk: string }[]; guc?: { taraflar: { ad: string; renk: string }[] }[]; oklar?: { renk: string }[] } }[];
+    const safavid = wide!.harita.bolgeler![2]!.renk;
+    assert.notEqual(safavid.toLowerCase(), "#556b2f", fixes.join(" | "));
+    assert.ok(STATE_COLOURS.includes(safavid) && !tooClose(safavid, "#3fae3a") && !tooClose(safavid, "#7fdc7a"), `a palette colour far from both Ottoman greens: ${safavid}`);
+    // The same new colour on the side everywhere: its state, its bar, its blocks in both scenes, its arrow.
+    assert.deepEqual([wide!.harita.guc![0]!.taraflar[1]!.renk, walls!.harita.birlikler![1]!.renk, assault!.harita.birlikler![1]!.renk, walls!.harita.oklar![0]!.renk], [safavid, safavid, safavid, safavid]);
+    // The Ottomans keep their colour, their conquests stay their lighter shade, and their blocks are one colour.
+    assert.deepEqual([wide!.harita.bolgeler![0]!.renk, wide!.harita.bolgeler![1]!.renk, walls!.harita.birlikler![0]!.renk, assault!.harita.birlikler![0]!.renk, walls!.harita.oklar![1]!.renk], ["#3fae3a", "#7fdc7a", "#3fae3a", "#3fae3a", "#3fae3a"]);
+    assert.ok(fixes.some((f) => f.includes('"Ottomans"') && f.includes("#2e8b57 → #3fae3a")) && fixes.some((f) => f.includes("Safavid") && f.includes(`→ ${safavid}`)), fixes.join(" | "));
+    // Colours that already tell apart are left alone; so is a side the writer named twice in one colour (Venice's state,
+    // the Venetians' blocks), and a side's shade that is also a palette step.
+    const calm = { sahneler: [{ harita: { bolgeler: [{ ad: "Roman Republic", renk: "#c0392b" }, { ad: "Carthage", renk: "#e67e22" }, { ad: "Republic of Venice", renk: "#4f86c6" }], birlikler: [unit("Venetians", "#4f86c6", "Fleet"), unit("Ottomans", "#3fae3a", "Navy")] } }] };
+    assert.deepEqual(sideColours(calm.sahneler), []);
+    // Two sides fighting in one scene in the very same colour are still two sides.
+    const twins = { sahneler: [{ harita: { birlikler: [unit("Hungarians", "#c0392b", "Knights"), unit("Ottomans", "#c0392b", "Sipahis")] } }] };
+    assert.equal(sideColours(twins.sahneler).length, 1);
+    assert.notEqual(twins.sahneler[0]!.harita.birlikler[1]!.renk, "#c0392b");
+    assert.equal(twins.sahneler[0]!.harita.birlikler[0]!.renk, "#c0392b", "the side introduced first keeps its colour");
+    // Wired into the draft normaliser.
+    const n = normalizeDraft(draft(), []);
+    const out = n.value as { sahneler: { harita: { bolgeler?: { renk: string }[] } }[] };
+    assert.equal(out.sahneler[0]!.harita.bolgeler![2]!.renk, safavid, n.fixes.join(" | "));
+  });
+
+  await scenario("the main character closes every video with a subscribe invitation (owner, 13 Nov 2026, the Baghdad Short ended on the narrator)", () => {
+    const cast = [{ id: "anlatici", ad: "Narrator", gorunur: false }, { id: "murad", ad: "Murad IV", gorunur: true }, { id: "soldier", ad: "Soldier", gorunur: true }];
+    const line = (karakter: string, metin: string) => ({ karakter, metin, duygu: "notr" as const });
+    const base = { oyuncu_kadrosu: cast, sahneler: [
+      { id: "s1", satirlar: [line("murad", "Forty days!"), line("murad", "Attack!"), line("soldier", "Run!")] },
+      { id: "s6", sahne_duzeni: [{ karakter: "soldier", x: 0.6 }], satirlar: [line("anlatici", "Murad builds a kiosk.")] },
+    ] } as unknown as Episode;
+    assert.equal(mainCharacter(base), "murad");
+    // Named in the topic wins over the most lines (the Baghdad Short picked the Safavid soldier).
+    assert.equal(mainCharacter({ ...base, oyuncu_kadrosu: [...cast, { id: "bektash", ad: "Bektash Khan", gorunur: true }] } as unknown as Episode, "1638 Siege of Baghdad: Bektash Khan holds"), "bektash");
+    const added = ensureClosingLine(base, "en", "Crowns & Doodles");
+    const last = added.episode.sahneler.at(-1)!;
+    assert.equal(last.satirlar.at(-1)!.karakter, "murad");
+    assert.ok(/subscribe to Crowns & Doodles/.test(last.satirlar.at(-1)!.metin), last.satirlar.at(-1)!.metin);
+    assert.ok(last.sahne_duzeni!.some((b) => b.karakter === "murad"), "the main character is put on stage");
+    // A narrator invitation the writer wrote is handed to the main character; one already his is left alone.
+    const narrated = { ...base, sahneler: [base.sahneler[0]!, { ...base.sahneler[1]!, satirlar: [line("anlatici", "Subscribe for more sieges!")] }] } as Episode;
+    const handed = ensureClosingLine(narrated, "en", "Crowns & Doodles").episode.sahneler.at(-1)!.satirlar;
+    assert.deepEqual([handed.length, handed[0]!.karakter, handed[0]!.metin], [1, "murad", "Subscribe for more sieges!"]);
+    assert.deepEqual(ensureClosingLine(ensureClosingLine(base, "en", "C").episode, "en", "C").fixes, []);
+    // A map ending gets no new speaker (one without a badge cannot speak there).
+    const mapEnd = { ...base, sahneler: [base.sahneler[0]!, { ...base.sahneler[1]!, harita: { merkez: [0, 0], genislik_km: 10 } }] } as unknown as Episode;
+    assert.deepEqual(ensureClosingLine(mapEnd, "en", "C").fixes, []);
+    assert.ok(closingText("tr", "Crowns & Doodles").metin.includes("abone"));
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

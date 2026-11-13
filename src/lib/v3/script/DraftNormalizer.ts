@@ -4,6 +4,7 @@ import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
 import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics, siegeOrder } from "../maps/Tactics";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
+import { sideColours } from "./SideColours";
 
 /**
  * Mechanical fixes to a script draft before validation, for slips a model repeats even when told (the Rubicon run
@@ -378,5 +379,8 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       if (isObj(g.kostum)) fixCostume(g.kostum, String(g.kostum_paketi), `sahneler[${si}].kalabalik[${gi}].kostum`);
     }
   }
+  // One colour per side across the episode, and sides shown together that tell apart (owner, 13 Nov 2026, the Baghdad
+  // Short's two greens: "haritada ülkelerin rengi aynı") — after the tactics, over every scene at once (SideColours).
+  fixes.push(...sideColours(scenes));
   return { value: draft, fixes };
 }

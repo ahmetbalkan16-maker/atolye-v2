@@ -79,6 +79,7 @@ import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, short
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
@@ -867,7 +868,11 @@ async function main() {
           }
           throw e;
         });
-        const written = series ? { ...out.episode, dizi: series } : out.episode;
+        // The main character closes every video with a subscribe invitation (owner, 13 Nov 2026): added when the writer forgot.
+        const channelName = (() => { try { return loadChannelGoals(paths.contentRoot)?.kanal?.ad; } catch { return undefined; } })() ?? "Crowns & Doodles";
+        const closed = ensureClosingLine(out.episode, dil, channelName, konu);
+        for (const fix of closed.fixes) log(`  senaryo: ${fix}`);
+        const written = series ? { ...closed.episode, dizi: series } : closed.episode;
         await writeJson(f("episode.json"), written);
         if (series) await recordEpisode(paths.workRoot, series.ad, { no: series.no, konu, baslik: written.baslik, ozet: episodeSummary(written), cikti: work });
         await writeJson(f("dogrulama.json"), out.factCheck);
