@@ -8,6 +8,19 @@
   aa1b00ca, canlı dal ff, kanonik pull, remotion tsc 0 (4.0.543, Chrome 158 var), Graphify aa1b00ca (eksik yok),
   otomatik yayın `ayas-live-aa1b00ca` PUBLISHED, sipariş izleyici yeniden başladı (pid 16980).
 - Sipariş 20261113T091723-1638-siege-of-baghdad (3dk, en, mizahi) başladı — izleniyor.
+- Senaryo 365 kelime (yeni bant). Müdahaleler: tarih kapısı kaynakta adı geçen Bektash Khan'ı "uydurma" saydı (957ca988
+  düzeltildi); benim sipariş metnimdeki "Bektash teslim etti" yanlıştı (kaynak: kuşatmada öldürüldü) → s5 satır 1 konuşanı
+  safavid-infantry; s6 "Murad camileri yeniden yapacak" → doğrulayıcının yeni_metni (Topkapı köşkü). Gardıroptan devam.
+- Owner: "askerlerin sıralaması, topların nizami savaşa uygun", "hareketler akıcı", "gerekirse opus 5.5'lere paylaştır".
+  6c337bcb kuşatma nizamı (Tactics.siegeOrder) + rozet/bayrak çakışmaları; 62169041 gedikten geri dönme yok, savunan hattı
+  surda; da58687b (ajan) akıcı hareket: slideFrames, waysSwap, separateTokens — s5 65→19 px/kare, s3 15,6→4,7; ölüm X'i
+  anlatıldığı kelimede (TOLD_WORDS.olum). Bu videonun s3/s5 verisi elle: siegeOrder uygulandı, gedik + yeniçeri hücumu
+  0. satıra (anlatıcının "pour in"i), süvari hücumu ve güneydeki çelişkili garnizon kaydı silindi, s5 kamerası 4,5 km gedik
+  üzerine, Murad/Tayyar rozetleri 0. satır. Yedekler `private/temp/bagdat-episode*.kusatma-once`. Üretim render'dan önce
+  durduruldu (görsel bitti) — canlıya alma + render'dan devam bekliyor.
+- KALICI EMİR (owner, 13 Kas): her Claude düzeltmesi beyinlere tam vaka (belirti, neden, çözüm, kanıt, yakalama) olarak,
+  otomatik, canlıya almadan önce → CLAUDE.md STANDING ORDER. Vaka kütüphanesi (commit `Vaka` blokları, el düzeltmeleri
+  için CLI, benzer vakaların geliştirme paketine ve onarım beynine otomatik girmesi) bir ajanla yapılıyor.
 
 ## 13 Kasım 2026 — harita gerçekçiliği C+D, fotoğraf kayması, ses tıkırtısı, beyinlere öğretim (feature dalı, canlı DEĞİL)
 

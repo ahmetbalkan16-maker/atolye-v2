@@ -558,6 +558,104 @@ export interface DevLesson {
 export const recordLesson = (workRoot: string, l: DevLesson) => append(workRoot, "dersler.jsonl", { ...l, metin: l.metin.replace(/\s+/g, " ").trim().slice(0, 300) });
 export const listLessons = (workRoot: string) => readLines<DevLesson>(file(workRoot, "dersler.jsonl"));
 
+/**
+ * A whole case the brains keep (owner, 13 Nov 2026, "kesin emir": "claude'da yapılan her düzeltme, iyileştirme, hata
+ * beyinlere aktarılsın; nasıl olduğu, nasıl çözüldüğü, bütün gerekli bilgiler; ileride böyle sorunları kendileri
+ * yapabilsin; her çıkan sorunda otomatik"). A one-line lesson says what to do; a case says what was seen, why it happened,
+ * how it was solved and proven, and how to catch it next time — so a brain meeting a similar problem can follow the same
+ * path. From a commit's `Vaka` block (CommitLessons), derived from a `fix(...)` commit that has none, or written by hand
+ * for a fix with no commit (`scripts/v3/vaka.ts ekle`: a patched episode, a stopped and resumed order).
+ */
+export interface DevCase {
+  /** `<sha>#<n>` for a commit's block, `<sha>#t` for a derived one, `el-<time>` for a hand-written one. */
+  readonly id: string;
+  readonly tarih: string;
+  /** commit: written in a commit's Vaka block; turetilmis: made from a fix commit's subject and body; el: by hand. */
+  readonly kaynak: "commit" | "turetilmis" | "el";
+  readonly konu: string;
+  /** What was seen, where (which video, which scene). */
+  readonly belirti: string;
+  readonly neden?: string;
+  /** How it was solved: files, functions, data. */
+  readonly cozum?: string;
+  readonly kanit?: string;
+  /** How to catch it next time. */
+  readonly yakala?: string;
+  /** The brains it concerns (CommitLessons.LESSON_BRAINS names). */
+  readonly beyinler: readonly string[];
+  readonly commit?: string;
+  /** The commit's changed files. */
+  readonly dosyalar?: readonly string[];
+  /** The video it was seen in. */
+  readonly bolum?: string;
+}
+
+/** Longest text of one case field. */
+export const MAX_CASE_FIELD = 600;
+
+const caseField = (s: string | undefined) => {
+  const t = s?.replace(/\s+/g, " ").trim().slice(0, MAX_CASE_FIELD);
+  return t || undefined;
+};
+
+/** Appends one case to the library (`gelistirici/vakalar.jsonl`, one JSON per line); empty fields are left out. */
+export async function recordCase(workRoot: string, c: DevCase): Promise<DevCase> {
+  const clean = Object.fromEntries(
+    Object.entries({ ...c, konu: c.konu.replace(/\s+/g, " ").trim().slice(0, 160), belirti: caseField(c.belirti) ?? c.konu, neden: caseField(c.neden), cozum: caseField(c.cozum), kanit: caseField(c.kanit), yakala: caseField(c.yakala), dosyalar: c.dosyalar?.slice(0, 40) }).filter(([, v]) => v !== undefined),
+  ) as unknown as DevCase;
+  await append(workRoot, "vakalar.jsonl", clean);
+  return clean;
+}
+
+export const listCases = (workRoot: string) => readLines<DevCase>(file(workRoot, "vakalar.jsonl"));
+
+/** How alike a problem text and a case are (0..1): shared words against both sizes; a derived case counts a little less. */
+export function caseScore(text: string, c: DevCase): number {
+  const q = new Set(taskWords(text)), w = new Set(taskWords([c.konu, c.belirti, c.neden, c.yakala, c.cozum].filter(Boolean).join(" ")));
+  if (!q.size || !w.size) return 0;
+  let common = 0;
+  for (const x of q) if (w.has(x)) common++;
+  if (common < 2) return 0;
+  return (common / Math.sqrt(q.size * w.size)) * (c.kaynak === "turetilmis" ? 0.85 : 1);
+}
+
+/** A case closer than this to a new problem is handed to the brain meeting it. */
+export const MIN_CASE_SCORE = 0.12;
+
+/**
+ * The past cases most like a new problem (a failed step's error, a development job's fault): word overlap, Turkish
+ * letters folded, no model and no cost, so it runs on every failure; ties go to the newer case. `beyin` keeps only
+ * the cases that concern that brain.
+ */
+export async function similarCases(workRoot: string, text: string, n = 3, opts: { readonly beyin?: string; readonly exclude?: string } = {}): Promise<(DevCase & { readonly benzerlik: number })[]> {
+  const all = await listCases(workRoot);
+  return all
+    .map((c, i) => ({ c, i, s: c.id === opts.exclude || (opts.beyin && !c.beyinler.includes(opts.beyin)) ? 0 : caseScore(text, c) }))
+    .filter((x) => x.s >= MIN_CASE_SCORE)
+    .sort((a, b) => b.s - a.s || b.i - a.i)
+    .slice(0, Math.max(0, n))
+    .map((x) => ({ ...x.c, benzerlik: Math.round(x.s * 100) / 100 }));
+}
+
+/** One case as a prompt line (symptom → cause → fix → files → proof → catch), at most `max` characters. */
+export function caseLine(c: DevCase, max = 900): string {
+  const cut = (s: string | undefined, n: number) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  const parts = [
+    `seen: ${cut(c.belirti, 260)}${c.bolum ? ` (video ${c.bolum})` : ""}`,
+    c.neden ? `cause: ${cut(c.neden, 220)}` : "",
+    c.cozum ? `fix: ${cut(c.cozum, 260)}` : "",
+    c.dosyalar?.length ? `files: ${c.dosyalar.slice(0, 6).join(", ")}${c.dosyalar.length > 6 ? ` +${c.dosyalar.length - 6}` : ""}` : "",
+    c.kanit ? `proven: ${cut(c.kanit, 160)}` : "",
+    c.yakala ? `catch: ${cut(c.yakala, 160)}` : "",
+  ].filter(Boolean);
+  return cut(`- [${c.konu.slice(0, 80)}] (${c.commit ? c.commit.slice(0, 10) : c.id}, ${c.tarih.slice(0, 10)}${c.kaynak === "turetilmis" ? ", derived from the commit" : ""}) ${parts.join(" | ")}`, max)!;
+}
+
+/** The nearest past cases as prompt lines (a few, each bounded); none when nothing is close or the library is unreadable. */
+export async function similarCaseLines(workRoot: string, text: string, n = 3, max = 900): Promise<string[]> {
+  return (await similarCases(workRoot, text, n).catch(() => [])).map((c) => caseLine(c, max));
+}
+
 export async function say(workRoot: string, metin: string, kime?: string, now = new Date()): Promise<void> {
   await append(workRoot, "akis.jsonl", { tarih: now.toISOString(), metin: metin.replace(/\s+/g, " ").trim().slice(0, 280), ...(kime ? { kime } : {}) } satisfies DevTalk);
 }

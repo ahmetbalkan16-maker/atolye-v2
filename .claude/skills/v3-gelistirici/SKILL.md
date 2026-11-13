@@ -113,7 +113,36 @@ Ders-<beyin>[<konu: a few English words the lesson is about>]: <one English sent
 - One line per thing a brain must learn; none when nothing changes for any brain. In an unattended build, end your
   summary with these lines: the summary becomes the commit message.
 
+### Every fix is a whole case (owner's standing order, 13 Nov 2026)
+
+Every fix, improvement or error handled also goes in as a case — what was seen, why, how it was solved and proven, how
+to catch it next time — so a brain meeting a similar problem gets the path that worked. Beside the `Ders-` lines:
+
+```
+Vaka[<konu: a few English words>]: <symptom: what was seen, where — which video, which scene>
+Vaka-neden: <root cause>
+Vaka-cozum: <how it was solved: files, functions, data>
+Vaka-kanit: <how it was proven: smoke scenario, stills, a rerun>
+Vaka-yakala: <how to catch it next time>
+Vaka-beyin: <comma list of the brains above it concerns; none: gelistirici>
+Vaka-bolum: <video id, optional>
+```
+
+- English, each field one line of at most ~600 characters (an editor-wrapped line continues the field above; a blank
+  line ends it). Several `Vaka[...]` blocks per commit are fine; each opens a new case.
+- The idle cycle ("ogren", `CommitLessons.learnCommitLessons`) records each into the case library
+  (`DevBrain` `vakalar.jsonl`, under the developer brain's folder) once, with the commit's sha, date and changed files.
+  A `fix(...)` commit without a block still leaves a case derived from its subject and body (marked `turetilmis`) —
+  a fallback, not a substitute: write the block.
+- A fix with no commit (a patched episode, a stopped and resumed order) is recorded by hand:
+  `npx tsx scripts/v3/vaka.ts ekle --konu … --belirti … --neden … --cozum … --kanit … --yakala … --beyin kurgu,kalite
+  [--bolum <video id>] [--dosya a,b]`; `liste` and `ara "<problem>"` look the library up.
+- Used automatically, without a model (`DevBrain.similarCases`, word overlap): a development job's packet carries the
+  nearest 3 (`DevQueue.pastCasesSection`), and the repair brain's prompt the nearest 3 for a failed step's error
+  (`RepairContext.vakalar`). Write the symptom and the cause in the words the next error or fault will use.
+
 ## Before you finish
 
-Summarise in Turkish what changed, in which files, and how it was tested, followed by the `Ders-…` lines above. Keep
+Summarise in Turkish what changed, in which files, and how it was tested, followed by the `Ders-…` lines and, for a
+fix, the `Vaka` block above. Keep
 the change to the task.

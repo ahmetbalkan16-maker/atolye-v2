@@ -27,7 +27,15 @@ export interface RepairContext {
   /** Steps the production can go on without (a feature is skipped, never the video). */
   readonly optional: boolean;
   readonly env: Readonly<Record<string, string | undefined>>;
+  /**
+   * The most similar past cases from the brains' case library (DevBrain.similarCaseLines), shown to the model so it
+   * sees how such a failure was understood and solved before (owner, 13 Nov 2026: "her çıkan sorunda otomatik").
+   */
+  readonly vakalar?: readonly string[];
 }
+
+/** At most this much of the past cases goes into the repair prompt (the model answers in 200 tokens). */
+export const REPAIR_CASES_CHARS = 1_500;
 
 /** The remedy for a failure the studio has met before, or undefined. */
 export function knownRemedy(c: RepairContext): RepairAction | undefined {
@@ -66,7 +74,14 @@ export function repairPrompt(c: RepairContext): string {
 STEP: ${c.step} (${c.optional ? "optional: the video can be finished without it" : "required"})
 ATTEMPT: ${c.attempt}
 ERROR: ${c.error.slice(0, 1200)}
-
+${
+    c.vakalar?.length
+      ? `
+SIMILAR PAST CASES (what was seen, why, how it was solved — a case solved by changing code means this one likely needs a code fix too):
+${c.vakalar.slice(0, 3).join("\n").slice(0, REPAIR_CASES_CHARS)}
+`
+      : ""
+  }
 Allowed actions (you cannot change code):
 - {"tur": "bekle_tekrar", "saniye": 0-300, "neden": "…"} — a transient failure: wait and run the step again
 - {"tur": "gpu_bosalt", "neden": "…"} — GPU memory: unload other models, wait, run again

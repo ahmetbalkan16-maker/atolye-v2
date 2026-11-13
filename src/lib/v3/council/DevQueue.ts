@@ -200,8 +200,18 @@ with one click ("ONAYLA VE UYGULA"); nothing you do here reaches the live app be
 - End with a short summary in Turkish: what you changed, in which files, and how you tested it. When AYAS already does it,
   or it cannot be done inside these limits, change nothing and say why.`;
 
+/**
+ * The similar past cases a job is handed (DevBrain.similarCaseLines: what was seen → why → how it was solved, in which
+ * files → how it was proven), so the developer follows a path that worked before (owner, 13 Nov 2026: "ileride böyle
+ * sorunları kendileri yapabilsin; her çıkan sorunda otomatik"). Bounded: at most 3 lines, 3 000 characters.
+ */
+export function pastCasesSection(cases?: readonly string[]): string {
+  const list = (cases ?? []).filter((c) => c.trim()).slice(0, 3);
+  return list.length ? `\nSIMILAR PAST CASES (how such a problem was found and solved before — check whether this is the same, reuse what worked):\n${list.join("\n").slice(0, 3_000)}` : "";
+}
+
 /** The task for one main-AYAS job: the owner's request or what AYAS measured, and why the last try was thrown away. */
-export function ayasTaskPacket(p: Pick<DevProposal, "id" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, measured?: readonly string[]): string {
+export function ayasTaskPacket(p: Pick<DevProposal, "id" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, measured?: readonly string[], cases?: readonly string[]): string {
   const lead = p.kaynakTuru === "istek" ? "The owner asked AYAS for this, in their own words" : p.kaynakTuru === "olcum" ? "AYAS measured this fault in itself" : "AYAS raised this improvement and the owner approved it";
   return `AYAS GELİŞTİRME İŞİ ${p.id}
 ${lead}:
@@ -209,7 +219,7 @@ TITLE: ${p.baslik}
 REQUEST / WHY: ${p.neden}
 SOURCES: ${p.kaynaklar.join(", ") || "—"}${measured?.length ? `\nWHAT WAS MEASURED (start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""}${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
     previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
-  }
+  }${pastCasesSection(cases)}
 
 First find out whether AYAS already does this (search src/, app/ and scripts/; read the newest entries of
 ATOLYE_CHECKPOINT.md — \`grep -n "^## " ATOLYE_CHECKPOINT.md\` — and docs/): if it does, change nothing and say so. Otherwise
@@ -238,9 +248,9 @@ export function measuredFaults(kurul: string, brainName: string, max = 8): strin
 /**
  * The task for one proposal: what the brains asked for, why, from which productions and what those measured
  * (measuredFaults); with the developer brain's research note (DevBrain) when it made one — a head start for Claude,
- * marked as an apprentice's guess.
+ * marked as an apprentice's guess; and the most similar past cases (pastCasesSection).
  */
-export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, research?: string, measured?: readonly string[]): string {
+export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, research?: string, measured?: readonly string[], cases?: readonly string[]): string {
   return `ATÖLYE V3 GELİŞTİRME İŞİ ${p.id}
 The owner approved this development proposal of the ${BRAIN_NAMES[p.beyin] ?? p.beyin} (${p.kaynakTuru === "olcum" ? "a fault the brains measured" : "an idea the brains raised"}):
 TITLE: ${p.baslik}
@@ -249,7 +259,7 @@ RAISED BY THE PRODUCTIONS: ${p.kaynaklar.join(", ") || "—"}${
     measured?.length ? `\nWHAT THOSE PRODUCTIONS MEASURED FOR THIS BRAIN (the exact fault behind the title — start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""
   }${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
     previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
-  }
+  }${pastCasesSection(cases)}
 
 First find out whether the studio already does this (search src/lib/v3 and scripts/v3; read docs/v3/FAZ_RAPORLARI.md): if it
 does, change nothing and say so in your summary. Otherwise build the smallest change that does what the proposal asks,

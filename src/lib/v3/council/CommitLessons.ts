@@ -2,7 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { runProcess } from "../util/Proc";
 import type { BrainId } from "./Council";
-import { AYAS_CODE_PATHS, AYAS_CODE_SCOPE, devBrainDir, listAyasCodeExperience, recordAyasCodeExperience, recordLesson, say } from "./DevBrain";
+import { AYAS_CODE_PATHS, AYAS_CODE_SCOPE, type DevCase, devBrainDir, listAyasCodeExperience, listCases, MAX_CASE_FIELD, recordAyasCodeExperience, recordCase, recordLesson, say } from "./DevBrain";
 import { commitTask, readCodeExperience } from "./DevResearch";
 import { hasSimilarLesson, remember } from "./ExperienceMemory";
 
@@ -14,7 +14,9 @@ import { hasSimilarLesson, remember } from "./ExperienceMemory";
  * - main AYAS's changes are read the same way into their own store (`learnAyasCode`), so an AYAS development job is
  *   handed how similar work was done before (`ayasPastChanges`);
  * - a commit's lesson trailers (`Ders-<beyin>[konu]: <English text>`), written by whoever did the work and knows why,
- *   go into that brain's experience memory (`learnCommitLessons`).
+ *   go into that brain's experience memory (`learnCommitLessons`);
+ * - its `Vaka` blocks (13 Nov 2026) — or, for a fix commit without one, a case derived from it — go into the brains'
+ *   case library with the commit's files (`commitCases`, `derivedCase`; DevBrain.similarCases hands them on).
  * Run by the brains' idle cycle ("ogren"); nothing here changes code or starts a model.
  */
 
@@ -67,6 +69,63 @@ export function commitLessons(message: string): CommitLesson[] {
   return out;
 }
 
+/** A commit's `Vaka` block before it is recorded (DevBrain.DevCase without id, date, commit and files). */
+export type CommitCase = Pick<DevCase, "konu" | "belirti" | "neden" | "cozum" | "kanit" | "yakala" | "beyinler" | "bolum">;
+
+const CASE_FIELDS = { neden: "neden", cozum: "cozum", kanit: "kanit", yakala: "yakala", beyin: "beyinler", bolum: "bolum" } as const;
+/** A line that starts something else (a lesson, a case field, a trailer such as Co-Authored-By), never a continuation. */
+const OTHER_LINE = /^(Ders-[a-z]+(\[[^\]]*\])?:|Vaka(\[[^\]]*\])?:|Vaka-[a-z]+:|[A-Z][\w-]+:\s)/;
+
+/**
+ * The whole cases of a commit message (owner, 13 Nov 2026: every fix reaches the brains as a case, CLAUDE.md's standing
+ * order): `Vaka[<konu>]: <symptom>` opens a case; `Vaka-neden:`, `Vaka-cozum:`, `Vaka-kanit:`, `Vaka-yakala:`,
+ * `Vaka-beyin: kurgu, kalite` (LESSON_BRAINS; none named: gelistirici) and `Vaka-bolum: <video>` fill the latest one.
+ * A line wrapped by an editor continues the field above it; a blank line ends that. Each field is cut at
+ * MAX_CASE_FIELD characters; a commit may carry several cases.
+ */
+export function commitCases(message: string): CommitCase[] {
+  type Text = "belirti" | "neden" | "cozum" | "kanit" | "yakala" | "bolum";
+  const out: ({ -readonly [K in Text]?: string } & { konu: string; beyinler: string[] })[] = [];
+  let last: { c: (typeof out)[number]; k: Text | "beyinler" } | undefined;
+  for (const raw of message.split(/\r?\n/)) {
+    const line = raw.trim();
+    const open = /^Vaka(?:\[([^\]]{1,120})\])?:\s*(\S.*)$/.exec(line);
+    const field = /^Vaka-([a-z]+):\s*(.*)$/.exec(line);
+    if (open) {
+      const c = { konu: (open[1] ?? open[2]!).trim().slice(0, 120), belirti: open[2]!.trim(), beyinler: [] };
+      out.push(c);
+      last = { c, k: "belirti" };
+    } else if (field && out.length && field[1]! in CASE_FIELDS) {
+      const c = out[out.length - 1]!;
+      const k = CASE_FIELDS[field[1] as keyof typeof CASE_FIELDS];
+      if (k === "beyinler") c.beyinler = field[2]!.split(/[\s,]+/).filter((b) => (LESSON_BRAINS as readonly string[]).includes(b));
+      else c[k] = field[2]!.trim();
+      last = { c, k };
+    } else if (!line || OTHER_LINE.test(line)) last = undefined;
+    else if (last && last.k !== "beyinler") last.c[last.k] = `${last.c[last.k] ?? ""} ${line}`.trim();
+  }
+  return out.map((c) => {
+    const cut = (s: string | undefined) => s?.replace(/\s+/g, " ").trim().slice(0, MAX_CASE_FIELD) || undefined;
+    const x = { konu: c.konu, belirti: cut(c.belirti) ?? c.konu, neden: cut(c.neden), cozum: cut(c.cozum), kanit: cut(c.kanit), yakala: cut(c.yakala), bolum: cut(c.bolum), beyinler: [...new Set(c.beyinler.length ? c.beyinler : ["gelistirici"])] };
+    return Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined)) as unknown as CommitCase;
+  });
+}
+
+/**
+ * The case a `fix(...)` commit carries without a Vaka block, so a forgotten block still leaves one (owner, 13 Nov 2026:
+ * "otomatik"): the subject is what was seen, the body (lessons and trailers left out) how it was solved, the brains its
+ * Ders- lines name. Marked derived (`turetilmis`): a session's own case says more. Undefined for anything but a fix.
+ */
+export function derivedCase(message: string): CommitCase | undefined {
+  const [subject = "", ...rest] = message.split(/\r?\n/);
+  const m = /^fix(?:\(([^)]{0,40})\))?!?:\s*(\S.*)$/.exec(subject.trim());
+  if (!m) return undefined;
+  const body = rest.map((l) => l.trim()).filter((l) => l && !OTHER_LINE.test(l)).join(" ");
+  const beyinler = [...new Set(commitLessons(message).map((l) => l.beyin as string))];
+  const belirti = m[2]!.trim().slice(0, MAX_CASE_FIELD);
+  return { konu: `${m[1] ? `${m[1]}: ` : ""}${belirti}`.slice(0, 120), belirti, ...(body ? { cozum: body.slice(0, MAX_CASE_FIELD) } : {}), beyinler: beyinler.length ? beyinler : ["gelistirici"] };
+}
+
 const taughtFile = (workRoot: string) => path.join(devBrainDir(workRoot), "aktarilan-dersler.jsonl");
 
 async function taughtCommits(workRoot: string): Promise<Set<string>> {
@@ -89,19 +148,40 @@ async function taughtCommits(workRoot: string): Promise<Set<string>> {
 /** A lesson this close to one the brain already has is not written again. */
 export const SAME_LESSON = 0.7;
 
-/** Every not yet taught commit's lesson trailers into the brains' memories; each commit is taught once. */
-export async function learnCommitLessons(d: { readonly repoRoot: string; readonly workRoot: string; readonly refs?: readonly string[]; readonly log?: (s: string) => void }, limit = 400): Promise<{ commit: number; ders: number; ozet: string }> {
-  const r = await git(d.repoRoot, ["log", "--no-merges", "-n", String(limit), "--format=%H%x1f%cI%x1f%B%x1e", ...(d.refs?.length ? d.refs : ["HEAD"])]);
-  if (r.code !== 0) return { commit: 0, ders: 0, ozet: "commit dersleri okunamadı" };
+/**
+ * Every not yet taught commit's lesson trailers into the brains' memories, and every commit's cases into the case
+ * library; each commit is taught once and its cases recorded once (a commit taught before cases existed still gets its
+ * cases: they are told apart by the commit sha in the library, not by the taught list).
+ */
+export async function learnCommitLessons(d: { readonly repoRoot: string; readonly workRoot: string; readonly refs?: readonly string[]; readonly log?: (s: string) => void }, limit = 400): Promise<{ commit: number; ders: number; vaka: number; ozet: string }> {
+  // One Git call: the message, then (after \x1d) the files the commit changed.
+  const r = await git(d.repoRoot, ["log", "--no-merges", "--name-only", "-n", String(limit), "--format=%x1e%H%x1f%cI%x1f%B%x1d", ...(d.refs?.length ? d.refs : ["HEAD"])]);
+  if (r.code !== 0) return { commit: 0, ders: 0, vaka: 0, ozet: "commit dersleri okunamadı" };
   const done = await taughtCommits(d.workRoot);
+  const cased = new Set((await listCases(d.workRoot)).flatMap((c) => (c.commit ? [c.commit] : [])));
   let commit = 0;
   let ders = 0;
+  let vaka = 0;
+  let turetilen = 0;
   const per: Record<string, number> = {};
   const entries = r.stdout.split("\x1e").map((e) => e.replace(/^\s+/, "")).filter(Boolean).reverse();
   for (const e of entries) {
-    const [sha, tarih, ...body] = e.split("\x1f");
-    if (!sha || !tarih || done.has(sha)) continue;
-    const lessons = commitLessons(body.join("\x1f"));
+    const [head = "", files = ""] = e.split("\x1d");
+    const [sha, tarih, ...body] = head.split("\x1f");
+    if (!sha || !tarih) continue;
+    const message = body.join("\x1f");
+    if (!cased.has(sha)) {
+      const own = commitCases(message);
+      const derived = own.length ? undefined : derivedCase(message);
+      const dosyalar = [...new Set(files.split(/\r?\n/).map((f) => f.trim().replace(/\\/g, "/")).filter(Boolean))];
+      const list: (CommitCase & { readonly id: string; readonly kaynak: DevCase["kaynak"] })[] = derived ? [{ ...derived, id: `${sha}#t`, kaynak: "turetilmis" }] : own.map((c, k) => ({ ...c, id: `${sha}#${k + 1}`, kaynak: "commit" }));
+      for (const c of list) await recordCase(d.workRoot, { ...c, tarih, commit: sha, ...(dosyalar.length ? { dosyalar } : {}) });
+      if (list.length) cased.add(sha);
+      vaka += own.length;
+      if (derived) turetilen++;
+    }
+    if (done.has(sha)) continue;
+    const lessons = commitLessons(message);
     if (!lessons.length) continue;
     for (const l of lessons) {
       if (l.beyin === "gelistirici") await recordLesson(d.workRoot, { tarih, id: sha, metin: l.metin });
@@ -118,10 +198,14 @@ export async function learnCommitLessons(d: { readonly repoRoot: string; readonl
     done.add(sha);
     commit++;
   }
-  if (!commit) return { commit: 0, ders: 0, ozet: "yeni commit dersi yok" };
-  const ozet = `${commit} commit'ten ${ders} ders aktarıldı (${Object.entries(per).map(([b, n]) => `${b} ${n}`).join(", ")})`;
+  const vakaOzet = vaka || turetilen ? `vaka kitaplığına ${vaka} vaka${turetilen ? ` + düzeltme commit'lerinden ${turetilen} türetilmiş vaka` : ""} yazıldı` : "";
+  if (!commit) {
+    if (vakaOzet) await say(d.workRoot, `Commit'lerdeki vakaları kitaplığa yazdım: ${vakaOzet}.`);
+    return { commit: 0, ders: 0, vaka: vaka + turetilen, ozet: vakaOzet ? `yeni commit dersi yok; ${vakaOzet}` : "yeni commit dersi yok" };
+  }
+  const ozet = `${commit} commit'ten ${ders} ders aktarıldı (${Object.entries(per).map(([b, n]) => `${b} ${n}`).join(", ")})${vakaOzet ? `; ${vakaOzet}` : ""}`;
   await say(d.workRoot, `Commit'lerdeki dersleri beyinlere aktardım: ${ozet}.`);
-  return { commit, ders, ozet };
+  return { commit, ders, vaka: vaka + turetilen, ozet };
 }
 
 /** Main-AYAS commits read per pass (newest first; Git only — the first passes work through the history). */

@@ -163,14 +163,15 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     // commit's change itself (the writing exam: graded by that commit's own new scenarios).
     // Since 12 Nov 2026 (owner: "burda yapılan her şeyi gerekli beyinler öğrensin", "maliyetsiz olsun") it also learns
     // the development branch's commits before they go live, main AYAS's code (Git only) and every commit's lesson
-    // trailers (`Ders-<beyin>[konu]: …`, written into that brain's memory without a model).
+    // trailers (`Ders-<beyin>[konu]: …`, written into that brain's memory without a model); since 13 Nov 2026 their
+    // `Vaka` blocks too (a fix commit without one leaves a derived case), into the case library.
     const learn = { ...research, refs: await learnRefs(paths.repoRoot) };
     const r = await learnFromCommits(learn);
     const taught = await learnCommitLessons(learn);
     const ayas = await learnAyasCode(learn);
     const exam = await writingExam(paths, research);
     const extra = `; ${taught.ozet}; ${ayas.ozet}`;
-    if (!r.okunan && !taught.ders && !ayas.kod && !exam.yapildi) return skip(`${r.ozet}${extra}; yazma sınavı: ${exam.satir}`);
+    if (!r.okunan && !taught.ders && !taught.vaka && !ayas.kod && !exam.yapildi) return skip(`${r.ozet}${extra}; yazma sınavı: ${exam.satir}`);
     return ok(`${r.okunan ? `${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}` : r.ozet}${extra}; yazma sınavı: ${exam.satir}`);
   }
   if (task === "arastir") {

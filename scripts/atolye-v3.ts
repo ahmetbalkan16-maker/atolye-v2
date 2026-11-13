@@ -52,6 +52,7 @@ import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, 
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
+import { similarCaseLines } from "../src/lib/v3/council/DevBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { bestRound, cutFaults, deliverAfterFailedRound, faultsDecided, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
@@ -730,7 +731,11 @@ async function main() {
         const message = (e as Error).message;
         await outcome("ise_yaramadi");
         const learned = await learnedRemedy(paths.workRoot, s, message).catch(() => undefined);
-        const action = await decideRepair({ step: s, error: message, attempt, optional: !!skip, env: process.env }, repairModel, learned);
+        // How similar failures were understood and solved before (the case library, no model): shown to the repair
+        // model and named in the log, so the person reading it sees the path that worked last time.
+        const vakalar = await similarCaseLines(paths.workRoot, `${s} ${message}`, 3, 500);
+        if (vakalar.length) log(`  benzer geçmiş vaka: ${vakalar[0]!.slice(2, 200)}`);
+        const action = await decideRepair({ step: s, error: message, attempt, optional: !!skip, env: process.env, vakalar }, repairModel, learned);
         tried = action.tur === "dur" ? undefined : { topic: remedyTopic(s, message), action };
         log(`⚕ onarım beyni [${s}, deneme ${attempt}]: ${describeRepair(action)}`);
         council.find({ beyin: "onarim", onem: action.tur === "dur" ? "eksik" : "uyari", baslik: `${s} adımında hata`, ayrinti: `${message.slice(0, 300)} → ${describeRepair(action)} (${action.kaynak})`, tur: action.kaynak === "bilinen" || action.kaynak === "hafiza" ? "ayar" : "kod", yer: s });
