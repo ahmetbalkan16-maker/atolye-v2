@@ -16,6 +16,7 @@ import { MapNight } from "./MapNight";
 import { isNightMap } from "./mapEffects";
 import { smoothRiver } from "./mapNature";
 import { yer } from "./LayoutProbe";
+import { type Tilt, tiltFor, tiltMatrix, tiltProject, tiltSeen, type Up } from "./tilt";
 
 const OCEAN = "#22406a";
 const OCEAN_DEEP = "#172e4f";
@@ -197,7 +198,10 @@ export function badgeAnchor(map: V3GeoMap, b: V3MapBadge, frame: number, fps: nu
   const { at } = badgeAt(map, b, frame, fps, H, duration);
   const u = H / 1080;
   const kind = map.relief ? "relief" : "flat";
-  return { x: W / 2 + cam.zoom * (at.x - cam.x), top: H / 2 + cam.zoom * (at.y - cam.y) - BADGE_TOP[kind] * u * talkSwell(b, frame), r: BADGE_R[kind] * u };
+  // On a tilted map the badge stands upright where its place lands on the tilted ground, sized by its depth there
+  // (MapView's upright layer).
+  const p = map.tilt ? tiltProject(tiltFor(map.tilt, W, H), W / 2 + cam.zoom * (at.x - cam.x), H / 2 + cam.zoom * (at.y - cam.y)) : { x: W / 2 + cam.zoom * (at.x - cam.x), y: H / 2 + cam.zoom * (at.y - cam.y), scale: 1 };
+  return { x: p.x, top: p.y - BADGE_TOP[kind] * u * talkSwell(b, frame) * p.scale, r: BADGE_R[kind] * u * p.scale };
 }
 
 /** How much a speaking badge has swelled (1 at rest, up to 1.14 while its character speaks), easing in and out. */
@@ -221,7 +225,38 @@ export { cameraAt };
  * `seen`: the part of this picture (screen px) that ends up in the frame (ShotView's push and set camera; a Short's
  * window); `screen`: that frame's size, when it is not this picture's (a Short).
  */
-export function MapView({ map, width: W, height: H, cast, accessories, duration, seen, screen }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number }; screen?: { width: number; height: number } }) {
+type MapViewProps = { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number }; screen?: { width: number; height: number } };
+
+/**
+ * One of a tilted map's two layers (owner's trial, 12 Nov 2026): the ground — the terrain, the states, the woods, the
+ * walls, the armies' blocks, the ships — drawn on a picture larger than the frame (`ox`,`oy`: where the frame's picture
+ * starts in it) that the browser turns in perspective; or the upright layer — names, badges, flags — drawn flat over it,
+ * each at the place its point lands on the tilted ground.
+ */
+type TiltPass = { kind: "ground"; t: Tilt; ox: number; oy: number; width: number; height: number } | { kind: "upright"; t: Tilt };
+
+export function MapView(props: MapViewProps) {
+  const { map, width: W, height: H } = props;
+  // A map without `tilt` (every map unless the close map's tilted trial is switched on) is drawn as it always was.
+  if (!map.tilt) return <MapPicture {...props} />;
+  const t = tiltFor(map.tilt, W, H);
+  // The ground drawn wherever the frame sees it (the far rows see a wider strip), a few pixels more for the edges.
+  const c = tiltSeen(t, { x0: 0, y0: 0, x1: W, y1: H }).cover;
+  const ox = Math.ceil(Math.max(0, -c.x0)) + 8;
+  const oy = Math.ceil(Math.max(0, -c.y0)) + 8;
+  const width = Math.ceil(Math.max(W, c.x1)) + ox + 8;
+  const height = Math.ceil(Math.max(H, c.y1)) + oy + 8;
+  return (
+    <>
+      <div style={{ position: "absolute", left: 0, top: 0, width, height, transformOrigin: "0 0", transform: `matrix3d(${tiltMatrix(t, ox, oy).join(",")})` }}>
+        <MapPicture {...props} tilt={{ kind: "ground", t, ox, oy, width, height }} />
+      </div>
+      <MapPicture {...props} tilt={{ kind: "upright", t }} />
+    </>
+  );
+}
+
+function MapPicture({ map, width: W, height: H, cast, accessories, duration, seen, screen, tilt }: MapViewProps & { tilt?: TiltPass }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -230,9 +265,26 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   // Screen sizes: 1 at 1080p, divided by the zoom so marks keep their size on screen.
   const k = H / 1080 / cam.zoom;
   const relief = Boolean(map.relief);
+  // A tilted map's upright things: hidden on its ground layer; on the upright one moved to where their place lands on
+  // the tilted ground and sized by its depth there (0.77 far to 1 near), so names placed apart on the flat map stay
+  // apart (absent: as drawn).
+  const up: Up | undefined = !tilt
+    ? undefined
+    : tilt.kind === "ground"
+      ? () => null
+      : (x, y, node) => {
+          const p = tiltProject(tilt.t, W / 2 + cam.zoom * (x - cam.x), H / 2 + cam.zoom * (y - cam.y));
+          return (
+            <g key={React.isValidElement(node) ? (node.key ?? undefined) : undefined} visibility="visible" transform={`translate(${cam.x + (p.x - W / 2) / cam.zoom} ${cam.y + (p.y - H / 2) / cam.zoom}) scale(${p.scale}) translate(${-x} ${-y})`}>
+              {node}
+            </g>
+          );
+        };
+  const U = (x: number, y: number, node: React.ReactNode) => (up ? up(x, y, node) : node);
   // The terrain picture is an SVG image, which Remotion does not wait for (Kosovo 1389: a render part opened on the
   // close map and its first two frames showed the land as all sea): the frame waits until the picture has loaded.
-  const [reliefWait] = useState(() => (map.relief ? delayRender(`kabartma ${map.relief}`) : undefined));
+  // (A tilted map's upright layer draws no terrain.)
+  const [reliefWait] = useState(() => (map.relief && tilt?.kind !== "upright" ? delayRender(`kabartma ${map.relief}`) : undefined));
   const reliefDone = useRef(false);
   const reliefLoaded = () => {
     if (reliefWait === undefined || reliefDone.current) return;
@@ -266,7 +318,9 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   // Names of armies, arrows and battles: the relief map's style there too, the cartoon map's on the flat one.
   const markLabel = (text: string, size: number, opacity = 1) => (relief ? stateLabel(text, 0, 0, size, opacity) : label(text, 0, 0, size, opacity));
   // What of the world the frame shows now: the camera's view, cut to what ShotView's push leaves in the frame.
-  const shownWorld = { x0: cam.x + ((seen?.x0 ?? 0) - W / 2) / cam.zoom, y0: cam.y + ((seen?.y0 ?? 0) - H / 2) / cam.zoom, x1: cam.x + ((seen?.x1 ?? W) - W / 2) / cam.zoom, y1: cam.y + ((seen?.y1 ?? H) - H / 2) / cam.zoom };
+  // On a tilted map: the flat picture's part surely seen through the tilted camera (the far rows see more).
+  const seenFlat = tilt ? tiltSeen(tilt.t, { x0: seen?.x0 ?? 0, y0: seen?.y0 ?? 0, x1: seen?.x1 ?? W, y1: seen?.y1 ?? H }).inside : seen;
+  const shownWorld = { x0: cam.x + ((seenFlat?.x0 ?? 0) - W / 2) / cam.zoom, y0: cam.y + ((seenFlat?.y0 ?? 0) - H / 2) / cam.zoom, x1: cam.x + ((seenFlat?.x1 ?? W) - W / 2) / cam.zoom, y1: cam.y + ((seenFlat?.y1 ?? H) - H / 2) / cam.zoom };
   // A state's or sea's name the camera has half out of the picture slides back in (the Kosovo map read "ERBIA" at the
   // left edge while the camera followed Murad's march); one mostly outside is not written ("C SEA" at the edge).
   const m = 14 * k;
@@ -277,12 +331,16 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   // is 1080×1920), which shows the `seen` part of this picture.
   const out = screen ?? { width: W, height: H };
   const view = { x0: seen?.x0 ?? 0, y0: seen?.y0 ?? 0, x1: seen?.x1 ?? W, y1: seen?.y1 ?? H };
-  const overlays = hudBoxes(map, frame, out.width, out.height).map((b) => ({
-    x0: view.x0 + (b.x0 / out.width) * (view.x1 - view.x0),
-    x1: view.x0 + (b.x1 / out.width) * (view.x1 - view.x0),
-    y0: view.y0 + (b.y0 / out.height) * (view.y1 - view.y0),
-    y1: view.y0 + (b.y1 / out.height) * (view.y1 - view.y0),
-  }));
+  const overlays = hudBoxes(map, frame, out.width, out.height).map((b) => {
+    const box = {
+      x0: view.x0 + (b.x0 / out.width) * (view.x1 - view.x0),
+      x1: view.x0 + (b.x1 / out.width) * (view.x1 - view.x0),
+      y0: view.y0 + (b.y0 / out.height) * (view.y1 - view.y0),
+      y1: view.y0 + (b.y1 / out.height) * (view.y1 - view.y0),
+    };
+    // Through a tilted camera: the flat picture's part under the mark (a name's place lands there).
+    return tilt ? tiltSeen(tilt.t, box).cover : box;
+  });
   const slideInside = (x: number, y: number, half: { x: number; y: number }) => {
     const push = (c: number, h: number, lo: number, hi: number) => (c - h < lo + m ? lo + m - (c - h) : c + h > hi - m ? hi - m - (c + h) : 0);
     const dx = push(x, half.x, shownWorld.x0, shownWorld.x1);
@@ -327,11 +385,15 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
         {/* The fighting itself (owner, 22 Oct 2026): bursts round the place for a few seconds, in the era's way. */}
         <BattleBursts x={0} y={0} start={b.start} frame={frame} fps={fps} k={k} era={map.era} seed={i + 1} />
         {flash > 0 ? <circle r={70 * k * (1.4 - flash * 0.4)} fill="#ffd34d" opacity={0.55 * flash} /> : null}
-        <g transform={`scale(${pop})`}>
-          {blade(-38)}
-          {blade(38)}
-        </g>
-        {spot.alpha > 0 ? <g transform={`translate(${spot.x - b.x} ${spot.y - b.y})`}>{markLabel(b.label, 30, Math.min(1, pop) * spot.alpha)}</g> : null}
+        {U(
+          b.x,
+          b.y,
+          <g transform={`scale(${pop})`}>
+            {blade(-38)}
+            {blade(38)}
+          </g>,
+        )}
+        {spot.alpha > 0 ? U(spot.x, spot.y, <g transform={`translate(${spot.x - b.x} ${spot.y - b.y})`}>{markLabel(b.label, 30, Math.min(1, pop) * spot.alpha)}</g>) : null}
       </g>
     );
   });
@@ -358,14 +420,20 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     const swell = talkSwell(b, frame);
     const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } }) * swell;
     const ext = badgeExtent(b.label, relief);
-    return { at, progress, swell, pop, size: { half: ext.half * k * pop, up: ext.up * k * pop }, shown: visible(b.start, b.end), priority: swell > 1.01 ? 1 : 0 };
+    // On a tilted map the room over a badge is kept while its words linger after the voice (ShotView's bubble): the
+    // foreshortened ground leaves names nearer a badge than the flat map does (Waterloo trial: "74,326 men" under them).
+    const lingers = tilt !== undefined && (b.talk?.speaking ?? []).some((s) => frame >= s.start && frame < s.end + Math.round(fps * 0.5));
+    return { at, progress, swell, pop, size: { half: ext.half * k * pop, up: ext.up * k * pop }, shown: visible(b.start, b.end), priority: swell > 1.01 || lingers ? 1 : 0 };
   });
   // Together, so one slid in from an edge never lands on another (badgeEdgeFits).
   const badgeFits = badgeEdgeFits(badgeBase, shownWorld, 14 * k, 60 * k);
   const badgePlaces = badgeBase.map((p, i) => {
     const fit = badgeFits[i]!;
     const placed = { x: p.at.x + fit.dx, y: p.at.y + fit.dy };
-    return { ...p, fit, placed, alpha: p.shown * fit.alpha, box: { x0: placed.x - p.size.half, x1: placed.x + p.size.half, y0: placed.y - p.size.up, y1: placed.y + 6 * k } };
+    // A tilted map's badge stands upright over foreshortened ground: it covers more of the flat map upwards (1 flat).
+    const pr = tilt ? tiltProject(tilt.t, W / 2 + cam.zoom * (placed.x - cam.x), H / 2 + cam.zoom * (placed.y - cam.y)) : undefined;
+    const tall = pr ? pr.scale / pr.scaleY : 1;
+    return { ...p, fit, placed, alpha: p.shown * fit.alpha, box: { x0: placed.x - p.size.half, x1: placed.x + p.size.half, y0: placed.y - p.size.up * tall, y1: placed.y + 6 * k } };
   });
   // The screen marks (in world px, from the picture's) and the badges on the map now: no unit's or battle's label is
   // printed over them (labelSpot). A speaking badge's words float just over its ring (ShotView's SpeechBubble at
@@ -374,7 +442,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     ...overlays.map((o) => ({ x0: cam.x + (o.x0 - W / 2) / cam.zoom, x1: cam.x + (o.x1 - W / 2) / cam.zoom, y0: cam.y + (o.y0 - H / 2) / cam.zoom, y1: cam.y + (o.y1 - H / 2) / cam.zoom })),
     ...badgePlaces
       .filter((p) => p.alpha > 0.05)
-      .flatMap((p) => [p.box, ...(p.priority ? [{ x0: p.placed.x - Math.max(p.size.half, 280 * k), x1: p.placed.x + Math.max(p.size.half, 280 * k), y0: p.box.y0 - 120 * k, y1: p.box.y0 }] : [])]),
+      .flatMap((p) => {
+        // The words are drawn at their screen size over a tilted map's badge: their room on the flat map grows by as much
+        // as the ground there shrinks on the screen — across, and up the foreshortened ground (1 on a flat map).
+        const d = tilt ? tiltProject(tilt.t, W / 2 + cam.zoom * (p.placed.x - cam.x), H / 2 + cam.zoom * (p.placed.y - cam.y)) : { scale: 1, scaleY: 1 };
+        return [p.box, ...(p.priority ? [{ x0: p.placed.x - Math.max(p.size.half, (280 * k) / d.scale), x1: p.placed.x + Math.max(p.size.half, (280 * k) / d.scale), y0: p.box.y0 - (120 * k) / d.scaleY, y1: p.box.y0 }] : [])];
+      }),
   ];
   // A place's name under a badge gives way while the badge is there (Zanzibar Short, 3 Nov 2026: "HOUSE OF WONDERS"
   // lay under the scroll of "Sultan Khalid bin Barghash", where no other place was free): the speaker is the moment's
@@ -418,7 +491,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
       </g>
     ) : null;
   return (
-    <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
+    <svg width={tilt?.kind === "ground" ? tilt.width : W} height={tilt?.kind === "ground" ? tilt.height : H} style={{ position: "absolute", left: 0, top: 0 }}>
       <defs>
         <radialGradient id={`${id}-sea`} cx="50%" cy="45%" r="75%">
           <stop offset="0%" stopColor={OCEAN} />
@@ -438,9 +511,9 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           <stop offset="100%" stopColor="#000000" stopOpacity={0.38} />
         </radialGradient>
       </defs>
-      <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-sea)`} />
-      <g transform={`translate(${W / 2} ${H / 2}) scale(${cam.zoom}) translate(${-cam.x} ${-cam.y})`}>
-        {relief ? (
+      {tilt?.kind === "upright" ? null : <rect x={0} y={0} width={tilt ? tilt.width : W} height={tilt ? tilt.height : H} fill={`url(#${id}-sea)`} />}
+      <g transform={tilt?.kind === "ground" ? `translate(${W / 2 + tilt.ox} ${H / 2 + tilt.oy}) scale(${cam.zoom}) translate(${-cam.x} ${-cam.y})` : `translate(${W / 2} ${H / 2}) scale(${cam.zoom}) translate(${-cam.x} ${-cam.y})`} {...(tilt?.kind === "upright" ? { visibility: "hidden" } : {})}>
+        {tilt?.kind === "upright" ? null : relief ? (
           <>
             {/* The terrain on the vector land only (its water filled with land by relief_crop.py): on a close view the
                 image's own coarse coast showed as steps of sea in the land (map trial, 22 Oct 2026). */}
@@ -583,10 +656,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               // Spaced capitals: about a full size per letter; slid in like a state's name.
               const at = slideInside(s.x, s.y, { x: (s.label.length * s.size * k) / 2, y: (s.size * k) / 2 });
               if (!at) return null;
-              return (
-              <text key={`s${i}`} x={at.x} y={at.y + s.size * 0.36 * k} textAnchor="middle" style={{ font: `italic 400 ${s.size * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: s.size * 0.45 * k }} fill="#cfe4f0" fillOpacity={0.78}>
-                {s.label}
-              </text>
+              return U(
+                at.x,
+                at.y,
+                <text key={`s${i}`} x={at.x} y={at.y + s.size * 0.36 * k} textAnchor="middle" style={{ font: `italic 400 ${s.size * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: s.size * 0.45 * k }} fill="#cfe4f0" fillOpacity={0.78}>
+                  {s.label}
+                </text>,
               );
             })}
           </>
@@ -598,7 +673,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           </>
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} gid={id} clouds={isNightMap(map) ? undefined : world} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up ? { up } : {})} /> : null}
         {map.cities.map((c, i) =>
           relief ? null : (
             <g key={`c${i}`}>
@@ -618,7 +693,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           const size = relief ? (t.labelSize ?? 46) : 46;
           const at = keepNameInside(t.label, t.labelX, t.labelY, size);
           if (!at) return null;
-          return <g key={`tl${i}`}>{relief ? stateLabel(t.label, at.x, at.y, size, a) : label(t.label, at.x, at.y, 46, a)}</g>;
+          return U(at.x, at.y, <g key={`tl${i}`}>{relief ? stateLabel(t.label, at.x, at.y, size, a) : label(t.label, at.x, at.y, 46, a)}</g>);
         })}
         {/* Lines the story is about (the Rubicon, a wall): a soft glow and a bright core drawing along, then the name. */}
         {(map.lines ?? []).map((ln, i) => {
@@ -655,7 +730,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                   const p = along(part, (j + 0.5) / Math.max(2, Math.round(links / 6)));
                   return <rect key={`f${j}`} x={p.x - 5 * k} y={p.y - 3.5 * k + Math.sin(frame * 0.12 + j) * 1.2 * k} width={10 * k} height={7 * k} rx={2 * k} fill="#8a5a2b" stroke="#2b1d10" strokeWidth={1.5 * k} />;
                 })}
-                {grow > 0.6 ? <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 30, Math.min(1, (grow - 0.6) / 0.3))}</g> : null}
+                {grow > 0.6 ? U(mid.x, mid.y, <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 30, Math.min(1, (grow - 0.6) / 0.3))}</g>) : null}
               </g>
             );
           }
@@ -664,7 +739,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               <path d={d} fill="none" stroke={ln.color} strokeOpacity={0.35 * pulse} strokeWidth={26 * k} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `blur(${6 * k}px)` }} />
               <path d={d} fill="none" stroke={ln.color} strokeWidth={7 * k} strokeLinecap="round" strokeLinejoin="round" />
               <path d={d} fill="none" stroke="#fffbe6" strokeWidth={2.5 * k} strokeLinecap="round" strokeLinejoin="round" />
-              {grow > 0.6 ? <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 34, Math.min(1, (grow - 0.6) / 0.3))}</g> : null}
+              {grow > 0.6 ? U(mid.x, mid.y, <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 34, Math.min(1, (grow - 0.6) / 0.3))}</g>) : null}
             </g>
           );
         })}
@@ -692,7 +767,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                 return <path key={j} d={`M${p.x - nx * 6 * k} ${p.y - ny * 6 * k} L${p.x + nx * 6 * k} ${p.y + ny * 6 * k}`} stroke={sl.color} strokeWidth={3 * k} strokeLinecap="round" />;
               })}
               {grow < 1 ? <circle cx={head.x} cy={head.y} r={7 * k} fill="#fff3a0" opacity={0.6 + 0.4 * Math.sin(frame * 0.5)} /> : null}
-              {grow >= 1 ? <g transform={`translate(${mid.x} ${mid.y - 34 * k})`} opacity={interpolate(frame, [sl.start + Math.round(fps * sl.durationS), sl.start + Math.round(fps * (sl.durationS + 0.5))], [0, 1], { extrapolateRight: "clamp" })}>{markLabel(sl.label, 26)}</g> : null}
+              {grow >= 1 ? U(mid.x, mid.y - 34 * k, <g transform={`translate(${mid.x} ${mid.y - 34 * k})`} opacity={interpolate(frame, [sl.start + Math.round(fps * sl.durationS), sl.start + Math.round(fps * (sl.durationS + 0.5))], [0, 1], { extrapolateRight: "clamp" })}>{markLabel(sl.label, 26)}</g>) : null}
             </g>
           );
         })}
@@ -719,13 +794,17 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               {relief && body ? <path d={body} fill={a.color} fillOpacity={0.72} stroke="rgba(40,8,12,0.75)" strokeWidth={2.5 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.45))` }} /> : null}
               {!relief && path && progress > 0 ? <path d={partialPath(path, progress)} fill="none" stroke={a.color} strokeWidth={7 * k} strokeLinecap="round" strokeDasharray={`0.1 ${16 * k}`} /> : null}
               {/* The unit stands just above its place, so the town's dot and name under it stay readable. */}
-              <g transform={`translate(${at.x} ${at.y - 46 * k + bob}) scale(${pop})`} style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
-                <path d={`M0 ${27 * k} L0 ${46 * k}`} stroke="#ffffff" strokeWidth={3.5 * k} />
-                <rect x={-42 * k} y={-27 * k} width={84 * k} height={54 * k} rx={7 * k} fill={a.color} stroke="#ffffff" strokeWidth={5.5 * k} />
-                <path d={`M${-42 * k} ${-27 * k} L${42 * k} ${27 * k} M${42 * k} ${-27 * k} L${-42 * k} ${27 * k}`} stroke="#ffffff" strokeWidth={4.5 * k} opacity={0.85} />
-                {marching ? <path d={`M${dir * 48 * k} ${-12 * k} L${dir * 64 * k} 0 L${dir * 48 * k} ${12 * k} Z`} fill="#ffffff" stroke={INK} strokeWidth={2 * k} /> : null}
-                <g transform={`translate(0 ${-56 * k})`}>{markLabel(a.label, 34)}</g>
-              </g>
+              {U(
+                at.x,
+                at.y,
+                <g transform={`translate(${at.x} ${at.y - 46 * k + bob}) scale(${pop})`} style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
+                  <path d={`M0 ${27 * k} L0 ${46 * k}`} stroke="#ffffff" strokeWidth={3.5 * k} />
+                  <rect x={-42 * k} y={-27 * k} width={84 * k} height={54 * k} rx={7 * k} fill={a.color} stroke="#ffffff" strokeWidth={5.5 * k} />
+                  <path d={`M${-42 * k} ${-27 * k} L${42 * k} ${27 * k} M${42 * k} ${-27 * k} L${-42 * k} ${27 * k}`} stroke="#ffffff" strokeWidth={4.5 * k} opacity={0.85} />
+                  {marching ? <path d={`M${dir * 48 * k} ${-12 * k} L${dir * 64 * k} 0 L${dir * 48 * k} ${12 * k} Z`} fill="#ffffff" stroke={INK} strokeWidth={2 * k} /> : null}
+                  <g transform={`translate(0 ${-56 * k})`}>{markLabel(a.label, 34)}</g>
+                </g>,
+              )}
             </g>
           );
         })}
@@ -741,7 +820,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
             return (
               <g key={`r${i}`} opacity={gone}>
                 {shape ? <path d={shape} fill={ar.color} fillOpacity={0.3} stroke={ar.color} strokeWidth={4.5 * k} strokeDasharray={`${16 * k} ${10 * k}`} strokeDashoffset={-frame * 1.2 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.55))` }} /> : null}
-                {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 28)}</g> : null}
+                {ar.label && draw < 0.5 ? U(ar.labelX ?? mid.x, ar.labelY ?? mid.y - 40 * k, <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 28)}</g>) : null}
               </g>
             );
           }
@@ -762,7 +841,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
             return (
               <g key={`r${i}`} opacity={gone}>
                 {shape ? <path d={shape} fill={ar.color} fillOpacity={0.82} stroke="rgba(40,8,12,0.85)" strokeWidth={3 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }} /> : null}
-                {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
+                {ar.label && draw < 0.5 ? U(ar.labelX ?? mid.x, ar.labelY ?? mid.y - 40 * k, <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g>) : null}
               </g>
             );
           }
@@ -771,17 +850,17 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               <path d={d} fill="none" stroke={INK} strokeWidth={24 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               <path d={d} fill="none" stroke={ar.color} strokeWidth={14 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               {draw < 0.02 ? <path transform={`translate(${last.x} ${last.y}) rotate(${ang})`} d={`M${22 * k} 0 L${-24 * k} ${-28 * k} L${-12 * k} 0 L${-24 * k} ${28 * k} Z`} fill={ar.color} stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}
-              {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
+              {ar.label && draw < 0.5 ? U(ar.labelX ?? mid.x, ar.labelY ?? mid.y - 40 * k, <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g>) : null}
             </g>
           );
         })}
         {/* At night the ground goes dark under the tokens and searchlights sweep it (absent `zaman`: nothing drawn). */}
         {isNightMap(map) ? <MapNight map={map} frame={frame} fps={fps} k={k} id={id} view={shownWorld} /> : null}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
-        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} avoid={labelAvoid} />
+        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} avoid={labelAvoid} {...(up ? { up } : {})} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />
         {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
-        <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} />
+        <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} {...(up ? { up } : {})} />
         {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}
         {relief
           ? map.cities.map((c, i) => {
@@ -793,9 +872,9 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               return (
               <g key={`c${i}`} opacity={shownName < 1 ? 0.25 + 0.75 * shownName : 1}>
                 <circle cx={c.x} cy={c.y} r={6 * k} fill="#ffffff" stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} />
-                {name ? <text {...yer("yazi")} x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
+                {name ? U(c.x, c.y, <text {...yer("yazi")} x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
                   {c.label}
-                </text> : null}
+                </text>) : null}
               </g>
               );
             })
@@ -830,7 +909,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
             return (
               <g key={`g${i}`}>
                 {trail ? <path d={trail} fill="none" stroke={ROUTE_RED} strokeWidth={9 * k} strokeLinecap="round" strokeDasharray={`0.1 ${17 * k}`} opacity={a} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} /> : null}
-                <g transform={`translate(${placed.x} ${placed.y}) scale(${pop})`} opacity={a * fit.alpha}>
+                {U(placed.x, placed.y, <g transform={`translate(${placed.x} ${placed.y}) scale(${pop})`} opacity={a * fit.alpha}>
                   <defs>
                     <clipPath id={`${id}-badge${i}`}>
                       <circle cy={cy} r={r} />
@@ -859,7 +938,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                       {b.label}
                     </text>
                   </g>
-                </g>
+                </g>)}
               </g>
             );
           }
@@ -869,7 +948,9 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           // A pin: the badge stands above its place with a point down to it and the name plate on top, so the place's
           // own name and the territory's stay readable (the map trial's badge sat on "Söğüt" and "OTTOMANS").
           const cy = -(r + 34 * k);
-          return (
+          return U(
+            placed.x,
+            placed.y,
             <g key={`g${i}`} transform={`translate(${placed.x} ${placed.y}) scale(${pop})`} opacity={a * fit.alpha}>
               <defs>
                 <clipPath id={`${id}-badge${i}`}>
@@ -894,14 +975,14 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                   {b.label}
                 </text>
               </g>
-            </g>
+            </g>,
           );
         })}
         {/* On the relief map a battle is drawn over the badges: a ruler arriving there must not hide its name. */}
         {relief ? battleMarks() : null}
       </g>
       {/* A soft dark edge holds the eye in the middle of the relief map (cinematic, like the reference). */}
-      {relief ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}
+      {relief && tilt?.kind !== "ground" ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}
     </svg>
   );
 }

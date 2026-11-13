@@ -10,6 +10,7 @@ import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type 
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import { crowdFigures, crowdGrid, facingDir, menOf, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
+import { applyMatrix, MAX_TILT_DEG, tiltFor, tiltMatrix, tiltProject, tiltSeen, tiltUnproject } from "../remotion-v3/src/scene/tilt";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -574,6 +575,58 @@ async function main() {
     assert.ok(river.startsWith("M0 0") && river.endsWith("L200 100") && river.includes("Q100 0"), river);
     assert.ok(river.includes("L80 0") && river.includes("100 20"), "the bend starts 20 px before the corner");
     assert.equal(smoothRiver("M0 0 C10 10 20 20 30 30", 20), "M0 0 C10 10 20 20 30 30", "a curve is left as it is");
+  });
+
+  await scenario("T the tilted close map (owner's trial, 12 Nov 2026): the browser's matrix and the names' projection agree, the framed picture stays whole in the frame, the far side is smaller, no sky", () => {
+    const W = 1920;
+    const H = 1080;
+    const t = tiltFor(30, W, H);
+    // The ground's CSS matrix (an element whose (0,0) is the picture's (-ox,-oy)) puts every point where tiltProject does.
+    const ox = 400;
+    const oy = 260;
+    const m = tiltMatrix(t, ox, oy);
+    for (let x = -300; x <= W + 300; x += 111)
+      for (let y = -200; y <= H + 150; y += 97) {
+        const a = applyMatrix(m, x + ox, y + oy);
+        const b = tiltProject(t, x, y);
+        assert.ok(Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6, `(${x}, ${y}): matrix ${a.x},${a.y} vs ${b.x},${b.y}`);
+        const back = tiltUnproject(t, b.x, b.y);
+        assert.ok(Math.abs(back.x - x) < 1e-6 && Math.abs(back.y - y) < 1e-6, "unproject undoes project");
+      }
+    // The picture the director framed stays whole in the frame, its near edge as wide as the frame, centred.
+    const corners = [tiltProject(t, 0, 0), tiltProject(t, W, 0), tiltProject(t, 0, H), tiltProject(t, W, H)];
+    for (const c of corners) assert.ok(c.x >= -1e-6 && c.x <= W + 1e-6 && c.y >= -1e-6 && c.y <= H + 1e-6, `corner ${c.x},${c.y} in the frame`);
+    assert.ok(Math.abs(corners[2]!.x) < 1e-6 && Math.abs(corners[3]!.x - W) < 1e-6, "the near edge spans the frame");
+    assert.ok(Math.abs(corners[0]!.y - (H - corners[2]!.y)) < 1e-6, "as much ground above as below");
+    // The far side smaller, not tiny (a camera ~30° off straight down).
+    const far = tiltProject(t, W / 2, 0).scale;
+    const near = tiltProject(t, W / 2, H).scale;
+    assert.ok(far / near > 0.7 && far / near < 0.8, `far/near ${far / near}`);
+    assert.ok(tiltProject(t, W / 2, H / 2).scale > 0.84, "the middle not shrunk much");
+    // scaleY is how much a short step up the ground shortens on the screen (the room kept above a speaking badge).
+    for (const y of [0, 300, 540, 900, H]) {
+      const p0 = tiltProject(t, 700, y);
+      const p1 = tiltProject(t, 700, y + 1e-3);
+      assert.ok(Math.abs((p1.y - p0.y) / 1e-3 - p0.scaleY) < 1e-4, `row ${y}: ${p0.scaleY}`);
+    }
+    // The ground drawn (cover) is everything the frame sees, in front of the horizon; what is surely seen (inside)
+    // lands in the frame and holds the framed picture.
+    const { cover, inside } = tiltSeen(t, { x0: 0, y0: 0, x1: W, y1: H });
+    for (const [X, Y] of [[0, 0], [W, 0], [0, H], [W, H], [W / 2, 0]] as const) {
+      const p = tiltUnproject(t, X, Y);
+      assert.ok(p.x >= cover.x0 - 1e-6 && p.x <= cover.x1 + 1e-6 && p.y >= cover.y0 - 1e-6 && p.y <= cover.y1 + 1e-6, "cover holds what the frame sees");
+    }
+    assert.ok(1 - (t.s * Math.sin(Math.PI / 6) * (cover.y0 - H / 2)) / t.P > 0 && tiltProject(t, W / 2, cover.y0).y > -1, "the far ground is in front of the eye");
+    for (const [x, y] of [[inside.x0, inside.y0], [inside.x1, inside.y0], [inside.x0, inside.y1], [inside.x1, inside.y1]] as const) {
+      const p = tiltProject(t, x, y);
+      assert.ok(p.x >= -1e-6 && p.x <= W + 1e-6 && p.y >= -1e-6 && p.y <= H + 1e-6, "inside lands in the frame");
+    }
+    assert.ok(inside.x0 <= 1e-6 && inside.x1 >= W - 1e-6 && inside.y0 <= 0 && inside.y1 >= H - 1e-6, "the framed picture is surely seen");
+    // No tilt: the flat picture unchanged; a steep request is held to the limit.
+    const flat = tiltFor(0, W, H);
+    const p = tiltProject(flat, 321, 654);
+    assert.ok(Math.abs(p.x - 321) < 1e-9 && Math.abs(p.y - 654) < 1e-9 && flat.s === 1);
+    assert.equal(tiltFor(70, W, H).deg, MAX_TILT_DEG);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

@@ -870,7 +870,7 @@ function pointsAlong(line: readonly XY[], gap: number): XY[] {
  * and fields scattered over the rest of the land so the place reads like a painted battle map (hills come from the
  * real elevation under it). Deterministic: the same map is laid out the same way.
  */
-export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean, lineStart: (index: number | undefined, order: number) => number, year?: number): NonNullable<V3GeoMap["close"]> {
+export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean, lineStart: (index: number | undefined, order: number) => number, year?: number, flat?: MapView): NonNullable<V3GeoMap["close"]> {
   const kmPerPx = (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width;
   const km = (n: number) => n / kmPerPx;
   // A house is ~120 m across, but never smaller than 9 px on the closest view.
@@ -946,18 +946,30 @@ export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [numbe
     !named.some((g) => Math.hypot(p.x - g.x, p.y - g.y) < g.size / 2 + margin);
   const cell = unit * 9;
   const scattered: NonNullable<V3GeoMap["close"]>["ground"][number][] = [];
-  let k = 0;
-  for (let y = cell / 2; y < v.height; y += cell)
-    for (let x = cell / 2; x < v.width; x += cell) {
-      const seed = k++;
-      const roll = hash01(seed * 5 + 1);
-      const kind = roll < 0.3 ? "orman" : roll < 0.52 ? "tarla" : undefined;
-      if (!kind) continue;
-      const p = { x: x + (hash01(seed) - 0.5) * cell * 0.7, y: y + (hash01(seed + 3) - 0.5) * cell * 0.7 };
-      const size = unit * (kind === "orman" ? 3 + hash01(seed + 11) * 3 : 3.5 + hash01(seed + 11) * 2.5);
-      if (!free(p, size * 0.6 + unit) || !onLand(lonLatOf(p))) continue;
-      scattered.push({ kind, x: r1(p.x), y: r1(p.y), size: r1(size), seed });
-    }
+  const scatter = (x: number, y: number, seed: number) => {
+    const roll = hash01(seed * 5 + 1);
+    const kind = roll < 0.3 ? "orman" : roll < 0.52 ? "tarla" : undefined;
+    if (!kind) return;
+    const p = { x: x + (hash01(seed) - 0.5) * cell * 0.7, y: y + (hash01(seed + 3) - 0.5) * cell * 0.7 };
+    const size = unit * (kind === "orman" ? 3 + hash01(seed + 11) * 3 : 3.5 + hash01(seed + 11) * 2.5);
+    if (!free(p, size * 0.6 + unit) || !onLand(lonLatOf(p))) return;
+    scattered.push({ kind, x: r1(p.x), y: r1(p.y), size: r1(size), seed });
+  };
+  if (!flat) {
+    let k = 0;
+    for (let y = cell / 2; y < v.height; y += cell) for (let x = cell / 2; x < v.width; x += cell) scatter(x, y, k++);
+  } else {
+    // A tilted close map's world reaches past the flat one (mapWorld): the flat world's grid and seeds are kept, so its
+    // woods and fields stand where they stood on the flat map, and the grid goes on round it with seeds of its own.
+    const o = toPx([flat.lon0 - flat.spanLon / 2, flat.lat0 + flat.spanLat / 2]);
+    let cols = 0;
+    let rows = 0;
+    for (let x = cell / 2; x < flat.width; x += cell) cols++;
+    for (let y = cell / 2; y < flat.height; y += cell) rows++;
+    for (let r = Math.floor((-o.y - cell / 2) / cell); o.y + cell / 2 + r * cell < v.height; r++)
+      for (let c = Math.floor((-o.x - cell / 2) / cell); o.x + cell / 2 + c * cell < v.width; c++)
+        scatter(o.x + cell / 2 + c * cell, o.y + cell / 2 + r * cell, r >= 0 && r < rows && c >= 0 && c < cols ? r * cols + c : 100_000 + (r + 500) * 1000 + (c + 500));
+  }
   return {
     unit,
     ...(wallUnit !== unit ? { wallUnit } : {}),
@@ -1495,24 +1507,45 @@ export interface MapWorld {
   readonly keys: readonly { readonly satir?: number; readonly view: MapView }[];
 }
 
+/** The close map's tilted camera trial: degrees from straight down (owner, 12 Nov 2026, "Kings and Generals"-like). */
+export const CLOSE_MAP_TILT_DEG = 30;
+/**
+ * How much wider and taller than each camera view the tilted close map's world is: the tilted camera sees ground beyond
+ * the framed view (most at the far side's corners, ~1.43× the view's half height above its middle at 30°); the smoke
+ * checks this against the renderer's geometry (remotion-v3 scene/tilt.ts).
+ */
+export const TILT_WORLD_SPAN = 1.5;
+
+/**
+ * The close battle map's camera tilt (degrees), or none: a trial switched on only by `ATOLYE_V3_EGIK_HARITA=1` when the
+ * plan is made (the renderer runs in Chrome and reads no settings), and only on a close map (genislik_km ≤ 120).
+ * Every map-world consumer (the ground's relief and coast, the castle lookup, the plan) asks this, so they agree.
+ */
+export function closeMapTilt(map: SceneMap, env: Readonly<Record<string, string | undefined>> = process.env): number | undefined {
+  return env.ATOLYE_V3_EGIK_HARITA?.trim() === "1" && map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? CLOSE_MAP_TILT_DEG : undefined;
+}
+
 /**
  * The map a scene draws: its own view, or — with `kamera` keys — a world spanning every view (and a margin), at the
- * scale of the closest one, so the camera can move from region to region over one map.
+ * scale of the closest one, so the camera can move from region to region over one map. A tilted close map
+ * (closeMapTilt) always gets such a world, each view widened by TILT_WORLD_SPAN: its far side shows ground beyond the view.
  */
-export function mapWorld(map: SceneMap, width: number, height: number): MapWorld {
+export function mapWorld(map: SceneMap, width: number, height: number, tilted = closeMapTilt(map) !== undefined): MapWorld {
   // Camera stops are taken on the side of the 180th meridian nearest the first one: Japan (139° E) to Hawaii (158° W)
   // crosses the Pacific (Hawaii at 202°), not the whole world the other way.
   const lon0 = map.merkez![0];
   const near = (c: readonly [number, number]): [number, number] => [c[0] + 360 * Math.round((lon0 - c[0]) / 360), c[1]];
   const keys = [{ view: mapView(map.merkez!, map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), k.genislik_km, width, height) }))];
-  if (keys.length === 1) {
+  const span = tilted ? TILT_WORLD_SPAN : undefined;
+  if (keys.length === 1 && !span) {
     const v = keys[0]!.view;
     return { view: v, bounds: { west: v.lon0 - v.spanLon / 2, east: v.lon0 + v.spanLon / 2, south: v.lat0 - v.spanLat / 2, north: v.lat0 + v.spanLat / 2 }, keys };
   }
-  const west0 = Math.min(...keys.map((k) => k.view.lon0 - k.view.spanLon / 2));
-  const east0 = Math.max(...keys.map((k) => k.view.lon0 + k.view.spanLon / 2));
-  const south0 = Math.min(...keys.map((k) => k.view.lat0 - k.view.spanLat / 2));
-  const north0 = Math.max(...keys.map((k) => k.view.lat0 + k.view.spanLat / 2));
+  const f = span ?? 1;
+  const west0 = Math.min(...keys.map((k) => k.view.lon0 - (k.view.spanLon * f) / 2));
+  const east0 = Math.max(...keys.map((k) => k.view.lon0 + (k.view.spanLon * f) / 2));
+  const south0 = Math.min(...keys.map((k) => k.view.lat0 - (k.view.spanLat * f) / 2));
+  const north0 = Math.max(...keys.map((k) => k.view.lat0 + (k.view.spanLat * f) / 2));
   const mx = (east0 - west0) * 0.05;
   const my = (north0 - south0) * 0.05;
   // Longitudes are not cut at ±180: a Pacific world runs past it (the relief and every shape wrap round, see shiftFor).
@@ -1537,7 +1570,9 @@ function projectGeoMap(
 ): V3GeoMap {
   const world = mapWorld(map, width, height);
   const v = world.view;
-  const moving = world.keys.length > 1;
+  // A tilted close map is drawn on a world wider than its view (mapWorld), so its camera holds the view.
+  const tilt = closeMapTilt(map);
+  const moving = world.keys.length > 1 || tilt !== undefined;
   // The widest view's scale against the world: name sizes are for the screen, and a name that fits its state there
   // fits it in every closer view too (MapView keeps names at one screen size, so zooming out makes them relatively larger).
   const zoom0 = moving ? Math.min(...world.keys.map((k) => (width / k.view.spanLon) * (v.spanLon / v.width))) : 1;
@@ -1705,7 +1740,7 @@ function projectGeoMap(
     const land = at && w.lossStart !== undefined && SHIPS.has(w.kind) ? written.filter((o) => o !== w && o.target && o.fireStart !== undefined && Math.hypot(o.target.x - at.x, o.target.y - at.y) <= 40).map((o) => o.fireStart! + Math.round(FIRE_LANDS_S * (opts.fps ?? 30))) : [];
     return land.length && Math.min(...land) > w.lossStart! ? { ...w, lossStart: Math.min(...land) } : w;
   });
-  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart, opts.year) : undefined;
+  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart, opts.year, tilt !== undefined ? mapWorld(map, width, height, false).view : undefined) : undefined;
   // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
   const fightLines = [...new Set((map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => (y.kayip ?? 0) > 0).map((y) => y.satir)))];
   const fights = fightLines.map((l, i) => ({ start: lineStart(l, i), durationS: Math.round((UNIT_LOSS_FIRST_S + (Math.max(...(map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => y.satir === l).map((y) => Math.min(u.sayi, y.kayip ?? 0)))) - 1) * UNIT_LOSS_GAP_S + 1.2) * 10) / 10 }));
@@ -1952,6 +1987,7 @@ function projectGeoMap(
     ...(opts.era ? { era: opts.era } : {}),
     // The map's time of day (a night raid is drawn dark, with searchlights and flares).
     ...(map.zaman ? { zaman: map.zaman } : {}),
+    ...(tilt !== undefined ? { tilt } : {}),
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),

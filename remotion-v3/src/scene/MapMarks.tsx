@@ -4,6 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
 import { BAR_W, barTop, plateWidth } from "./hudLayout";
+import type { Up } from "./tilt";
 
 /**
  * Marks over the living map (owner, 23 Oct 2026, after DFT Tarih's Belgrade 1521): white flags of surrender, flames over
@@ -87,8 +88,11 @@ function WhiteFlag({ x, y, start, frame, fps, k, label }: { x: number; y: number
 /** How long a glow takes to come and go (seconds). */
 const GLOW_FADE_S = 0.5;
 
-/** Flags, flames and glows of a map, in world pixels (drawn over the territories, under the tokens and badges). */
-export function MapMarks({ map, frame, fps, k, label }: { map: V3GeoMap; frame: number; fps: number; k: number; label: (text: string, size: number) => React.ReactNode }) {
+/**
+ * Flags, flames and glows of a map, in world pixels (drawn over the territories, under the tokens and badges).
+ * `up`: a tilted map's layer (MapView) — a white flag stands upright over the tilted ground; absent, drawn as it is.
+ */
+export function MapMarks({ map, frame, fps, k, label, up }: { map: V3GeoMap; frame: number; fps: number; k: number; label: (text: string, size: number) => React.ReactNode; up?: Up }) {
   const fade = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * GLOW_FADE_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end - Math.round(fps * GLOW_FADE_S), end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -126,7 +130,11 @@ export function MapMarks({ map, frame, fps, k, label }: { map: V3GeoMap; frame: 
         );
       })}
       {(map.fires ?? []).map((f, i) => (frame < f.start ? null : <Fire key={`fi${i}`} x={f.x} y={f.y} size={f.size} alpha={fade(f.start, f.end)} frame={frame} k={k} seed={i * 13 + 5} />))}
-      {(map.flags ?? []).map((f, i) => (frame < f.start ? null : <WhiteFlag key={`fl${i}`} x={f.x} y={f.y} start={f.start} frame={frame} fps={fps} k={k} {...(f.label ? { label: label(f.label, 26) } : {})} />))}
+      {(map.flags ?? []).map((f, i) => {
+        if (frame < f.start) return null;
+        const flag = <WhiteFlag key={`fl${i}`} x={f.x} y={f.y} start={f.start} frame={frame} fps={fps} k={k} {...(f.label ? { label: label(f.label, 26) } : {})} />;
+        return up ? up(f.x, f.y, flag) : flag;
+      })}
     </g>
   );
 }

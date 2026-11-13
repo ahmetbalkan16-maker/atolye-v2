@@ -1,3 +1,24 @@
+## 13 Kasım 2026 — harita gerçekçiliği C+D, fotoğraf kayması, ses tıkırtısı, beyinlere öğretim (feature dalı, canlı DEĞİL)
+
+Owner 12 Kas akşamı: işi Opus 5.5 ajanlarına dağıt; "fotoğraflarda hala kayma var", "arkada cızıltı"; "yapılanları beyinlere
+öğret, başka haritalarda yapabilsinler". Ajanlar ayrık dosyalarda çalıştı; her işi commit'ten önce kare + smoke ile kontrol ettim.
+- 30b030a6 fotoğraf kayması: derinlik paralaksı ön planı ±72 px esnetiyordu (Guadalcanal direk gölgesi) → varsayılan KAPALI
+  (`DepthMaps.depthMoveOn`, `ATOLYE_V3_DERINLIK=1` deneme).
+- a5971e64 zemin (terrain_close.py: boyalı doku, yere göre rölyef 1,5–10×, eş yükselti; CLOSE_RELIEF_VERSION 2);
+  2955f104 doğa (mapNature.ts: orman kütleleri, tarlalar, kıyılı nehir, bulut gölgesi; smoke-v3-motion S).
+- 8c463656 ses tıkırtısı: kök Tts.postProcessFilter'daki FFmpeg silenceremove start_silence (bir örneği sıfırlar) + sessizliğe
+  sert kenarlar; Guadalcanal 17, Taranto 20, Çanakkale 24 tık → miksde declickClip ile 0; teslim öncesi `tik.sonra` kusur.
+  Filtre kaynağı bilerek değişmedi (TTS önbellek anahtarı) — owner kararı. a3604156 ortam istemi çağına göre (1942 çelik
+  gemide yelken/cırcır/baykuş/meşale yok).
+- 0149e60f beyinler: yazar istemine yakın savaş veri kuralı (tür, etiket'te asker sayısı, arazi, kayıptan sonra satır),
+  v3-gelistirici SKILL.md "yakın savaş haritası" bölümü, DevSkills eşleşmesi, kalite beynine 5 kare (3 kusur, 2 temiz),
+  `gelisim ogren` ile toplam 22 ders hafızaya.
+- D eğik kamera (bu commit): `V3GeoMap.tilt` yalnız `ATOLYE_V3_EGIK_HARITA=1` ile, 30°, `remotion-v3/src/scene/tilt.ts`;
+  kapalıyken 9 kare md5 aynı (bağımsız tekrar: Cannae 300 aynı). Kareler `private/temp/egik-final-*` / `egik-before-*`.
+  Sınırlar: ordular ~%13 küçük görünür, Cannae'de "Battle of Cannae" adı + kılıçlar Maharbal rozetine biniyor, 1453 açılışında
+  uzak bantta düz kenarlı su, harita karelerinde render +%45. Owner kararı bekliyor (aç / açı / kırpma).
+- Sıradaki: canlıya toplu alma (owner isteğiyle), gerçek bir kara savaşı siparişiyle yazarın yeni kuralları ve çizimin denenmesi.
+
 ## 12 Kasım 2026 (8) — yakın savaş haritası: kalabalık ordular, kendi yönüne dönen bloklar, ok yağmuru, yerde kalan ölüler, sahne sonuna taşan kayıplar (feature dalı, canlı DEĞİL)
 
 Owner: "videoları daha kaliteli … yakın çekim haritalandırmada askerlerin hareketleri, taktikler, harita ortamı daha

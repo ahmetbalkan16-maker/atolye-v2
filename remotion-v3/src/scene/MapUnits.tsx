@@ -7,6 +7,7 @@ import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
 import { type Box, labelSpot } from "./hudLayout";
 import { crowdFigures, crowdGrid, facingDir, type Foe, marching, menOf, thinShare, type UnitKind } from "./unitCrowd";
+import type { Up } from "./tilt";
 
 /**
  * Unit tokens and battle effects on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map
@@ -971,10 +972,11 @@ function DustTrail({ x, y, dx, dy, r, amount, horse, frame, seed }: { x: number;
 
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
 /**
+ * `up`: a tilted map's layer (MapView) — the labels stand upright over the tilted ground; absent, drawn as they are.
  * `view`: the world rectangle the camera shows at this frame (MapView); a label stays inside it. `avoid`: the badges and
  * screen marks in world px (MapView), which no label is printed over (labelSpot).
  */
-export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: Box; avoid?: readonly Box[] }) {
+export function UnitTokens({ map, frame, fps, k, view, avoid, up }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: Box; avoid?: readonly Box[]; up?: Up }) {
   const units = map.units ?? [];
   if (!units.length) return null;
   const r = TOKEN_R * k;
@@ -1023,6 +1025,7 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
   const centres = standing.map(middle);
   const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s)));
   const s = r / TOKEN_R;
+  const U = (x: number, y: number, node: React.ReactNode) => (up ? up(x, y, node) : node);
   // The labels of this frame settle in turn — the unit the narrator names first, then each side's strength — each kept
   // inside the frame and off the badges, the screen marks and the labels settled before it (labelSpot).
   const taken: Box[] = [...(avoid ?? [])];
@@ -1188,23 +1191,23 @@ export function UnitTokens({ map, frame, fps, k, view, avoid }: { map: V3GeoMap;
       {/* Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men"). */}
       {strengths.map((l, ui) =>
         l ? (
-          <g key={`lb${ui}`} {...yer("etiket", l.label)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+          U(l.x, l.y, <g key={`lb${ui}`} {...yer("etiket", l.label)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
             <rect x={-l.w / 2} y={-17 * s} width={l.w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={l.color} strokeWidth={3.5 * s} />
             <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
               {l.label}
             </text>
-          </g>
+          </g>)
         ) : null,
       )}
       {/* A unit's own name at it while the narrator speaks of it or it moves. */}
       {callouts.map((l, ui) =>
         l ? (
-          <g key={`ad${ui}`} {...yer("etiket", l.name)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
+          U(l.x, l.y, <g key={`ad${ui}`} {...yer("etiket", l.name)} transform={`translate(${l.x} ${l.y})`} opacity={l.a}>
             <rect x={-l.w / 2} y={-14 * s} width={l.w} height={28 * s} rx={14 * s} fill={l.color} stroke="#ffffff" strokeWidth={2.5 * s} />
             <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
               {l.name}
             </text>
-          </g>
+          </g>)
         ) : null,
       )}
     </g>

@@ -3,6 +3,7 @@ import { interpolate } from "remotion";
 import type { V3GeoMap, V3LabelSpot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Burst } from "./MapUnits";
 import { cloudShadowsAt, FIELD_TONES, fieldLayout, WOOD_TONES, woodLayout } from "./mapNature";
+import type { Up } from "./tilt";
 
 /**
  * The close battle map's ground (owner, 22 Oct 2026, after DFT Tarih's Osman Bey documentary: "the ground there, the
@@ -304,6 +305,7 @@ export function CloseGround({
   nameShown,
   gid,
   clouds,
+  up,
 }: {
   close: Close;
   frame: number;
@@ -317,6 +319,8 @@ export function CloseGround({
   gid?: string;
   /** The world's size, over which cloud shadows drift; none without it (and none on a night map). */
   clouds?: { width: number; height: number };
+  /** A tilted map's layer (MapView): the place names stand upright over the tilted ground; absent, drawn as they are. */
+  up?: Up;
 }) {
   const u = close.unit;
   const gradId = gid ?? "close";
@@ -331,6 +335,8 @@ export function CloseGround({
   };
   // Names go last, over the ground's shapes and the cloud shadows (a shadow must never dim a name).
   const names: React.ReactNode[] = [];
+  // A place's name upright at its spot on a tilted map (a road's name stays painted along its road).
+  const U = (spot: Spot, x: number, y: number, node: React.ReactNode) => (up ? up(xy(spot, x, y).x, xy(spot, x, y).y, node) : node);
   (close.roadNames ?? []).forEach((rn, i) => {
     const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
     if (!p) return;
@@ -371,7 +377,7 @@ export function CloseGround({
       {close.settlements.map((s, si) => {
         const a = interpolate(frame, [s.start, s.start + Math.round(fps * 0.8)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
-        if (s.label) names.push(<g key={`sn${si}`} transform={at(s.labelSpot, s.x, s.y)} opacity={a * shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g>);
+        if (s.label) names.push(U(s.labelSpot, s.x, s.y, <g key={`sn${si}`} transform={at(s.labelSpot, s.x, s.y)} opacity={a * shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g>));
         return (
           <g key={`s${si}`} opacity={a}>
             {s.items.map((it) => (s.kind === "ordugah" ? <Tent key={it.seed} {...it} u={u} /> : <House key={it.seed} {...it} u={u} />))}
@@ -390,9 +396,14 @@ export function CloseGround({
         if (w.label) {
           const near = wallLabelAt(w, close.settlements, u);
           names.push(
-            <g key={`wn${wi}`} transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${near.x} ${near.y})`} opacity={shown(w.label, 26, w.labelSpot, near.x, near.y)}>
-              {label(w.label, 26)}
-            </g>,
+            U(
+              w.labelSpot,
+              near.x,
+              near.y,
+              <g key={`wn${wi}`} transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${near.x} ${near.y})`} opacity={shown(w.label, 26, w.labelSpot, near.x, near.y)}>
+                {label(w.label, 26)}
+              </g>,
+            ),
           );
         }
         return (
@@ -439,7 +450,7 @@ export function CloseGround({
       {close.buildings.map((b, i) => {
         const a = interpolate(frame, [b.start, b.start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
-        if (b.label) names.push(<g key={`bn${i}`} transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={a * shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g>);
+        if (b.label) names.push(U(b.labelSpot, b.x, b.y + u * 1.1, <g key={`bn${i}`} transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={a * shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g>));
         return (
           <g key={`b${i}`} opacity={a}>
             <ellipse cx={b.x + u * 0.3} cy={b.y + u * 0.15} rx={u * 2} ry={u * 0.45} fill="#1c140c" opacity={0.3} />

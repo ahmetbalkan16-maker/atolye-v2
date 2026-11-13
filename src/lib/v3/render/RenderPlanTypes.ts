@@ -474,6 +474,13 @@ export interface V3GeoMap {
     readonly losses?: readonly number[];
   }[];
   /**
+   * A trial (owner, 12 Nov 2026, "Kings and Generals"-like): the close battle map's ground and armies seen from a camera
+   * tilted this many degrees from straight down, the far side smaller; names, badges and flags stay upright at their
+   * places (remotion-v3 scene/tilt.ts). Only on a close map, only when `ATOLYE_V3_EGIK_HARITA=1` at plan time
+   * (MapBuilder.closeMapTilt); absent, the map is drawn flat exactly as before.
+   */
+  readonly tilt?: number;
+  /**
    * The close battle map (genislik_km ≤ 120): the ground is the place's real elevation (`relief`) on its own coast, and
    * on it the story's walls (towers every few hundred metres, gates, a breach from a frame), roads, settlements (houses
    * or tents, burning from a frame), single buildings and the ground's woods, fields and hills. World pixels; `unit` is

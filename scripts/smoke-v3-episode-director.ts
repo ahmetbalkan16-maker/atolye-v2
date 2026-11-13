@@ -25,6 +25,8 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
+import { CLOSE_MAP_TILT_DEG, closeMapTilt } from "../src/lib/v3/maps/MapBuilder";
+import { tiltFor, tiltSeen } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
@@ -2861,6 +2863,54 @@ async function main() {
     assert.equal(wrappedLines("WHY IS THAT DESTROYER DANGEROUSLY CLOSE?!", 549, charW), 4, "the letter count guessed 3");
     assert.equal(wrappedLines("Well, there goes my ride home.", 2000, 26), 1);
     assert.equal(wrappedLines("Supercalifragilistic", 100, 26), 1, "a word wider than the line keeps its own line");
+  });
+
+  await scenario("the tilted close map is a trial only ATOLYE_V3_EGIK_HARITA=1 switches on (owner, 12 Nov 2026): off, the map and its world are as before; on, a close map gets its tilt and a world its tilted camera never sees past; a wide map never", () => {
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
+    const close: SceneMap = {
+      merkez: [28.95, 41.02],
+      genislik_km: 20,
+      birlikler: [{ taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.91, 41.04], [28.91, 41.0]] }] }],
+    };
+    const wide: SceneMap = { merkez: [28.95, 41.02], genislik_km: 600 };
+    const saved = process.env.ATOLYE_V3_EGIK_HARITA;
+    delete process.env.ATOLYE_V3_EGIK_HARITA;
+    try {
+      const offGeo = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
+      const offWorld = mapWorld(close, 1920, 1080);
+      const offWide = buildGeoMap(wide, data, 1920, 1080, () => 0);
+      assert.equal(closeMapTilt(close), undefined, "off unless switched on");
+      assert.equal(offGeo.tilt, undefined);
+      assert.equal(offGeo.world, undefined, "a one-view close map keeps the frame as its world");
+      assert.equal(closeMapTilt(close, { ATOLYE_V3_EGIK_HARITA: "1" }), CLOSE_MAP_TILT_DEG);
+      assert.equal(closeMapTilt(close, { ATOLYE_V3_EGIK_HARITA: "0" }), undefined);
+      assert.equal(closeMapTilt(wide, { ATOLYE_V3_EGIK_HARITA: "1" }), undefined, "only a close map");
+      process.env.ATOLYE_V3_EGIK_HARITA = "1";
+      const on = buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" });
+      assert.equal(on.tilt, CLOSE_MAP_TILT_DEG);
+      assert.ok(on.world && on.camera?.length === 1 && on.camera[0]!.zoom === 1, JSON.stringify({ world: on.world, camera: on.camera }));
+      // Everything the renderer's tilted camera shows (tiltSeen's cover of the frame) lies on the world's ground.
+      const cam = on.camera![0]!;
+      const c = tiltSeen(tiltFor(on.tilt!, 1920, 1080), { x0: 0, y0: 0, x1: 1920, y1: 1080 }).cover;
+      assert.ok(cam.x + c.x0 - 960 >= 0 && cam.x + c.x1 - 960 <= on.world!.width, `x ${cam.x + c.x0 - 960}..${cam.x + c.x1 - 960} of ${on.world!.width}`);
+      assert.ok(cam.y + c.y0 - 540 >= 0 && cam.y + c.y1 - 540 <= on.world!.height, `y ${cam.y + c.y0 - 540}..${cam.y + c.y1 - 540} of ${on.world!.height}`);
+      // The units stand where they stood against the view (the world only grew round it).
+      const offU = offGeo.units![0]!.steps[0]!.points[0]!;
+      const onU = on.units![0]!.steps[0]!.points[0]!;
+      assert.ok(Math.abs(onU.x - cam.x - (offU.x - 960)) < 1.5 && Math.abs(onU.y - cam.y - (offU.y - 540)) < 1.5, JSON.stringify({ offU, onU, cam }));
+      // The flat map's woods and fields stand where they stood (the same seeds), more of them round it.
+      const offGround = offGeo.close!.ground;
+      assert.ok(offGround.length > 5 && on.close!.ground.length > offGround.length, `${offGround.length} → ${on.close!.ground.length}`);
+      for (const g of offGround) assert.ok(on.close!.ground.some((h) => h.seed === g.seed && h.kind === g.kind && Math.abs(h.x - cam.x - (g.x - 960)) < 1.5 && Math.abs(h.y - cam.y - (g.y - 540)) < 1.5), `ground ${g.seed} kept`);
+      assert.deepEqual(buildGeoMap(wide, data, 1920, 1080, () => 0), offWide, "a wide map is untouched");
+      delete process.env.ATOLYE_V3_EGIK_HARITA;
+      assert.deepEqual(mapWorld(close, 1920, 1080), offWorld, "switched off again: the same world");
+      assert.deepEqual(buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" }), offGeo, "switched off again: the same map");
+    } finally {
+      if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
+      else process.env.ATOLYE_V3_EGIK_HARITA = saved;
+    }
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
