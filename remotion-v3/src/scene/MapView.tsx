@@ -10,7 +10,7 @@ import { CAMERA_MOVE_S, cameraAt } from "./mapCamera";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
-import { badgeEdgeFits, badgeExtent, hudBoxes, labelSpot } from "./hudLayout";
+import { badgeEdgeFits, badgeExtent, type HudCards, hudBoxes, labelSpot } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { MapNight } from "./MapNight";
 import { isNightMap } from "./mapEffects";
@@ -226,7 +226,7 @@ export { cameraAt };
  * `seen`: the part of this picture (screen px) that ends up in the frame (ShotView's push and set camera; a Short's
  * window); `screen`: that frame's size, when it is not this picture's (a Short).
  */
-type MapViewProps = { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number }; screen?: { width: number; height: number } };
+type MapViewProps = { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number }; screen?: { width: number; height: number }; cards?: HudCards };
 
 /**
  * One of a tilted map's two layers (owner's trial, 12 Nov 2026): the ground — the terrain, the states, the woods, the
@@ -260,7 +260,7 @@ export function MapView(props: MapViewProps) {
   );
 }
 
-function MapPicture({ map, width: W, height: H, cast, accessories, duration, seen, screen, tilt }: MapViewProps & { tilt?: TiltPass }) {
+function MapPicture({ map, width: W, height: H, cast, accessories, duration, seen, screen, cards, tilt }: MapViewProps & { tilt?: TiltPass }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -359,7 +359,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
   // is 1080×1920), which shows the `seen` part of this picture.
   const out = screen ?? { width: W, height: H };
   const view = { x0: seen?.x0 ?? 0, y0: seen?.y0 ?? 0, x1: seen?.x1 ?? W, y1: seen?.y1 ?? H };
-  const overlays = hudBoxes(map, frame, out.width, out.height).map((b) => {
+  const overlays = hudBoxes(map, frame, out.width, out.height, cards).map((b) => {
     const box = {
       x0: view.x0 + (b.x0 / out.width) * (view.x1 - view.x0),
       x1: view.x0 + (b.x1 / out.width) * (view.x1 - view.x0),

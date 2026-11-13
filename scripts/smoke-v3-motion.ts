@@ -15,7 +15,7 @@ import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_ME
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
 import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
-import type { V3CameraKey, V3DrawnSet, V3GeoMap, V3Performer, V3Shot, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
+import { type V3CameraKey, type V3DrawnSet, type V3GeoMap, type V3Performer, type V3Shot, type V3Viseme, wallIsRing } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
 // type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
@@ -467,6 +467,10 @@ async function main() {
     assert.equal(menOf("86.000 asker"), 86000);
     assert.equal(menOf("Eight legions"), undefined);
     assert.equal(menOf(undefined), undefined);
+    // A year is no army (the Baghdad labels: "Janissaries 1638" read as 1,638 men, claimed as written on the legend);
+    // a year-sized number of men is ("1500 men", "1200-strong").
+    assert.deepEqual([menOf("Janissaries 1638"), menOf("25 December 1638"), menOf("Garrison, 1638 · 20,000 men"), menOf("1500 men"), menOf("1200-strong garrison"), menOf("1638 asker"), menOf("1,638 men")], [undefined, undefined, 20000, 1500, 1200, 1638, 1638]);
+    assert.equal(armyDots([{ side: "Ottomans", kind: "piyade", label: "Janissaries 1638", steps: [{ points: [{ x: 0, y: 0 }] }] }]).written[0], false, "an unnumbered unit claims no written number");
     const dense = crowdGrid("kilicli", 10_000);
     const sparse = crowdGrid("kilicli", 120);
     assert.ok(dense.cols * dense.rows > sparse.cols * sparse.rows, "few men, a thinner block");
@@ -900,7 +904,16 @@ async function main() {
       fights: [{ start: 120, durationS: 4 }],
     } as unknown as V3GeoMap;
     assert.deepEqual(garrisonSteps(siege.units!, siege.close!.walls), [[0, 0], [-1, -1], [-1]]);
-    assert.deepEqual(garrisonSteps(siege.units!, [{ points: ring.slice(0, 4) }]), [[-1, -1], [-1, -1], [-1]], "an open wall is no ring");
+    // The rings the script's siege order sets the besiegers outside of (RenderPlanTypes.wallIsRing; Tactics.siegeOrder took
+    // any three points, this asked for first = last within 1 px, and the garrison spilled over the walls): a writer's
+    // outline that does not repeat its first corner and an OpenStreetMap wall with a gap hold a garrison; a land wall
+    // from shore to shore and an L of two walls do not.
+    assert.deepEqual(garrisonSteps(siege.units!, [{ points: ring.slice(0, 4) }]), [[0, 0], [-1, -1], [-1]], "an outline its writer did not close is a ring");
+    assert.deepEqual(garrisonSteps(siege.units!, [{ points: [{ x: 800, y: 500 }, { x: 1100, y: 500 }, { x: 1100, y: 800 }, { x: 830, y: 800 }] }]), [[0, 0], [-1, -1], [-1]], "a wall with a gap is a ring");
+    assert.deepEqual(garrisonSteps(siege.units!, [{ points: [{ x: 700, y: 520 }, { x: 950, y: 480 }, { x: 1200, y: 520 }] }]), [[-1, -1], [-1, -1], [-1]], "a land wall from shore to shore is no ring");
+    assert.ok(wallIsRing(ring) && wallIsRing(ring.slice(0, 4)) && !wallIsRing(ring.slice(0, 3)), "an L of two walls is no ring");
+    // The outline's open side is a wall too: a disc set down by it moves inside (its gap was no edge to ringDepth).
+    assert.ok(ringDepth(fitInRing({ x: 810, y: 650 }, 60, ring.slice(0, 4)), ring) >= 60 - 1e-6, "kept off the unclosed side");
     assert.deepEqual(garrisonSteps([{ side: "S", steps: [{ points: five(600) }, { points: five(300), rout: true }, { points: five(100) }] }], [{ points: ring }]), [[0, -1, -1]], "a rout and a sortie leave the walls");
     const fit = fitInRing({ x: 950, y: 470 }, 60, ring);
     assert.ok(ringDepth(fit, ring) >= 60 - 1e-6 && fit.R === 60, "a disc set down on the wall moves inside it");

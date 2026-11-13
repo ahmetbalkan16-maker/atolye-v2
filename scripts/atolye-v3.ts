@@ -62,7 +62,7 @@ import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePack
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { ensureEra, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
-import { beats, buildRenderPlan, HOOK_S, longestEmptyStretch, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -86,7 +86,7 @@ import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastC
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
 import { EXTRA_CAP_MAX_USD, fellBackChecks, V3Budget, type V3ModelChoice, type V3SpendEntry, videoCapUsd } from "../src/lib/v3/script/V3Budget";
-import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
+import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, fitTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, V3_OLLAMA_THERMAL, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
@@ -1085,7 +1085,11 @@ async function main() {
   } else synced = await readJson<LineSync[][]>(f("senkron.json"));
   const audio: LineAudio[][] = episode.sahneler.map((s, si) => s.satirlar.map((_, li) => ({ ...voiced[si]![li]!, ...synced[si]![li]! })));
   // The opening cover (episode title over the first picture) is 3.5 s of the timeline; --kapak-yok drops it.
-  const timeline = buildTimeline(episode, audio, { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") || shorts ? 0 : 3.5 });
+  // A Short ends by its ordered length: its pauses tighten when the voice ran past it (fitTimeline).
+  const timelineOpts = { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") || shorts ? 0 : 3.5 };
+  const shortCeilingS = Math.min(targetS, episode.hedef_sure_sn || targetS);
+  const timeline = shorts ? fitTimeline(episode, audio, timelineOpts, shortCeilingS - 0.5) : buildTimeline(episode, audio, timelineOpts);
+  if (shorts && timeline.duration < buildTimeline(episode, audio, timelineOpts).duration) log(`  Short süresi: duraklar sıkıştırıldı, ${timeline.duration.toFixed(1)} sn (üst sınır ${shortCeilingS} sn)`);
 
   // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
@@ -1357,7 +1361,10 @@ async function main() {
     const lengthRight = lengthOk(durationS, target);
     // A Short opens on a character's line or move within HOOK_S (owner, 2 Nov 2026); a long video's first words within 10 s.
     const opening = openingHook(plan);
-    const openingWho = opening ? (episode.oyuncu_kadrosu.find((c) => c.id === opening.castId)?.ad ?? opening.castId) : "";
+    // Shots under 1.5 s anywhere in the plan (owner, 13 Nov 2026, the Baghdad Short: a close-up seen for half a second):
+    // the director merges camera cuts and closes cutaway tails; what is left is reported.
+    const briefShots = shortShots(plan);
+    const openingWho =opening ? (episode.oyuncu_kadrosu.find((c) => c.id === opening.castId)?.ad ?? opening.castId) : "";
     // The open checks of the cut itself, for the retouch brain's choice between rounds (RetouchBrain.cutFaults): a row
     // passed `cut = false` restates the likeness or set shortfall, or is a standing note no retouch round changes.
     let openCutChecks = 0;
@@ -1388,6 +1395,7 @@ async function main() {
       row(avgGap >= 1.5 && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef 2–4)`),
       row(maxGap <= 6, `En uzun olaysız aralık ${maxGap.toFixed(1)} sn (hedef ≤ 6)`),
       row(emptyStretch <= 6, `Karaktersiz en uzun süre ${emptyStretch.toFixed(1)} sn (hedef ≤ 6; ekranda kimsenin olmadığı arşiv/tablo kareleri, kapak hariç)`),
+      row(!briefShots.length, `Kısa çekim (< ${OPENING_HOLD_S} sn): ${briefShots.length ? `${briefShots.length} — ${briefShots.slice(0, 4).map((x) => `${x.at.toFixed(1)}. sn ${x.lengthS.toFixed(2)} sn`).join(", ")}` : "yok"}`, false),
       row(!clashes.length, `Adlı karakterlerin kıyafeti: ${clashes.length ? `AYNI — ${clashes.join(", ")}` : `${visible.filter((c) => c.kostum).length} karakter, hepsi farklı`}`),
       row(visible.length >= 3 && new Set(visible.map((c) => voices[c.id])).size === visible.length, `${visible.length} görünür karakter, ${new Set(visible.map((c) => voices[c.id])).size} farklı ses`),
       row(dialogScenes >= 0.3, `Diyaloglu sahne oranı %${Math.round(dialogScenes * 100)} (hedef ≥ %30)`),
@@ -1436,6 +1444,7 @@ async function main() {
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
     if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(shortsMinS(target))})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
     if (shorts && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
+    for (const x of briefShots) council.find({ beyin: "kalite", onem: "uyari", baslik: `${OPENING_HOLD_S} sn'den kısa çekim`, ayrinti: `${x.shot}: ${x.what}, ${x.lengthS.toFixed(2)} sn`, oneri: "Director.noShortShots / closeInsertTail bu kesmeyi neden bırakmadı bak: kesme birleşmeli ya da ara görüntü sahne sonuna uzamalı", tur: "kod", yer: `${x.at.toFixed(1)}. sn` });
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin" || claim.sonuc === "dayanaksiz") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
@@ -1477,7 +1486,12 @@ async function main() {
     const ours: VideoMeasures | undefined = await (async () => {
       const lines = timeline.lines.map((l) => ({ start: l.start, end: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech, turn: false }));
       const turns = timeline.lines.filter((l, i) => i > 0 && l.speaker !== timeline.lines[i - 1]!.speaker).length;
-      return { sureSn: durationS, ...speechMeasures(lines, durationS, turns), ...cutMeasures(await detectCuts(paths.ffmpeg, f(final)), durationS) };
+      const finalCuts = await detectCuts(paths.ffmpeg, f(final));
+      // Two picture changes closer than OPENING_HOLD_S on the finished video (a transition's flash may count twice: told,
+      // not a fault; the plan's own check above is the measure).
+      const quick = finalCuts.slice(1).flatMap((t, i) => (t - finalCuts[i]! < OPENING_HOLD_S ? [`${finalCuts[i]!.toFixed(1)}–${t.toFixed(1)}`] : []));
+      if (quick.length) council.find({ beyin: "kalite", onem: "bilgi", baslik: `videoda ${OPENING_HOLD_S} sn içinde iki kesme`, ayrinti: `${quick.length} yer: ${quick.slice(0, 8).join(", ")}. sn`, oneri: "o anları kare kare izle: kısa çekim mi, geçiş mi", tur: "kod", yer: "final" });
+      return { sureSn: durationS, ...speechMeasures(lines, durationS, turns), ...cutMeasures(finalCuts, durationS) };
     })().catch((e: Error) => (log(`  tempo ölçülemedi: ${e.message.slice(0, 120)}`), undefined));
     if (ours) await writeJson(f("olcum.json"), ours);
     const paceTargets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(target), dil);

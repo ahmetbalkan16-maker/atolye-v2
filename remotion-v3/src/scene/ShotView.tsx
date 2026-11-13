@@ -218,7 +218,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
             {shot.geoMap ? (
               <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
-                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} seen={mapVisible} screen={{ width: OW, height: OH }} />
+                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} seen={mapVisible} screen={{ width: OW, height: OH }} cards={shot.titleCards} />
               </div>
             ) : drawn ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "hidden" }}>
@@ -392,7 +392,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
         <TitleStrip key={`st-${i}`} strip={s} language={language} />
       ))}
       {/* The strength bar and the date stamp stay fixed on the screen over the moving map. */}
-      {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={OW} H={OH} language={language} /> : null}
+      {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={OW} H={OH} language={language} cards={shot.titleCards} /> : null}
       {/* Info cards dim everything under them (DFT Tarih's charts, lists and counters over the map). */}
       {(shot.infoCards ?? []).map((c, i) => (
         <InfoCardView key={`ic-${i}`} card={c} cast={cast} accessories={accessories} language={language} />

@@ -1329,6 +1329,18 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.deepEqual(sMid(0, 1).map((v) => Math.round(v * 1e4) / 1e4), [44.42, 33.358], "the storm through the breach is the story's");
     assert.deepEqual(sMid(2).map((v) => Math.round(v * 1e4) / 1e4), [44.406, 33.37], "a unit already outside keeps its place");
     assert.deepEqual(siegeOrder({ merkez: [44.42, 33.35], genislik_km: 8, birlikler: siege.birlikler } as never), [], "no walls, no siege order");
+    // A land wall from shore to shore has no inside (RenderPlanTypes.wallIsRing, the renderer's garrison asks the same):
+    // any three points used to count as a ring here while the renderer packed no garrison in it.
+    const neck = {
+      merkez: [44.42, 33.35], genislik_km: 8,
+      surlar: [{ ad: "Land wall", noktalar: [[44.40, 33.352], [44.42, 33.356], [44.44, 33.352]] }],
+      birlikler: [
+        { ...OTT, ad: "Janissaries", tur: "piyade", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[44.415, 33.355], [44.425, 33.355]] }] },
+        { ...OTT, ad: "Guns", tur: "topcu", kanat: "on", sayi: 3, yerler: [{ satir: 0, cephe: [[44.416, 33.349], [44.424, 33.349]] }] },
+        { taraf: "Safavids", ad: "Garrison", tur: "piyade", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, kume: [44.42, 33.354] }] },
+      ],
+    };
+    assert.deepEqual(siegeOrder(neck as never), [], "an open land wall: no siege order (it read the Janissaries as its defenders)");
     const packed = mapProblems({ donem: "1526", oyuncu_kadrosu: [], sahneler: [{
       id: "s5", mekan: "Close map: Mohács",
       satirlar: [{ karakter: "anlatici", metin: "The Hungarians charge, the Ottomans hold, then surround them.", duygu: "notr" }, { karakter: "ibrahim", metin: "A plan!", duygu: "mutlu" }, { karakter: "suleiman", metin: "Classic.", duygu: "notr" }],
@@ -1603,6 +1615,16 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal(sideColours(twins.sahneler).length, 1);
     assert.notEqual(twins.sahneler[0]!.harita.birlikler[1]!.renk, "#c0392b");
     assert.equal(twins.sahneler[0]!.harita.birlikler[0]!.renk, "#c0392b", "the side introduced first keeps its colour");
+    // Two states (or two armies) on one map in the very same colour are two sides: one hex used to join them into one
+    // side, never told apart; a state and its army in its colour stay one side.
+    const states = { sahneler: [{ harita: { bolgeler: [{ ad: "Ottoman Empire", renk: "#3fae3a" }, { ad: "Safavid Empire", renk: "#3fae3a" }], ordular: [{ ad: "Army of Murad IV", renk: "#3fae3a" }] } }] };
+    const stateFixes = sideColours(states.sahneler);
+    assert.equal(stateFixes.length, 1, stateFixes.join(" | "));
+    assert.deepEqual([states.sahneler[0]!.harita.bolgeler[0]!.renk, states.sahneler[0]!.harita.ordular[0]!.renk], ["#3fae3a", "#3fae3a"], "the first state and the army in its colour keep it");
+    assert.ok(!tooClose(states.sahneler[0]!.harita.bolgeler[1]!.renk, "#3fae3a"), states.sahneler[0]!.harita.bolgeler[1]!.renk);
+    const armies = { sahneler: [{ harita: { ordular: [{ ad: "Army of Hannibal", renk: "#c0392b" }, { ad: "Army of Scipio", renk: "#c0392b" }] } }] };
+    assert.equal(sideColours(armies.sahneler).length, 1);
+    assert.notEqual(armies.sahneler[0]!.harita.ordular[1]!.renk, "#c0392b");
     // Wired into the draft normaliser.
     const n = normalizeDraft(draft(), []);
     const out = n.value as { sahneler: { harita: { bolgeler?: { renk: string }[] } }[] };

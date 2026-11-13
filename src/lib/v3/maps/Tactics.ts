@@ -1,4 +1,5 @@
 import { CLOSE_MAP_MAX_KM, UNIT_MOVES, UNIT_WINGS, type UnitMove, type UnitWing } from "../episode/EpisodeTypes";
+import { wallIsRing } from "../render/RenderPlanTypes";
 
 /**
  * A battle's order and its moves on the close map, from the writer's words to coordinates (owner, 26 Oct 2026, after
@@ -282,7 +283,9 @@ export function siegeOrder(map: Obj, where = "harita"): string[] {
   const centre = map.merkez;
   const width = map.genislik_km;
   const walls = Array.isArray(map.surlar) ? (map.surlar as unknown[]).filter(isObj) : [];
-  const wall = walls.find((w) => Array.isArray(w.noktalar) && (w.noktalar as unknown[]).filter(isPt).length >= 3);
+  // A wall round the town, as the renderer's garrison reads it (RenderPlanTypes.wallIsRing): a land wall across a neck of
+  // land has no inside to set the besiegers out of (any 3 points counted, while the renderer packed no garrison).
+  const wall = walls.find((w) => Array.isArray(w.noktalar) && wallIsRing((w.noktalar as unknown[]).filter(isPt).map((p) => ({ x: p[0] * Math.cos((p[1] * Math.PI) / 180), y: p[1] }))));
   if (!isPt(centre) || typeof width !== "number" || width > CLOSE_MAP_MAX_KM || !wall || !Array.isArray(map.birlikler)) return [];
   const kmLon = 111.32 * Math.max(0.2, Math.cos((centre[1] * Math.PI) / 180));
   const toKm = (p: P): P => [(p[0] - centre[0]) * kmLon, (p[1] - centre[1]) * 110.57];

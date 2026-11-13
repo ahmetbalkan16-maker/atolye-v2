@@ -660,7 +660,8 @@ const drift = (i: number): V3Insert["kenBurns"] => (i % 2 === 0 ? { fromZoom: 1.
 /**
  * A scene's cutaways with its further pictures (`gorseller`) added, each over its line (owner, 23 Oct 2026, after DFT
  * Tarih): from just after the line starts until just after it ends, at most `maxS`. Cutaways never overlap — an earlier
- * one gives way when the next begins — and one under 1.2 s is dropped.
+ * one gives way when the next begins — and one under 1.2 s is dropped. Two closer than PICTURE_ABUT_S meet: the map or
+ * set between them showed for 3–7 frames, a flash (as insertWindows keeps back-to-back narrator lines on one picture).
  */
 export function withPictures(own: readonly V3Insert[], pictures: readonly SceneShotPicture[], lineAt: LineAt, local: (sec: number) => number, duration: number, fps: number, maxS: number, notBefore = 0): V3Insert[] {
   const extra = pictures.flatMap((p, i): V3Insert[] => {
@@ -673,8 +674,22 @@ export function withPictures(own: readonly V3Insert[], pictures: readonly SceneS
     return [{ src: p.src, start, end, kenBurns: drift(i + own.length), ...(p.caption ? { caption: p.caption } : {}), ...(p.video ? { video: true } : {}) }];
   });
   const all = [...own, ...extra].sort((a, b) => a.start - b.start).map((w) => ({ ...w }));
-  for (let i = 0; i + 1 < all.length; i++) if (all[i + 1]!.start < all[i]!.end) all[i]!.end = all[i + 1]!.start;
+  for (let i = 0; i + 1 < all.length; i++) if (all[i + 1]!.start < all[i]!.end + Math.round(PICTURE_ABUT_S * fps)) all[i]!.end = all[i + 1]!.start;
   return all.filter((w) => w.end - w.start >= Math.round(1.2 * fps));
+}
+
+/** Two cutaways closer than this (seconds) meet: what lies between them would only flash. */
+export const PICTURE_ABUT_S = 0.5;
+
+/**
+ * A scene's last cutaway that ends less than OPENING_HOLD_S before the scene does runs to its end (the set or map left
+ * between it and the next scene showed for 6–9 frames: insertWindows ends a picture 0.25 s after its line, withPictures
+ * 0.3 s before the scene's end) — unless a line starts in that gap, which is seen.
+ */
+export function closeInsertTail(inserts: readonly V3Insert[], duration: number, fps: number, lineStarts: readonly number[]): V3Insert[] {
+  const last = inserts[inserts.length - 1];
+  if (!last || last.end >= duration || duration - last.end >= Math.round(OPENING_HOLD_S * fps) || lineStarts.some((s) => s >= last.end && s < duration)) return [...inserts];
+  return [...inserts.slice(0, -1), { ...last, end: duration }];
 }
 
 /**
@@ -708,13 +723,16 @@ const INFO_CARD_HOLD_S = 0.8;
 /**
  * A scene's info cards in shot frames (DFT Tarih): each from its line; its nodes and items at their own lines (else one
  * after another, 1.2 s apart); it holds until `bitis_satir`, or a beat after the last line it names.
+ * On a map (`mapSeenFrom`, mapPictureFrom) a card waits until the map has been seen, as a picture does (the Baghdad
+ * Short: a card on a map's first line covered 72–90% of it 0.3 s in); on a stage a card on the opening line opens with
+ * the scene, as a title card does (no flash of the set before it).
  */
-export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: readonly { readonly lineIndex: number; readonly start: number; readonly end: number }[], fps: number, duration: number): V3InfoCard[] {
+export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: readonly { readonly lineIndex: number; readonly start: number; readonly end: number }[], fps: number, duration: number, mapSeenFrom?: number): V3InfoCard[] {
   const at = (i: number) => lines.find((l) => l.lineIndex === i);
   return (scene.bilgi_kartlari ?? []).flatMap((c) => {
     const line = at(c.satir);
     if (!line) return [];
-    const start = line.start;
+    const start = mapSeenFrom !== undefined ? Math.max(mapSeenFrom, line.start) : line.start <= Math.round(0.6 * fps) ? 0 : line.start;
     const timed = <T extends { readonly satir?: number }>(list: readonly T[] | undefined) => (list ?? []).map((x, i) => ({ x, start: x.satir !== undefined && at(x.satir) ? Math.max(start, at(x.satir)!.start) : start + Math.round((0.6 + i * 1.2) * fps) }));
     const nodes = timed(c.dugumler);
     const items = timed(c.maddeler);
@@ -858,6 +876,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const firstMoveIsEntry = new Set<string>();
 
     const camera: V3CameraKey[] = [];
+    // Cuts no short-shot merge may drop (noShortShots): the wide shot over a march, the writer's own cut cue.
+    const keptCuts = new Set<number>();
     const shakes: V3Shake[] = [];
     const key = (frame: number, zoom: number, cx: number, cy: number, ease: V3CameraKey["ease"]) => camera.push({ frame: Math.max(0, Math.min(duration - 1, frame)), ...clampCam(zoom, cx, cy), ease });
     /** A key that keeps `keepIds` in frame and cuts nobody in half at the frame edge. */
@@ -1074,6 +1094,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         const last = camera[camera.length - 1]!;
         key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
         framed(ls, 1.02, 0.5, 0.5, "cut", []);
+        keptCuts.add(Math.max(0, Math.min(duration - 1, ls)));
         framed(le, 1.08, 0.52, 0.5, "smooth", []);
         prevSpeaker = undefined;
       } else if (speaker) {
@@ -1191,7 +1212,10 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       if (cue.tip === "shake") shakes.push({ start: at, end: at + f(0.6), amplitude: 18 });
       else if (cue.tip === "zoom" && tgt) key(at, 1.7, tgt.x, faceOf(cue.hedef!), "snap");
       else if (cue.tip === "pan" && tgt) key(at, 1.2, tgt.x, 0.5, "smooth");
-      else if (cue.tip === "cut") key(at, 1.0, 0.5, 0.5, "cut");
+      else if (cue.tip === "cut") {
+        key(at, 1.0, 0.5, 0.5, "cut");
+        keptCuts.add(Math.max(0, Math.min(duration - 1, at)));
+      }
     }
 
     // A Short has no full-screen word or chapter card: a second and a half of black in a 40-second feed video is a
@@ -1214,7 +1238,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       ...(o.etiket ? { label: o.etiket } : {}),
     }));
 
-    const infoCards = infoCardsOf(scene, lines.map((lt) => ({ lineIndex: lt.lineIndex, start: local(lt.start), end: local(lt.end) })), fps, duration);
+    const infoCards = infoCardsOf(scene, lines.map((lt) => ({ lineIndex: lt.lineIndex, start: local(lt.start), end: local(lt.end) })), fps, duration, geo ? mapPictureFrom(geo.camera, fps) : undefined);
 
     const props: V3Prop[] = (scene.dekor ?? []).map((d) => ({ kind: d.tur, x: d.x, depth: d.derinlik ?? 0.3, ...(d.olcek ? { scale: d.olcek } : {}), ...(d.ters ? { flip: true } : {}) }));
     for (const s of slots.values()) if (s.seated && !props.some((p) => p.kind === "taht" && Math.abs(p.x - s.x) < 0.08)) props.push({ kind: "taht", x: s.x, depth: s.depth + 0.02, scale: 1.3 });
@@ -1277,7 +1301,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       : [];
     const inserts = photo
       ? photoSequence(period, input.pictures?.[si] ?? [], (i) => lines.find((l) => l.lineIndex === i), local, duration, fps)
-      : withPictures(
+      : closeInsertTail(withPictures(
           own,
           (input.pictures?.[si] ?? []).filter((p) => !geo || !isMapPicture(p.caption, DESIGNED_CAPTIONS.includes(p.caption ?? "") ? (scene.gorseller?.find((g) => g.satir === p.satir)?.an?.trim() || scene.gorseller?.find((g) => g.satir === p.satir)?.en) : undefined)),
           (i) => lines.find((l) => l.lineIndex === i),
@@ -1286,7 +1310,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           fps,
           geo ? MAP_INSERT_S : PICTURE_INSERT_S,
           seenFrom,
-        );
+        ), duration, fps, lines.map((l) => local(l.start)));
     const strips = stripsOf(scene, lines, local, duration, fps);
     shots.push({
       id: scene.id,
@@ -1297,8 +1321,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       performers,
       props,
       camera: geo
-        ? mapShotCamera(fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps))
-        : fillTempo(noOpeningFlash(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
+        ? mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps))
+        : fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
       mapArrows,
@@ -1507,6 +1531,84 @@ export function noOpeningFlash(keys: readonly V3CameraKey[], fps: number): V3Cam
   const cut = keys.find((k) => k.ease === "cut" && k.frame > 0);
   if (!cut || cut.frame >= OPENING_HOLD_S * fps) return [...keys];
   return [{ ...cut, frame: 0, ease: "smooth" }, ...keys.filter((k) => k.frame > cut.frame)];
+}
+
+/**
+ * No shot shorter than OPENING_HOLD_S inside a stage scene either (owner, 13 Nov 2026, Siege of Baghdad Short: "1.5
+ * saniyeden kısa çekim olmasın"; a one-word reply cut to its speaker and back within a second): a cut whose shot the next
+ * cut (or the scene's end) replaces that soon is dropped with the keys of its shot, so the shot before it holds on —
+ * a listener's reaction instead of a flash. Cuts in `keep` (the wide shot over a march, the writer's own cut cue) stay;
+ * an opening shot cut that soon becomes the opening (noOpeningFlash).
+ */
+export function noShortShots(keys: readonly V3CameraKey[], duration: number, fps: number, keep: ReadonlySet<number> = new Set()): V3CameraKey[] {
+  const hold = Math.round(OPENING_HOLD_S * fps);
+  let out = [...keys];
+  for (let guard = 0; guard <= keys.length; guard++) {
+    const cuts = out.flatMap((k, i) => (k.ease === "cut" && k.frame > 0 ? [i] : []));
+    const first = cuts[0] !== undefined ? out[cuts[0]]! : undefined;
+    if (first && first.frame < hold && !keep.has(first.frame)) {
+      out = noOpeningFlash(out, fps);
+      continue;
+    }
+    const endOf = (j: number) => (j + 1 < cuts.length ? out[cuts[j + 1]!]!.frame : duration);
+    const j = cuts.findIndex((i, n) => endOf(n) - out[i]!.frame < hold && !keep.has(out[i]!.frame));
+    if (j < 0) break;
+    const [from, to] = [cuts[j]!, endOf(j)];
+    out = out.filter((k, i) => i < from || k.frame >= to);
+  }
+  return out;
+}
+
+/** A map shot's camera move instead of a cut takes at least this long (seconds). */
+export const MAP_GLIDE_S = 1;
+
+/**
+ * A map shot never cuts (the Baghdad Short, 13 Nov 2026: a lone character over a map got the stage's speaker cuts, a 7–10%
+ * zoom and pan jump 0.3 s in and at every switch between the character and the narrator; mapShotCamera only softened
+ * them): an opening cut becomes the opening (noOpeningFlash), every later cut a glide of MAP_GLIDE_S into the same view —
+ * the keys of the glide's stretch before it are dropped, so it starts from where the camera was.
+ */
+export function mapGlides(keys: readonly V3CameraKey[], fps: number): V3CameraKey[] {
+  const glide = Math.round(MAP_GLIDE_S * fps);
+  const out: V3CameraKey[] = [];
+  for (const k of noOpeningFlash(keys, fps)) {
+    if (k.ease !== "cut" || k.frame <= 0) {
+      out.push(k);
+      continue;
+    }
+    while (out.length > 1 && out[out.length - 1]!.frame > k.frame - glide) out.pop();
+    out.push({ ...k, ease: "smooth" });
+  }
+  return out;
+}
+
+/**
+ * The plan's shots shorter than OPENING_HOLD_S (owner, 13 Nov 2026: "scan the whole video for < 1.5 s shots"): within each
+ * shot the picture changes at a camera cut, where a cutaway begins or ends, and at the shot's own start and end; a camera
+ * cut under a cutaway is not seen. Each stretch between two such changes shorter than `minS` is listed: where it starts
+ * (seconds, on the video's clock), how long it is, and what bounds it.
+ */
+export function shortShots(plan: Pick<V3RenderPlan, "fps" | "shots">, minS = OPENING_HOLD_S): { shot: string; at: number; lengthS: number; what: string }[] {
+  const min = Math.round(minS * plan.fps);
+  const out: { shot: string; at: number; lengthS: number; what: string }[] = [];
+  for (const s of plan.shots) {
+    const inserts = s.inserts ?? [];
+    const marks = new Map<number, string>([[0, "sahne başı"], [s.duration, "sahne sonu"]]);
+    const mark = (f: number, what: string) => {
+      if (f > 0 && f < s.duration && !marks.has(f)) marks.set(f, what);
+    };
+    for (const w of inserts) {
+      mark(w.start, "ara görüntü girişi");
+      mark(w.end, "ara görüntü çıkışı");
+    }
+    for (const k of s.camera) if (k.ease === "cut" && !inserts.some((w) => k.frame > w.start && k.frame < w.end)) mark(k.frame, "kamera kesmesi");
+    const at = [...marks.keys()].sort((a, b) => a - b);
+    for (let i = 1; i < at.length; i++) {
+      const len = at[i]! - at[i - 1]!;
+      if (len > 0 && len < min) out.push({ shot: s.id, at: Math.round(((s.start + at[i - 1]!) / plan.fps) * 10) / 10, lengthS: Math.round((len / plan.fps) * 100) / 100, what: `${marks.get(at[i - 1]!)} → ${marks.get(at[i]!)}` });
+    }
+  }
+  return out;
 }
 
 /** Camera keys strictly increasing in time; at equal frames the later instruction wins. */

@@ -1,5 +1,8 @@
-import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
+import type { V3GeoMap, V3TitleCard } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type ArmyDots, armyDots, dottedKind } from "./unitCrowd";
+
+/** A shot's title cards as the legend reads them: the place-and-date stamps stand in the top-left corner too. */
+export type HudCards = readonly Pick<V3TitleCard, "text" | "subtext" | "start" | "end" | "style">[];
 
 /**
  * Where a map's screen marks stand (MapMarks' StrengthBar and DateStamp), shared with MapView, which writes no map name
@@ -22,19 +25,32 @@ export const plateWidth = (text: string) => Math.max(150, text.length * 25 + 56)
  * The marks' boxes on a frame of W×H (its own pixels): the date stamp's corner and, while it is on, the strength bar with
  * its names and numbers.
  */
-export function hudBoxes(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number): { x0: number; y0: number; x1: number; y1: number }[] {
+export function hudBoxes(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number, cards?: HudCards): { x0: number; y0: number; x1: number; y1: number }[] {
   const marks = markBoxes(map, frame, W, H);
-  const legend = dotLegend(map, frame, W, H);
+  const legend = dotLegend(map, frame, W, H, cards);
   return legend ? [...marks, { x0: legend.x0, y0: legend.y0, x1: legend.x1, y1: legend.y1 }] : marks;
 }
 
 /** The date stamp's and the strength bar's boxes (hudBoxes without the legend, which keeps clear of them). */
-function markBoxes(map: Pick<V3GeoMap, "dates" | "strength">, frame: number, W: number, H: number): Box[] {
+function markBoxes(map: Pick<V3GeoMap, "dates" | "strength">, frame: number, W: number, H: number, barFrom?: number): Box[] {
   const u = Math.min(W, H) / 1080;
+  // `barFrom`: the bar's box whenever any of its entries is on from that frame on (the legend's one place), else now.
+  const barOn = (map.strength ?? []).some((s) => (barFrom !== undefined ? s.end === undefined || s.end > barFrom : s.start <= frame && (s.end === undefined || frame < s.end)));
   return [
     ...(map.dates?.length ? [{ x0: W - 56 * u - plateWidth(map.dates.reduce((a, d) => (d.text.length > a.length ? d.text : a), "")) * u, y0: 0, x1: W, y1: 110 * u }] : []),
-    ...((map.strength ?? []).some((s) => s.start <= frame && (s.end === undefined || frame < s.end)) ? [{ x0: (W - BAR_W * u) / 2 - 12 * u, y0: 0, x1: (W + BAR_W * u) / 2 + 12 * u, y1: (barTop(W, H) + 84) * u }] : []),
+    ...(barOn ? [{ x0: (W - BAR_W * u) / 2 - 12 * u, y0: 0, x1: (W + BAR_W * u) / 2 + 12 * u, y1: (barTop(W, H) + 84) * u }] : []),
   ];
+}
+
+/**
+ * The place-and-date stamp's box on a W×H frame (TitleCard's top-left `yer_tarih`: left 60, top 80, padding 14/30, a 6 px
+ * border, a 54 px title over a 30 px subtitle), with room for its shadow and its tilt as it drops in.
+ */
+export function stampBox(card: Pick<V3TitleCard, "text" | "subtext">, W: number, H: number): Box {
+  const k = Math.min(W, H) / 1080;
+  const textW = Math.max(card.text.length * 54 * 0.62, (card.subtext ?? "").length * 30 * 0.58);
+  const textH = 54 + (card.subtext ? 4 + 30 * 1.33 : 0);
+  return { x0: 52 * k, y0: 72 * k, x1: (60 + 2 * 36 + textW + 16) * k, y1: (80 + 2 * 20 + textH + 16) * k };
 }
 
 const armyCache = new WeakMap<object, ArmyDots>();
@@ -67,9 +83,11 @@ export function legendScaleText(menPerDot: number, language: "tr" | "en"): strin
  * the captions the bottom middle — and below the strength bar where a narrow frame's bar reaches that corner. Its rows:
  * "● = 1,000 men" at the map's scale (only when some unit's men are written: estimated armies get no number), then each
  * side's colour and name. Shown from the first unit on; none on a block map. Sized for the longer of its two languages,
- * so the box MapView keeps names out of is the same in both.
+ * so the box MapView keeps names out of is the same in both. Its place is chosen once per map, clear of every mark it
+ * will meet: the strength bar whenever any of its entries is on (a vertical Short's legend jumped as the bar came and
+ * went), and the shot's place-and-date stamps (`cards`, TitleCard's top-left plate: "BAGHDAD · 1638" lay over it).
  */
-export function dotLegend(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number): (Box & { u: number; rows: { colors: string[]; side?: string }[]; menPerDot: number; scale: boolean; first: number }) | undefined {
+export function dotLegend(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "unitStyle">, frame: number, W: number, H: number, cards?: HudCards): (Box & { u: number; rows: { colors: string[]; side?: string }[]; menPerDot: number; scale: boolean; first: number }) | undefined {
   const units = map.units ?? [];
   if (map.unitStyle !== "nokta" || !units.some((u) => dottedKind(u.kind))) return undefined;
   const first = Math.min(...units.map((u) => u.steps[0]?.start ?? Infinity));
@@ -90,7 +108,8 @@ export function dotLegend(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "
   const w = (LEGEND_PAD * 2 + 26 + Math.max(scaleChars, ...rows.map(width))) * u;
   const h = (LEGEND_PAD * 2 + rows.length * LEGEND_ROW - 6) * u;
   let box: Box = { x0: 40 * u, y0: 30 * u, x1: 40 * u + w, y1: 30 * u + h };
-  const marks = markBoxes(map, frame, W, H);
+  const stamps = (cards ?? []).filter((c) => c.style === "yer_tarih" && c.end > first).map((c) => stampBox(c, W, H));
+  const marks = [...markBoxes(map, frame, W, H, first), ...stamps];
   const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
   if (marks.some((m) => meets(box, m))) {
     const below = Math.max(...marks.filter((m) => m.x0 < box.x1 && box.x0 < m.x1).map((m) => m.y1)) + 14 * u;

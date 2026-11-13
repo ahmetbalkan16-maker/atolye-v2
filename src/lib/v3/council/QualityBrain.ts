@@ -255,14 +255,15 @@ const FRAMING_TITLE = { baslik: "harita kadrajı: etkin birlik kadraj dışında
  * The layout check over the boxes the render wrote (`yerlesim.json`, ChunkedRender): each cut or overlapping box that
  * lasts becomes a quality finding with its time; for a Short, each moment a map's acting units stand outside the window
  * or at its edge too (MapFramingCheck, from the plan). Returns the number of faults, or undefined when the render wrote no
- * boxes and the plan shows no framing fault.
+ * boxes: the framing faults are still reported, but a count without the boxes is no layout measure — it made the frames
+ * "measured" (the vision model then no longer looks at cut edges) and the retouch round's fault count short.
  */
 export async function layoutReview(input: { readonly file: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots"> & Partial<Pick<V3RenderPlan, "width" | "height" | "stage">>; readonly council: CouncilLog }): Promise<number | undefined> {
   const plan = input.plan;
   const framing = plan.width !== undefined && plan.height !== undefined ? mapFramingFaults({ ...plan, width: plan.width, height: plan.height }) : [];
   for (const x of framing) input.council.find({ beyin: "kalite", onem: "eksik", baslik: FRAMING_TITLE.baslik, ayrinti: `${x.shot}: ${x.ayrinti}`, oneri: FRAMING_TITLE.oneri, tur: "kod", yer: span(x.at, x.at) });
   const data = existsSync(input.file) ? (JSON.parse(await fs.readFile(input.file, "utf8")) as LayoutFile) : undefined;
-  if (!data?.kareler.length) return framing.length ? framing.length : undefined;
+  if (!data?.kareler.length) return undefined;
   const faults = layoutFaults(data, layoutSkip(input.plan));
   for (const x of faults) input.council.find({ beyin: "kalite", onem: x.to - x.from >= MEASURED_FAULT_S ? "eksik" : "uyari", baslik: LAYOUT_TITLES[x.tur].baslik, ayrinti: x.ayrinti, oneri: LAYOUT_TITLES[x.tur].oneri, tur: "kod", yer: span(x.from, x.to) });
   return faults.length + framing.length;
@@ -332,6 +333,8 @@ export async function qualityReview(input: {
   const lessons = input.examples ? await recall(paths.workRoot, "kalite", { tur: "ders", limit: 10_000 }).catch(() => [] as Lesson[]) : [];
   let faulty = 0;
   let sum = 0;
+  // Frames the judge answered: a frame that could not be cut or judged was a 0/10 in the mean (sum over every time).
+  let judged = 0;
   const showing: number[] = [];
   for (const t of times) {
     const frame = path.join(paths.asciiTemp, `kalite-${Date.now()}-${Math.round(t * 10)}.jpg`);
@@ -347,7 +350,11 @@ export async function qualityReview(input: {
       const edged = input.edges && !input.measured && kind !== "resim" ? (await runChecked(paths.ffmpeg, edgeStripArgs(input.video, t, strips)), (await fs.readFile(strips)).toString("base64")) : undefined;
       const v = await judgeFrame({ judge: input.judge, image: (await fs.readFile(frame)).toString("base64"), donem: input.donem, ...(input.rules ? { rules: input.rules } : {}), ...(designed ? { designed } : {}), ...(said ? { said } : {}), ...(kind ? { kind } : {}), examples, ...(edged ? { edges: edged } : {}), ...(input.measured ? { measured: true } : {}) });
       const score = v.puan;
-      sum += score;
+      // An unreadable answer passes the frame (judgeFrame) but is no score for the mean either.
+      if (!v.okunamadi) {
+        sum += score;
+        judged++;
+      }
       // Does the picture show what is being said (owner, 22 Oct 2026: "the viewer must live the moment").
       if (said && v.anlati !== undefined) {
         const shown = v.anlati;
@@ -366,5 +373,5 @@ export async function qualityReview(input: {
       await fs.rm(strips, { force: true });
     }
   }
-  return { checked: times.length, faulty, averageScore: times.length ? sum / times.length : 0, ...(showing.length ? { showing: showing.reduce((a, b) => a + b, 0) / showing.length } : {}) };
+  return { checked: judged, faulty, averageScore: judged ? sum / judged : 0, ...(showing.length ? { showing: showing.reduce((a, b) => a + b, 0) / showing.length } : {}) };
 }

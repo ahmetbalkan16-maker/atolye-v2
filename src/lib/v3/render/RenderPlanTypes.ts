@@ -282,6 +282,32 @@ export function transitionFrames(shot: { readonly transitionIn: V3Transition; re
   return Math.max(0, Math.min(shot.duration, Math.round(fps * TRANSITION_S[shot.transitionIn])));
 }
 
+/**
+ * Whether a wall's line stands round a place (a ring) rather than across it (a land wall from sea to sea). One answer for
+ * the script's siege order (Tactics.siegeOrder) and the renderer's garrison (unitCrowd.garrisonSteps): the Baghdad Short's
+ * walls were a ring to the first, which set the besiegers outside them, and open to the second (first and last point
+ * 1 px apart was asked), which never packed the garrison inside — it spilled over the walls. A ring: three corners or
+ * more, its ends no further apart than WALL_RING_GAP of its own length — closed, a writer's outline that does not repeat
+ * its first corner (a square: 1/3), an OpenStreetMap wall with a gate or a river side missing (a half circle on a river
+ * bank: 0.64) — while a wall across a neck of land runs nearly straight from end to end (an L of two equal sides: 0.71).
+ */
+export const WALL_RING_GAP = 0.7;
+export function wallIsRing(points: readonly { readonly x: number; readonly y: number }[]): boolean {
+  if (points.length < 3) return false;
+  let length = 0;
+  for (let i = 1; i < points.length; i++) length += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+  const gap = Math.hypot(points[0]!.x - points[points.length - 1]!.x, points[0]!.y - points[points.length - 1]!.y);
+  const corners = gap <= 1e-9 ? points.length - 1 : points.length;
+  return corners >= 3 && length > 0 && gap <= length * WALL_RING_GAP;
+}
+
+/** A ring's points with its first point repeated at the end when its ends do not meet (wallIsRing), else as they are. */
+export function closedWall<T extends { readonly x: number; readonly y: number }>(points: readonly T[]): readonly T[] {
+  if (!wallIsRing(points)) return points;
+  const [a, b] = [points[0]!, points[points.length - 1]!];
+  return Math.hypot(a.x - b.x, a.y - b.y) <= 1e-9 ? points : [...points, a];
+}
+
 /** A crowd member: a costume copy standing still with a little life (sway, blinks, a cheer). Never speaks. */
 export interface V3Extra {
   readonly castId: string;

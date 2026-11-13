@@ -6,6 +6,8 @@
  * React — the renderer (MapUnits) and the smoke tests share it.
  */
 
+import { closedWall, wallIsRing } from "../../../src/lib/v3/render/RenderPlanTypes";
+
 export type UnitKind = "piyade" | "kilicli" | "mizrakci" | "okcu" | "tufekci" | "suvari" | "topcu";
 
 type XY = { readonly x: number; readonly y: number };
@@ -17,13 +19,26 @@ function rand(seed: number): number {
 
 /**
  * The men a strength label names ("11 Legions – 47,000 men" → 47,000; "Eight legions" → none): its largest number of at
- * least 100, thousands separated by a comma, a dot or a space.
+ * least 100, thousands separated by a comma, a dot or a space; a bare year is none (yearless).
  */
 export function menOf(label: string | undefined): number | undefined {
   if (!label) return undefined;
-  const nums = [...label.matchAll(/\d{1,3}(?:[,.  ]\d{3})+|\d+/g)].map((m) => Number(m[0].replace(/[,.  ]/g, "")));
-  const best = Math.max(0, ...nums.filter((n) => Number.isFinite(n)));
+  const nums = [...label.matchAll(/\d{1,3}(?:[,.  ]\d{3})+|\d+/g)].flatMap((m) => yearless(label, m, Number(m[0].replace(/[,.  ]/g, ""))));
+  const best = Math.max(0, ...nums);
   return best >= 100 ? best : undefined;
+}
+
+/** Words after a number that make it men, not a year ("1500 men", "1200-strong", "1638 asker"). */
+const MEN_AFTER = /^\s*(?:-?\s*strong|(?:men|man|soldiers?|troops?|infantry|cavalry|horsemen|horse|foot|warriors?|defenders?|fighters?|archers?|musketeers?|riflemen|janissar\w*|sipahis?|sailors?|marines?|knights?|garrison|asker\w*|kişi\w*|er|süvari\w*|piyade\w*|yeniçeri\w*|savaşçı\w*|okçu\w*))(?!\p{L})/iu;
+
+/**
+ * A label's number as men (`n`), or none when it is a bare year — four digits, 1000–2100 ("Janissaries 1638", "25
+ * December 1638") with no word for men after it: the Baghdad labels' year was read as 1,638 men and the legend claimed
+ * it was written.
+ */
+function yearless(label: string, m: RegExpExecArray | RegExpMatchArray, n: number): number[] {
+  const year = /^\d{4}$/.test(m[0]) && n >= 1000 && n <= 2100 && !MEN_AFTER.test(label.slice((m.index ?? 0) + m[0].length));
+  return Number.isFinite(n) && !year ? [n] : [];
 }
 
 /** A block with fewer men than this behind it is drawn thinner (a raiding party, a garrison), never as a dense regiment. */
@@ -339,9 +354,23 @@ export function packedDot(j: number, pitch: number): XY {
 /** The radius of `n` circles packed `pitch` apart (packedDot), to their outer edge. */
 export const packedRadius = (n: number, pitch: number) => 0.56 * pitch * Math.sqrt(Math.max(1, n)) + pitch * 0.5;
 
-/** Whether a wall's line closes into a ring (MapBuilder's `walled` asks the same: first and last point within 1 px). */
+/**
+ * Whether a wall's line stands round a place: the script's siege order asks the same (RenderPlanTypes.wallIsRing). It
+ * asked for first and last point within 1 px, so an OpenStreetMap wall with a gap and a writer's outline that does not
+ * repeat its first corner — rings to Tactics.siegeOrder — packed no garrison, which stood out over the walls.
+ */
 export function closedRing(points: readonly XY[]): boolean {
-  return points.length >= 4 && Math.hypot(points[0]!.x - points[points.length - 1]!.x, points[0]!.y - points[points.length - 1]!.y) < 1;
+  return wallIsRing(points);
+}
+
+const ringCache = new WeakMap<readonly XY[], readonly XY[]>();
+/** A ring's points with its ends joined (RenderPlanTypes.closedWall), once per ring: its gap is an edge too. */
+function asRing(points: readonly XY[]): readonly XY[] {
+  const hit = ringCache.get(points);
+  if (hit) return hit;
+  const out = closedWall(points);
+  ringCache.set(points, out);
+  return out;
 }
 
 function inRing(p: XY, ring: readonly XY[]): boolean {
@@ -404,7 +433,8 @@ export function ringPole(ring: readonly XY[]): { x: number; y: number; d: number
  * ring's deepest point where it does (found by halving, so it moves smoothly as `c` does); a disc wider than the ring
  * allows is shrunk to fit at that deepest point (its circles packed closer: `R` returned smaller).
  */
-export function fitInRing(c: XY, R: number, ring: readonly XY[]): { x: number; y: number; R: number } {
+export function fitInRing(c: XY, R: number, wall: readonly XY[]): { x: number; y: number; R: number } {
+  const ring = asRing(wall);
   const pole = ringPole(ring);
   const room = Math.min(R, pole.d * 0.92);
   if (ringDepth(c, ring) >= room) return { x: c.x, y: c.y, R: room };
@@ -432,10 +462,11 @@ export function garrisonSteps(units: readonly { readonly side: string; readonly 
   const centre = (pts: readonly XY[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
   const rings = walls.flatMap((w, wi) => {
     if (!closedRing(w.points)) return [];
+    const ring = asRing(w.points);
     let area = 0;
-    for (let i = 1; i < w.points.length; i++) area += w.points[i - 1]!.x * w.points[i]!.y - w.points[i]!.x * w.points[i - 1]!.y;
+    for (let i = 1; i < ring.length; i++) area += ring[i - 1]!.x * ring[i]!.y - ring[i]!.x * ring[i - 1]!.y;
     const size = Math.sqrt(Math.abs(area) / 2 / Math.PI);
-    return size > 0 ? [{ wi, ring: w.points, size }] : [];
+    return size > 0 ? [{ wi, ring, size }] : [];
   });
   const sides = [...new Set(units.map((u) => u.side))];
   // The smallest ring first: a citadel's garrison is the citadel's, not the town's.

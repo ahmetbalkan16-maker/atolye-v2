@@ -72,3 +72,22 @@ export function buildTimeline(episode: Episode, audio: readonly (readonly LineAu
   });
   return { lines, scenes, duration: t, ...(intro ? { intro } : {}) };
 }
+
+/** The tightest a fitted timeline's pauses get, as a share of their own length: below it the lines run together. */
+export const MIN_PAUSE_SHARE = 0.4;
+
+/**
+ * buildTimeline with its pauses tightened just enough that it ends by `maxS` (a Short's ceiling: past 180 s YouTube
+ * no longer shows it as a Short). The script's top length (405 words for 180 s, ScriptEngine's band) is ≤ 179 s only at
+ * the slowest measured pace with pauses, 2.26 words/s; a slower voice or more, shorter lines — a reply gap each — ran
+ * past it with nothing but a warning. Never tighter than MIN_PAUSE_SHARE; a timeline already in time is unchanged.
+ */
+export function fitTimeline(episode: Episode, audio: readonly (readonly LineAudio[])[], opts: TimelineOptions, maxS: number): EpisodeTimeline {
+  const timeline = buildTimeline(episode, audio, opts);
+  if (timeline.duration <= maxS) return timeline;
+  const speech = timeline.lines.reduce((a, l) => a + (l.end - l.start), 0);
+  const pauses = timeline.duration - (timeline.intro ?? 0) - speech;
+  if (pauses <= 0) return timeline;
+  const k = Math.max(MIN_PAUSE_SHARE, 1 - (timeline.duration - maxS) / pauses);
+  return buildTimeline(episode, audio, { ...opts, sceneLead: opts.sceneLead * k, sceneTail: opts.sceneTail * k, replyGap: opts.replyGap * k, sameSpeakerGap: opts.sameSpeakerGap * k });
+}

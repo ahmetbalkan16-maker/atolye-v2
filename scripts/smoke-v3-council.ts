@@ -409,10 +409,11 @@ async function main() {
     assert.deepEqual(mapFramingFaults(edgeBadge(400)), []);
     // Behind the character on the whole frame too.
     assert.ok(mapFramingFaults({ ...wide, shots: [shot("s6", 0, [{ ...sailor, x: 0.53 }], { ...base, vehicles: [ships] })] } as unknown as typeof plan)[0]?.ayrinti.includes("karakterin arkasında"));
-    // Counted with the layout faults even when the render wrote no boxes, each a quality finding with its time.
+    // Reported even when the render wrote no boxes, each a quality finding with its time — but no layout count then: a
+    // count without the boxes made the frames "measured" (the judge stopped looking at cut edges) and the round's faults short.
     const council = new CouncilLog();
     const n = await layoutReview({ file: path.join(os.tmpdir(), "v3-yok", "yerlesim.json"), plan, council });
-    assert.equal(n, 3);
+    assert.equal(n, undefined);
     assert.equal(council.findings.filter((f) => f.baslik.startsWith("harita kadrajı")).length, 3);
   });
 

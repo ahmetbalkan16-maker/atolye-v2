@@ -17,7 +17,7 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
+import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
@@ -47,7 +47,7 @@ import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArri
 import { exitFrames, FLASH_PEAK, insertOpacity, transitionLook, transitionProgress } from "../remotion-v3/src/scene/transitions";
 import { CAMERA_MOVE_S, cameraAt as mapCameraAt } from "../remotion-v3/src/scene/mapCamera";
 import { drift } from "../remotion-v3/src/character/rig";
-import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, dotLegend, hudBoxes, labelSpot, legendScaleText } from "../remotion-v3/src/scene/hudLayout";
+import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, dotLegend, hudBoxes, labelSpot, legendScaleText, stampBox } from "../remotion-v3/src/scene/hudLayout";
 import { checkEpisodePlaces, checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -58,7 +58,7 @@ import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMo
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { chiefOnPart, colourName, historianOnPart, lessonBlock, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
-import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
+import { buildTimeline, DEFAULT_TIMELINE, fitTimeline, type LineAudio, MIN_PAUSE_SHARE } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
 let scenarios = 0;
@@ -236,6 +236,53 @@ async function main() {
     assert.deepEqual(noOpeningFlash(opening, 30).map((k) => [k.frame, k.zoom, k.ease]), [[0, 1.62, "smooth"], [64, 1.18, "cut"]]);
     const held = [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: 60, zoom: 1.6, cx: 0.3, cy: 0.5, ease: "cut" as const }];
     assert.deepEqual(noOpeningFlash(held, 30), held, "a wide opening held 2 s stays");
+    // No shot under OPENING_HOLD_S mid-scene either (Baghdad Short, 13 Nov 2026): a one-second reply's cut is dropped with
+    // its keys, the shot before holds on; a kept cut (a march's wide shot) stays; a short last shot goes too.
+    const k = (frame: number, zoom: number, ease: "smooth" | "cut" = "smooth") => ({ frame, zoom, cx: 0.5, cy: 0.5, ease });
+    const reply = [k(0, 1), k(59, 1), k(60, 1.62, "cut"), k(80, 1.7), k(89, 1.7), k(90, 1.42, "cut"), k(120, 1.5), k(149, 1.5), k(150, 1.26, "cut"), k(300, 1.32)];
+    assert.deepEqual(noShortShots(reply, 400, 30).map((x) => x.frame), [0, 59, 90, 120, 149, 150, 300]);
+    assert.deepEqual(noShortShots(reply, 400, 30, new Set([60])), reply, "a kept cut stays");
+    assert.deepEqual(noShortShots([...reply, k(380, 1.1, "cut")], 400, 30).map((x) => x.frame), [0, 59, 90, 120, 149, 150, 300], "a last shot of 20 frames is dropped");
+    assert.deepEqual(noShortShots([k(0, 1), k(9, 1.62, "cut"), k(30, 1.42, "cut"), k(200, 1.5)], 400, 30).map((x) => [x.frame, x.zoom, x.ease]), [[0, 1.42, "smooth"], [200, 1.5, "smooth"]], "two opening cuts within 1.5 s: the second opens");
+    // A map shot never cuts (a lone character's speaker cuts jumped the map 7–10% at 0.3 s and at each switch): the
+    // opening cut opens, a later cut glides in MAP_GLIDE_S from where the camera was.
+    const onMap = mapGlides([k(0, 1), k(8, 1), k(9, 1.42, "cut"), k(99, 1.5), k(149, 1.5), k(150, 1.18, "cut"), k(250, 1.2)], 30);
+    assert.deepEqual(onMap.map((x) => [x.frame, x.zoom, x.ease]), [[0, 1.42, "smooth"], [99, 1.5, "smooth"], [150, 1.18, "smooth"], [250, 1.2, "smooth"]]);
+    assert.ok(onMap[2]!.frame - onMap[1]!.frame >= MAP_GLIDE_S * 30);
+    // A scene's last cutaway ending under 1.5 s before the scene does runs to its end, unless a line starts in between.
+    const tail = [{ src: "bg/a.jpg", start: 100, end: 380, kenBurns: { fromZoom: 1, toZoom: 1.1, fromX: 0, toX: 0 } }];
+    assert.equal(closeInsertTail(tail, 400, 30, [10, 100])[0]!.end, 400);
+    assert.equal(closeInsertTail(tail, 400, 30, [10, 100, 385])[0]!.end, 380, "a line in the gap is seen");
+    assert.equal(closeInsertTail(tail, 450, 30, [])[0]!.end, 380, "a gap of 2.3 s is a shot");
+    // The plan check: every stretch between two picture changes (cuts not under a cutaway, cutaways in and out, the shot's
+    // ends) under 1.5 s, on the video's clock.
+    const plain = { fps: 30, shots: [{ id: "s1", start: 90, duration: 300, camera: [k(0, 1), k(100, 1.6, "cut"), k(130, 1.2, "cut"), k(250, 1.4, "cut")], inserts: [{ start: 200, end: 290 }] }] } as never;
+    assert.deepEqual(shortShots(plain).map((x) => [x.at, x.lengthS, x.what]), [[6.3, 1, "kamera kesmesi → kamera kesmesi"], [12.7, 0.33, "ara görüntü çıkışı → sahne sonu"]]);
+    // An info card waits for its map to be seen (the Baghdad Short: a card on a map's first line covered it 0.3 s in);
+    // on a stage, a card on the opening line opens with the scene.
+    const cardScene = { bilgi_kartlari: [{ tur: "sayac" as const, satir: 0, deger: 40000, etiket: "defenders" }] };
+    const opening2 = [{ lineIndex: 0, start: 9, end: 120 }];
+    assert.deepEqual([infoCardsOf(cardScene, opening2, 30, 600)[0]!.start, infoCardsOf(cardScene, opening2, 30, 600, 90)[0]!.start], [0, 90]);
+    // In a whole plan: Halil's 0.8 s reply no longer cuts to him and back (it played on Mehmed's close-up, then the
+    // two-shot); the plan check finds nothing.
+    const ep = sampleEpisode();
+    const replyPlan = buildRenderPlan({ episode: ep, timeline: buildTimeline(ep, [[fakeAudio(2.4), fakeAudio(2), fakeAudio(0.8), fakeAudio(2)]]), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    assert.deepEqual(shortShots(replyPlan), [], JSON.stringify(replyPlan.shots[0]!.camera.filter((x) => x.ease === "cut")));
+    // A lone character over a map: the stage's speaker cuts become glides, nothing on the map jumps.
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const lone: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", mekan: "Map: the Balkans", harita: { merkez: [22, 43], genislik_km: 1600 }, sahne_duzeni: [{ karakter: "mehmed", x: 0.8 }], satirlar: [{ karakter: "mehmed", metin: "Belgrade is next.", duygu: "kararli" }, narrate("The army marches north."), { karakter: "mehmed", metin: "Faster!", duygu: "kizgin" }, narrate("The siege begins.")] };
+    const square = [[[[15, 38], [30, 38], [30, 48], [15, 48], [15, 38]]]];
+    const mapPlan = buildRenderPlan({ episode: { ...ep, sahneler: [lone] }, timeline: buildTimeline({ ...ep, sahneler: [lone] }, [[fakeAudio(2), fakeAudio(3), fakeAudio(2), fakeAudio(3)]]), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const mapShot = mapPlan.shots[0]!;
+    assert.ok(mapShot.geoMap && mapShot.performers.length === 1, `one character on the map: ${mapShot.performers.length}`);
+    assert.ok(mapShot.camera.every((x) => x.ease !== "cut") && mapShot.camera.slice(1).every((x, i) => x.ease !== "smooth" || Math.abs(x.zoom - mapShot.camera[i]!.zoom) / Math.max(1, x.frame - mapShot.camera[i]!.frame) < 0.004), JSON.stringify(mapShot.camera));
+    // A Short ends by its ordered length: its pauses tighten as far as needed, never below MIN_PAUSE_SHARE.
+    const long = [[fakeAudio(14), fakeAudio(14), fakeAudio(14), fakeAudio(14)]];
+    const loose = buildTimeline(ep, long);
+    assert.ok(Math.abs(loose.duration - 57.59) < 1e-6);
+    assert.ok(Math.abs(fitTimeline(ep, long, DEFAULT_TIMELINE, 57).duration - 57) < 1e-6, "tightened to the ceiling");
+    assert.ok(Math.abs(fitTimeline(ep, long, DEFAULT_TIMELINE, 56.2).duration - (56 + 1.59 * MIN_PAUSE_SHARE)) < 1e-6, "never tighter than the floor");
+    assert.deepEqual(fitTimeline(ep, long, DEFAULT_TIMELINE, 60), loose, "in time: unchanged");
     const pages = captionPages({ file: "", duration: 4, visemes: [], words: [], lipSync: "rms", sceneIndex: 0, lineIndex: 0, speaker: "x", start: 1, end: 5 }, 30, ["surlar"], "Bir iki üç dört beş altı yedi sekiz dokuz on surlar");
     assert.equal(pages.length, 2);
     assert.ok(pages[1]!.words.some((w) => w.emphasis));
@@ -1260,7 +1307,11 @@ async function main() {
     const local = (s: number) => Math.round(s * 30);
     const own: V3Insert[] = [{ src: "bg/a.jpg", start: 60, end: 160, kenBurns: { fromZoom: 1, toZoom: 1.1, fromX: 0, toX: 0 } }];
     const merged = withPictures(own, [{ satir: 1, src: "bg/b.png", caption: "designed" }, { satir: 2, src: "bg/c-film.mp4", video: true }, { satir: 9, src: "bg/x.png" }], lineAt, local, 400, 30, 6);
-    assert.deepEqual(merged.map((w) => [w.src, w.start, w.end, w.video]), [["bg/a.jpg", 60, 126, undefined], ["bg/b.png", 126, 233, undefined], ["bg/c-film.mp4", 246, 353, true]], "the earlier cutaway gives way, a missing line is dropped");
+    // The earlier cutaway gives way, a missing line is dropped, and two 13 frames apart meet (PICTURE_ABUT_S: the set
+    // between them flashed).
+    assert.deepEqual(merged.map((w) => [w.src, w.start, w.end, w.video]), [["bg/a.jpg", 60, 126, undefined], ["bg/b.png", 126, 246, undefined], ["bg/c-film.mp4", 246, 353, true]]);
+    const apart = withPictures([], [{ satir: 1, src: "bg/b.png" }, { satir: 2, src: "bg/c.png" }], (i) => [{ start: 0, end: 3 }, { start: 4, end: 7 }, { start: 8.5, end: 12 }][i], local, 400, 30, 6);
+    assert.deepEqual(apart.map((w) => [w.start, w.end]), [[126, 218], [261, 368]], "1.4 s apart: both keep their own lines");
     // A photo scene: its own picture from the start, each further one until the next, the last to the end.
     const seq = photoSequence({ src: "bg/own.jpg", caption: "Baghdad, 1990" }, [{ satir: 2, src: "bg/p2.jpg" }, { satir: 1, src: "bg/p1.jpg" }], lineAt, local, 400, 30);
     assert.deepEqual(seq.map((w) => [w.src, w.start, w.end]), [["bg/own.jpg", 0, 117], ["bg/p1.jpg", 117, 237], ["bg/p2.jpg", 237, 400]]);
@@ -3052,6 +3103,18 @@ async function main() {
     assert.equal(hudBoxes({ ...marks, unitStyle: "blok" } as V3GeoMap, 30, 1920, 1080).length, 2);
     // Estimated armies only (no number written): the sides' colours, no scale claimed.
     assert.deepEqual(dotLegend({ ...marks, units: units.map((u) => ({ ...u, label: undefined })), strength: undefined } as unknown as V3GeoMap, 30, 1920, 1080)!.rows.map((r) => r.side), ["Ottomans", "Safavids"]);
+    // The map's place-and-date stamp (TitleCard's top-left plate) stood where the legend stands: the legend goes under it,
+    // for the whole map, so it never jumps when the stamp leaves.
+    const stamp = [{ text: "BAGHDAD", subtext: "15 November 1638", start: 0, end: 84, style: "yer_tarih" as const }];
+    const stamped = dotLegend(marks, 30, 1920, 1080, stamp)!;
+    assert.ok(meets(wideLegend, stampBox(stamp[0]!, 1920, 1080)) && !meets(stamped, stampBox(stamp[0]!, 1920, 1080)), JSON.stringify([wideLegend.y0, stamped.y0, stampBox(stamp[0]!, 1920, 1080)]));
+    assert.equal(dotLegend(marks, 300, 1920, 1080, stamp)!.y0, stamped.y0, "decided once per map");
+    assert.ok(!meets(hudBoxes(marks, 30, 1920, 1080, stamp)[2]!, stampBox(stamp[0]!, 1920, 1080)), "the names MapView keeps out of the legend's box follow it");
+    // A vertical Short's legend stood in the corner until the strength bar came, then jumped under it: one place from
+    // every entry of the bar.
+    const barLater = { ...marks, strength: [{ ...marks.strength![0]!, start: 100, end: 200 }] } as V3GeoMap;
+    const places = [30, 150, 260].map((f) => dotLegend(barLater, f, 1080, 1920)!.y0);
+    assert.ok(places.every((y) => y === places[0]) && places[0]! >= hudBoxes(barLater, 150, 1080, 1920)[1]!.y1, JSON.stringify(places));
   });
 
   await scenario("a close map's coast never runs a straight shore from a stray coast piece to the box's corner (tilted 1453, 13 Nov 2026), and a flat map keeps the coast the library already holds", async () => {

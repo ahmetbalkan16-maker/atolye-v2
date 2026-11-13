@@ -3,7 +3,7 @@ import { Easing, interpolate, spring } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
-import { BAR_W, barTop, dotLegend, LEGEND_DOT_STEP, legendScaleText, plateWidth } from "./hudLayout";
+import { BAR_W, barTop, dotLegend, type HudCards, LEGEND_DOT_STEP, legendScaleText, plateWidth } from "./hudLayout";
 import type { TiltLayer, Up } from "./tilt";
 
 /**
@@ -281,8 +281,8 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
  * A dotted map's legend (hudLayout.dotLegend places it): "● = 1,000 men" and each side's colour and name, on a dark
  * plate like the unit labels', fading in with the first unit.
  */
-function DotLegend({ map, frame, fps, W, H, language }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language: "tr" | "en" }) {
-  const lg = dotLegend(map, frame, W, H);
+function DotLegend({ map, frame, fps, W, H, language, cards }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language: "tr" | "en"; cards?: HudCards }) {
+  const lg = dotLegend(map, frame, W, H, cards);
   if (!lg) return null;
   const u = lg.u;
   const a = interpolate(frame, [lg.first + Math.round(fps * 0.4), lg.first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -314,14 +314,17 @@ function DotLegend({ map, frame, fps, W, H, language }: { map: V3GeoMap; frame: 
   );
 }
 
-/** The map's screen marks (strength bar, date stamp, a dotted map's legend), fixed on the screen over the moving map. */
-export function MapHud({ map, frame, fps, W, H, language = "en" }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language?: "tr" | "en" }) {
+/**
+ * The map's screen marks (strength bar, date stamp, a dotted map's legend), fixed on the screen over the moving map.
+ * `cards`: the shot's title cards, whose place-and-date stamps the legend keeps clear of.
+ */
+export function MapHud({ map, frame, fps, W, H, language = "en", cards }: { map: V3GeoMap; frame: number; fps: number; W: number; H: number; language?: "tr" | "en"; cards?: HudCards }) {
   if (!map.strength?.length && !map.dates?.length && map.unitStyle !== "nokta") return null;
   return (
     <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
       {map.strength?.length ? <StrengthBar list={map.strength} frame={frame} fps={fps} W={W} H={H} /> : null}
       {map.dates?.length ? <DateStamp dates={map.dates} frame={frame} fps={fps} W={W} H={H} /> : null}
-      <DotLegend map={map} frame={frame} fps={fps} W={W} H={H} language={language} />
+      <DotLegend map={map} frame={frame} fps={fps} W={W} H={H} language={language} {...(cards ? { cards } : {})} />
     </svg>
   );
 }
