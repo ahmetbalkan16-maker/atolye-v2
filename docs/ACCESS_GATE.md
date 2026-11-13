@@ -17,7 +17,7 @@ AYAS_ACCESS_KEY=<a long random string, >= 12 chars>
 ```
 
 Restart the server. Visit any protected page → redirected to `/login` → enter
-the key → a signed, HttpOnly session cookie is set for 12 hours.
+the key → a signed, HttpOnly session cookie is set for 7 days (owner, 13 Nov 2026).
 
 | `AYAS_ACCESS_KEY` | `NODE_ENV` | Behaviour |
 |---|---|---|
@@ -28,7 +28,7 @@ the key → a signed, HttpOnly session cookie is set for 12 hours.
 ## What it does
 
 - `middleware.ts` verifies the `ayas_session` cookie (HMAC-SHA256 over the
-  payload, keyed by `AYAS_ACCESS_KEY`, 12 h TTL, 60 s clock skew) on every
+  payload, keyed by `AYAS_ACCESS_KEY`, 7-day TTL, 60 s clock skew) on every
   protected request. `src/lib/auth/accessGate.ts` holds the pure logic.
 - Open paths: `/login`, `/api/auth/*`, `/_next/*`, `/favicon.ico`,
   `/robots.txt`, `/manifest.webmanifest`.

@@ -20,8 +20,11 @@ export const AYAS_ACCESS_KEY_ENV = "AYAS_ACCESS_KEY";
 
 /** Minimum passcode length we will accept as "configured". */
 export const AYAS_ACCESS_KEY_MIN_LENGTH = 12;
-/** Session lifetime. Short — this is a home studio, re-entering the passcode is cheap. */
-export const AYAS_SESSION_TTL_SECONDS = 12 * 60 * 60;
+/**
+ * Session lifetime: one week (owner, 13 Nov 2026: "sürekli giriş şifresi istemesin, gerekirse haftalık 1 kez istesin";
+ * was 12 h). The cookie stays HttpOnly, signed and Secure; logout still ends it at once.
+ */
+export const AYAS_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CLOCK_SKEW_SECONDS = 60;
 const SESSION_VERSION = 1;
 
@@ -165,7 +168,7 @@ const OPEN_PREFIXES: readonly string[] = [
   // a ~3 KB frame slicer. They are loaded by `AudioWorklet.addModule` /
   // `WebAssembly.instantiateStreaming`, which choke on a 307 → /login HTML
   // redirect: gating them silently kills the wake engine on ANY expired session
-  // (12 h TTL) and it never recovers without a full re-navigation + re-login.
+  // (7-day TTL) and it never recovers without a full re-navigation + re-login.
   "/wake/",
   "/ort/",
   "/worklets/",
