@@ -719,6 +719,27 @@ async function main() {
     assert.equal(failedPartFinding({ slot: "back", tarif: "pirate's red cloak" }, [], partAlternatives({ slot: "back", tarif: "pirate's red cloak" }, shelf)).oneri, "tarifi sadeleştir ya da benzer bir kütüphane parçası kullan");
     assert.deepEqual(partAlternatives({ slot: "hand", tarif: "sceptre" }, shelf).map((a) => a.ref), ["gardirop/golden-laurel-sceptre-777777"], "a one-word order needs one shared word");
     assert.deepEqual(partAlternatives({ slot: "head", tarif: "Roman laurel" }, shelf).map((a) => a.ref), [], "two words: one in common is not enough");
+    // Siege of Baghdad 1638: "white turban" failed and nothing was offered — the Ottoman pack names its turbans in
+    // Turkish. Glossed, the kind word alone is enough; the sultan's own turban is not offered to a crowd.
+    const catalog = [
+      { ref: "ottoman-1453/padisah-kavugu", slot: "head" as const, not: "only the sultan" },
+      { ref: "ottoman-1453/vezir-sarigi", slot: "head" as const, not: "viziers, pashas, scholars, officials" },
+      { ref: "ottoman-1453/zaganos-migferi", slot: "head" as const, not: "military commanders in the field" },
+      { ref: "ottoman-1453/isci-sarigi", slot: "head" as const, not: "workers, laborers, townsmen" },
+      { ref: "byzantine-1453/bizans-taci", slot: "head" as const, not: "only the reigning emperor wears it — never an envoy, noble, priest or soldier" },
+      { ref: "byzantine-1453/italyan-migferi", slot: "head" as const, not: "soldiers and mercenary captains (Genoese, Venetian)" },
+      { ref: "ottoman-1453/sakal-beyaz", slot: "beard" as const },
+      { ref: "ottoman-1453/sakal-kahve", slot: "beard" as const },
+      { ref: "ottoman-1453/biyik-beyaz", slot: "mustache" as const },
+    ];
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "white turban" }, catalog).map((a) => a.ref), ["ottoman-1453/isci-sarigi", "ottoman-1453/vezir-sarigi"]);
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "Ottoman officials' turbans" }, catalog).map((a) => a.ref)[0], "ottoman-1453/vezir-sarigi", "plurals folded, the role named first");
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "Sultan Murad IV's turban" }, catalog).map((a) => a.ref)[0], "ottoman-1453/padisah-kavugu", "the sultan's turban for the sultan");
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "noble's crown" }, catalog).map((a) => a.ref), [], "a 'never' in the note does not open a reserved part");
+    assert.deepEqual(partAlternatives({ slot: "head", tarif: "steel helmets" }, catalog).map((a) => a.ref), ["ottoman-1453/zaganos-migferi", "byzantine-1453/italyan-migferi"]);
+    assert.deepEqual(partAlternatives({ slot: "beard", tarif: "long white beard" }, catalog).map((a) => a.ref), ["ottoman-1453/sakal-beyaz"], "the slot's name is not a kind word: the colour decides");
+    assert.deepEqual(partAlternatives({ slot: "mustache", tarif: "white mustache" }, catalog).map((a) => a.ref), ["ottoman-1453/biyik-beyaz"], "mustache and moustache are one word");
+    assert.match(failedPartFinding({ slot: "head", tarif: "white turban" }, [], partAlternatives({ slot: "head", tarif: "white turban" }, catalog)).oneri ?? "", /^kütüphanede yerine geçebilecek: ottoman-1453\/isci-sarigi \(workers, laborers, townsmen\); ottoman-1453\/vezir-sarigi/);
     rmSync(root, { recursive: true, force: true });
     scenarios++;
   } catch (e) {
