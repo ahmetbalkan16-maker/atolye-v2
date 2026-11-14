@@ -161,7 +161,10 @@ WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext> {
   if (existing) {
     // Adopt the real, already-claimed shared map if a prior module instance created it; never adopt a
     // foreign, non-WeakMap value that happens to occupy this exact process-global slot.
-    return existing.value instanceof WeakMap ? existing.value : new WeakMap();
+    // TypeScript 7 narrows `instanceof WeakMap` to WeakMap<WeakKey, any>: name the slot's own type.
+    return existing.value instanceof WeakMap
+      ? (existing.value as WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext>)
+      : new WeakMap();
   }
 
   const bindings = new WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext>();

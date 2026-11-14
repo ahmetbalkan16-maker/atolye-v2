@@ -1395,8 +1395,9 @@ WeakMap<object, CompletedProductionPipelinePreparationRecord> {
   if (existing) {
     // Adopt the real, already-claimed shared map if a prior module instance created it; never adopt a
     // foreign, non-WeakMap value that happens to occupy this exact process-global slot.
+    // TypeScript 7 narrows `instanceof WeakMap` to WeakMap<WeakKey, any>: name the slot's own type.
     return existing.value instanceof WeakMap
-      ? existing.value
+      ? (existing.value as WeakMap<object, CompletedProductionPipelinePreparationRecord>)
       : new WeakMap<object, CompletedProductionPipelinePreparationRecord>();
   }
 

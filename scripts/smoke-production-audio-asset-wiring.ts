@@ -1233,7 +1233,8 @@ async function run() {
     ]> = [
       ["wrong provider", (result) => ({ ...result, provider: "mock" }) as AudioGenerationResult],
       ["wrong target", (result) => ({ ...result, target: { kind: "mix" } })],
-      ["wrong MIME", (result) => ({ ...result, mimeType: "audio/mpeg" }) as AudioGenerationResult],
+      // A deliberately wrong MIME: through unknown (TypeScript 7 refuses the direct cast, "audio/mpeg" vs "audio/wav").
+      ["wrong MIME", (result) => ({ ...result, mimeType: "audio/mpeg" }) as unknown as AudioGenerationResult],
       ["absolute path", (result) => ({ ...result, filePath: "C:\\private\\audio.wav" })],
       ["traversal path", (result) => ({ ...result, filePath: "data/projects/../audio.wav" })],
       ["backslash path", (result) => ({ ...result, filePath: String(result.filePath).replaceAll("/", "\\") })],
