@@ -60,6 +60,7 @@ import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { chiefOnPart, colourName, historianOnPart, lessonBlock, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, fitTimeline, type LineAudio, MIN_PAUSE_SHARE } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
+import { closeWaterFor } from "../src/lib/v3/maps/MapGround";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -3081,6 +3082,36 @@ async function main() {
     }
   });
 
+  await scenario("a tilted close map keeps its rivers when its wider box goes unanswered (Waterloo s2, 14 Nov 2026: the ~200 km Belgian box timed out on every Overpass mirror and the tilted map lost the Dyle and every lake): the flat map's own box is asked then; a flat map asks only its own", async () => {
+    const map: SceneMap = { merkez: [4.4, 50.68], genislik_km: 120 };
+    const saved = process.env.ATOLYE_V3_EGIK_HARITA;
+    try {
+      delete process.env.ATOLYE_V3_EGIK_HARITA;
+      const flatBox = mapWorld(map, 1920, 1080, false).bounds;
+      const wideBox = mapWorld(map, 1920, 1080, true).bounds;
+      assert.ok(wideBox.east - wideBox.west > (flatBox.east - flatBox.west) * 1.4, "the tilted world is wider");
+      const asked: string[] = [];
+      const lookup = async (w: { bounds: typeof flatBox }) => {
+        asked.push(JSON.stringify(w.bounds));
+        return JSON.stringify(w.bounds) === JSON.stringify(flatBox) ? { rivers: ["Dyle"], lakes: [] } : undefined;
+      };
+      assert.deepEqual(await closeWaterFor(map, { bounds: wideBox }, lookup), { rivers: ["Dyle"], lakes: [] });
+      assert.deepEqual(asked, [JSON.stringify(wideBox), JSON.stringify(flatBox)]);
+      // Answered at once: no second question.
+      asked.length = 0;
+      assert.deepEqual(await closeWaterFor(map, { bounds: flatBox }, lookup), { rivers: ["Dyle"], lakes: [] });
+      assert.equal(asked.length, 1);
+      // =0: the flat map asks its own box only, as before.
+      process.env.ATOLYE_V3_EGIK_HARITA = "0";
+      asked.length = 0;
+      assert.equal(await closeWaterFor(map, { bounds: wideBox }, lookup), undefined);
+      assert.equal(asked.length, 1);
+    } finally {
+      if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
+      else process.env.ATOLYE_V3_EGIK_HARITA = saved;
+    }
+  });
+
   await scenario("both views on the maps (owner, 13 Nov 2026: \"daha fazla 2.5D … ama dikey de kullanabilir\", \"bu iki görünüşü de kullansın\", \"uzun videolarda da olsun\"): a close map tilts 30°, a medium map with action 24°→18°, an overview stays straight down; a map opens straight down and glides into the tilt as the action starts, back when the region is read again; dikey/egik force; every video (and long-video chapter) shows both; =0 everything flat as before", () => {
     const env = {};
     const off = { ATOLYE_V3_EGIK_HARITA: "0" };
@@ -3162,6 +3193,20 @@ async function main() {
       const tall = tiltAt(geo, 400, 30, 1080, 1920)!;
       const p = tiltProject(tall, 1080 / 2 + cam.zoom * (geo.armies[0]!.path!.at(-1)!.x - cam.x), 1920 / 2 + cam.zoom * (geo.armies[0]!.path!.at(-1)!.y - cam.y));
       assert.ok(tall.deg === geo.tilt && p.x > 0 && p.x < 1080 && p.y > 0 && p.y < 1920, JSON.stringify({ tall, p }));
+      // Names go where the camera frames (Baghdad s2, 14 Nov 2026: "MEDITERRANEAN SEA", centred on the sea's part of the
+      // tilted map's wider world, stood off the frame and vanished): a sea reaching far west of the view is named in view,
+      // on the tilted map as on the flat one.
+      const sea = { ...(data as object), seas: [{ name: "Test Sea", polys: [[[[0, 38], [18, 38], [18, 48], [0, 48], [0, 38]]]] }] } as never;
+      const named = buildGeoMap(march, sea, 1920, 1080, (i) => (i ?? 0) * 90, { relief: "bg/r.jpg" });
+      const k0 = named.camera![0]!;
+      const seaAt = named.seas?.[0];
+      assert.ok(seaAt && Math.abs(960 + k0.zoom * (seaAt.x - k0.x) - 960) < 960 && Math.abs(540 + k0.zoom * (seaAt.y - k0.y) - 540) < 540, JSON.stringify({ seaAt, k0, world: named.world }));
+      // A state's name keeps clear of a city's name by its upright height on the foreshortened tilted ground (TILT_BADGE_TALL;
+      // Gallipoli s4, 14 Nov 2026: "OTTOMAN EMPIRE", clear of "Gallipoli" flat, sat on it tilted).
+      const named2 = { land: "", lakes: "", rivers: "", territories: [{ d: "", color: "#3fae3a", label: "Serbia", start: 0, labelX: 500, labelY: 500, labelSize: 40 }], cities: [{ x: 490, y: 500 + 20 + 16 + 4, label: "Nis" }], armies: [], arrows: [] } as unknown as V3GeoMap;
+      assert.equal(placeStateLabels(named2, 1920, 1080, 1).territories[0]!.labelY, 500, "flat: clear as it is");
+      const up = placeStateLabels(named2, 1920, 1080, 1, undefined, TILT_BADGE_TALL).territories[0]!;
+      assert.ok(up.labelY !== undefined && Math.abs(up.labelY - 540) >= (40 * TILT_BADGE_TALL) / 2 + 16 - 1e-6, `tilted: moved off the city's name: ${JSON.stringify(up)}`);
       // =0: the medium map is drawn flat on its own world, exactly as before (no tilt, no views, the flat world).
       process.env.ATOLYE_V3_EGIK_HARITA = "0";
       const flat = buildGeoMap(march, data, 1920, 1080, (i) => (i ?? 0) * 90, { relief: "bg/r.jpg" });

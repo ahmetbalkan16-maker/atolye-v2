@@ -221,14 +221,15 @@ export { labelLines };
  * crescent the middle of its widest span through that centre), at a height that fits the piece — big for an empire,
  * small for a beylik, like the reference maps. The old anchor, the mean of the outline's points, could fall outside a
  * bent state. `zoom`: the first view's scale against the drawn world, `frameHeight`: the picture's (a moving map's
- * world is far taller) — sizes are for the screen.
+ * world is far taller) — sizes are for the screen. `clip`: the part of the world the name may go in (world px; the whole
+ * world when absent — a tilted map's: framedBox).
  */
-export function labelPoint(v: MapView, polys: readonly Polygon[], label: string, zoom = 1, frameHeight = v.height): { x: number; y: number; size: number; ring: readonly (readonly [number, number])[] } | undefined {
+export function labelPoint(v: MapView, polys: readonly Polygon[], label: string, zoom = 1, frameHeight = v.height, clip?: Rect): { x: number; y: number; size: number; ring: readonly (readonly [number, number])[] } | undefined {
   let best: [number, number][] | undefined;
   let bestArea = 0;
   for (const poly of polys) {
     const s = shiftFor(v, poly[0]?.[0]?.[0] ?? v.lon0);
-    const ring = clipRing((poly[0] ?? []).map(([lon, lat]) => project(v, lon + s, lat)), 0, 0, v.width, v.height);
+    const ring = clipRing((poly[0] ?? []).map(([lon, lat]) => project(v, lon + s, lat)), clip?.x0 ?? 0, clip?.y0 ?? 0, clip?.x1 ?? v.width, clip?.y1 ?? v.height);
     if (ring.length < 3) continue;
     let a = 0;
     for (let i = 0; i < ring.length; i++) {
@@ -355,9 +356,11 @@ const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1
  * Keeps every state's name inside the picture and off the marks near its spot (map still, 21 Oct 2026: "OTTOMAN
  * EMPIRE" covered Bursa, "KINGDOM OF HUNGARY" ran off the top under the crusaders' arrow): the name moves up or down a
  * little, then sideways, to the first place where it covers no city, badge, battle, arrow name or other state's name.
- * `px`: drawn pixels per 1080p screen pixel (MapView keeps names and marks at a constant screen size).
+ * `px`: drawn pixels per 1080p screen pixel (MapView keeps names and marks at a constant screen size). `tall`: how much
+ * more of the map an upright name takes up and down (TILT_BADGE_TALL on a tilted map, whose ground is foreshortened under
+ * it; Gallipoli s4, 14 Nov 2026: "OTTOMAN EMPIRE", clear of Gallipoli's name on the flat map, sat on it once tilted).
  */
-export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number, inside?: readonly (readonly (readonly [number, number])[] | undefined)[]): V3GeoMap {
+export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number, inside?: readonly (readonly (readonly [number, number])[] | undefined)[], tall = 1): V3GeoMap {
   const cityMarks: Rect[] = m.cities.map((c) => ({ x0: c.x - 10 * px, y0: c.y - 16 * px, x1: c.x + (16 + c.label.length * 13) * px, y1: c.y + 16 * px }));
   // An arrow's name goes above the first point along it (middle first) where it covers no city ("CRUSADERS" sat on
   // "Belgrade" in the Nicopolis map trial).
@@ -427,7 +430,7 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
     const ring = inside?.[i];
     const box = (x: number, y: number, size: number) => {
       const w = Math.max(...lines.map((l) => l.length)) * LABEL_CHAR_W * size * px;
-      const h = lines.length * size * px;
+      const h = lines.length * size * px * tall;
       return { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 };
     };
     // The whole name inside its own state (owner, 21 Oct 2026: "harita sınırına sığdır, başka ülkeye girmesin"): five
@@ -1757,6 +1760,23 @@ export function mapWorld(map: SceneMap, width: number, height: number, tilted = 
   return { view, bounds, keys };
 }
 
+/**
+ * The part of a world its camera's views frame (world px): the views' union, with mapWorld's 5 % margin round several,
+ * as the flat map's world is cut. A tilted map's world reaches TILT_WORLD_SPAN past it into ground only glimpsed at the far
+ * corners; the names of states and seas go in this part (Baghdad s2, 14 Nov 2026: "MEDITERRANEAN SEA", centred on the
+ * sea's part of the wider world, stood off the frame and vanished from the tilted map).
+ */
+export function framedBox(world: Pick<MapWorld, "view" | "keys">): Rect {
+  const v = world.view;
+  const corners = world.keys.flatMap((k) => [project(v, k.view.lon0 - k.view.spanLon / 2, k.view.lat0 + k.view.spanLat / 2), project(v, k.view.lon0 + k.view.spanLon / 2, k.view.lat0 - k.view.spanLat / 2)]);
+  const xs = corners.map((p) => p[0]);
+  const ys = corners.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const mx = world.keys.length > 1 ? (x1 - x0) * 0.05 : 0;
+  const my = world.keys.length > 1 ? (y1 - y0) * 0.05 : 0;
+  return { x0: Math.max(0, x0 - mx), y0: Math.max(0, y0 - my), x1: Math.min(v.width, x1 + mx), y1: Math.min(v.height, y1 + my) };
+}
+
 function projectGeoMap(
   map: SceneMap,
   data: MapData,
@@ -1775,6 +1795,8 @@ function projectGeoMap(
   // A tilted map is drawn on a world wider than its view (mapWorld), so its camera holds the view.
   const looks = mapViews(map, process.env, deg ?? null);
   const tilt = looks?.deg;
+  // Where a tilted map's state and sea names go: the part its views frame (framedBox), not the wider world's margin.
+  const nameClip = deg !== undefined ? framedBox(world) : undefined;
   const moving = world.keys.length > 1 || tilt !== undefined || widened;
   // The widest view's scale against the world: name sizes are for the screen, and a name that fits its state there
   // fits it in every closer view too (MapView keeps names at one screen size, so zooming out makes them relatively larger).
@@ -1821,7 +1843,7 @@ function projectGeoMap(
       const sh = shape(i, polys);
       // A state's later land under the same name (its conquest drawn as a second region) carries no second name.
       const again = named.slice(0, i).some((n) => n.b.ad.trim().toLowerCase() === b.ad.trim().toLowerCase());
-      const at = again ? undefined : labelPoint(v, sh.label, b.ad, zoom0, height);
+      const at = again ? undefined : labelPoint(v, sh.label, b.ad, zoom0, height, nameClip);
       rings.push(at?.ring);
       const pin = b.etiket_konum && !again ? projectNear(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
@@ -2206,7 +2228,7 @@ function projectGeoMap(
     ...(looks ? tiltViewFrames(looks, lineStart, opts) : {}),
     // The close map's units as small round tokens (or, switched back, as blocks): only where there are kinded units.
     ...(close && units.some((u) => u.kind) ? { unitStyle: closeUnitStyle() } : {}),
-    ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
+    ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en", nameClip) : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),
     ...(strength.length ? { strength } : {}),
@@ -2215,19 +2237,20 @@ function projectGeoMap(
     ...(glows.length ? { glows } : {}),
     ...(dates.length ? { dates } : {}),
   };
-  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings);
+  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings, tilt !== undefined ? TILT_BADGE_TALL : 1);
 }
 
 /**
  * An atlas's sea names and scale (owner's example map, 21 Oct 2026): every named sea or gulf with room for its name
  * in the world gets it at its centre, in the narration's language; and kilometres per drawn pixel for the scale bar.
+ * `clip`: the part of the world names go in (a tilted map's framedBox), else the whole world.
  */
-function atlasMarks(data: MapData, v: MapView, bounds: MapWorld["bounds"], zoom: number, frameHeight: number, language: "tr" | "en"): Pick<V3GeoMap, "seas" | "kmPerPx"> {
+function atlasMarks(data: MapData, v: MapView, bounds: MapWorld["bounds"], zoom: number, frameHeight: number, language: "tr" | "en", clip: Rect = { x0: 0, y0: 0, x1: v.width, y1: v.height }): Pick<V3GeoMap, "seas" | "kmPerPx"> {
   const seas = (data.seas ?? []).flatMap((s) => {
     const box = boxOf(s.polys);
     if (!touchesRound(box, bounds)) return [];
     const label = language === "tr" && s.nameTr ? s.nameTr : s.name;
-    const at = labelPoint(v, s.polys, label, zoom, frameHeight);
+    const at = labelPoint(v, s.polys, label, zoom, frameHeight, clip);
     // Spaced capitals take about twice the room of a state's name: a sea too small for that stays unnamed.
     if (!at || at.size < 28) return [];
     const size = Math.min(30, Math.round(at.size * 0.6));
@@ -2235,9 +2258,9 @@ function atlasMarks(data: MapData, v: MapView, bounds: MapWorld["bounds"], zoom:
     const px = frameHeight / 1080 / zoom;
     const halfW = label.length * size * 0.52 * px + 40 * px;
     const halfH = size * 0.6 * px + 40 * px;
-    if (2 * halfW > v.width || 2 * halfH > v.height) return [];
-    const x = Math.min(Math.max(at.x, halfW), v.width - halfW);
-    const y = Math.min(Math.max(at.y, halfH), v.height - halfH);
+    if (2 * halfW > clip.x1 - clip.x0 || 2 * halfH > clip.y1 - clip.y0) return [];
+    const x = Math.min(Math.max(at.x, clip.x0 + halfW), clip.x1 - halfW);
+    const y = Math.min(Math.max(at.y, clip.y0 + halfH), clip.y1 - halfH);
     return [{ x: r1(x), y: r1(y), label: label.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US"), size }];
   });
   const kmPerPx = Math.round(((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width) * 10000) / 10000;

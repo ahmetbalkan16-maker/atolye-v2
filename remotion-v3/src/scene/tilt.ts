@@ -185,7 +185,19 @@ export const TILT_WORLD_PAST = 0.25;
  */
 export const TILT_SHOT_PUSH = 1.08;
 /** The atlas corner ShotView draws at the bottom left (compass and scale bar), 1080p px (CloseLabels' CORNER). */
-const ATLAS_CORNER = { x0: 50, x1: 360, up: 275 };
+export const ATLAS_CORNER = { x0: 50, x1: 360, up: 275 } as const;
+
+/**
+ * The part of the flat picture (W×H, its `view` shown on the output frame `out`) the tilted camera shows under the atlas
+ * corner: a name slid there moves up off it (MapView; Baghdad s2, 14 Nov 2026: the near rows' enlarged ground put
+ * "MEDITERRANEAN SEA", clear of the scale bar on the flat map, on it once tilted).
+ */
+export function atlasCornerSeen(t: Tilt, view: Box, out: { readonly width: number; readonly height: number }): Box {
+  const u = Math.min(out.width, out.height) / 1080;
+  const fx = (x: number) => view.x0 + (x / out.width) * (view.x1 - view.x0);
+  const fy = (y: number) => view.y0 + (y / out.height) * (view.y1 - view.y0);
+  return tiltSeen(t, { x0: fx(ATLAS_CORNER.x0 * u), x1: fx(ATLAS_CORNER.x1 * u), y0: fy(out.height - ATLAS_CORNER.up * u), y1: fy(out.height) }).cover;
+}
 
 /**
  * The tilt that frames `items` (flat-picture px): the plane's scale as large as needed for the armies (the `ground`
@@ -291,6 +303,12 @@ const SWORDS_ROOM_1080 = 52;
 const ARMY_MARK_UP_1080 = 150;
 /** A ship's or other vehicle's token and its wake round its place (1080p px). */
 const VEHICLE_ROOM_1080 = 44;
+/**
+ * A group's further ships stand in a wedge behind the first (MapVehicles: each row 1.5 tokens back, 1.1 aside; 30 px a
+ * token): this much more room round its place per row (Guadalcanal s2, 14 Nov 2026: the tilt kept the US flagship and cut
+ * the four ships behind it at the right edge).
+ */
+const VEHICLE_ROW_1080 = 45;
 /** A campaign arrow's base and head (1080p px). */
 const ARROW_END_1080 = 36;
 /** A speaking badge swells up to this (MapView's talkSwell). */
@@ -339,7 +357,8 @@ export function tiltItems(map: V3GeoMap, fps: number, W: number, H: number): { f
     }
     for (const v of map.vehicles ?? []) {
       if (v.start >= to || (v.end !== undefined && v.end <= from)) continue;
-      for (const p of v.path) add(p.x, p.y, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, true);
+      const room = (VEHICLE_ROOM_1080 + Math.ceil((Math.max(1, v.count) - 1) / 2) * VEHICLE_ROW_1080) * u;
+      for (const p of v.path) add(p.x, p.y, room, room, room, room, true);
     }
     for (const ar of map.arrows ?? []) {
       if (ar.plan || ar.start >= to || (ar.end !== undefined && ar.end <= from) || ar.points.length < 2) continue;

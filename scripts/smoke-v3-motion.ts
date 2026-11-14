@@ -14,7 +14,7 @@ import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubb
 import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
-import { applyMatrix, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
+import { applyMatrix, atlasCornerSeen, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
 import { type V3CameraKey, type V3DrawnSet, type V3GeoMap, type V3Performer, type V3Shot, type V3Viseme, wallIsRing } from "../src/lib/v3/render/RenderPlanTypes";
 
 // MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
@@ -711,6 +711,26 @@ async function main() {
     assert.ok(qe.x - edge.l * qe.scale >= edge.x - edge.l - 1e-3, JSON.stringify(te));
     // A flat map has no tilt.
     assert.equal(tiltAt({ ...map, tilt: undefined } as V3GeoMap, 150, fps, W, H), undefined);
+    // A ship group is kept whole, not its flagship alone (Guadalcanal s2, 14 Nov 2026: the tilt kept the US flagship near
+    // the right edge and cut the four ships of its wedge behind it): the wedge (MapVehicles: rows 1.5 tokens back and
+    // 1.1 aside, 30 px a token) stays in the frame round the group's place.
+    const fleetMap = (count: number) => ({ ...map, units: [], badges: [], battles: [], vehicles: [{ kind: "gemi", color: "#888888", count, start: 9, path: [{ x: wx(1650), y: wy(560) }] }] }) as unknown as V3GeoMap;
+    const lone = tiltItems(fleetMap(1), fps, W, H)[0]!.items[0]!;
+    const group = tiltItems(fleetMap(5), fps, W, H)[0]!.items[0]!;
+    const wedge = 2 * 1.5 * 30 + 30;
+    assert.ok(group.r >= wedge && group.l >= wedge && group.u >= wedge && group.d >= wedge && lone.r < wedge, JSON.stringify({ lone, group }));
+    const tf = tiltAt(fleetMap(5), 150, fps, W, H)!;
+    const rear = tiltProject(tf, group.x + wedge, group.y + wedge);
+    assert.ok(rear.x <= W && rear.y <= H, `the wedge's last ship in the frame: ${JSON.stringify(rear)}`);
+    // The atlas corner's ground on the tilted map (Baghdad s2, 14 Nov 2026: "MEDITERRANEAN SEA" ran over the scale bar
+    // once tilted): the flat-picture box MapView moves names up off lands on the screen's corner (50–360 px, the bottom
+    // 275 px), and the enlarged near rows make it reach above the flat map's corner.
+    const corner = atlasCornerSeen(t, { x0: 0, y0: 0, x1: W, y1: H }, { width: W, height: H });
+    const topLeft = tiltProject(t, corner.x0, corner.y0);
+    const topRight = tiltProject(t, corner.x1, corner.y0);
+    assert.ok(topLeft.y <= H - 275 + 1e-6 && topRight.y <= H - 275 + 1e-6 && topLeft.x <= 50 + 1e-6 && topRight.x >= 360 - 1e-6, JSON.stringify({ corner, topLeft, topRight }));
+    const flatEdge = tiltProject(t, 205, H - 275);
+    assert.ok(Math.abs(flatEdge.y - (H - 275)) > 1, `a tilt moves the flat corner's edge on the screen: ${flatEdge.y}`);
   });
 
   /** A map's tokens frame by frame: the largest step, the largest change of speed and the turns back (> 170°, steps over 2 px). */

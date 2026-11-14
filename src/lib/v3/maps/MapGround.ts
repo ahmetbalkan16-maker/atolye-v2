@@ -1,7 +1,7 @@
 import { CLOSE_MAP_MAX_KM, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3Paths } from "../V3Paths";
 import { type CloseCoast, closeCoastFor, closeRiversFor } from "./CloseCoast";
-import { closeMapTilt, mapWorld, type Polygon } from "./MapBuilder";
+import { closeMapTilt, type MapWorld, mapWorld, type Polygon } from "./MapBuilder";
 import { closeReliefFor, reliefFor } from "./Relief";
 import { groundOf } from "./UnitFraming";
 
@@ -18,11 +18,21 @@ export async function mapGroundFor(paths: V3Paths, map: SceneMap, publicDir: str
     // stays as it was; a tilted one's wider box is assembled anew.
     const coast = await closeCoastFor(paths, world, baseLand, log, closeMapTilt(map) === undefined);
     // Its rivers and lakes too (an inland battle's front, crossing or fleet road), joined to the coast it has.
-    const water = await closeRiversFor(paths, world, log);
+    const water = await closeWaterFor(map, world, (w) => closeRiversFor(paths, w, log));
     const relief = await closeReliefFor(paths, world, publicDir, log);
     const ground = coast || water ? { land: coast?.land ?? [], water: [...(coast?.water ?? []), ...(water?.lakes ?? [])], ...(water?.rivers.length ? { rivers: water.rivers } : {}) } : undefined;
     return { ...(relief ? { relief } : {}), ...(ground ? { coast: ground } : {}) };
   }
   const relief = await reliefFor(paths, world, publicDir, log);
   return relief ? { relief } : {};
+}
+
+/**
+ * A close map's rivers and lakes for its world (`lookup`: CloseCoast.closeRiversFor). A tilted map's wider box Overpass
+ * does not answer falls back to the flat map's own box (in the library from an earlier production, else a smaller
+ * query), so the framed view keeps its water (Waterloo s2, 14 Nov 2026: the ~200 km Belgian box timed out on every mirror,
+ * even at 120 s, and the tilted map lost the Dyle and every lake the flat one showed). A flat map asks its own box only.
+ */
+export async function closeWaterFor<T>(map: SceneMap, world: Pick<MapWorld, "bounds">, lookup: (world: Pick<MapWorld, "bounds">) => Promise<T | undefined>): Promise<T | undefined> {
+  return (await lookup(world)) ?? (closeMapTilt(map) !== undefined ? await lookup(mapWorld(map, 1920, 1080, false)) : undefined);
 }

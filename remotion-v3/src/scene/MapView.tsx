@@ -16,7 +16,7 @@ import { MapNight } from "./MapNight";
 import { isNightMap } from "./mapEffects";
 import { smoothRiver } from "./mapNature";
 import { yer } from "./LayoutProbe";
-import { type Tilt, tiltAt, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, type Up, uprightScale } from "./tilt";
+import { atlasCornerSeen, type Tilt, tiltAt, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, type Up, uprightScale } from "./tilt";
 
 const OCEAN = "#22406a";
 const OCEAN_DEEP = "#172e4f";
@@ -110,6 +110,12 @@ const MARCH_MAX_S = 12;
 /** How long one band of a sweeping conquest takes to fade in: short, so the half-blended red over blue never shows as a grey band (benchmark 3, 22 Oct 2026); 16 bands keep the front smooth. */
 const BAND_FADE_S = 0.6;
 
+/**
+ * A sea name's width per letter in its sizes (Georgia italic capitals ~0.72 plus the 0.45 letter spacing; measured on
+ * the Baghdad s2 still, 14 Nov 2026: "MEDITERRANEAN SEA" at 30 px is 595 px wide). Used on a tilted map, whose flat map
+ * keeps its old estimate (one size per letter) unchanged.
+ */
+const SEA_NAME_EM = 1.17;
 /** Scale bar lengths a map would print. */
 const SCALE_STEPS_KM = [1, 2, 5, 10, 25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
 
@@ -370,6 +376,10 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
     // Through a tilted camera: the flat picture's part under the mark (a name's place lands there).
     return tilt ? tiltSeen(tilt.t, box).cover : box;
   });
+  // On a tilted map the near rows' ground is enlarged, so a name the flat map wrote just above the atlas corner (ShotView's
+  // compass and scale bar, bottom left) lands on it: the part of the flat picture under the corner, which such a name
+  // moves up off (Baghdad s2, 14 Nov 2026: "MEDITERRANEAN SEA" ran over the scale bar once tilted).
+  const cornerBox = tilt ? atlasCornerSeen(tilt.t, view, out) : undefined;
   const slideInside = (x: number, y: number, half: { x: number; y: number }) => {
     const push = (c: number, h: number, lo: number, hi: number) => (c - h < lo + m ? lo + m - (c - h) : c + h > hi - m ? hi - m - (c + h) : 0);
     const row = viewAt(y);
@@ -377,8 +387,16 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
     const dy = push(y, half.y, shownWorld.y0, shownWorld.y1);
     if (Math.abs(dx) > half.x || Math.abs(dy) > half.y) return undefined;
     const at = { x: x + dx, y: y + dy };
-    const box = { x0: W / 2 + cam.zoom * (at.x - half.x - cam.x), x1: W / 2 + cam.zoom * (at.x + half.x - cam.x), y0: H / 2 + cam.zoom * (at.y - half.y - cam.y), y1: H / 2 + cam.zoom * (at.y + half.y - cam.y) };
-    return overlays.some((o) => box.x0 < o.x1 && o.x0 < box.x1 && box.y0 < o.y1 && o.y0 < box.y1) ? undefined : at;
+    const boxAt = (p: { x: number; y: number }) => ({ x0: W / 2 + cam.zoom * (p.x - half.x - cam.x), x1: W / 2 + cam.zoom * (p.x + half.x - cam.x), y0: H / 2 + cam.zoom * (p.y - half.y - cam.y), y1: H / 2 + cam.zoom * (p.y + half.y - cam.y) });
+    const hit = (b: ReturnType<typeof boxAt>, o: ReturnType<typeof boxAt>) => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1;
+    let box = boxAt(at);
+    // Up off the tilted map's atlas corner, while it stays in the picture.
+    if (cornerBox && hit(box, cornerBox)) {
+      at.y -= (box.y1 - cornerBox.y0 + m * cam.zoom) / cam.zoom;
+      if (at.y - half.y < shownWorld.y0 + m) return undefined;
+      box = boxAt(at);
+    }
+    return overlays.some((o) => hit(box, o)) ? undefined : at;
   };
   const keepNameInside = (text: string, x: number, y: number, size: number) => {
     const lines = labelLines(text.toLocaleUpperCase("en-US"));
@@ -724,9 +742,10 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
             {G(<path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />)}
             {/* Sea names like an atlas (owner's example map): pale spaced italic capitals. */}
             {(map.seas ?? []).map((s, i) => {
-              // Spaced capitals: about a full size per letter; slid in like a state's name.
+              // Spaced capitals: about a full size per letter; slid in like a state's name. On a tilted map, slid along the
+              // narrower near rows, by their measured width (SEA_NAME_EM: "MEDITERRANEAN SEA" lost its M at the left edge).
               const f = room(s.x, s.y);
-              const at = slideInside(s.x, s.y, { x: ((s.label.length * s.size * k) / 2) * f.fx, y: ((s.size * k) / 2) * f.fy });
+              const at = slideInside(s.x, s.y, { x: ((s.label.length * s.size * k * (tilt ? SEA_NAME_EM : 1)) / 2) * f.fx, y: ((s.size * k) / 2) * f.fy });
               if (!at) return null;
               return U(
                 at.x,
