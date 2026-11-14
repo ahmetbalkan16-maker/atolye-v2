@@ -78,6 +78,9 @@ export function fellBackChecks(ledger: readonly Partial<V3SpendEntry>[]): { read
 export class V3BudgetError extends Error {
   constructor(readonly code: "V3_BUDGET_EXCEEDED" | "V3_BUDGET_UNKNOWN_PRICE" | "V3_BUDGET_INPUT", message: string) {
     super(`${code}: ${message}`);
+    // Without it `name` stayed "Error": AYAS's generated contract smoke for this class failed every 5 min (293× in the
+    // observer log by 14 Nov 2026) and the micro-batch candidate was regenerated each tick.
+    this.name = "V3BudgetError";
   }
 }
 

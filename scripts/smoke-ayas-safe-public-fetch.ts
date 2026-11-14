@@ -58,6 +58,21 @@ async function main() {
     assert.equal(__testables.isBlockedIPv6("fd00::1"), true);
     assert.equal(__testables.isBlockedIPv6("2606:4700:4700::1111"), false);
   });
+  await scenario("IPv4 hidden in IPv6 (hex mapped, compatible, NAT64), 6to4, site-local and 198.18/15 are blocked (14 Nov 2026 audit)", () => {
+    assert.equal(__testables.isBlockedIPv6("::ffff:7f00:1"), true); // ::ffff:127.0.0.1 in hex
+    assert.equal(__testables.isBlockedIPv6("::127.0.0.1"), true); // IPv4-compatible
+    assert.equal(__testables.isBlockedIPv6("::a00:1"), true); // ::10.0.0.1
+    assert.equal(__testables.isBlockedIPv6("64:ff9b::a9fe:a9fe"), true); // NAT64 169.254.169.254
+    assert.equal(__testables.isBlockedIPv6("64:ff9b::808:808"), false); // NAT64 8.8.8.8 stays public
+    assert.equal(__testables.isBlockedIPv6("64:ff9b:1::1"), true);
+    assert.equal(__testables.isBlockedIPv6("2002:7f00:1::1"), true); // 6to4
+    assert.equal(__testables.isBlockedIPv6("fec0::1"), true); // site-local
+    assert.equal(__testables.isBlockedIPv6("::ffff:8.8.8.8"), false);
+    assert.equal(__testables.isBlockedIPv6("2001:4860:4860::8888"), false);
+    assert.equal(__testables.isBlockedIPv6("1:2:3"), true); // malformed fails closed
+    assert.equal(__testables.isBlockedIPv4("198.18.0.1"), true);
+    assert.equal(__testables.isBlockedIPv4("198.20.0.1"), false);
+  });
   await scenario("IPv4-mapped IPv6 loopback (::ffff:127.0.0.1) is blocked", () => {
     assert.equal(__testables.isBlockedIPv6("::ffff:127.0.0.1"), true);
   });

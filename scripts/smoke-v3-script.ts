@@ -175,7 +175,7 @@ async function main() {
   await scenario("C without a fallback the over-cap call stops the run before spending", async () => {
     const openai = new FakeProvider(["pahalı"]);
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
-    await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED");
+    await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && e.name === "V3BudgetError");
     assert.equal(openai.calls.length, 0);
   });
 

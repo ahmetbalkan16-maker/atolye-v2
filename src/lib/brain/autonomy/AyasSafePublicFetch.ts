@@ -226,19 +226,47 @@ function isBlockedIPv4(ip: string): boolean {
   if (a === 192 && b === 168) return true; // RFC1918
   if (a === 169 && b === 254) return true; // link-local, INCLUDES the 169.254.169.254 cloud metadata address
   if (a === 100 && b >= 64 && b <= 127) return true; // RFC6598 carrier-grade NAT
+  if (a === 198 && (b === 18 || b === 19)) return true; // 198.18.0.0/15 benchmarking (14 Nov 2026 audit)
   if (a >= 224) return true; // multicast/reserved (224.0.0.0 - 255.255.255.255)
   return false;
+}
+
+/** The eight 16-bit groups of an IPv6 address (a dotted IPv4 tail counts as two); undefined when malformed. */
+function ipv6Groups(ip: string): number[] | undefined {
+  let text = ip;
+  const tail = /(\d+\.\d+\.\d+\.\d+)$/.exec(text);
+  if (tail) {
+    if (!net.isIPv4(tail[1]!)) return undefined;
+    const [p, q, r, s] = tail[1]!.split(".").map(Number) as [number, number, number, number];
+    text = text.slice(0, -tail[1]!.length) + `${((p << 8) | q).toString(16)}:${((r << 8) | s).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return undefined;
+  const part = (h: string) => (h ? h.split(":") : []);
+  const head = part(halves[0]!);
+  const back = halves.length === 2 ? part(halves[1]!) : [];
+  const fill = 8 - head.length - back.length;
+  if (halves.length === 2 ? fill < 1 : fill !== 0) return undefined;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? fill : 0).fill("0"), ...back].map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN));
+  return groups.some((g) => Number.isNaN(g)) ? undefined : groups;
 }
 
 function isBlockedIPv6(ipRaw: string): boolean {
   const ip = ipRaw.toLowerCase();
   if (ip === "::1" || ip === "::" ) return true; // loopback / unspecified
   if (/^fe[89ab][0-9a-f]:/.test(ip) || ip.startsWith("fe80::")) return true; // fe80::/10 link-local
+  if (/^fe[c-f][0-9a-f]:/.test(ip)) return true; // fec0::/10 deprecated site-local (14 Nov 2026 audit)
   if (/^f[cd][0-9a-f]{0,2}:/.test(ip)) return true; // fc00::/7 unique local
-  if (ip.startsWith("::ffff:")) {
-    const v4 = ip.slice("::ffff:".length);
-    if (net.isIPv4(v4)) return isBlockedIPv4(v4);
-  }
+  const g = ipv6Groups(ip);
+  if (!g) return true; // malformed -> fail closed
+  const v4 = () => `${g[6]! >> 8}.${g[6]! & 255}.${g[7]! >> 8}.${g[7]! & 255}`;
+  // Addresses that carry an IPv4 address inside (14 Nov 2026 audit): judged by that address, in dotted or hex form —
+  // IPv4-mapped ::ffff:0:0/96, IPv4-compatible ::/96, NAT64 64:ff9b::/96. 6to4 2002::/16 and NAT64 local-use
+  // 64:ff9b:1::/48 are translation prefixes a public fetch never needs: refused outright.
+  if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0xffff || g[5] === 0)) return isBlockedIPv4(v4());
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return isBlockedIPv4(v4());
+  if (g[0] === 0x2002) return true;
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true;
   return false;
 }
 
