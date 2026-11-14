@@ -519,7 +519,9 @@ export interface ScriptEngineInput {
  * chapter's fact check applied to the joined episode — a correction that would break it is reported instead.
  */
 async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome> {
-  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, readableCheck: (text) => readFactCheck(text) !== undefined, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
+  // A chapter is asked what a single video's script is: no source sentence copied (12 Nov 2026), and where its words
+  // are missing scene by scene.
+  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, readableCheck: (text) => readFactCheck(text) !== undefined, chapterAsks: (chapter) => copiedFromSources(chapter, input.brief.kaynakBankasi), shortfalls: sceneShortfalls, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
   const written = withBankSources(draft.episode, input.brief.kaynakBankasi);
   const validation = validateEpisode(written);
   if (!validation.ok) throw new ScriptError("V3_SCRIPT_INVALID", `birleşen bölümler: ${validation.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);

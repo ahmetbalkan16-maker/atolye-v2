@@ -1,6 +1,7 @@
 import { CLOSE_MAP_MAX_KM, type SceneMap } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
-import { BADGE_STEP_PX, mapNameBoxes, mapOnScreen, shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
+import { SHORTS_SIZE } from "../render/Format";
+import { BADGE_STEP_PX, mapNameBoxes, mapOnScreen, mapTilt, mapWorld, type MapWorld, shipReachPx, VEHICLE_TOKEN_PX } from "./MapBuilder";
 import { CLOSE_MIN_ZOOM_KM } from "./RouteZoom";
 
 /**
@@ -175,6 +176,28 @@ export function frameLineAction(map: SceneMap, win: FrameWindow): { map: SceneMa
     moved.push(line);
   }
   return moved.length ? { map: { ...map, kamera: keys.sort((a, b) => a.satir - b.satir) }, lines: moved } : { map, lines: [] };
+}
+
+/**
+ * The world a scene's map ground (its relief and coast: MapGround.mapGroundFor) is cut for and the director draws the map
+ * on, and the map's tilt — both from the writer's map, so the two always agree (Baghdad s2 and Taranto s2 previews, 14 Nov
+ * 2026: the director's own camera stops — frameLineAction's, here over the whole stage and a Short's window — reached past
+ * the writer's world, so the relief was stretched over a world it was not cut for and lay off its coasts; Baghdad's
+ * 2,020-km stop also turned its 1,800-km map's tilt off in the director only). The writer's world, widened only where such
+ * a stop reaches past it. Undefined with `ATOLYE_V3_EGIK_HARITA=0` (everything as before 13 Nov 2026). Pure.
+ */
+export function groundOf(map: SceneMap, width: number, height: number, env: Readonly<Record<string, string | undefined>> = process.env): { world: MapWorld; tilt: number | undefined } | undefined {
+  if (env.ATOLYE_V3_EGIK_HARITA?.trim() === "0" || !map.merkez || !map.genislik_km) return undefined;
+  const tilt = mapTilt(map, env);
+  const own = mapWorld(map, width, height, tilt !== undefined);
+  const stage = { width, height };
+  const added = [fullStage(width, height), shortWindow(stage, SHORTS_SIZE)].flatMap((win) => frameLineAction(map, win).map.kamera ?? []).filter((k) => !(map.kamera ?? []).includes(k));
+  if (!added.length) return { world: own, tilt };
+  const wider = mapWorld({ ...map, kamera: [...(map.kamera ?? []), ...added] }, width, height, tilt !== undefined);
+  const b = own.bounds;
+  const w = wider.bounds;
+  const past = w.west < b.west - 1e-9 || w.east > b.east + 1e-9 || w.south < b.south - 1e-9 || w.north > b.north + 1e-9;
+  return { world: past ? wider : own, tilt };
 }
 
 /** A map element that acts at a frame, where it stands on the stage, and how far its drawing reaches round that point. */

@@ -13,6 +13,7 @@ import {
   GARMENTS,
   HAIR_STYLES,
   LANDSCAPES,
+  MAP_LOOKS,
   NOSES,
   GESTURES,
   GROUND_KINDS,
@@ -601,6 +602,8 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       });
       // When the map's events happen (a night raid on a dark map), as a set's time of day.
       oneOf(h, "zaman", hp, TIMES_OF_DAY, true);
+      // How the map is seen: straight down, tilted 2.5D, or both (opening straight down, tilting with the action).
+      oneOf(h, "gorunus", hp, MAP_LOOKS, true);
       (arr(h, "tarih", hp, true) ?? []).forEach((d, di) => {
         const dp = `${hp}.tarih[${di}]`;
         if (!isObj(d)) return err("HARITA_TARIH", dp, "nesne bekleniyor");

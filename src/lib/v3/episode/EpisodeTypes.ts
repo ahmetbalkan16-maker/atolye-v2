@@ -213,7 +213,18 @@ export interface SceneMap {
    * map and sweeps searchlights over it, an air raid then drops flares. Absent: day, as before.
    */
   readonly zaman?: V3TimeOfDay;
+  /**
+   * How the map is seen (owner, 13 Nov 2026: "videolarda daha fazla 2.5D … ama dikey de kullanabilir", "bu iki görünüşü
+   * de kullansın"): `dikey` straight down all through (reading borders, a whole region); `egik` the tilted 2.5D camera all
+   * through; `ikisi` opening straight down and gliding into the tilt when the action starts. Absent: the automatic mix
+   * (MapBuilder.mapViews) — and every video's maps show both views (MapBuilder.withBothViews).
+   */
+  readonly gorunus?: MapLook;
 }
+
+/** A map's view: straight down, tilted 2.5D, or opening straight down and tilting with the action (SceneMap.gorunus). */
+export const MAP_LOOKS = ["dikey", "egik", "ikisi"] as const;
+export type MapLook = (typeof MAP_LOOKS)[number];
 
 /** One side on the strength bar: its name, colour and numbers as the narrator says them ("80,000", "15,000–25,000"). */
 export interface MapStrengthSide {

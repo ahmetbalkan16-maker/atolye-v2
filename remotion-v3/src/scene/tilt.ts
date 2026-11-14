@@ -287,6 +287,12 @@ export function tiltFit(deg: number, W: number, H: number, items: readonly TiltI
 const UNIT_ROOM_1080 = 56;
 /** A battle's crossed swords (1080p px). */
 const SWORDS_ROOM_1080 = 52;
+/** An army's marker on a wider map: its flag box 46 px over the place and its name over that (MapView), 1080p px. */
+const ARMY_MARK_UP_1080 = 150;
+/** A ship's or other vehicle's token and its wake round its place (1080p px). */
+const VEHICLE_ROOM_1080 = 44;
+/** A campaign arrow's base and head (1080p px). */
+const ARROW_END_1080 = 36;
 /** A speaking badge swells up to this (MapView's talkSwell). */
 const BADGE_SWELL = 1.14;
 
@@ -304,9 +310,11 @@ export function tiltItems(map: V3GeoMap, fps: number, W: number, H: number): { f
     const from = i ? key.frame : -Infinity;
     const to = keys[i + 1]?.frame ?? Infinity;
     const items: TiltItem[] = [];
-    const add = (x: number, y: number, l: number, r: number, up: number, d: number, ground?: boolean) => {
+    // `partly`: kept when any of its drawing is in the flat frame (a speaker's badge standing over a place just below the
+    // frame: Taranto s2's Cunningham, whose words then pointed at nothing once tilted), no further out than flat.
+    const add = (x: number, y: number, l: number, r: number, up: number, d: number, ground?: boolean, partly?: boolean) => {
       const p = { x: W / 2 + key.zoom * (x - key.x), y: H / 2 + key.zoom * (y - key.y) };
-      if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) return;
+      if (partly ? p.x + r < 0 || p.x - l > W || p.y + d < 0 || p.y - up > H : p.x < 0 || p.x > W || p.y < 0 || p.y > H) return;
       items.push({ ...p, l, r, u: up, d, ...(ground ? { ground } : {}) });
     };
     for (const unit of map.units ?? [])
@@ -319,8 +327,32 @@ export function tiltItems(map: V3GeoMap, fps: number, W: number, H: number): { f
     for (const b of map.badges ?? []) {
       if (!(b.talk?.speaking ?? []).some((s) => s.start < to && s.end > from)) continue;
       const ext = badgeExtent(b.label, relief);
-      for (const p of b.path) add(p.x, p.y, ext.half * BADGE_SWELL * u, ext.half * BADGE_SWELL * u, ext.up * BADGE_SWELL * u, 6 * u);
+      for (const p of b.path) add(p.x, p.y, ext.half * BADGE_SWELL * u, ext.half * BADGE_SWELL * u, ext.up * BADGE_SWELL * u, 6 * u, false, true);
     }
+    // A wider map's action (13 Nov 2026, tilted medium maps): the armies' markers where they stand and march to (upright: the
+    // flag box and its name over the place), the vehicles along their routes (on the ground, like the blocks), and the
+    // campaign arrows' ends.
+    for (const a of map.armies ?? []) {
+      if (a.start >= to) continue;
+      const half = Math.max(48, (a.label.length * (relief ? 0.58 : 0.78) * 34) / 2) * u;
+      for (const p of [a, ...(a.path ?? [])]) add(p.x, p.y, half, half, ARMY_MARK_UP_1080 * u, 8 * u);
+    }
+    for (const v of map.vehicles ?? []) {
+      if (v.start >= to || (v.end !== undefined && v.end <= from)) continue;
+      for (const p of v.path) add(p.x, p.y, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, VEHICLE_ROOM_1080 * u, true);
+    }
+    for (const ar of map.arrows ?? []) {
+      if (ar.plan || ar.start >= to || (ar.end !== undefined && ar.end <= from) || ar.points.length < 2) continue;
+      for (const p of [ar.points[0]!, ar.points[ar.points.length - 1]!]) add(p.x, p.y, ARROW_END_1080 * u, ARROW_END_1080 * u, ARROW_END_1080 * u, ARROW_END_1080 * u);
+    }
+    // ...and a ruler's badge marching its route there (Baghdad s2, 14 Nov 2026: Murad IV's march from Istanbul is the
+    // action; framed on the speakers only, the tilt cut Istanbul and the route's start off): its whole route, upright.
+    if (!map.close)
+      for (const b of map.badges ?? []) {
+        if (b.path.length < 2 || b.start >= to || (b.end !== undefined && b.end <= from)) continue;
+        const ext = badgeExtent(b.label, relief);
+        for (const p of b.path) add(p.x, p.y, ext.half * u, ext.half * u, ext.up * u, 6 * u);
+      }
     for (const b of map.battles ?? []) {
       if (b.start >= to) continue;
       add(b.x, b.y, SWORDS_ROOM_1080 * u, SWORDS_ROOM_1080 * u, SWORDS_ROOM_1080 * u, SWORDS_ROOM_1080 * u);
@@ -339,13 +371,52 @@ export function tiltItems(map: V3GeoMap, fps: number, W: number, H: number): { f
 const fitted = new WeakMap<V3GeoMap, { key: string; keys: { frame: number; s: number; ys: number; cx: number }[] }>();
 
 /**
- * The tilted camera at a frame (undefined on a flat map): each camera key's own fit (`tiltFit` of `tiltItems`), held
- * while the map's camera rests there and carried to the next key along the camera's own glide (the same ease, the
- * scale in log space like the zoom), so the frame never jumps. Pure in the frame; MapView and ShotView's speech bubbles
- * (badgeAnchor) ask the same.
+ * How long the camera takes to tilt from straight down into the 2.5D view, or back (owner, 13 Nov 2026: "bu iki görünüşü
+ * de kullansın" — a map opening straight down over its borders glides into the tilt as the armies move, no cut).
+ */
+export const TILT_GLIDE_S = 1.5;
+
+/** Smooth start and stop (the glide's ease). */
+const smooth = (t: number) => {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+};
+
+/**
+ * How far into its tilt the map's camera is at a frame (V3GeoMap.tiltViews): 0 straight down, 1 the full tilt, gliding
+ * TILT_GLIDE_S between — from where it is, so a change that comes mid-glide turns it without a jump. 1 all through with
+ * no views; 0 on a flat map.
+ */
+export function tiltShare(map: Pick<V3GeoMap, "tilt" | "tiltViews">, frame: number, fps: number): number {
+  if (!map.tilt) return 0;
+  const views = [...(map.tiltViews ?? [])].sort((a, b) => a.frame - b.frame);
+  if (!views.length) return 1;
+  const glide = Math.max(1, fps * TILT_GLIDE_S);
+  let from = views[0]!.on ? 1 : 0;
+  let to = from;
+  let start = -Infinity;
+  const at = (f: number) => (start === -Infinity ? to : from + (to - from) * smooth((f - start) / glide));
+  for (const v of views.slice(1)) {
+    if (v.frame > frame) break;
+    from = at(v.frame);
+    to = v.on ? 1 : 0;
+    start = v.frame;
+  }
+  return at(frame);
+}
+
+/**
+ * The tilted camera at a frame (undefined on a flat map, and where the map is seen straight down: tiltShare 0, drawn
+ * exactly as a flat map): each camera key's own fit (`tiltFit` of `tiltItems`), held while the map's camera rests there
+ * and carried to the next key along the camera's own glide (the same ease, the scale in log space like the zoom), so the
+ * frame never jumps; partway into a glide from straight down (tiltShare) the angle, the scale (log space), the height and
+ * the pan go that share of the way from the flat picture (deg 0, s 1, the picture centred) to that fit. Pure in the frame;
+ * MapView, ShotView's speech bubbles (badgeAnchor) and its atlas corner ask the same.
  */
 export function tiltAt(map: V3GeoMap, frame: number, fps: number, W: number, H: number): Tilt | undefined {
   if (!map.tilt) return undefined;
+  const share = tiltShare(map, frame, fps);
+  if (share <= 0) return undefined;
   const id = `${map.tilt}|${fps}|${W}|${H}`;
   let f = fitted.get(map);
   if (!f || f.key !== id) {
@@ -354,7 +425,8 @@ export function tiltAt(map: V3GeoMap, frame: number, fps: number, W: number, H: 
   }
   const base = tiltFor(map.tilt, W, H);
   const v = cameraAt(f.keys.map((k) => ({ frame: k.frame, x: k.ys, y: k.cx, zoom: k.s })), frame, fps, W, H);
-  return { ...base, s: v.zoom, ys: v.x, cx: v.y };
+  if (share >= 1) return { ...base, s: v.zoom, ys: v.x, cx: v.y };
+  return { ...base, deg: base.deg * share, s: Math.exp(Math.log(v.zoom) * share), ys: H / 2 + (v.x - H / 2) * share, cx: W / 2 + (v.y - W / 2) * share };
 }
 
 const pick = (t: Tilt) => ({ s: t.s, ys: t.ys, cx: t.cx });

@@ -159,7 +159,11 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
     const actors = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [{ id: p.castId, ...heads.get(p.castId)! }] : []));
     // A map beat's place on the stage now: the map's own camera, then the slow push and the set's camera.
     const mapCam = geo ? mapCameraAt(geo.camera, frame, fps, W, H) : undefined;
-    const stageX = (wx: number) => (mapCam ? onSet(push(W / 2 + mapCam.zoom * (wx - mapCam.x), 0)).x : wx);
+    // Through a tilted map's camera too (its pan and scale at the picture's middle row), so the window finds the action
+    // where the tilted ground puts it.
+    const tilt = geo ? tiltAt(geo, frame, fps, W, H) : undefined;
+    const tiltX = (x: number) => (tilt ? W / 2 + tilt.s * (x - tilt.cx) : x);
+    const stageX = (wx: number) => (mapCam ? onSet(push(tiltX(W / 2 + mapCam.zoom * (wx - mapCam.x)), 0)).x : wx);
     // A marching badge is followed where it is now; anything else is framed whole, its end kept in.
     const beatX = (i: number) => {
       const b = beats[i]!;
@@ -384,7 +388,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
           map's camera (its scale at the picture's middle row). */}
       {shot.geoMap?.relief && shot.geoMap.kmPerPx && !insertOn ? (
         <svg width={OW} height={OH} style={{ position: "absolute", left: 0, top: 0 }}>
-          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom * fit * (shot.geoMap.tilt ? tiltAt(shot.geoMap, frame, fps, W, H)!.s : 1))} height={OH} width={OW} />
+          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom * fit * (tiltAt(shot.geoMap, frame, fps, W, H)?.s ?? 1))} height={OH} width={OW} />
         </svg>
       ) : null}
       {/* The narrator's headline strips (photo documentaries), over the pictures. */}

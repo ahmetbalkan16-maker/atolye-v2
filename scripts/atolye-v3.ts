@@ -34,10 +34,11 @@ import { attributionLine, type CreditRecord, descriptionImageLines, judgeLicense
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
+import { loadMapData, type Polygon, withBothViews } from "../src/lib/v3/maps/MapBuilder";
 import { type CloseCoast, OHM_CREDIT, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../src/lib/v3/maps/CloseSite";
 import { mapGroundFor } from "../src/lib/v3/maps/MapGround";
+import { mapViewMix } from "../src/lib/v3/council/MapFramingCheck";
 import { CLOSE_RELIEF_CREDIT, RELIEF_CREDIT, reliefAvailable } from "../src/lib/v3/maps/Relief";
 import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames, withAtlasYears, yearLabel } from "../src/lib/v3/maps/HistoricalBorders";
@@ -75,7 +76,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
-import { isShorts, lengthOk, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, lengthTopS, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
@@ -922,8 +923,12 @@ async function main() {
   // ...and an arrow too short to see gets the camera moved in on it when it is told (the Rubicon's 25 km on 1,800 km).
   const zoom = withRouteZoom(atlas.episode);
   for (const id of zoom.scenes) log(`  harita: ${id} sahnesinde ok ekranda görünmeyecek kadar kısaydı → kamera oka yaklaşır`);
-  if (atlas.moved.length || zoom.scenes.length) {
-    episode = assertEpisode(zoom.episode);
+  // ...and the maps show both views, straight down and the 2.5D tilt (owner, 13 Nov 2026: "bu iki görünüşü de kullansın";
+  // a long video's every chapter): before the close maps' and the grounds' worlds, which follow the tilt (MapBuilder.mapTilt).
+  const views = withBothViews(zoom.episode);
+  for (const id of views.scenes) log(`  harita: ${id} sahnesi düz açılıp eğik görünüşe geçer (videoda iki görünüş de olsun)`);
+  if (atlas.moved.length || zoom.scenes.length || views.scenes.length) {
+    episode = assertEpisode(views.episode);
     await writeJson(f("episode.json"), episode);
   }
   // 1d) The close maps' walls and castles on their real traces (OpenStreetMap: Overpass, else Nominatim by name; owner,
@@ -1088,8 +1093,10 @@ async function main() {
   // A Short ends by its ordered length: its pauses tighten when the voice ran past it (fitTimeline).
   const timelineOpts = { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") || shorts ? 0 : 3.5 };
   const shortCeilingS = Math.min(targetS, episode.hedef_sure_sn || targetS);
-  const timeline = shorts ? fitTimeline(episode, audio, timelineOpts, shortCeilingS - 0.5) : buildTimeline(episode, audio, timelineOpts);
-  if (shorts && timeline.duration < buildTimeline(episode, audio, timelineOpts).duration) log(`  Short süresi: duraklar sıkıştırıldı, ${timeline.duration.toFixed(1)} sn (üst sınır ${shortCeilingS} sn)`);
+  // A longer video past the top of its ±10% (Format.lengthTopS) tightens its pauses the same way (14 Nov 2026: the
+  // Shorts' improvements in the long video too); one in its band is unchanged.
+  const timeline = fitTimeline(episode, audio, timelineOpts, lengthTopS(shorts ? shortCeilingS : episode.hedef_sure_sn || targetS) - 0.5);
+  if (timeline.duration < buildTimeline(episode, audio, timelineOpts).duration) log(shorts ? `  Short süresi: duraklar sıkıştırıldı, ${timeline.duration.toFixed(1)} sn (üst sınır ${shortCeilingS} sn)` : `  süre: duraklar sıkıştırıldı, ${timeline.duration.toFixed(1)} sn (hedef ${episode.hedef_sure_sn || targetS} sn, üst sınır +%10)`);
 
   // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
@@ -1421,6 +1428,9 @@ async function main() {
       row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(shortsMinS(target))} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
       ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%50 / ~%30 / ~%20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
+      // Both views over the maps, straight down and the 2.5D tilt (owner, 13 Nov 2026: "bu iki görünüşü de kullansın";
+      // "uzun videolarda da olsun": a long video's every chapter). A standing note: no retouch round changes it.
+      ((mix) => row(mix.every((m) => m.ikisi), `Harita görünüşleri: ${mix.length ? mix.map((m) => `${m.bolum ? `${m.bolum}: ` : ""}${m.dikey} sn düz, ${m.egik} sn eğik (2.5D)${m.ikisi ? "" : " — TEK GÖRÜNÜŞ"}`).join("; ") : "haritalı sahne yok"}`, false))(mapViewMix(plan)),
     ];
     await fs.writeFile(
       f("QC.md"),

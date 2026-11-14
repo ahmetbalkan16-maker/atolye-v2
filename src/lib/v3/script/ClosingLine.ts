@@ -11,6 +11,9 @@ import type { Episode, SceneLine } from "../episode/EpisodeTypes";
 /** Words that make a line a subscribe invitation. */
 const SUBSCRIBE = /\b(?:subscrib\p{L}*)|abone/iu;
 
+/** Whether a line invites the viewer to subscribe (a long episode has it once, at its very end: LongForm.chapterProblems). */
+export const invitesToSubscribe = (text: string): boolean => SUBSCRIBE.test(text);
+
 /**
  * The episode's main character: a visible character named in the topic or the title (the Baghdad Short's first pick by
  * lines alone was a Safavid foot soldier, not Murad IV), else the one with the most lines (ties: the first in the cast).

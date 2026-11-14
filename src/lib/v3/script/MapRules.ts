@@ -237,6 +237,27 @@ export function markMapPictures(episode: Episode, targetS: number): { episode: E
 }
 
 /**
+ * The same last resort for one chapter of a long video (owner, 14 Nov 2026: the Shorts' improvements in the long video
+ * too): the long video's shares ask one picture moment per chapter (shareProblems, 6–10% period pictures), and a chapter
+ * whose repair rounds left every map scene unmarked was never searched for a picture. Its longest map scene with a search
+ * gets its first narrator line marked. A chapter with a marked map scene, or no map scene that can take one, stays.
+ */
+export function markOnePicture(episode: Episode): { episode: Episode; fixes: string[] } {
+  const maps = episode.sahneler.filter((s) => s.harita?.merkez);
+  if (!maps.length || maps.some((s) => s.ara_goruntu_satir !== undefined)) return { episode, fixes: [] };
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+  const pick = maps
+    .filter((s) => s.arka_plan_sorgusu?.en?.trim() && s.satirlar.some((l) => !visible.has(l.karakter)))
+    .sort((a, b) => (b.sure_hedef ?? 0) - (a.sure_hedef ?? 0))[0];
+  if (!pick) return { episode, fixes: [] };
+  const satir = pick.satirlar.findIndex((l) => !visible.has(l.karakter));
+  return {
+    episode: { ...episode, sahneler: episode.sahneler.map((s) => (s === pick ? { ...s, ara_goruntu_satir: satir } : s)) },
+    fixes: [`${pick.id}: bölümün hiçbir harita sahnesi dönem görseli satırı işaretlememişti; ${satir}. satır (anlatıcı) işaretlendi`],
+  };
+}
+
+/**
  * The last resort for a map on which the writer left nothing happening after its repair rounds (Belgrade's fourth trial:
  * the outro's two states, still): the camera closes in on the scene's place — its first city or battle, else the map's
  * centre — over its second line (or its only one), so the picture moves with the words. Logged as a fix.

@@ -504,10 +504,18 @@ export interface V3GeoMap {
    * Owner, 12 Nov 2026 ("Kings and Generals"-like; on by default since 13 Nov 2026): the close battle map's ground and
    * armies seen from a camera tilted this many degrees from straight down, the far side smaller, the camera framing the
    * action so the armies look at least as large as flat; names, badges and flags stay upright at their places
-   * (remotion-v3 scene/tilt.ts). Only on a close map, unless `ATOLYE_V3_EGIK_HARITA=0` at plan time
-   * (MapBuilder.closeMapTilt); absent, the map is drawn flat exactly as before.
+   * (remotion-v3 scene/tilt.ts). Since 13 Nov 2026 ("videolarda daha fazla 2.5D") also a medium map with action, more
+   * gently (MapBuilder.mapTilt: 30° close, 24°→18° up to 2,000 km), unless `ATOLYE_V3_EGIK_HARITA=0` at plan time;
+   * absent, the map is drawn flat exactly as before.
    */
   readonly tilt?: number;
+  /**
+   * When the tilted map is seen tilted (owner, 13 Nov 2026: "bu iki görünüşü de kullansın"): from each `frame` the camera
+   * glides (remotion-v3 tilt.TILT_GLIDE_S) to the tilt (`on`) or straight down — a map opening straight down over its
+   * borders and tilting as the armies move, back straight down when the narration reads the whole region again. Absent:
+   * tilted all through. A frame seen straight down is drawn exactly as a flat map.
+   */
+  readonly tiltViews?: readonly { readonly frame: number; readonly on: boolean }[];
   /**
    * How the close battle map draws its unit blocks (owner, 13 Nov 2026, of the Siege of Baghdad Short: "askerleri küçük
    * yuvarlak halinde yapılsa … her yuvarlak birlik 1000 askere denk gelsin", after DFT Tarih): "nokta" — each block as

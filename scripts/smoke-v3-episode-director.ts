@@ -18,19 +18,19 @@ import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
-import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
+import type { Episode, EpisodeScene, MapUnits, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
-import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
-import { badgeRoom, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, TILT_BADGE_TALL, TILT_WORLD_SPAN } from "../src/lib/v3/maps/MapBuilder";
-import { TILT_WORLD_PAST, tiltAt, tiltSeen } from "../remotion-v3/src/scene/tilt";
+import { badgeRoom, chapterOf, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, mapActionLines, mapLooksUsed, mapTilt, mapViews, MEDIUM_TILT_DEG, MEDIUM_TILT_MAX_KM, TILT_BADGE_TALL, TILT_WORLD_SPAN, tiltDegFor, withBothViews } from "../src/lib/v3/maps/MapBuilder";
+import { TILT_GLIDE_S, TILT_WORLD_PAST, tiltAt, tiltProject, tiltSeen, tiltShare } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
-import { mapFramingFaults } from "../src/lib/v3/council/MapFramingCheck";
+import { mapFramingFaults, mapViewMix } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
@@ -79,6 +79,9 @@ const castBase = {
   gorunur: true,
   kostum: { giysi: "kaftan" as const, renkler: { ana: "#b3263a", ikincil: "#e8b23a", ic: "#f3d27a", sus: "#e8b23a" }, bas: "padisah-kavugu", ayakkabi: "sari-mest" },
 };
+
+/** A unit's formation on a line (MapUnits.yerler). */
+type MapUnitsYer = MapUnits["yerler"][number];
 
 function sampleEpisode(): Episode {
   return {
@@ -283,6 +286,9 @@ async function main() {
     assert.ok(Math.abs(fitTimeline(ep, long, DEFAULT_TIMELINE, 57).duration - 57) < 1e-6, "tightened to the ceiling");
     assert.ok(Math.abs(fitTimeline(ep, long, DEFAULT_TIMELINE, 56.2).duration - (56 + 1.59 * MIN_PAUSE_SHARE)) < 1e-6, "never tighter than the floor");
     assert.deepEqual(fitTimeline(ep, long, DEFAULT_TIMELINE, 60), loose, "in time: unchanged");
+    // A long video is fitted under the top of its ±10% band too (14 Nov 2026): a Short under its ordered length.
+    assert.deepEqual([lengthTopS(180), lengthTopS(1200)], [180, 1320]);
+    assert.ok(lengthOk(lengthTopS(1200) - 0.5, 1200) && !lengthOk(lengthTopS(1200) + 0.5, 1200) && lengthOk(lengthTopS(180) - 0.5, 180));
     const pages = captionPages({ file: "", duration: 4, visemes: [], words: [], lipSync: "rms", sceneIndex: 0, lineIndex: 0, speaker: "x", start: 1, end: 5 }, 30, ["surlar"], "Bir iki üç dört beş altı yedi sekiz dokuz on surlar");
     assert.equal(pages.length, 2);
     assert.ok(pages[1]!.words.some((w) => w.emphasis));
@@ -1469,6 +1475,14 @@ async function main() {
     // The flat map's badge is wider (name plate over the ring): the same two names need more room there.
     const flat = spaceBadges([{ label: "Prince Lazar", start: 0, path: [{ x: 500, y: 300 }] }, { label: "Murad I", start: 0, path: [{ x: 505, y: 300 }] }], undefined, 1080, false);
     assert.ok(Math.abs(flat[1]!.path[0]!.x - 500) >= (12 * 9 + 18) + (7 * 9 + 18) || Math.abs(flat[1]!.path[0]!.y - 300) >= 175, JSON.stringify(flat[1]));
+    // The Siege of Baghdad Short tilted (14 Nov 2026): Murad IV marched onto Bektash Khan's place on a wide world (zoom
+    // 0.569, TILT_BADGE_TALL); float rounding counted every try one room away as a clash and the badge stayed put.
+    const cam = [{ frame: 0, x: 9143, y: 5211.5, zoom: 0.67 }, { frame: 298, x: 8000, y: 4500, zoom: 0.569 }];
+    for (const tall of [1, 1.35]) {
+      const baghdad = spaceBadges([{ label: "Murad IV", start: 9, moveStart: 298, path: [{ x: 1, y: 1 }, { x: 9143, y: 5211.5 }] }, { label: "Bektash Khan", start: 298, path: [{ x: 9143, y: 5211.5 }] }], cam, 1080, true, tall);
+      const [a, b] = [baghdad[0]!.path.at(-1)!, baghdad[1]!.path.at(-1)!];
+      assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 300, `tall ${tall}: the two badges stay on one place ${JSON.stringify([a, b])}`);
+    }
     // Gallipoli (10 Nov 2026): each commander's badge at his army's own place hid "ANZAC" and "OTTOMAN 19TH DIVISION";
     // the badges now stand beside the markers, each on its own army's outer side, on no marker at all.
     const armies = [{ x: 500, y: 600, label: "ANZAC", start: 30 }, { x: 600, y: 520, label: "Ottoman 19th Division", start: 60 }];
@@ -3040,6 +3054,166 @@ async function main() {
       process.env.ATOLYE_V3_EGIK_HARITA = "0";
       assert.deepEqual(mapWorld(close, 1920, 1080), offWorld, "switched off again: the same world");
       assert.deepEqual(buildGeoMap(close, data, 1920, 1080, () => 0, { relief: "bg/yakin.jpg" }), offGeo, "switched off again: the same map");
+    } finally {
+      if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
+      else process.env.ATOLYE_V3_EGIK_HARITA = saved;
+    }
+  });
+
+  await scenario("both views on the maps (owner, 13 Nov 2026: \"daha fazla 2.5D … ama dikey de kullanabilir\", \"bu iki görünüşü de kullansın\", \"uzun videolarda da olsun\"): a close map tilts 30°, a medium map with action 24°→18°, an overview stays straight down; a map opens straight down and glides into the tilt as the action starts, back when the region is read again; dikey/egik force; every video (and long-video chapter) shows both; =0 everything flat as before", () => {
+    const env = {};
+    const off = { ATOLYE_V3_EGIK_HARITA: "0" };
+    const unit = (yerler: MapUnitsYer[]) => ({ taraf: "A", renk: "#c0392b", amblem: "hilal" as const, sayi: 4, yerler });
+    const close: SceneMap = { merkez: [28.95, 41.02], genislik_km: 20, birlikler: [unit([{ satir: 0, cephe: [[28.91, 41.04], [28.91, 41.0]] }, { satir: 2, cephe: [[28.94, 41.04], [28.94, 41.0]] }])] };
+    const closeNow: SceneMap = { ...close, birlikler: [unit([{ satir: 0, kayip: 1, cephe: [[28.91, 41.04], [28.91, 41.0]] }])] };
+    const march: SceneMap = { merkez: [22, 43], genislik_km: 900, bolgeler: [{ ad: "Serbia", renk: "#3f6fb5", noktalar: [[20, 42], [23, 42], [23, 45], [20, 45]] }], ordular: [{ ad: "Ottomans", konum: [24, 42], renk: "#c0392b", satir: 0, yol: [[21, 44]], yol_satir: 1 }] };
+    const overview: SceneMap = { merkez: [22, 43], genislik_km: 900, bolgeler: [{ ad: "Serbia", renk: "#3f6fb5", noktalar: [[20, 42], [23, 42], [23, 45], [20, 45]] }] };
+    const continent: SceneMap = { ...march, genislik_km: 2600 };
+    // The auto rule, by the map's kind.
+    assert.equal(mapTilt(close, env), CLOSE_MAP_TILT_DEG);
+    assert.equal(mapTilt(march, env), tiltDegFor(900));
+    assert.ok(tiltDegFor(121) === MEDIUM_TILT_DEG.near && tiltDegFor(MEDIUM_TILT_MAX_KM) === MEDIUM_TILT_DEG.far && tiltDegFor(900) > 18 && tiltDegFor(900) < 24 && tiltDegFor(30000) >= 12, [121, 900, 2000, 30000].map(tiltDegFor).join());
+    assert.deepEqual([20, 120, 121, 600, 900, 1200, 1800, 2000, 2600, 30000].map(tiltDegFor), [30, 30, 24, 21, 20, 19, 18, 18, 17, 12]);
+    // The glide (TILT_GLIDE_S): 0 → 1 smoothly, and a change mid-glide turns back from where it is, never a jump.
+    const g = { tilt: 20, tiltViews: [{ frame: 0, on: false }, { frame: 90, on: true }, { frame: 110, on: false }] };
+    assert.equal(tiltShare({ tilt: 20 }, 0, 30), 1, "no views: tilted all through");
+    assert.equal(tiltShare({}, 0, 30), 0, "a flat map");
+    assert.equal(tiltShare({ tilt: 20, tiltViews: [{ frame: 0, on: false }, { frame: 90, on: true }] }, 90 + 30 * TILT_GLIDE_S, 30), 1);
+    let was = 0;
+    let peak = 0;
+    for (let f = 0; f <= 200; f++) {
+      const s = tiltShare(g, f, 30);
+      assert.ok(s >= 0 && s <= 1 && Math.abs(s - was) < 0.06, `frame ${f}: ${was} → ${s}`);
+      peak = Math.max(peak, s);
+      was = s;
+    }
+    assert.ok(peak > 0.2 && peak < 1 && tiltShare(g, 110, 30) === peak && tiltShare(g, 110 + 30 * TILT_GLIDE_S, 30) === 0, `peak ${peak}`);
+    assert.equal(mapTilt(overview, env), undefined, "an overview without action stays straight down");
+    assert.equal(mapTilt(continent, env), undefined, "a continent stays straight down");
+    assert.equal(mapTilt({ ...overview, kamera: [{ satir: 1, merkez: [21, 44], genislik_km: 300 }] }, env), tiltDegFor(900), "a push in on the action tilts");
+    // Forced either way.
+    assert.equal(mapTilt({ ...close, gorunus: "dikey" }, env), undefined);
+    assert.equal(mapTilt({ ...march, gorunus: "dikey" }, env), undefined);
+    assert.equal(mapTilt({ ...overview, gorunus: "egik" }, env), tiltDegFor(900));
+    assert.equal(mapTilt({ ...continent, gorunus: "egik" }, env), tiltDegFor(2600));
+    assert.ok(tiltDegFor(2600) < MEDIUM_TILT_DEG.far && tiltDegFor(2600) >= 12);
+    // Off: nothing tilts, whatever the writer asked.
+    for (const m of [close, march, { ...overview, gorunus: "egik" as const }, { ...march, gorunus: "ikisi" as const }]) assert.equal(mapTilt(m, off), undefined);
+    // When: straight down while the scene is set, tilted from the first action line; tilted from the start when it acts at once.
+    assert.deepEqual(mapViews(close, env)?.views, [{ satir: 0, on: false }, { satir: 2, on: true }]);
+    assert.deepEqual(mapViews(closeNow, env)?.views, [{ satir: 0, on: true }]);
+    assert.deepEqual(mapViews(march, env)?.views, [{ satir: 0, on: false }, { satir: 1, on: true }]);
+    assert.deepEqual(mapViews({ ...march, gorunus: "egik" }, env)?.views, [{ satir: 0, on: true }]);
+    assert.deepEqual(mapActionLines(march), [1]);
+    // ...and back straight down when the camera pulls back over the region after the march (or a border comes in).
+    const reread: SceneMap = { ...march, kamera: [{ satir: 1, merkez: [22, 43], genislik_km: 500 }, { satir: 3, merkez: [22, 43], genislik_km: 1200 }] };
+    assert.deepEqual(mapViews(reread, env)?.views, [{ satir: 0, on: false }, { satir: 1, on: true }, { satir: 3, on: false }]);
+    assert.deepEqual(mapViews({ ...march, bolgeler: [...march.bolgeler!, { ad: "Ottoman Serbia", renk: "#c0392b", noktalar: [[20, 42], [23, 42], [23, 45]], satir: 2 }] }, env)?.views.at(-1), { satir: 2, on: false });
+    // The plan: the views as frames, from each line's start; none when tilted all through (the plan as before).
+    const land = [[[[15, 38], [30, 38], [30, 48], [15, 48], [15, 38]]]];
+    const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
+    const saved = process.env.ATOLYE_V3_EGIK_HARITA;
+    delete process.env.ATOLYE_V3_EGIK_HARITA;
+    try {
+      const geo = buildGeoMap(march, data, 1920, 1080, (i) => (i ?? 0) * 90, { relief: "bg/r.jpg" });
+      assert.equal(geo.tilt, tiltDegFor(900));
+      assert.deepEqual(geo.tiltViews, [{ frame: 0, on: false }, { frame: 90, on: true }]);
+      assert.ok(geo.world && geo.camera?.length, "a tilted medium map gets its wider world");
+      assert.equal(buildGeoMap(closeNow, data, 1920, 1080, () => 0).tiltViews, undefined, "tilted all through: no views");
+      // The renderer: straight down (drawn exactly as a flat map) before, gliding TILT_GLIDE_S, then the full fit; never a jump,
+      // never ground past the world's (no sky) on the way.
+      assert.equal(tiltAt(geo, 60, 30, 1920, 1080), undefined);
+      assert.equal(tiltShare(geo, 90, 30), 0);
+      const mid = tiltAt(geo, 90 + Math.round((30 * TILT_GLIDE_S) / 2), 30, 1920, 1080)!;
+      const full = tiltAt(geo, 90 + Math.round(30 * TILT_GLIDE_S) + 1, 30, 1920, 1080)!;
+      assert.ok(mid.deg > 0 && mid.deg < full.deg && full.deg === geo.tilt, `${mid.deg} → ${full.deg}`);
+      let last = { deg: 0, s: 1, ys: 540, cx: 960 };
+      const cam = geo.camera![0]!;
+      for (let f = 90; f <= 90 + 30 * TILT_GLIDE_S + 2; f++) {
+        const t = tiltAt(geo, f, 30, 1920, 1080) ?? { deg: 0, s: 1, ys: 540, cx: 960 };
+        assert.ok(Math.abs(t.deg - last.deg) < 1.2 && Math.abs(Math.log(t.s / last.s)) < 0.03 && Math.abs(t.ys - last.ys) < 12 && Math.abs(t.cx - last.cx) < 20, `frame ${f}: ${JSON.stringify(last)} → ${JSON.stringify(t)}`);
+        last = t;
+        if (!t.deg) continue;
+        const c = tiltSeen(t as never, { x0: 0, y0: 0, x1: 1920, y1: 1080 }).cover;
+        assert.ok(cam.x + c.x0 - 960 >= -1 && cam.x + c.x1 - 960 <= geo.world!.width + 1 && cam.y + c.y0 - 540 >= -1, `frame ${f}: ${JSON.stringify(c)} of ${JSON.stringify(geo.world)}`);
+      }
+      // A Short laid out in its old vertical window (W < H): the same rules, the tilt framing the action inside the frame.
+      const tall = tiltAt(geo, 400, 30, 1080, 1920)!;
+      const p = tiltProject(tall, 1080 / 2 + cam.zoom * (geo.armies[0]!.path!.at(-1)!.x - cam.x), 1920 / 2 + cam.zoom * (geo.armies[0]!.path!.at(-1)!.y - cam.y));
+      assert.ok(tall.deg === geo.tilt && p.x > 0 && p.x < 1080 && p.y > 0 && p.y < 1920, JSON.stringify({ tall, p }));
+      // =0: the medium map is drawn flat on its own world, exactly as before (no tilt, no views, the flat world).
+      process.env.ATOLYE_V3_EGIK_HARITA = "0";
+      const flat = buildGeoMap(march, data, 1920, 1080, (i) => (i ?? 0) * 90, { relief: "bg/r.jpg" });
+      assert.ok(flat.tilt === undefined && flat.tiltViews === undefined && flat.world === undefined && flat.camera === undefined, JSON.stringify({ tilt: flat.tilt, world: flat.world }));
+      assert.deepEqual(mapWorld(march, 1920, 1080), mapWorld(march, 1920, 1080, false));
+    } finally {
+      if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
+      else process.env.ATOLYE_V3_EGIK_HARITA = saved;
+    }
+    // Every video shows both views: all tilted → the first one the writer left opens straight down ("ikisi"); all
+    // straight down → the one with action (or a camera move) tilts; a mix is left alone; =0 leaves it all.
+    const scene = (id: string, harita: SceneMap) => ({ id, harita });
+    const allTilted = { sahneler: [scene("s1", { ...closeNow, gorunus: "egik" as const }), scene("s2", closeNow), scene("s3", { merkez: [0, 0], genislik_km: 5 })] };
+    const fixed = withBothViews(allTilted, env);
+    assert.deepEqual(fixed.scenes, ["s2"]);
+    assert.equal(fixed.episode.sahneler[1]!.harita.gorunus, "ikisi");
+    assert.ok(mapLooksUsed(fixed.episode.sahneler[1]!.harita, env).flat && mapViews(fixed.episode.sahneler[1]!.harita, env)?.late, "acting at once: tilts a little into the scene");
+    const allFlat = { sahneler: [scene("s1", overview), scene("s2", { ...overview, kamera: [{ satir: 2, merkez: [21, 44], genislik_km: 700 }] }), scene("s3", { ...overview, gorunus: "dikey" as const })] };
+    const tilted = withBothViews(allFlat, env);
+    assert.deepEqual(tilted.scenes, ["s2"], "the one with a camera move");
+    assert.deepEqual(mapViews(tilted.episode.sahneler[1]!.harita, env)?.views, [{ satir: 0, on: false }, { satir: 2, on: true }]);
+    const mixed = { sahneler: [scene("s1", overview), scene("s2", close)] };
+    assert.equal(withBothViews(mixed, env).episode, mixed);
+    assert.equal(withBothViews(allTilted, off).episode, allTilted);
+    // A long video: every chapter on its own (LongForm.prefixScenes' "b<n>-").
+    const long = { sahneler: [scene("b1-rise-s2", overview), scene("b1-rise-s4", march), scene("b2-war-s1", closeNow), scene("b2-war-s3", closeNow), scene("b3-end-s1", overview)] };
+    const perChapter = withBothViews(long, env);
+    assert.deepEqual(perChapter.scenes, ["b2-war-s1", "b3-end-s1"]);
+    for (const ch of ["b1", "b2", "b3"]) {
+      const used = perChapter.episode.sahneler.filter((s) => chapterOf(s.id) === ch).map((s) => mapLooksUsed(s.harita, env));
+      assert.ok(used.some((u) => u.flat) && used.some((u) => u.tilted), ch);
+    }
+    // The quality brain's plan check (QC row): seconds per view, per chapter.
+    const shot = (id: string, duration: number, geoMap?: Partial<V3GeoMap>) => ({ id, sceneId: id, duration, ...(geoMap ? { geoMap } : {}) });
+    const mix = mapViewMix({ fps: 30, shots: [shot("b1-a-s1", 300, {}), shot("b1-a-s2", 300, { tilt: 30, tiltViews: [{ frame: 0, on: false }, { frame: 120, on: true }] }), shot("b2-b-s1", 300, { tilt: 30 }), shot("b2-b-s2", 90)] } as never);
+    assert.deepEqual(mix, [{ bolum: "b1", dikey: 14, egik: 6, ikisi: true }, { bolum: "b2", dikey: 0, egik: 10, ikisi: false }]);
+    // A long video's cover (the first map behind the title) belongs to no chapter; a Short's maps are one group.
+    assert.deepEqual(mapViewMix({ fps: 30, shots: [shot("kapak", 90, {}), shot("b1-a-s1", 300, { tilt: 30, tiltViews: [{ frame: 0, on: false }, { frame: 120, on: true }] })] } as never).map((m) => m.bolum), ["b1"]);
+    assert.deepEqual(mapViewMix({ fps: 30, shots: [shot("kapak", 90, {}), shot("s2", 300, { tilt: 30 })] } as never), [{ bolum: "", dikey: 3, egik: 10, ikisi: true }]);
+  });
+
+  await scenario("both views through the whole director, a long video's chapters too (owner, 13 Nov 2026: \"uzun videolarda da olsun\"): the long-form episode's chapters go through the same MapBuilder and Director, each chapter's maps opening straight down and tilting", () => {
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const lines = [narrate("The Balkans in 1389."), narrate("The army marches north."), narrate("They meet at Kosovo."), narrate("The day is lost.")];
+    const unit = (yerler: MapUnitsYer[]) => ({ taraf: "A", renk: "#c0392b", amblem: "hilal" as const, sayi: 4, yerler });
+    const wide: SceneMap = { merkez: [22, 43], genislik_km: 1500, ordular: [{ ad: "Ottomans", konum: [24, 42], renk: "#c0392b", satir: 0, yol: [[21, 42.6]], yol_satir: 1 }] };
+    const battle: SceneMap = { merkez: [21.1, 42.7], genislik_km: 20, birlikler: [unit([{ satir: 0, kayip: 1, cephe: [[21.08, 42.72], [21.08, 42.68]] }])] };
+    const sc = (id: string, harita: SceneMap) => ({ ...ep.sahneler[0]!, id, mekan: "Map", harita, sahne_duzeni: [], satirlar: lines });
+    const long = { ...ep, sahneler: [sc("b1-rise-s1", wide), sc("b2-war-s1", battle), sc("b2-war-s2", battle)] };
+    const both = withBothViews(long, {});
+    assert.deepEqual(both.scenes, ["b2-war-s1"]);
+    const square = [[[[15, 38], [30, 38], [30, 48], [15, 48], [15, 38]]]];
+    const saved = process.env.ATOLYE_V3_EGIK_HARITA;
+    delete process.env.ATOLYE_V3_EGIK_HARITA;
+    try {
+      const plan = buildRenderPlan({ episode: both.episode, timeline: buildTimeline(both.episode, both.episode.sahneler.map(() => [fakeAudio(3), fakeAudio(3), fakeAudio(3), fakeAudio(3)])), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: both.episode.sahneler.map(() => ({ src: "bg/harita-zemin.png", kind: "archival" as const })), mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+      const maps = plan.shots.filter((s) => s.geoMap);
+      assert.equal(maps.length, 3);
+      assert.equal(maps[0]!.geoMap!.tilt, tiltDegFor(1500));
+      assert.deepEqual(maps[0]!.geoMap!.tiltViews?.map((v) => v.on), [false, true], "the wide map opens straight down and tilts with the march");
+      assert.ok(maps[0]!.geoMap!.tiltViews![1]!.frame > 0);
+      assert.deepEqual(maps[1]!.geoMap!.tiltViews?.map((v) => v.on), [false, true], "the first battle map opens straight down");
+      assert.equal(maps[2]!.geoMap!.tiltViews, undefined, "the second one tilted all through");
+      assert.deepEqual(mapViewMix(plan).map((m) => [m.bolum, m.ikisi]), [["b1", true], ["b2", true]]);
+      // A Short in the old vertical window: the same plan's maps.
+      const short = buildRenderPlan({ episode: both.episode, timeline: buildTimeline(both.episode, both.episode.sahneler.map(() => [fakeAudio(3), fakeAudio(3), fakeAudio(3), fakeAudio(3)])), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: both.episode.sahneler.map(() => ({ src: "bg/harita-zemin.png", kind: "archival" as const })), mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, ...STAGE_SIZE, output: SHORTS_SIZE, endCard: false, showCaptions: false });
+      assert.deepEqual(short.shots.filter((s) => s.geoMap).map((s) => s.geoMap!.tiltViews?.map((v) => v.on) ?? "egik"), [[false, true], [false, true], "egik"]);
+      // =0: the same video without a tilt anywhere.
+      process.env.ATOLYE_V3_EGIK_HARITA = "0";
+      const flat = buildRenderPlan({ episode: long, timeline: buildTimeline(long, long.sahneler.map(() => [fakeAudio(3), fakeAudio(3), fakeAudio(3), fakeAudio(3)])), cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: long.sahneler.map(() => ({ src: "bg/harita-zemin.png", kind: "archival" as const })), mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+      assert.ok(flat.shots.every((s) => !s.geoMap?.tilt && !s.geoMap?.tiltViews));
+      assert.equal(withBothViews(long).episode, long);
     } finally {
       if (saved === undefined) delete process.env.ATOLYE_V3_EGIK_HARITA;
       else process.env.ATOLYE_V3_EGIK_HARITA = saved;

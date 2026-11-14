@@ -4,7 +4,7 @@
  * beyni ya da AYAS bir harita anlatımını videodan önce görmek için kullanır; Claude/Codex gerekmez.
  *
  *   npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> [--sahne <sahne id>] [--kare <saniye>,…] [--video]
- *        [--dil en|tr] [--dogrula] [--onizleme] [--dikey] [--cikti <klasör>]
+ *        [--dil en|tr] [--dogrula] [--onizleme] [--dikey] [--gorunus dikey|egik|ikisi] [--cikti <klasör>]
  *
  * Satır süreleri kelime sayısından (dakikada ~155 kelime) tahmin edilir. Varsayılan: her satırın sonuna yakın birer
  * kare (o satırla gelen her şey ekranda). --dikey: Short olarak 1080×1920 — üretimdeki gibi: varsayılan "dondur" düzeninde
@@ -18,11 +18,11 @@ import { crowdCast, toRenderCast } from "../../src/lib/v3/costumes/CastMapper";
 import { loadAccessories } from "../../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor } from "../../src/lib/v3/costumes/PartDesigner";
 import { buildRenderPlan } from "../../src/lib/v3/director/Director";
-import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
+import { type Episode, MAP_LOOKS, type MapLook } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
 import { loadSnapshot, withAtlasYears, yearLabel } from "../../src/lib/v3/maps/HistoricalBorders";
 import { withRouteZoom } from "../../src/lib/v3/maps/RouteZoom";
-import { loadMapData, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
+import { loadMapData, type Polygon, withBothViews } from "../../src/lib/v3/maps/MapBuilder";
 import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../../src/lib/v3/maps/CloseSite";
 import { periodEndYear } from "../../src/lib/v3/backgrounds/HistorySources";
@@ -67,6 +67,17 @@ async function main() {
   const zoom = withRouteZoom(atlas.episode);
   for (const id of zoom.scenes) console.log(`harita: ${id} sahnesinde ok çok kısaydı → kamera oka yaklaşır`);
   full = zoom.episode;
+  // --gorunus dikey|egik|ikisi: the previewed scene's view as the writer would ask it (SceneMap.gorunus).
+  const look = arg("--gorunus");
+  if (look !== undefined) {
+    if (!(MAP_LOOKS as readonly string[]).includes(look)) throw new Error(`--gorunus: ${MAP_LOOKS.join(" | ")}`);
+    const only = arg("--sahne");
+    full = { ...full, sahneler: full.sahneler.map((s) => (s.harita?.merkez && (!only || s.id === only) ? { ...s, harita: { ...s.harita, gorunus: look as MapLook } } : s)) };
+  }
+  // Both views over the video's maps, as the production does (MapBuilder.withBothViews), before the close maps' worlds.
+  const views = withBothViews(full);
+  for (const id of views.scenes) console.log(`harita: ${id} düz açılıp eğik görünüşe geçer (videoda iki görünüş de olsun)`);
+  full = views.episode;
   // The close maps' walls and castles on their real traces, as the production does (OpenStreetMap, kept in the library).
   if (hasCloseMap(full)) {
     const site = await prepareCloseMaps(full, closeSiteLookup(paths, (s) => console.log(s)), periodEndYear(full.donem));

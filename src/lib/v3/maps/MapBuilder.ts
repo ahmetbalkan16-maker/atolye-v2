@@ -529,7 +529,10 @@ export function spaceBadges<B extends { readonly label: string; readonly start: 
     const k = height / 1080 / zoomAt(arrives(b));
     const others = settled.filter((a) => !((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start)).map((a) => ({ at: rest(a)!, ...badgeRoom(a.label, b.label, k, relief, tall) }));
     settled.push(b);
-    const clashes = (x: number, y: number) => others.filter((o) => Math.abs(x - o.at.x) < o.x && Math.abs(y - o.at.y) < o.y).length;
+    // The tries stand exactly one room away; a hair of slack so float rounding never counts one as a clash (the Siege of
+    // Baghdad Short tilted, 14 Nov 2026: 5211.5 + 653.27 − 5211.5 came out below 653.27, every try "clashed" and Bektash
+    // Khan's badge stayed on Murad IV's).
+    const clashes = (x: number, y: number) => others.filter((o) => Math.abs(x - o.at.x) < o.x - 1e-6 && Math.abs(y - o.at.y) < o.y - 1e-6).length;
     if (!clashes(pb.x, pb.y)) continue;
     const tries = [
       { x: pb.x, y: pb.y },
@@ -741,6 +744,11 @@ type GeoMapOptions = {
    * has none, nearest first), or undefined: map events land on the word that tells them.
    */
   readonly toldAt?: (index: number | undefined, word: RegExp) => number | undefined;
+  /**
+   * The world the scene's ground was cut for and the tilt, both from the writer's map (UnitFraming.groundOf; the map
+   * given here carries the director's own camera stops too): the map is drawn on that world, so its relief lies under it.
+   */
+  readonly ground?: { readonly world: MapWorld; readonly tilt: number | undefined };
 };
 
 /**
@@ -1536,13 +1544,172 @@ export const TILT_WORLD_SPAN = 1.5;
 export const TILT_BADGE_TALL = 1.35;
 
 /**
- * The close battle map's camera tilt (degrees), or none: every close map (genislik_km ≤ 120) is tilted (owner, 13 Nov
- * 2026: "düzeltip aç" — on after the trial's armies, crowded far names and straight-edged far water were fixed) unless
- * `ATOLYE_V3_EGIK_HARITA=0` when the plan is made (the renderer runs in Chrome and reads no settings); a wider map
- * never. Every map-world consumer (the ground's relief and coast, the castle lookup, the plan) asks this, so they agree.
+ * A medium map's gentler tilt (owner, 13 Nov 2026: "videolarda daha fazla 2.5D kullanılmasını istiyorum"): 24° just past
+ * a close map down to 18° at MEDIUM_TILT_MAX_KM (log in the width), so borders and state names stay readable; a wider map
+ * the writer asks tilted ("egik") goes on down to MIN_TILT_DEG.
  */
-export function closeMapTilt(map: SceneMap, env: Readonly<Record<string, string | undefined>> = process.env): number | undefined {
-  return env.ATOLYE_V3_EGIK_HARITA?.trim() !== "0" && map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? CLOSE_MAP_TILT_DEG : undefined;
+export const MEDIUM_TILT_DEG = { near: 24, far: 18 } as const;
+/** The widest map tilted by itself (with action): past it a map is an overview of a continent, read straight down. */
+export const MEDIUM_TILT_MAX_KM = 2000;
+const MIN_TILT_DEG = 12;
+/** A camera key this much narrower than the map's widest view pushes in on the action (Baghdad's 1,800 → 300 km). */
+const PUSH_SHARE = 0.6;
+/** A camera key this much wider than the one before pulls back to read the whole region again. */
+const PULL_SHARE = 1.6;
+
+type Env = Readonly<Record<string, string | undefined>>;
+
+/** The widest view a map's camera shows (km). */
+function widestKm(map: SceneMap): number {
+  return Math.max(map.genislik_km ?? 0, ...(map.kamera ?? []).map((k) => k.genislik_km));
+}
+
+/** The tilt a map this wide gets (degrees): 30 on a close map, then 24 → 18 at 2,000 km, never under 12. */
+export function tiltDegFor(km: number): number {
+  if (km <= CLOSE_MAP_MAX_KM) return CLOSE_MAP_TILT_DEG;
+  const f = Math.log(km / CLOSE_MAP_MAX_KM) / Math.log(MEDIUM_TILT_MAX_KM / CLOSE_MAP_MAX_KM);
+  return Math.max(MIN_TILT_DEG, Math.round(MEDIUM_TILT_DEG.near - (MEDIUM_TILT_DEG.near - MEDIUM_TILT_DEG.far) * f));
+}
+
+/**
+ * The lines on which something acts on a map (owner: "armies move, battle, losses"), sorted: an army or badge setting
+ * out, a unit's later formation, a loss or rout, a vehicle sailing, firing or lost, a campaign arrow (not a plan's), a
+ * battle, a siege line, a fire, a burning settlement, a breach, a white flag, a conquest's sweep, and the camera pushing in
+ * on the action (a key ≤ 0.6 of the map's widest view). A unit's first formation is its deployment, read before it moves.
+ */
+export function mapActionLines(map: SceneMap): number[] {
+  const out = new Set<number>();
+  const at = (l: number | undefined) => out.add(l ?? 0);
+  for (const o of map.ordular ?? []) if (o.yol?.length) at(o.yol_satir ?? o.satir);
+  for (const u of map.birlikler ?? [])
+    [...u.yerler].sort((a, b) => a.satir - b.satir).forEach((y, i) => {
+      if (i > 0 || (y.kayip ?? 0) > 0 || y.bozgun || (y.hareket && y.hareket !== "tut")) at(y.satir);
+    });
+  for (const a of map.araclar ?? []) {
+    if (a.yol?.length) at(a.yol_satir ?? a.satir);
+    if (a.hedef) at(a.ates_satir ?? a.yol_satir ?? a.satir);
+    if (a.kayip_satir !== undefined && (a.kayip ?? 0) > 0) at(a.kayip_satir);
+  }
+  for (const o of map.oklar ?? []) if (o.stil !== "plan") at(o.satir);
+  for (const w of map.savaslar ?? []) at(w.satir);
+  for (const s of map.kusatma_hatlari ?? []) at(s.satir);
+  for (const y of map.yanginlar ?? []) at(y.satir);
+  for (const t of map.teslim ?? []) at(t.satir);
+  for (const s of map.yerlesimler ?? []) if (s.yanma_satir !== undefined) at(s.yanma_satir);
+  for (const w of map.surlar ?? []) if (w.gedik) at(w.gedik.satir);
+  for (const b of map.bolgeler ?? []) if (b.yayilma) at(b.yayilma.satir);
+  for (const r of map.rozetler ?? []) if (r.yol?.length) at(r.yol_satir ?? r.satir);
+  const wide = widestKm(map);
+  for (const k of map.kamera ?? []) if (k.genislik_km <= wide * PUSH_SHARE) at(k.satir);
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * A map's camera tilt (degrees), or none (owner, 12–13 Nov 2026: "Kings and Generals"-like, "daha fazla 2.5D … ama dikey
+ * de kullanabilir"): `gorunus` "dikey" never; "egik" or "ikisi" always (by its widest view: tiltDegFor); else every close
+ * map (genislik_km ≤ 120, 30°) and a medium one up to 2,000 km across with action (mapActionLines; 24° → 18°) — an
+ * overview without action, or wider, stays straight down. Off for every map with `ATOLYE_V3_EGIK_HARITA=0` when the plan is
+ * made (the renderer runs in Chrome and reads no settings). Every map-world consumer (the ground's relief and coast, the
+ * castle lookup, the plan) asks this, so they agree.
+ */
+export function mapTilt(map: SceneMap, env: Env = process.env): number | undefined {
+  if (env.ATOLYE_V3_EGIK_HARITA?.trim() === "0" || map.genislik_km === undefined || map.gorunus === "dikey") return undefined;
+  if (map.genislik_km <= CLOSE_MAP_MAX_KM) return CLOSE_MAP_TILT_DEG;
+  const wide = widestKm(map);
+  if (map.gorunus === "egik" || map.gorunus === "ikisi") return tiltDegFor(wide);
+  return wide <= MEDIUM_TILT_MAX_KM && mapActionLines(map).length ? tiltDegFor(wide) : undefined;
+}
+
+/** The close battle map's tilt as before (only a close map): mapTilt. */
+export function closeMapTilt(map: SceneMap, env: Env = process.env): number | undefined {
+  return map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? mapTilt(map, env) : undefined;
+}
+
+/**
+ * When a tilted map is seen tilted (owner, 13 Nov 2026: "bu iki görünüşü de kullansın" — top-down for the overview, the
+ * borders and the routes; the 2.5D tilt when the action starts): line by line, each entry from its line on. "egik": tilted
+ * all through. Otherwise the map opens straight down while its first lines set the scene and tilts on the first line
+ * something acts (mapActionLines) — tilted from the start when that is the first line ("ikisi" then tilts a little later:
+ * `late`) — and goes back straight down when, after the last action, the camera pulls back over the region or a state's
+ * border comes in or glows (the narration reads the map again). Undefined on a map seen straight down (mapTilt; `deg`:
+ * the tilt decided on the writer's map when this one carries the director's camera stops too, null for none).
+ */
+export function mapViews(map: SceneMap, env: Env = process.env, deg: number | null = mapTilt(map, env) ?? null): { deg: number; views: { satir: number; on: boolean }[]; late?: boolean } | undefined {
+  if (deg === null) return undefined;
+  if (map.gorunus === "egik") return { deg, views: [{ satir: 0, on: true }] };
+  const acts = mapActionLines(map);
+  const first = acts[0];
+  // "ikisi" with nothing acting after the first line: the camera's first move, else a little into the scene.
+  const move = (map.kamera ?? []).map((k) => k.satir).filter((l) => l > 0).sort((a, b) => a - b)[0];
+  const tiltAt = first !== undefined && first > 0 ? first : map.gorunus === "ikisi" ? (move ?? -1) : 0;
+  const views = tiltAt === 0 ? [{ satir: 0, on: true }] : [{ satir: 0, on: false }, ...(tiltAt > 0 ? [{ satir: tiltAt, on: true }] : [])];
+  const last = acts[acts.length - 1];
+  if (last !== undefined) {
+    // Reading the region again after the action: a pull back, a state coming in (not a conquest) or glowing.
+    const keys = [...(map.kamera ?? [])].sort((a, b) => a.satir - b.satir);
+    const reads = [
+      ...keys.filter((k, i) => k.satir > last && k.genislik_km >= (i ? keys[i - 1]!.genislik_km : map.genislik_km!) * PULL_SHARE).map((k) => k.satir),
+      ...(map.bolgeler ?? []).filter((b) => !b.yayilma && (b.satir ?? 0) > last).map((b) => b.satir!),
+      ...(map.vurgular ?? []).filter((v) => v.bolge && v.satir > last).map((v) => v.satir),
+    ];
+    const back = reads.length ? Math.min(...reads) : undefined;
+    if (back !== undefined && views[views.length - 1]!.on) views.push({ satir: back, on: false });
+  }
+  return { deg, views, ...(map.gorunus === "ikisi" && tiltAt <= 0 ? { late: true } : {}) };
+}
+
+/** How far into a scene an "ikisi" map with nothing to wait for tilts: 2 s, or a third of a short scene. */
+const LATE_TILT_S = 2;
+
+/**
+ * The plan's view changes (V3GeoMap.tiltViews) from mapViews' lines: each from its line's first frame, only where the
+ * view changes; none when the map is tilted all through (the plan as before).
+ */
+function tiltViewFrames(looks: NonNullable<ReturnType<typeof mapViews>>, lineStart: (index: number | undefined, order: number) => number, opts: GeoMapOptions): Pick<V3GeoMap, "tiltViews"> {
+  const fps = opts.fps ?? 30;
+  const at = looks.views.map((v) => ({ frame: v.satir === 0 ? 0 : Math.max(1, lineStart(v.satir, 0)), on: v.on }));
+  if (looks.late) at.push({ frame: Math.max(1, Math.round(Math.min(LATE_TILT_S * fps, (opts.sceneFrames ?? Infinity) / 3))), on: true });
+  const out: { frame: number; on: boolean }[] = [];
+  for (const v of at.sort((a, b) => a.frame - b.frame)) {
+    if (out.length && out[out.length - 1]!.frame === v.frame) out[out.length - 1] = v;
+    else if (!out.length || out[out.length - 1]!.on !== v.on) out.push(v);
+  }
+  return out.length === 1 && out[0]!.on ? {} : { tiltViews: out };
+}
+
+/** A map's scene id's chapter in a long video ("b3-…", LongForm.prefixScenes); one group for a Short. */
+export function chapterOf(sceneId: string): string {
+  return /^(b\d+)-/.exec(sceneId)?.[1] ?? "";
+}
+
+/** Which views a map shows (mapViews): straight down at some point, tilted at some point. */
+export function mapLooksUsed(map: SceneMap, env: Env = process.env): { flat: boolean; tilted: boolean } {
+  const v = mapViews(map, env);
+  return v ? { flat: v.views.some((x) => !x.on) || Boolean(v.late), tilted: true } : { flat: true, tilted: false };
+}
+
+/**
+ * Every video's maps show both views (owner, 13 Nov 2026: "bu iki görünüşü de kullansın"; "uzun videolarda da olsun" —
+ * a long video's every chapter): when a video's (a chapter's) map scenes would all be seen one way, one is set to
+ * "ikisi" — the first tilted one the writer left to the studio (else the first tilted one) opens straight down; or, all
+ * straight down, the one with the most action (else a camera move, else the first) opens straight down and tilts. The
+ * writer's own "dikey" stays. Nothing changes with `ATOLYE_V3_EGIK_HARITA=0`. Pure.
+ */
+export function withBothViews<E extends { readonly sahneler: readonly { readonly id: string; readonly harita?: SceneMap }[] }>(episode: E, env: Env = process.env): { episode: E; scenes: string[] } {
+  if (env.ATOLYE_V3_EGIK_HARITA?.trim() === "0") return { episode, scenes: [] };
+  const maps = episode.sahneler.flatMap((s, i) => (s.harita?.merkez && s.harita.genislik_km ? [{ i, s, map: s.harita }] : []));
+  const set = new Map<number, SceneMap>();
+  for (const chapter of new Set(maps.map((m) => chapterOf(m.s.id)))) {
+    const group = maps.filter((m) => chapterOf(m.s.id) === chapter);
+    const used = group.map((m) => mapLooksUsed(m.map, env));
+    if (used.some((u) => u.flat) && used.some((u) => u.tilted)) continue;
+    const pick = used.some((u) => u.tilted)
+      ? (group.find((m, j) => used[j]!.tilted && !m.map.gorunus) ?? group.find((m, j) => used[j]!.tilted && m.map.gorunus !== "dikey"))
+      : [...group].filter((m) => m.map.gorunus !== "dikey").sort((a, b) => mapActionLines(b.map).length - mapActionLines(a.map).length || Number(Boolean(b.map.kamera?.length)) - Number(Boolean(a.map.kamera?.length)) || a.i - b.i)[0];
+    if (pick) set.set(pick.i, { ...pick.map, gorunus: "ikisi" });
+  }
+  if (!set.size) return { episode, scenes: [] };
+  return { episode: { ...episode, sahneler: episode.sahneler.map((s, i) => (set.has(i) ? { ...s, harita: set.get(i)! } : s)) }, scenes: [...set.keys()].map((i) => episode.sahneler[i]!.id) };
 }
 
 /**
@@ -1557,10 +1724,10 @@ export function closeUnitStyle(env: Readonly<Record<string, string | undefined>>
 
 /**
  * The map a scene draws: its own view, or — with `kamera` keys — a world spanning every view (and a margin), at the
- * scale of the closest one, so the camera can move from region to region over one map. A tilted close map
- * (closeMapTilt) always gets such a world, each view widened by TILT_WORLD_SPAN: its far side shows ground beyond the view.
+ * scale of the closest one, so the camera can move from region to region over one map. A tilted map (mapTilt) always
+ * gets such a world, each view widened by TILT_WORLD_SPAN: its far side shows ground beyond the view.
  */
-export function mapWorld(map: SceneMap, width: number, height: number, tilted = closeMapTilt(map) !== undefined): MapWorld {
+export function mapWorld(map: SceneMap, width: number, height: number, tilted = mapTilt(map) !== undefined): MapWorld {
   // Camera stops are taken on the side of the 180th meridian nearest the first one: Japan (139° E) to Hawaii (158° W)
   // crosses the Pacific (Hawaii at 202°), not the whole world the other way.
   const lon0 = map.merkez![0];
@@ -1598,11 +1765,17 @@ function projectGeoMap(
   lineStart: (index: number | undefined, order: number) => number,
   opts: GeoMapOptions,
 ): V3GeoMap {
-  const world = mapWorld(map, width, height);
+  // The tilt as decided on the writer's map, and the world its ground was cut for (opts.ground; without it, as before),
+  // the camera's stops this map's own.
+  const deg = opts.ground ? opts.ground.tilt : mapTilt(map);
+  const own = mapWorld(map, width, height, deg !== undefined);
+  const world = opts.ground ? { ...opts.ground.world, keys: own.keys } : own;
+  const widened = world.view !== own.view && (world.view.width !== own.view.width || world.view.height !== own.view.height || world.view.lon0 !== own.view.lon0 || world.view.lat0 !== own.view.lat0);
   const v = world.view;
-  // A tilted close map is drawn on a world wider than its view (mapWorld), so its camera holds the view.
-  const tilt = closeMapTilt(map);
-  const moving = world.keys.length > 1 || tilt !== undefined;
+  // A tilted map is drawn on a world wider than its view (mapWorld), so its camera holds the view.
+  const looks = mapViews(map, process.env, deg ?? null);
+  const tilt = looks?.deg;
+  const moving = world.keys.length > 1 || tilt !== undefined || widened;
   // The widest view's scale against the world: name sizes are for the screen, and a name that fits its state there
   // fits it in every closer view too (MapView keeps names at one screen size, so zooming out makes them relatively larger).
   const zoom0 = moving ? Math.min(...world.keys.map((k) => (width / k.view.spanLon) * (v.spanLon / v.width))) : 1;
@@ -2030,6 +2203,7 @@ function projectGeoMap(
     // The map's time of day (a night raid is drawn dark, with searchlights and flares).
     ...(map.zaman ? { zaman: map.zaman } : {}),
     ...(tilt !== undefined ? { tilt } : {}),
+    ...(looks ? tiltViewFrames(looks, lineStart, opts) : {}),
     // The close map's units as small round tokens (or, switched back, as blocks): only where there are kinded units.
     ...(close && units.some((u) => u.kind) ? { unitStyle: closeUnitStyle() } : {}),
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),

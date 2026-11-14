@@ -14,14 +14,14 @@ import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/resea
 import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
 import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
-import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
+import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
-import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
+import { bankSourcesOnly, chapterBrief, chapterCount, chapterProblems, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
-import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
+import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
 import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
@@ -1168,6 +1168,57 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal(cut.out.factCheck.durum, "okunamadi", "one unreadable chapter of six leaves the episode unchecked");
     const healed = await run((i) => (i === 2 ? ["?", empty] : [empty]));
     assert.equal(healed.out.factCheck.durum, "tamam", "every chapter read (one on its second look)");
+  });
+
+  await scenario("L2 a long video's chapters get the long rules, not a Short's (14 Nov 2026: Shorts improvements in the long video): words, closing line once, copy check, shortfalls, bank sources, chapter cards, one picture a chapter", async () => {
+    // A two-minute chapter is under the 3-minute Shorts line: by the whole video's length it is no Short.
+    const whole = { konu: "Uzun konu", donem: "1453", hedefSureSn: 720, ton: "mizahi" as const, dil: "en" as const };
+    const ch = chapterBrief(whole, { sure_sn: 120 });
+    assert.deepEqual([ch.hedefSureSn, ch.butunSureSn, isShortBrief(ch), isShortBrief({ hedefSureSn: 120 })], [120, 720, false, true]);
+    assert.deepEqual([wordBudget(ch), wordBudget({ ...whole, hedefSureSn: 120 })], [282, 259], "a chapter gets all its words, a 120 s Short 92%");
+    assert.ok(!writingPrompt(ch, CATALOG).includes("YOUTUBE SHORT") && writingPrompt({ ...whole, hedefSureSn: 120 }, CATALOG).includes("YOUTUBE SHORT"));
+    // The subscribe invitation once, at the very end of the whole episode.
+    const sub = [{ id: "b2-x-s3", satirlar: [{ karakter: "mehmed", metin: "Subscribe to Crowns & Doodles!" }] }];
+    assert.match(chapterProblems(sub, false)[0]!, /^scene "b2-x-s3" line 0 invites the viewer to subscribe, but this is not the last chapter/);
+    assert.deepEqual(chapterProblems(sub, true), []);
+    // A chapter whose writer left out its card gets it; one with its card keeps it.
+    const carded = withChapterCard([{ id: "b3-x-s1", yazi_karti: [{ metin: "1453", stil: "yer_tarih" }] }, { id: "b3-x-s2" }], { baslik: "The Walls" }, 2, "en");
+    assert.deepEqual(carded[0]!.yazi_karti, [{ metin: "The Walls", alt_metin: "Chapter 3", stil: "bolum" }, { metin: "1453", stil: "yer_tarih" }]);
+    assert.equal(withChapterCard(carded, { baslik: "Other" }, 2, "en")[0]!.yazi_karti, carded[0]!.yazi_karti);
+    // The plan's sources outside the bank are dropped; a plan listing none of the bank's gets the bank's.
+    const bank = { kaynaklar: [{ id: "avunduk-2008", kunye: "Avunduk, Rumelihisarı, TDVİA 35, 2008" }], olgular: [{ metin: "The fortress was built in 1452.", kaynak: "avunduk-2008" }], alintilar: [{ metin: "The fortress was built in 1452.", kaynak: "avunduk-2008", alinti: "the walls of the fortress were raised in only four months by thousands of masons working day and night on the shore" }] };
+    const { sahneler, ...header } = episode();
+    assert.deepEqual(bankSourcesOnly({ ...header, kaynaklar: [...header.kaynaklar, { id: "uydurma-1999", kunye: "Made up" }] }, bank).dropped, ["uydurma-1999"]);
+    assert.deepEqual(bankSourcesOnly({ ...header, kaynaklar: [{ id: "uydurma-1999", kunye: "Made up" }] }, bank).header.kaynaklar.map((k) => k.id), ["avunduk-2008"]);
+    // A chapter whose map scenes mark no picture line: its longest map scene's first narrator line (markOnePicture).
+    const map = (id: string, sure: number) => ({ ...sahneler[0]!, id, sure_hedef: sure, harita: { merkez: [29, 41] as [number, number], genislik_km: 400 }, satirlar: [{ karakter: "mehmed", metin: "Ha!", duygu: "notr" as const, kurgu: true }, ...sahneler[0]!.satirlar] });
+    const pictured = markOnePicture({ ...episode(), sahneler: [map("m1", 10), map("m2", 30), sahneler[1]!] });
+    assert.deepEqual(pictured.episode.sahneler.map((s) => s.ara_goruntu_satir), [undefined, 1, undefined], "the longest map, its narrator line");
+    assert.equal(markOnePicture(pictured.episode).fixes.length, 0, "one marked is enough");
+    // The whole run: six 120 s chapters of a 720 s English video.
+    const copied = { ...sahneler[0]!, satirlar: [{ karakter: "anlatici", metin: "The walls of the fortress were raised in only four months by thousands of masons working day and night.", duygu: "notr" as const, kaynak: ["avunduk-2008"] }] };
+    const outline = { ...header, kaynaklar: [...header.kaynaklar, { id: "uydurma-1999", kunye: "Made up" }], hedef_sure_sn: 720, bolumler: Array.from({ length: 6 }, (_, i) => ({ id: `b${i + 1}-bolum`, baslik: `Chapter ${i + 1}`, ozet: `In this chapter event ${i + 1} is told, with its places and years.`, sure_sn: 120, ...(i ? { baglanti: `It follows on from chapter ${i}.` } : {}) })) };
+    const empty = JSON.stringify({ iddialar: [] });
+    // Chapter 1 copies a source sentence (a repair round), then its lengthening round; the rest: scenes, length, check.
+    const answers = [JSON.stringify(outline), JSON.stringify({ sahneler: [copied, sahneler[1]] }), JSON.stringify({ sahneler }), JSON.stringify({ ...header, sahneler }), empty];
+    for (let i = 1; i < 6; i++) answers.push(JSON.stringify({ sahneler }), JSON.stringify({ ...header, sahneler }), empty);
+    answers.push(JSON.stringify({ kopukluklar: [] }));
+    const openai = new FakeProvider(answers);
+    const lines: string[] = [];
+    const out = await writeScript({ brief: { ...whole, kaynakBankasi: bank }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai }, capUsd: 4 }), log: (s) => lines.push(s) });
+    const prompts = openai.calls.map((c) => c.prompt);
+    assert.equal(prompts.length, 21);
+    assert.ok(prompts.every((p) => !p.includes("YOUTUBE SHORT")), "no chapter is written under the Shorts rules");
+    assert.ok(prompts[1]!.includes("CHAPTER 1 OF 6") && prompts[1]!.includes("about 282 spoken words") && prompts[1]!.includes("NOT THE LAST CHAPTER") && prompts[1]!.includes("that scene's first line is the narrator's") && prompts[1]!.includes("FIXED SOURCES — cite only these ids: avunduk-2008\n"));
+    assert.ok(prompts[2]!.includes("copies a source sentence word for word"), "the chapter's repair asks the copy check");
+    assert.ok(prompts[3]!.startsWith("The JSON episode below has") && /scene "b1-bolum-s1-kanca" has \d+ spoken words and needs about \d+: add \d+ words there/.test(prompts[3]!), "the lengthening round says where the words are missing");
+    assert.ok(prompts[5]!.includes("CHAPTER 2 OF 6") && prompts[5]!.includes('No new hook and no "what you\'ll learn" promise'));
+    assert.ok(prompts[17]!.includes("CHAPTER 6 OF 6") && prompts[17]!.includes("as the VERY LAST line, the main character's subscribe invitation") && !prompts[17]!.includes("NOT THE LAST CHAPTER"));
+    assert.ok(lines.some((l) => l.includes("kaynak bankasında olmayan kaynaklar çıkarıldı — uydurma-1999")), lines.join("\n"));
+    assert.ok(lines.some((l) => /^ {2}uzunluk: \d+\/1692 kelime \(%\d+\) — hedef sürenin altında kalacak$/.test(l)), lines.join("\n"));
+    assert.deepEqual(out.episode.kaynaklar.map((k) => k.id), ["avunduk-2008"]);
+    assert.deepEqual(out.episode.sahneler.flatMap((s) => (s.yazi_karti ?? []).filter((k) => k.stil === "bolum").map((k) => `${s.id}:${k.alt_metin}`)), [1, 2, 3, 4, 5, 6].map((n) => `b${n}-bolum-s1-kanca:Chapter ${n}`));
+    assert.ok(out.validation.ok);
   });
 
   await scenario("map rules (owner, 21 Oct 2026): between places on the living map — a map-named scene needs a map, a map needs something happening, a voyage needs its route", () => {

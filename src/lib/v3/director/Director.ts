@@ -33,7 +33,7 @@ import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX, strengthValue, withCoast, withShipsAfloat } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
-import { actionAt, besideAction, clearAtEveryStop, frameLineAction, fullStage, recentAction, shortWindow } from "../maps/UnitFraming";
+import { actionAt, besideAction, clearAtEveryStop, frameLineAction, fullStage, groundOf, recentAction, shortWindow } from "../maps/UnitFraming";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
@@ -840,6 +840,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           ...(onMap?.lines.size ? { badgeLines: onMap.lines } : {}),
           lineEnd: (index) => (lines[index] ? local(lines[index]!.end) : undefined),
           sceneFrames: duration,
+          // The world its ground was cut for and its tilt, from the writer's map (MapGround.mapGroundFor asks the same).
+          ...((g) => (g ? { ground: g } : {}))(groundOf(scene.harita!, input.width, input.height)),
           toldAt: (index, word) => {
             const sec = toldWordAt(lines, index, word);
             return sec === undefined ? undefined : local(sec);

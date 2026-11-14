@@ -1,5 +1,5 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
-import { ARCH_STYLES, BUILDING_KINDS, type BuildingKind, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
+import { ARCH_STYLES, BUILDING_KINDS, type BuildingKind, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, MAP_LOOKS, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
 import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics, siegeOrder } from "../maps/Tactics";
@@ -291,6 +291,14 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       const mapped = SET_ALIASES.zaman!.words.find(([re]) => re.test(v))?.[1] ?? SET_ALIASES.zaman!.fallback;
       fixes.push(`sahneler[${si}].harita.zaman "${v}" → ${mapped}`);
       s.harita.zaman = mapped;
+    }
+    // A map's view in other words ("tilted", "2.5D", "top-down", "both"): mapped, an unknown one dropped (the automatic mix).
+    if (isObj(s.harita) && s.harita.gorunus !== undefined && !(MAP_LOOKS as readonly unknown[]).includes(s.harita.gorunus)) {
+      const v = String(s.harita.gorunus);
+      const mapped = /ikisi|both|mix|karışık|karisik/i.test(v) ? "ikisi" : /eğik|egik|tilt|2[.,]5|perspect|3d|oblique|isometric/i.test(v) ? "egik" : /dikey|top|down|flat|overhead|düz|duz|kuşbakışı|kusbakisi/i.test(v) ? "dikey" : undefined;
+      fixes.push(`sahneler[${si}].harita.gorunus "${v}" → ${mapped ?? "(otomatik)"}`);
+      if (mapped) s.harita.gorunus = mapped;
+      else delete s.harita.gorunus;
     }
     // A scene aboard a ship the writer set on land (Caesar and the pirates, 2 Nov 2026: "Pirate ship cabin" drawn as a
     // plain with a village). A ship set the writer chose stays.

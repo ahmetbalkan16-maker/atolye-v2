@@ -2,9 +2,10 @@ import type { Episode, EpisodeSource } from "../episode/EpisodeTypes";
 import { validateEpisode } from "../episode/EpisodeValidator";
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { normalizeDraft } from "./DraftNormalizer";
+import { invitesToSubscribe } from "./ClosingLine";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { addToldStrengths } from "./ToldNumbers";
-import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
+import { directBattleMaps, livenStillMaps, mapProblems, markOnePicture, shareProblems } from "./MapRules";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
 
@@ -106,9 +107,36 @@ export function chapterEnding(scenes: readonly Record<string, unknown>[], cast: 
   return { mekan: String(scenes.at(-1)?.mekan ?? ""), lines: lines.slice(-max) };
 }
 
+/**
+ * A chapter's brief: its own length, the whole video's for what kind of video it is. Since Shorts run up to 3 minutes
+ * (11 Nov 2026) a two-minute chapter by its own length was a Short: every chapter of a long video was written under the
+ * Shorts rules (a character's 2-second hook, one moment, no chapter card, a subscribe line at its end) and 92% of its words.
+ */
+export function chapterBrief(brief: ScriptBrief, ch: Pick<ChapterPlan, "sure_sn">): ScriptBrief {
+  return { ...brief, hedefSureSn: ch.sure_sn, butunSureSn: brief.butunSureSn ?? brief.hedefSureSn };
+}
+
+/**
+ * A chapter's own asks beyond the map rules (owner, 13 Nov 2026: the main character's subscribe invitation ends every
+ * video — the whole video, once): a chapter before the last one invites no one to subscribe.
+ */
+export function chapterProblems(scenes: readonly Record<string, unknown>[], last: boolean): string[] {
+  if (last) return [];
+  const asks = scenes.flatMap((s) => (Array.isArray(s.satirlar) ? (s.satirlar as { metin?: unknown }[]) : []).flatMap((l, i) => (invitesToSubscribe(String(l.metin ?? "")) ? [`scene "${String(s.id)}" line ${i}`] : [])));
+  return asks.length ? [`${asks.join(", ")} invite${asks.length > 1 ? "" : "s"} the viewer to subscribe, but this is not the last chapter: the subscribe invitation comes once, as the very last line of the whole episode — end this chapter on its own turn, leading into the next chapter`] : [];
+}
+
+/** The first scene of a chapter opens on its chapter card (the YouTube chapters and the music beds are read from them). */
+export function withChapterCard(scenes: readonly Record<string, unknown>[], ch: Pick<ChapterPlan, "baslik">, index: number, dil: ScriptBrief["dil"]): Record<string, unknown>[] {
+  const first = scenes[0];
+  if (!first || (Array.isArray(first.yazi_karti) && (first.yazi_karti as { stil?: unknown }[]).some((k) => k?.stil === "bolum"))) return [...scenes];
+  const card = { metin: ch.baslik.slice(0, 60), alt_metin: `${dil === "tr" ? "Bölüm" : "Chapter"} ${index + 1}`, stil: "bolum" };
+  return [{ ...first, yazi_karti: [card, ...(Array.isArray(first.yazi_karti) ? first.yazi_karti : [])] }, ...scenes.slice(1)];
+}
+
 export function chapterPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[], outline: EpisodeOutline, index: number, previous?: ChapterEnding): string {
   const ch = outline.bolumler[index]!;
-  const words = wordBudget({ ...brief, hedefSureSn: ch.sure_sn });
+  const words = wordBudget(chapterBrief(brief, ch));
   const before = outline.bolumler.slice(0, index).map((b, i) => `${i + 1}. ${b.baslik}: ${b.ozet}`);
   const next = outline.bolumler[index + 1];
   const cast = outline.header.oyuncu_kadrosu.map((c) => ({ id: c.id, ad: c.ad, rol: c.rol, gorunur: c.gorunur }));
@@ -119,16 +147,16 @@ export function chapterPrompt(brief: ScriptBrief, catalog: readonly PackCatalogE
     : ch.baglanti
       ? `HOW THIS CHAPTER FOLLOWS THE ONE BEFORE: ${ch.baglanti}\n`
       : "";
-  return `${writingPrompt({ ...brief, hedefSureSn: ch.sure_sn }, catalog)}
+  return `${writingPrompt(chapterBrief(brief, ch), catalog)}
 
 LONG EPISODE "${String(outline.header.baslik ?? brief.konu)}" — CHAPTER ${index + 1} OF ${outline.bolumler.length}: "${ch.baslik}".
 THIS CHAPTER: ${ch.ozet}
-${before.length ? `THE STORY SO FAR (already told — do not repeat it, build on it):\n${before.join("\n")}\n` : "This is the opening chapter: start with the hook.\n"}${ending}${next ? `NEXT CHAPTER (do not tell it yet; you may end on a hint): ${next.baslik} — ${next.ozet}\n` : "This is the last chapter: end with the payoff and the closing line.\n"}Tell this chapter in full depth: its people, places, dates and numbers from the VERIFIED FACTS, the why as well as the what.
+${before.length ? `THE STORY SO FAR (already told — do not repeat it, build on it):\n${before.join("\n")}\nNo new hook and no "what you'll learn" promise: the episode opened with them; this chapter carries on the story.\n` : "This is the opening chapter: start with the hook.\n"}${ending}${next ? `NEXT CHAPTER (do not tell it yet; you may end on a hint): ${next.baslik} — ${next.ozet}\nNOT THE LAST CHAPTER: rule 7's bridge to the next video and the subscribe invitation belong only to the very end of the whole episode — no subscribe line here; end on this chapter's own turn.\n` : "This is the last chapter: end with the payoff, the bridge to the next video and, as the VERY LAST line, the main character's subscribe invitation (rule 7).\n"}Tell this chapter in full depth: its people, places, dates and numbers from the VERIFIED FACTS, the why as well as the what.
 FIXED CAST — use ONLY these ids, never add or change a character (a person not listed is told by the narrator):
 ${JSON.stringify(cast)}
 FIXED SOURCES — cite only these ids: ${outline.header.kaynaklar.map((k: EpisodeSource) => k.id).join(", ") || "(none)"}
 Write ONLY this chapter's scenes, about ${words} spoken words, "sure_hedef" adding up to ${ch.sure_sn}. Scene ids start with
-"${ch.id}-". The first scene opens with the chapter card: "yazi_karti": [{"metin": "${ch.baslik}", "alt_metin": "${brief.dil === "tr" ? "Bölüm" : "Chapter"} ${index + 1}", "stil": "bolum"}].
+"${ch.id}-". The first scene opens with the chapter card: "yazi_karti": [{"metin": "${ch.baslik}", "alt_metin": "${brief.dil === "tr" ? "Bölüm" : "Chapter"} ${index + 1}", "stil": "bolum"}]; that scene's first line is the narrator's (the card stands over the picture for its first three seconds).
 Tell what moves between places on the living map ("kamera", "rozetler" with "yol_satir", "savaslar" — MAP NARRATION) and
 what happens in one place as character scenes (SCENE KIND BY SCALE), as the chapter's plan says.
 SHARES: of this chapter's ${ch.sure_sn} seconds about ${Math.round(ch.sure_sn * 0.8)} on the map (wide or close) and about ${Math.max(10, Math.round(ch.sure_sn * 0.15))} in character
@@ -225,6 +253,34 @@ export interface LongFormDeps {
   readonly log?: (s: string) => void;
   /** Whether a chapter's fact-check answer can be read (ScriptEngine's reader); an unreadable one is asked once more. */
   readonly readableCheck?: (text: string) => boolean;
+  /**
+   * The single-video script step's own asks of a chapter (ScriptEngine.copiedFromSources: a line copying a source's
+   * sentence), asked in the chapter's repair rounds as its map rules are.
+   */
+  readonly chapterAsks?: (chapter: unknown) => string[];
+  /** Where a chapter short of its words needs them (ScriptEngine.sceneShortfalls), for its lengthening round. */
+  readonly shortfalls?: (chapter: Episode, targetWords: number) => string[];
+}
+
+/**
+ * A chapter is lengthened below this share of its words, as a single video is (ScriptEngine's LENGTH_BAND, the QC's
+ * ±10%): 0.85 of a Shorts-filled 92% budget let a whole long episode run ~22% short of its minutes.
+ */
+export const CHAPTER_LENGTH_MIN = 0.9;
+
+/**
+ * The plan's sources limited to the source bank's (a single video's script is sent back for one outside it,
+ * ScriptEngine.bankProblems): every chapter cites only the plan's, so one made up in the plan would reach the
+ * description unverified. None of the bank's listed: the whole bank.
+ */
+export function bankSourcesOnly(header: Omit<Episode, "sahneler">, bank: ScriptBrief["kaynakBankasi"]): { header: Omit<Episode, "sahneler">; dropped: string[] } {
+  if (!bank?.kaynaklar.length) return { header, dropped: [] };
+  const allowed = new Set(bank.kaynaklar.map((k) => k.id));
+  const listed = Array.isArray(header.kaynaklar) ? header.kaynaklar : [];
+  const kept = listed.filter((k) => allowed.has(k.id));
+  const dropped = listed.filter((k) => !allowed.has(k.id)).map((k) => String(k.id));
+  if (!dropped.length && kept.length) return { header, dropped };
+  return { header: { ...header, kaynaklar: kept.length ? kept : [...bank.kaynaklar] }, dropped };
 }
 
 /** A chapter's fact check; a second look at an unreadable one gets room for a long chapter's claims (a cut answer). */
@@ -277,7 +333,9 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     plan = readOutline(parseJson(raw), d.brief);
   }
   if (!plan.outline) throw new Error(`V3_SCRIPT_INVALID: bölüm planı okunamadı: ${plan.problems.slice(0, 4).join("; ")}`);
-  const outline = plan.outline;
+  const sourced = bankSourcesOnly(plan.outline.header, d.brief.kaynakBankasi);
+  if (sourced.dropped.length) log(`  senaryo planı: kaynak bankasında olmayan kaynaklar çıkarıldı — ${sourced.dropped.join(", ")}`);
+  const outline: EpisodeOutline = { ...plan.outline, header: sourced.header };
   log(`senaryo planı: ${outline.bolumler.length} bölüm — ${outline.bolumler.map((b) => `${b.baslik} (${b.sure_sn} sn)`).join(" · ")}`);
   // 2) Chapter by chapter.
   const scenes: Record<string, unknown>[] = [];
@@ -286,7 +344,8 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
   let previous: ChapterEnding | undefined;
   for (let i = 0; i < outline.bolumler.length; i++) {
     const ch = outline.bolumler[i]!;
-    const chBrief = { ...d.brief, hedefSureSn: ch.sure_sn };
+    const chBrief = chapterBrief(d.brief, ch);
+    const lastChapter = i === outline.bolumler.length - 1;
     const opts = { maxTokens: Math.min(16_000, Math.max(6_000, 5_000 + wordBudget(chBrief) * 22)) };
     const check = (text: string): LongFormCheck => {
       const answer = parseJson(text) as { sahneler?: unknown } | undefined;
@@ -297,7 +356,8 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
       const problems = v.errors.slice(0, 30).map((e) => `${e.path} ${e.code}: ${e.message}`);
       // The map rules (ScriptEngine.mapProblems) and the owner's shares are asked for in the same rounds, never worth
       // losing a valid chapter.
-      return { value, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode), ...crowdProblems(value)] };
+      const scenesOf = (value as { sahneler?: Record<string, unknown>[] }).sahneler ?? [];
+      return { value, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode), ...crowdProblems(value), ...chapterProblems(scenesOf, lastChapter), ...(d.chapterAsks?.(value) ?? [])] };
     };
     let text = (await d.budget.generate(`bolum-${i + 1}`, writerUsed, chapterPrompt(d.brief, d.catalog, outline, i, previous), opts)).result.content;
     let state = check(text);
@@ -312,16 +372,21 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     if (state.problems.length) throw new Error(`V3_SCRIPT_INVALID: bölüm ${i + 1} (${ch.baslik}): ${state.problems.slice(0, 4).join("; ")}`);
     if (state.quality.length) d.log?.(`  bölüm ${i + 1}: harita isteği karşılanamadı — ${state.quality.join(" | ").slice(0, 240)}`);
     let chapter = state.value as Record<string, unknown>;
-    // One lengthening round for a chapter well short of its words (models stop short of a word count).
+    // One lengthening round for a chapter short of its words (models stop short of a word count), with where the words
+    // are missing scene by scene, as a single video's rounds have them (sceneShortfalls).
     const want = wordBudget(chBrief);
     const has = wordsOf(chapter.sahneler as Record<string, unknown>[]);
-    if (has < want * 0.85) {
+    if (has < want * CHAPTER_LENGTH_MIN) {
       lengthRounds++;
-      const longer = check((await d.budget.generate(`bolum-${i + 1}-uzunluk`, writerUsed, lengthPrompt(JSON.stringify(chapter), has, want), opts)).result.content);
+      const longer = check((await d.budget.generate(`bolum-${i + 1}-uzunluk`, writerUsed, lengthPrompt(JSON.stringify(chapter), has, want, d.shortfalls?.(chapter as unknown as Episode, want) ?? []), opts)).result.content);
       // Kept only if it keeps what the map rules won (they are not asked again after this round).
       if (!longer.problems.length && longer.quality.length <= state.quality.length && wordsOf((longer.value as Record<string, unknown>).sahneler as Record<string, unknown>[]) > has) chapter = longer.value as Record<string, unknown>;
     }
-    const chapterScenes = prefixScenes(chapter.sahneler as Record<string, unknown>[], ch.id);
+    // The chapter's period picture when no round marked one (markOnePicture), and its chapter card.
+    const pictured = markOnePicture(chapter as unknown as Episode);
+    for (const fix of pictured.fixes) log(`  bölüm ${i + 1}: ${fix}`);
+    const chapterScenes = withChapterCard(prefixScenes(pictured.episode.sahneler as unknown as Record<string, unknown>[], ch.id), ch, i, d.brief.dil);
+    for (const left of chapterProblems(chapterScenes, lastChapter)) log(`  bölüm ${i + 1}: ${left.slice(0, 240)}`);
     scenes.push(...chapterScenes);
     previous = chapterEnding(chapterScenes, outline.header.oyuncu_kadrosu);
     log(`  bölüm ${i + 1}/${outline.bolumler.length} "${ch.baslik}": ${chapterScenes.length} sahne, ${wordsOf(chapterScenes)}/${want} kelime`);
@@ -358,5 +423,10 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
   for (const fix of counted.fixes) log(`  senaryo: ${fix}`);
   const directed = directBattleMaps(counted.episode);
   for (const fix of directed.fixes) log(`  ${fix}`);
+  // The whole video's words against its minutes (the QC's ±10% on the finished cut, read here before hours of voice and
+  // render): a single video's rounds work to this band; a long one only says it, its chapters were lengthened one by one.
+  const total = wordsOf(directed.episode.sahneler as unknown as Record<string, unknown>[]);
+  const budget = wordBudget(d.brief);
+  log(`  uzunluk: ${total}/${budget} kelime (%${Math.round((total / Math.max(1, budget)) * 100)})${total < budget * CHAPTER_LENGTH_MIN ? " — hedef sürenin altında kalacak" : total > budget * 1.1 ? " — hedef sürenin üstüne taşacak" : ""}`);
   return { episode: directed.episode, repairs, lengthRounds, writerUsed, factChecks, continuity };
 }

@@ -240,10 +240,11 @@ export function MapView(props: MapViewProps) {
   const { map, width: W, height: H } = props;
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  // A map without `tilt` (every map but a close one, or any with ATOLYE_V3_EGIK_HARITA=0) is drawn as it always was.
-  if (!map.tilt) return <MapPicture {...props} />;
-  // Framing the action this frame (tiltAt), the same tilt ShotView's speech bubbles ask for.
-  const t = tiltAt(map, frame, fps, W, H)!;
+  // Framing the action this frame (tiltAt), the same tilt ShotView's speech bubbles ask for. A map without `tilt` (an
+  // overview, or any with ATOLYE_V3_EGIK_HARITA=0), or a tilted one while it is seen straight down (V3GeoMap.tiltViews),
+  // is drawn as it always was.
+  const t = tiltAt(map, frame, fps, W, H);
+  if (!t) return <MapPicture {...props} />;
   // The ground drawn wherever the frame sees it (the far rows see a wider strip), a few pixels more for the edges.
   const c = tiltSeen(t, { x0: 0, y0: 0, x1: W, y1: H }).cover;
   const ox = Math.ceil(Math.max(0, -c.x0)) + 8;

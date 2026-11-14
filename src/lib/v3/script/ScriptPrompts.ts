@@ -97,7 +97,16 @@ export interface ScriptBrief {
    * ChannelGoals.shortBeatRule from content/v3/kanal-hedefleri.json — the single source, never written here.
    */
   readonly kisaZamanHaritasi?: string;
+  /**
+   * The whole video's length when this brief is one chapter of a long episode (LongForm.chapterBrief). A two-minute
+   * chapter is under the 3-minute Shorts line (Format.SHORTS_MAX_S since 11 Nov 2026), so by its own length every chapter
+   * of a 20-minute video was written under the Shorts rules and fill; whether it is a Short goes by this (`isShortBrief`).
+   */
+  readonly butunSureSn?: number;
 }
+
+/** Whether a brief is a Short's: by the whole video's length, never a long episode's chapter (`butunSureSn`). */
+export const isShortBrief = (brief: Pick<ScriptBrief, "hedefSureSn" | "butunSureSn">): boolean => isShorts(brief.butunSureSn ?? brief.hedefSureSn);
 
 /**
  * Spoken words per second of finished video (pauses between lines and scenes included). Turkish is measured: the
@@ -135,7 +144,7 @@ export const SHOES = ["kahve-cizme", "kahve-mest", "kirmizi-cizme", "kirmizi-mes
 export const SHORTS_FILL = 0.92;
 
 export function wordBudget(brief: ScriptBrief): number {
-  return Math.round(brief.hedefSureSn * (isShorts(brief.hedefSureSn) ? SHORTS_FILL : 1) * WORDS_PER_SECOND[brief.dil]);
+  return Math.round(brief.hedefSureSn * (isShortBrief(brief) ? SHORTS_FILL : 1) * WORDS_PER_SECOND[brief.dil]);
 }
 
 function catalogText(catalog: readonly PackCatalogEntry[]): string {
@@ -353,7 +362,7 @@ function lessonsText(lessons: readonly string[] | undefined): string {
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
-  return `${RULES[brief.dil](brief, words)}${isShorts(brief.hedefSureSn) ? SHORTS_RULES[brief.dil](brief, words) : ""}${seriesText(brief.dizi)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
+  return `${RULES[brief.dil](brief, words)}${isShortBrief(brief) ? SHORTS_RULES[brief.dil](brief, words) : ""}${seriesText(brief.dizi)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".
@@ -455,6 +464,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     "zaman": "gece"   // on the "harita" itself, when the map's events happen at night (a night raid, a night crossing,
         // an attack in the dark): the map darkens, searchlights sweep it and an air raid drops flares. Leave it out
         // for a daytime map — a night attack told on a daylight map looks wrong.
+    "gorunus": "dikey" | "egik" | "ikisi"   // usually leave it out: the studio opens a map straight down and tilts it into
+        // 2.5D when armies, ships or battles start moving. "dikey" keeps it straight down (a map that only reads borders or
+        // a whole region); "egik" tilted from the start; "ikisi" straight down first, then tilted.
   INFO CARDS — while the narrator explains politics, reasons or a striking number, the picture dims and a card comes up
   ("bilgi_kartlari" on the scene, map or character scene; one or two per chapter of a long video, one at a time):
     {"tur": "sema", "baslik": "Rome's two camps", "satir": 1, "dugumler": [{"ad": "Roman Senate"},

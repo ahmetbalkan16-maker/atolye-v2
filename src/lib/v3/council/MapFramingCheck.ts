@@ -85,3 +85,43 @@ export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "hei
   }
   return faults;
 }
+
+/** How long a video's (a long video's chapter's) maps are seen straight down and tilted (seconds), and whether both are. */
+export interface MapViewMix {
+  /** The chapter ("b3", LongForm's scene prefix); "" for a Short or a video without chapters. */
+  readonly bolum: string;
+  readonly dikey: number;
+  readonly egik: number;
+  readonly ikisi: boolean;
+}
+
+/**
+ * The quality brain's view mix check, from the plan (owner, 13 Nov 2026: "bu iki görünüşü de kullansın", "uzun
+ * videolarda da olsun"): per chapter with map shots, the seconds its maps are seen straight down (a flat map, or a tilted
+ * one between its V3GeoMap.tiltViews off and on) and tilted — each view change counted from its frame (the glide
+ * between is left out). A chapter whose maps show one view only is reported (MapBuilder.withBothViews should not let it).
+ */
+export function mapViewMix(plan: Pick<V3RenderPlan, "fps" | "shots">): MapViewMix[] {
+  const out = new Map<string, { dikey: number; egik: number }>();
+  const chapter = (shot: V3RenderPlan["shots"][number]) => /^(b\d+)-/.exec(shot.sceneId ?? shot.id)?.[1] ?? "";
+  // A long video's cover (the first map behind the title, "kapak") belongs to no chapter: left out there.
+  const chaptered = plan.shots.some((s) => s.geoMap && chapter(s));
+  for (const shot of plan.shots) {
+    const map = shot.geoMap;
+    if (!map || (chaptered && !chapter(shot))) continue;
+    const key = chapter(shot);
+    const m = out.get(key) ?? out.set(key, { dikey: 0, egik: 0 }).get(key)!;
+    if (!map.tilt) {
+      m.dikey += shot.duration;
+      continue;
+    }
+    const views = [...(map.tiltViews ?? [{ frame: 0, on: true }])].sort((a, b) => a.frame - b.frame);
+    views.forEach((v, i) => {
+      const from = i ? Math.min(shot.duration, v.frame) : 0;
+      const to = Math.min(shot.duration, views[i + 1]?.frame ?? shot.duration);
+      if (to > from) m[v.on ? "egik" : "dikey"] += to - from;
+    });
+  }
+  const s = (frames: number) => Math.round((frames / plan.fps) * 10) / 10;
+  return [...out.entries()].map(([bolum, m]) => ({ bolum, dikey: s(m.dikey), egik: s(m.egik), ikisi: m.dikey > 0 && m.egik > 0 }));
+}

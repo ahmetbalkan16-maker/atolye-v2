@@ -23,6 +23,13 @@ export function lengthOk(durationS: number, targetS: number): boolean {
   return isShorts(targetS) ? durationS <= targetS && durationS >= shortsMinS(targetS) : Math.abs(durationS - targetS) <= targetS * 0.1;
 }
 
+/**
+ * The top of lengthOk's band: a Short's ordered length, a normal video's +10%. The timeline is fitted under it
+ * (Timeline.fitTimeline) — a Short's since 13 Nov 2026, a long video's too since 14 Nov 2026 (the Shorts' improvements in
+ * the long video: a voice slower than the writer's word budget ran a 20-minute video past its band with only a warning).
+ */
+export const lengthTopS = (targetS: number): number => (isShorts(targetS) ? targetS : targetS * 1.1);
+
 /** Where the director lays out every shot. */
 export const STAGE_SIZE = { width: 1920, height: 1080 } as const;
 
