@@ -1,3 +1,14 @@
+## 14 Kasım 2026 (3) — TOPLU CANLIYA ALMA YAPILDI + Node 26
+
+Canlı: ayas-live-4fc578ad (Node 26.13.1, dış erişim healthy); canonical + canlı dal de565fa6; Graphify taze. Önceki
+yayın ayas-live-26a62eec geri dönüş için duruyor (ayas-live-ebfe37c4 de; temizlenebilir). V3 sipariş izleyicisi ve AYAS
+gözlemcisi Node 26 ile yeniden başlatıldı (gözlemci bağımlılık eşitlemesi artık geçiyor). Yeni: affa5843 SSRF genişletmesi
++ V3BudgetError.name (293× boş doğrulama biter), 4fc578ad EVAL v75, de565fa6 new-pc-setup Node 26.13.1 pini + winget pin.
+OWNER: telefondan AYAS'a gir ve dene; ESLint 10.15.0 deneme PASSED → "Uygula"; TypeScript 7.0.2'yi yeniden "Onayla ve dene"
+(kod düzeltmesi artık canlıda). AÇIK (tasarım gerekir): sunucu tarafı çıkış iptali — middleware edge'de çalışır, dosya/bellek
+paylaşmaz (nodejs runtime'a geçiş ya da imzalı "şundan sonra geçerli" damgası tasarımı); tam CSP; mikro-parti başarısız adayı
+HEAD başına hatırlama; cloudflared 2026.11.0 elle.
+
 ## 14 Kasım 2026 (2) — GÜVENLİ DURUŞ (owner 11:40: "haftalık kullanım tokeni bitiyor, kaydet; yenilenince devam, sonra canlıya al herşeyi") — DEVAM BURADAN
 
 Bitti, push'lu (feature/cop-adam-v3, canlı DEĞİL): 9529c876 araştırma (infobox sayıları, uydurma subay), e2106803 geliştirici
