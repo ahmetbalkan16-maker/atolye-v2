@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v74",
+  "version": "15F.4-v75",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -937,7 +937,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-safe-public-fetch.ts",
-          "sha256": "ccb576e908c4bd96df8d9d6ac37273e93b9dc1c18a748549020b610bcc76a7eb"
+          "sha256": "36ee96845dbf4b1028c82b9e9bfb4022c50c8fd04936dedb1d5dc7a7549fbcf2"
         }
       ],
       "slices": [
