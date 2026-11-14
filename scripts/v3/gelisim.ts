@@ -183,11 +183,12 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     // The development queue: one approved proposal per cycle, only while the developer is switched on and in its hours.
     const window = developerWindow(process.env);
     if (!window.acik) return skip(window.neden);
-    const job = nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal));
-    if (!job) return skip("kuyrukta iş yok");
-    const release = await developerLock(paths.workRoot);
+    // The lock first: taking it returns a job a vanished developer left "yapiliyor" to the queue (developerLock).
+    const release = await developerLock(paths.workRoot, log);
     if (!release) return skip("geliştirici başka bir işte");
     try {
+      const job = nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal));
+      if (!job) return skip("kuyrukta iş yok");
       const cirak = await apprenticePolicy(paths.repoRoot, paths.workRoot);
       const done = await runDevJob(job, research, cirak ? { cirak } : {});
       return ok(

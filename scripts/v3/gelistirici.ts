@@ -123,7 +123,7 @@ async function main() {
   if (cmd === "aksam") {
     // The evening (owner, 3 Nov 2026: from 16:30 Claude builds what gathered by day): one job after another while the
     // hours last, no order waits and the queue has work; each is researched first if the day missed it.
-    const release = await developerLock(paths.workRoot);
+    const release = await developerLock(paths.workRoot, log);
     if (!release) return log("geliştirici başka bir işte");
     try {
       const d = deps();
@@ -173,7 +173,7 @@ async function main() {
     const job = id ? proposals.find((p) => p.id === id) : nextJob(proposals);
     if (!job) return log("kuyrukta iş yok");
     if (!["onaylandi", "yapilamadi"].includes(job.durum)) throw new Error(`öneri kuyrukta değil (${job.durum})`);
-    const release = await developerLock(paths.workRoot);
+    const release = await developerLock(paths.workRoot, log);
     if (!release) throw new Error("geliştirici başka bir işte");
     try {
       const policy = process.argv.includes("--cirak") ? { agent: apprenticeAgent(paths.repoRoot, paths.workRoot), when: "zorla" as const } : await apprenticePolicy(paths.repoRoot, paths.workRoot);

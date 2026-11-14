@@ -320,7 +320,9 @@ Return ONLY JSON: {"dosyalar": ["path", ...], "semboller": ["name", ...], "karar
 /** Whether a job needs (new) research: never researched, or tried again since its last research. */
 export async function needsResearch(workRoot: string, p: DevProposal): Promise<boolean> {
   const g = await lastGuess(workRoot, p.id);
-  return !g || (!!p.is?.bitis && g.tarih < p.is.bitis);
+  // A try that ended only in Claude's usage limit (`bekle`) learned nothing new: until 14 Nov 2026 each such hold paid for
+  // a fresh guess (kurgu-73 researched at 23:22 and again at 23:51 the same night).
+  return !g || (!!p.is?.bitis && g.tarih < p.is.bitis && !p.is.bekle);
 }
 
 const jobTask = (p: Pick<DevProposal, "baslik" | "neden" | "karar">) => `${p.baslik} — ${p.neden}${p.karar?.not ? ` (owner: ${p.karar.not})` : ""}`.slice(0, 900);

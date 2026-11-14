@@ -6,8 +6,8 @@ import { ayasCheckEnv, isAyasCheckEnvDenied } from "../../brain/autonomy/AyasChe
 import { runProcess } from "../util/Proc";
 import { BRAIN_NAMES } from "./Council";
 import { ayasPastChanges, similarCaseLines } from "./DevBrain";
-import { AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
-import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
+import { attemptProblems, AYAS_DEVELOPER_RULES, ayasTaskPacket, DEVELOPER_RULES, type DevJob, forbiddenChanges, LIMIT_PROBLEM, measuredFaults, scopeOf, taskPacket, usageLimitUntil } from "./DevQueue";
+import { type DevProposal, improvementDir, listProposals, updateProposal } from "./SelfImprovement";
 
 /**
  * The studio's developer (DevQueue): builds one approved proposal in a git worktree of its own, branched from the
@@ -239,7 +239,7 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
   /** A worktree of the build's base, opened only when a suite fails, to tell an older fault from the build's own. */
   const base: { dir?: string } = {};
   const yazan = d.yazan ?? "claude";
-  const job: DevJob = { deneme: (p.is?.deneme ?? 0) + 1, baslangic: new Date().toISOString(), kayit: record, yazan };
+  const job: DevJob = { deneme: (p.is?.deneme ?? 0) + 1, baslangic: new Date().toISOString(), kayit: record, yazan, pid: process.pid };
   await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "yapiliyor", is: job }));
   const finish = (durum: DevProposal["durum"], extra: Partial<DevJob>) => updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum, is: { ...job, ...extra, bitis: new Date().toISOString() } }));
   const fail = async (sorunlar: string[]) => {
@@ -277,12 +277,13 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const ozet = run.stdout.trim().slice(-1500);
     const until = run.code !== 0 && yazan === "claude" ? usageLimitUntil(`${run.stdout}\n${run.stderr}`) : undefined;
     if (until) {
-      // Claude's usage limit, not the job: back in the queue until it resets, this try not counted.
-      const sorun = `Claude kullanım sınırı: ${(run.stderr || run.stdout).trim().slice(-200)}`;
+      // Claude's usage limit, not the job: back in the queue until it resets, this try not counted; why a real try
+      // before it was thrown away stays for the next task (attemptProblems).
+      const sorun = `${LIMIT_PROBLEM}: ${(run.stderr || run.stdout).trim().slice(-200)}`;
       d.log(`  geliştirici: "${p.baslik}" — ${sorun}; ${until.slice(0, 16)} sonrasına bırakıldı (deneme sayılmadı)`);
       await dropWorktree(d.repoRoot, dir).catch(() => undefined);
       await git(d.repoRoot, ["branch", "-D", branch]).catch(() => undefined);
-      return await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "onaylandi", is: { ...job, deneme: job.deneme - 1, bitis: new Date().toISOString(), bekle: until, sorunlar: [sorun] } }));
+      return await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "onaylandi", is: { ...job, deneme: job.deneme - 1, bitis: new Date().toISOString(), bekle: until, sorunlar: [sorun, ...attemptProblems(p.is?.sorunlar)] } }));
     }
     if (run.code !== 0) return await fail([`ajan çıkış kodu ${run.code}: ${(run.stderr || run.stdout).trim().slice(-300)}`]);
     const status = await git(dir, ["status", "--porcelain", "-uall"]);
@@ -361,22 +362,54 @@ async function failsOnBase(repoRoot: string, dir: string, taban: string, c: read
   return r.code !== 0;
 }
 
-/** One developer at a time: a second one finds the lock of a live process and stops. */
-export async function developerLock(workRoot: string): Promise<(() => Promise<void>) | undefined> {
+/** Whether a process is still there (signal 0 only asks). */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM: it is there, only not ours to signal.
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/**
+ * Jobs a developer process left "yapiliyor" when it vanished mid-build (a reboot, a watcher restart at go-live): back
+ * in the queue, the cut-off try not counted, its worktree cleared by the next try (develop). Until 14 Nov 2026 nothing
+ * read such a job again — nextJob takes only "onaylandi" and "yapilamadi" — so it stayed "geliştiriliyor" for ever.
+ * Only a job that names its process (`is.pid`, set by develop) and whose process is gone; a job claimed by hand has no
+ * pid and stays claimed. Called with the developer lock held (developerLock), so no live developer is building.
+ */
+export async function recoverInterruptedJobs(workRoot: string, isAlive: (pid: number) => boolean = alive): Promise<DevProposal[]> {
+  const out: DevProposal[] = [];
+  for (const { proposal: p } of await listProposals(workRoot)) {
+    const pid = p.is?.pid;
+    if (p.durum !== "yapiliyor" || !pid || pid === process.pid || isAlive(pid)) continue;
+    out.push(
+      await updateProposal(workRoot, p.id, (q) => ({
+        ...q,
+        durum: "onaylandi",
+        is: { ...q.is!, deneme: Math.max(0, (q.is?.deneme ?? 1) - 1), bitis: new Date().toISOString(), sorunlar: [`geliştirici yarıda kaldı (süreç ${pid} kapandı); deneme sayılmadı`, ...attemptProblems(q.is?.sorunlar)] },
+      })),
+    );
+  }
+  return out;
+}
+
+/**
+ * One developer at a time: a second one finds the lock of a live process and stops. Taking the lock also returns jobs a
+ * vanished developer left "yapiliyor" to the queue (recoverInterruptedJobs), so every caller sees them before nextJob.
+ */
+export async function developerLock(workRoot: string, log?: (s: string) => void): Promise<(() => Promise<void>) | undefined> {
   const lock = path.join(improvementDir(workRoot), ".gelistirici.pid");
   if (existsSync(lock)) {
     const pid = Number((await fs.readFile(lock, "utf8")).trim());
-    try {
-      if (pid) {
-        process.kill(pid, 0);
-        return undefined;
-      }
-    } catch {
-      // A lock left by a process that is gone.
-    }
+    if (pid && alive(pid)) return undefined;
+    // Else a lock left by a process that is gone.
   }
   await fs.mkdir(path.dirname(lock), { recursive: true });
   await fs.writeFile(lock, String(process.pid));
+  for (const p of await recoverInterruptedJobs(workRoot).catch((e: Error) => (log?.(`  geliştirici: yarıda kalan işler okunamadı (${e.message.slice(0, 120)})`), []))) log?.(`  geliştirici: "${p.baslik}" yarıda kalmıştı — kuyruğa geri döndü (deneme sayılmadı)`);
   return () => fs.rm(lock, { force: true });
 }
 

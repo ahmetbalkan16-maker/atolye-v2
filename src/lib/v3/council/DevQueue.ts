@@ -43,6 +43,12 @@ export interface DevJob {
   readonly yapiHash?: string;
   /** Checks that failed on the base too (an environment or an older fault), so they did not count against the build. */
   readonly tabandaDusen?: readonly string[];
+  /**
+   * The developer process building it (since 14 Nov 2026): a job still "yapiliyor" whose process is gone was cut off
+   * (a reboot, a watcher restart) and goes back to the queue (Developer.recoverInterruptedJobs). A job claimed by hand
+   * has none and is left alone.
+   */
+  readonly pid?: number;
   /** What the owner's click did with the build, as the observer's executor reports it. */
   readonly uygulama?: { readonly durum: "sirada" | "uygulaniyor" | "uygulandi" | "bayat" | "reddedildi" | "basarisiz" | "kurtarma"; readonly tarih: string; readonly commit?: string; readonly neden?: string };
 }
@@ -79,30 +85,54 @@ const RETRY_AFTER_MS = 24 * 3_600_000;
 const USAGE_LIMIT = /(?:session|usage|weekly|daily)\s+limit|hit your (?:\w+\s+)?limit|limit\s*[·•-]\s*resets/i;
 /** Without a reset time in the message, the developer looks again after this long. */
 const LIMIT_WAIT_MS = 3_600_000;
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 /**
- * When a failed agent run hit the usage limit: until when the queue should wait (the reset time it named, the next such
- * clock time from `now` in this PC's time zone, else an hour), or undefined when it failed for another reason.
+ * When a failed agent run hit the usage limit: until when the queue should wait (the reset time it named — with its day
+ * when it names one, "resets Nov 12, 5pm" of the weekly limit — else the next such clock time from `now`, in this PC's
+ * time zone; without a time, an hour), or undefined when it failed for another reason. Until 14 Nov 2026 a named day was
+ * not read: the weekly limit of 10 Nov (reset 12 Nov) was looked at again every hour.
  */
 export function usageLimitUntil(output: string, now = new Date()): string | undefined {
   if (!USAGE_LIMIT.test(output)) return undefined;
-  const m = /resets\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?/i.exec(output);
+  const m = /resets\s+(?:on\s+)?(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+)?(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?/i.exec(output);
   if (!m) return new Date(now.getTime() + LIMIT_WAIT_MS).toISOString();
-  let h = Number(m[1]) % 24;
-  const pm = m[3]?.toLowerCase().startsWith("p");
-  if (m[3]) h = (h % 12) + (pm ? 12 : 0);
+  let h = Number(m[3]) % 24;
+  const pm = m[5]?.toLowerCase().startsWith("p");
+  if (m[5]) h = (h % 12) + (pm ? 12 : 0);
   const at = new Date(now);
-  at.setHours(h, Number(m[2] ?? 0), 0, 0);
-  if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+  if (m[1]) at.setMonth(MONTHS.indexOf(m[1].toLowerCase()), Number(m[2]));
+  at.setHours(h, Number(m[4] ?? 0), 0, 0);
+  // A named day already past is next year's (a reset on 2 Jan said on 30 Dec); a bare clock time already past is tomorrow's.
+  if (at.getTime() <= now.getTime()) {
+    if (m[1]) at.setFullYear(at.getFullYear() + 1);
+    else at.setDate(at.getDate() + 1);
+  }
   // A minute after the reset, so the first try finds it open.
   return new Date(at.getTime() + 60_000).toISOString();
 }
 
+/** How a usage-limit hold is written into a job's `sorunlar` (Developer.develop). */
+export const LIMIT_PROBLEM = "Claude kullanım sınırı";
+
+/**
+ * Why the last real try was thrown away: a usage-limit hold is no verdict on the work. Until 14 Nov 2026 the hold's line
+ * reached the next task as "THE LAST ATTEMPT WAS THROWN AWAY BECAUSE: Claude kullanım sınırı …" (eight packets) and
+ * overwrote the reason of a real failed try before it.
+ */
+export const attemptProblems = (sorunlar?: readonly string[]): string[] => (sorunlar ?? []).filter((s) => !s.startsWith(LIMIT_PROBLEM));
+
 /** Whether a job is waiting out Claude's usage limit at `now`. */
 export const waitingForLimit = (p: Pick<DevProposal, "is">, now = Date.now()) => !!p.is?.bekle && Date.parse(p.is.bekle) > now;
 
-/** The next proposal to build: the earliest approved one (not waiting out a usage limit), else a failed one that may be tried again. */
+/**
+ * The next proposal to build: the earliest approved one, else a failed one that may be tried again — none while any job
+ * waits out Claude's usage limit: the limit is the account's, so every other job would meet it too (9 Nov 2026: after
+ * the first job hit it, the watcher started the next job into the same limit every ten minutes, a worktree and a
+ * research note each time).
+ */
 export function nextJob(proposals: readonly DevProposal[], now = Date.now(), env: Readonly<Record<string, string | undefined>> = process.env): DevProposal | undefined {
+  if (proposals.some((p) => p.durum === "onaylandi" && waitingForLimit(p, now))) return undefined;
   const open = proposals.filter((p) => scopeOf(p) === "v3" || ayasScopeEnabled(env));
   const approved = open.filter((p) => p.durum === "onaylandi" && !waitingForLimit(p, now)).sort((a, b) => (a.karar?.tarih ?? a.tarih).localeCompare(b.karar?.tarih ?? b.tarih));
   if (approved[0]) return approved[0];
@@ -218,7 +248,7 @@ ${lead}:
 TITLE: ${p.baslik}
 REQUEST / WHY: ${p.neden}
 SOURCES: ${p.kaynaklar.join(", ") || "—"}${measured?.length ? `\nWHAT WAS MEASURED (start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""}${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
-    previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
+    attemptProblems(previous?.sorunlar).length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${attemptProblems(previous?.sorunlar).join(" | ")}` : ""
   }${pastCasesSection(cases)}
 
 First find out whether AYAS already does this (search src/, app/ and scripts/; read the newest entries of
@@ -258,7 +288,7 @@ WHY: ${p.neden}
 RAISED BY THE PRODUCTIONS: ${p.kaynaklar.join(", ") || "—"}${
     measured?.length ? `\nWHAT THOSE PRODUCTIONS MEASURED FOR THIS BRAIN (the exact fault behind the title — start from it):\n${measured.map((m) => `- ${m}`).join("\n")}` : ""
   }${p.karar?.not ? `\nOWNER'S NOTE: ${p.karar.not}` : ""}${
-    previous?.sorunlar?.length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${previous.sorunlar.join(" | ")}` : ""
+    attemptProblems(previous?.sorunlar).length ? `\nTHE LAST ATTEMPT WAS THROWN AWAY BECAUSE: ${attemptProblems(previous?.sorunlar).join(" | ")}` : ""
   }${pastCasesSection(cases)}
 
 First find out whether the studio already does this (search src/lib/v3 and scripts/v3; read docs/v3/FAZ_RAPORLARI.md): if it

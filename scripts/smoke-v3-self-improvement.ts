@@ -48,7 +48,8 @@ import {
   wantsOf,
   writeTuning,
 } from "../src/lib/v3/council/SelfImprovement";
-import { applyBuild, ayasChecks, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
+import { spawnSync } from "node:child_process";
+import { applyBuild, ayasChecks, changedPaths, claudeAgent, develop, developerLock, recoverInterruptedJobs } from "../src/lib/v3/council/Developer";
 import { AYAS_DEVELOPER_RULES, ayasTaskPacket, codeBuildOf, DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, measuredFaults, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
 import { recordCodeApply, rejectBuild, requestDevelopment } from "../src/lib/v3/council/SelfImprovement";
 import { brainsReportText, loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
@@ -274,6 +275,22 @@ async function main() {
     assert.equal(new Date(usageLimitUntil("You've hit your limit", evening)!).getTime() - evening.getTime(), 3_600_000, "no time given: an hour");
     assert.equal(usageLimitUntil("error TS2307: Cannot find module", evening), undefined, "any other failure is a real try");
     assert.equal(usageLimitUntil("rate limit exceeded on api.openai.com", evening), undefined);
+    // 14 Nov 2026: the weekly limit names its day ("resets Nov 12, 5pm", seen 10 Nov) — until then read as an hour's wait.
+    const weekly = (s: string, now: Date) => {
+      const d = new Date(usageLimitUntil(s, now)!);
+      return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()];
+    };
+    assert.deepEqual(weekly("You've hit your weekly limit · resets Nov 12, 5pm (Europe/Istanbul)", new Date(2026, 10, 10, 16, 30)), [2026, 11, 12, 17, 1], "the named day, not an hour later");
+    assert.deepEqual(weekly("weekly limit · resets Jan 2 at 9am", new Date(2026, 11, 30, 20, 0)), [2027, 1, 2, 9, 1], "a named day already past is next year's");
+    assert.deepEqual(weekly("You've hit your session limit · resets 2:50am (Europe/Istanbul)", new Date(2026, 10, 14, 2, 22)), [2026, 11, 14, 2, 51], "the session limit of 14 Nov as before");
+    // The limit is the account's: while one job waits it out, no other job is started into it (9 Nov 2026: one every 10 minutes).
+    const held = p("held", "onaylandi", { karar: { tarih: at(2) }, is: { deneme: 0, baslangic: at(4), bitis: at(4), bekle: new Date(T0 + 20 * H).toISOString(), sorunlar: ["Claude kullanım sınırı: You've hit your session limit · resets 5pm", "kontrol geçmedi: smoke-v3-mix"] } });
+    assert.equal(nextJob([held, p("other", "onaylandi", { karar: { tarih: at(3) } })], T0 + 10 * H), undefined, "the whole queue waits for the reset");
+    assert.equal(nextJob([held, p("other", "onaylandi", { karar: { tarih: at(3) } })], T0 + 21 * H)?.id, "held", "then the held job is first again");
+    // A hold is no verdict on the work: the next task names the real failed try only.
+    const heldPacket = taskPacket(held, held.is);
+    assert.ok(heldPacket.includes("THE LAST ATTEMPT WAS THROWN AWAY BECAUSE: kontrol geçmedi: smoke-v3-mix") && !heldPacket.includes("kullanım sınırı"), heldPacket);
+    assert.ok(!taskPacket(held, { sorunlar: ["Claude kullanım sınırı: x"] }).includes("THROWN AWAY") && !ayasTaskPacket(held, { sorunlar: ["Claude kullanım sınırı: x"] }).includes("THROWN AWAY"));
     assert.deepEqual(forbiddenChanges(["src/lib/v3/mix/X.ts", "scripts\\smoke-v3-mix.ts", "scripts/v3/yapim.ts", "remotion-v3/src/Episode.tsx", "package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]), ["package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]);
     const night = new Date(2026, 10, 3, 3, 0), day = new Date(2026, 10, 3, 14, 0);
     assert.deepEqual([developerWindow({}, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, day).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1", ATOLYE_V3_GELISTIRICI_SAAT: "22-6" }, new Date(2026, 10, 3, 23, 0)).acik], [false, true, false, true]);
@@ -340,12 +357,13 @@ async function main() {
     const nothing = await develop((await listProposals(work))[0]!.proposal, deps("0", pass));
     assert.deepEqual([nothing.durum, nothing.is?.ozet], ["yapildi", "Değişiklik yapılmadı — değiştirdim"]);
     // Claude's usage limit (3 Nov 2026: three approved jobs lost a try each): back in the queue until the reset, no try spent, no branch.
-    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 1, baslangic: at(0) } }));
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 1, baslangic: at(0), sorunlar: ["kontrol geçmedi: smoke-v3-mix"] } }));
     const limitAgent = [process.execPath, "-e", `process.stdin.resume();process.stdin.on("end",()=>{console.log("You've hit your session limit · resets 9:40pm (Europe/Istanbul)");process.exit(1)})`];
     const limited = await develop((await listProposals(work))[0]!.proposal, { ...deps("0", pass), agent: limitAgent });
     assert.deepEqual([limited.durum, limited.is?.deneme], ["onaylandi", 1], "the try is not counted");
     assert.ok(limited.is?.bekle && Date.parse(limited.is.bekle) > Date.now() && waitingForLimit(limited));
     assert.match(limited.is!.sorunlar![0]!, /^Claude kullanım sınırı/);
+    assert.equal(limited.is!.sorunlar![1], "kontrol geçmedi: smoke-v3-mix", "why the real try before it failed is kept (14 Nov 2026)");
     assert.equal(nextJob([limited]), undefined, "it waits for the reset");
     assert.equal(nextJob([limited], Date.parse(limited.is!.bekle!) + 1)?.id, id, "then it is first again");
     assert.equal((await runProcess("git", ["branch", "--list", `gelistirme/${id}`], { cwd: repo })).stdout.trim(), "");
@@ -354,7 +372,23 @@ async function main() {
     assert.ok(release);
     assert.equal(await developerLock(work), undefined);
     await release!();
-    assert.ok(await developerLock(work));
+    // A developer that vanished mid-build (14 Nov 2026: nothing ever read a job left "yapiliyor" again): the next one to
+    // take the lock puts the job back in the queue, the cut-off try not counted; a job claimed by hand (no pid) and one
+    // whose process lives stay as they are.
+    const gone = spawnSync(process.execPath, ["-e", "0"]).pid!;
+    await updateProposal(work, id, (q) => ({ ...q, durum: "yapiliyor", is: { deneme: 2, baslangic: at(0), pid: gone, sorunlar: ["kontrol geçmedi: smoke-v3-mix"] } }));
+    const lines: string[] = [];
+    assert.ok(await developerLock(work, (s) => lines.push(s)));
+    const back = (await listProposals(work)).find((x) => x.proposal.id === id)!.proposal;
+    assert.deepEqual([back.durum, back.is?.deneme, back.is?.sorunlar], ["onaylandi", 1, [`geliştirici yarıda kaldı (süreç ${gone} kapandı); deneme sayılmadı`, "kontrol geçmedi: smoke-v3-mix"]]);
+    assert.equal(nextJob([back])?.id, id, "it is built again");
+    assert.ok(lines.some((l) => /yarıda kalmıştı — kuyruğa geri döndü/.test(l)), lines.join("\n"));
+    assert.ok(!taskPacket(back, back.is).includes("kullanım sınırı") && taskPacket(back, back.is).includes("yarıda kaldı"));
+    await updateProposal(work, id, (q) => ({ ...q, durum: "yapiliyor", is: { deneme: 1, baslangic: at(0) } }));
+    assert.deepEqual(await recoverInterruptedJobs(work, () => false), [], "claimed by hand: no pid, left alone");
+    await updateProposal(work, id, (q) => ({ ...q, durum: "yapiliyor", is: { deneme: 1, baslangic: at(0), pid: gone } }));
+    assert.deepEqual(await recoverInterruptedJobs(work, () => true), [], "its process lives: still building");
+    assert.equal((await recoverInterruptedJobs(work, () => false))[0]?.durum, "onaylandi");
   });
 
   await scenario("H the developer brain grades itself, learns instincts (candidate → confirmed → dropped), works from 16:30 and hands Claude its note", () => {
@@ -515,6 +549,11 @@ async function main() {
     assert.equal(await needsResearch(work, job), true);
     assert.deepEqual(await researchQueue([job], deps), [`"Kalabalık sesi daha yüksek": 1 dosya`]);
     assert.equal(await needsResearch(work, job), false, "researched once");
+    // A try since: a real failed one is researched again; one that ended only in Claude's usage limit is not (14 Nov 2026:
+    // kurgu-73 paid for a second guess half an hour after the first, nothing having changed).
+    const later = new Date(Date.now() + 60_000).toISOString();
+    assert.equal(await needsResearch(work, { ...job, durum: "yapilamadi", is: { deneme: 1, baslangic: later, bitis: later, sorunlar: ["kontrol geçmedi"] } }), true);
+    assert.equal(await needsResearch(work, { ...job, is: { deneme: 0, baslangic: later, bitis: later, bekle: later, sorunlar: ["Claude kullanım sınırı: x"] } }), false);
     const note = readFileSync(researchNote(work, id), "utf8");
     assert.match(note, /Mixer\.ts — Mixes the music bed under the narration\./);
     assert.match(note, /Benzer geçmiş değişikliklerin kodu/);
