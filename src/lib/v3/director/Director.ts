@@ -422,8 +422,18 @@ const TOLD_ACTS: readonly [RegExp, Omit<LineAct, "karakter">][] = [
   [/\bwon\b|\bwins?\b|\bvictor|\btriumph|\bcelebrat|\bkazand|\bzafer/i, { jest: "kutla", duygu: "mutlu", efekt: "parilti" }],
   [/\bplot|\bschem|\bplann|\bwonder|\bthought\b|\bdüşün/i, { jest: "dusun", duygu: "sinsi" }],
   [/\bmourn|\bwept\b|\bcried\b|\bgriev|\bdefeated|\bağla|\byenil/i, { jest: "yuz_avucla", duygu: "uzgun" }],
+  // The Siege of Baghdad Short (13 Nov 2026, story 2–4/10 on "Sultan Murad IV is not a patient man", "Murad IV marches
+  // from Istanbul", "prefers his sieges like his coffee", "the Ottomans lose their Grand Vizier"): impatience, loss
+  // (before siege: "lose their Grand Vizier, but the breach…" is a loss), siege and march. Kept narrow: "a patient",
+  // "pounds" (money or weight), "a storm", the month "March", "bir dahaki sefere", "lost his hat" and "never lost a
+  // battle" act nothing.
+  [/\bimpatien|\bnot (?:a |the )?(?:very |most )?patient\b|\b(?:los(?:e|es|t|ing)|out of) (?:(?:his|her|their|all|what little) )?patience|\bsabırsız|\bsabr[ıi]\S* (?:kalmad|tüken|taş)/i, { jest: "elleri_belde", duygu: "kizgin" }],
+  [/(?<!\b(?:never|not|hardly)\s)(?<!n't\s)\blos(?:e|es|t|ing)\b(?:\s+[\p{L}'-]+){0,3}?\s+(?:battles?|war|siege|city|cities|throne|crown|kingdom|empire|capital|army|armies|fleet|navy|men|troops|soldiers|sons?|daughters?|wife|husband|brothers?|sisters?|father|mother|heir|friends?|ally|allies|vizier|general|commander|life|lives|eye|leg|arm)\b|(?<!\p{L})(?:savaş|muharebe|şehr|taht|tac|ordu|filo|oğl|eşi|kardeş|baba|sadrazam|vezir|komutan|başkent|hayat|can)\p{L}*\s+(?:kaybet|yitir)/iu, { jest: "yuz_avucla", duygu: "uzgun" }],
+  [/\bsiege|\bbesieg|\bbombard|\bpound(?:ed|ing)\b|\bstorm(?:s|ed|ing)? (?:the|its|their|his|her)\b|\bbreach(?:es|ed|ing)?\b|\bkuşat|\bgedik/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
+  [/\b(?:[Mm]arching|march(?:es|ed))\b|\bmarch (?:on|to|into|from|against|across|north|south|east|west|through|towards?|upon|out|off|back)\b|\bsets? out (?:for|from|against|to)\b|\byürüd|\byürüyor|\bsefere çık/, { jest: "isaret_et", duygu: "kararli" }],
 ];
-const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin", "al"]);
+/** Words of a name too common to stand for it ("grand kiosks" is not the Grand Vizier). */
+const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin", "al", "grand", "great"]);
 
 /**
  * The narration's acts on the stage, sentence by sentence: the first verb a sentence tells, acted by the characters it

@@ -2273,6 +2273,27 @@ async function main() {
     assert.ok(halil.faces.some((x) => x.emotion === "sinsi" && x.start === from));
   });
 
+  await scenario("O34b Siege of Baghdad Short (story 2–4/10): impatience, loss, siege and march are acted by the named; \"lost his hat\", the month March, pounds, a storm, \"a patient\" are not", () => {
+    const cast = [{ id: "murad-iv", ad: "Murad IV" }, { id: "vizier", ad: "Grand Vizier" }, { id: "bektash-khan", ad: "Bektash Khan" }];
+    const acts = (text: string) => toldActs(text, cast).map((a) => [a.karakter, a.jest, a.duygu]);
+    // The measured lines.
+    assert.deepEqual(acts("Baghdad, December 1638. The Ottomans have been pounding these walls for weeks. Sultan Murad IV is not a patient man."), [["murad-iv", "elleri_belde", "kizgin"]]);
+    assert.deepEqual(acts("Murad IV marches from Istanbul with 108,589 men."), [["murad-iv", "isaret_et", "kararli"]]);
+    assert.deepEqual(acts("Murad IV prefers his sieges like his coffee: strong, direct, and preferably over before breakfast."), [["murad-iv", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("The Ottomans lose their Grand Vizier, but the breach is unstoppable."), [["vizier", "yuz_avucla", "uzgun"]], "a loss, not the breach");
+    assert.deepEqual(acts("Murad IV will soon commemorate his victory with grand kiosks back in Istanbul."), [["murad-iv", "kutla", "mutlu"]], "\"grand kiosks\" is not the Grand Vizier");
+    // Other forms, English and Turkish.
+    for (const [text, jest] of [["Murad IV ran out of patience.", "elleri_belde"], ["Murad IV storms the Ak Gate.", "yumruk_kaldir"], ["Bektash Khan lost his only son.", "yuz_avucla"], ["Murad IV set out for Baghdad.", "isaret_et"], ["Murad IV marched on Baghdad.", "isaret_et"],
+      ["Sultan Murad IV sabırsız bir adamdı.", "elleri_belde"], ["Murad IV sadrazamını kaybetti.", "yuz_avucla"], ["Murad IV Bağdat'ı kuşattı.", "yumruk_kaldir"], ["Murad IV İstanbul'dan Bağdat'a yürüdü.", "isaret_et"], ["Murad IV sefere çıktı.", "isaret_et"]] as const) {
+      assert.deepEqual(acts(text).map((a) => a[1]), [jest], text);
+    }
+    // Nouns, the month and small losses act nothing.
+    for (const text of ["Murad IV lost his hat in the wind.", "Murad IV never lost a battle.", "Murad IV didn't lose his army.", "In March 1638, Murad IV left his tulips.", "From March to May Murad IV wrote poems.", "The Ides of March came for Murad IV.",
+      "Murad IV weighed 200 pounds.", "A storm hit Murad IV's camp.", "Murad IV was a patient man.", "Murad IV visited a patient.", "Murad IV bir dahaki sefere bekleyecek.", "Murad IV şapkasını kaybetti.", "The grand bazaar laughed at the great joke."]) {
+      assert.deepEqual(acts(text), [], text);
+    }
+  });
+
   await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
     const fps = 30;
     const turns = [{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }, { castId: "b", start: 200, end: 230 }, { castId: "a", start: 400, end: 450 }];
