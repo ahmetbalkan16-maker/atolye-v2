@@ -1,3 +1,33 @@
+## 14 Kasım 2026 (2) — GÜVENLİ DURUŞ (owner 11:40: "haftalık kullanım tokeni bitiyor, kaydet; yenilenince devam, sonra canlıya al herşeyi") — DEVAM BURADAN
+
+Bitti, push'lu (feature/cop-adam-v3, canlı DEĞİL): 9529c876 araştırma (infobox sayıları, uydurma subay), e2106803 geliştirici
+kuyruğu (kullanım sınırı/yetim iş — yapim.ts nextJob import eder → izleyici yeniden başlatılmalı), 3942e75a kostum-72,
+c530b593 2.5D iki görünüş + uzun video Shorts eşitlemesi + spaceBadges kayan nokta, 70295f5e kurgu-73 elle (kuyrukta
+kapatıldı), 254f8f43 TypeScript 7 tip uyumu, 65bad5b9 AYAS güvenlik (özel medya private cache, logout CSRF, X-Frame-Options,
+gözlemci npm stderr), c44b2b65 EVAL 15F.4-v74. Hepsinde tsc/lint 0, ilgili smoke'lar PASS; AYAS/brain paketi 391: 372 PASS,
+kalanı ortam/donuk.
+
+AÇIK — DEVAM SIRASI:
+1. 2.5D görsel QA ajanı (14 Kas ~10:55 başladı) duruşta hâlâ çalışıyordu; işi commit'SİZ ağaçta: remotion-v3/src/scene/
+   MapView.tsx, tilt.ts, src/lib/v3/maps/MapBuilder.ts, MapGround.ts, scripts/smoke-v3-episode-director.ts, smoke-v3-motion.ts.
+   Kareler D:\URETIM\private\temp\25d-qa\. Yeni oturumda: `git diff` oku, tsc + remotion tsc + lint + smoke-v3-episode-director/
+   motion/render/shorts-rotate/council çalıştır, karelere bak (eğik Bağdat s2'de "MEDITERRANEAN SEA" ve "OTTOMAN CONQUESTS"
+   açıklaması kayboluyordu — ajan inceliyordu), geçerse Vaka/Ders ile commit; yarımsa bitir ya da geri al.
+2. TOPLU CANLIYA ALMA (owner istedi): canlı dala merge, canonical pull --ff-only, Graphify, elle yayın
+   (`scripts/ayas-publish-live.ps1 -Commit <sha> -Apply`, otomatik yayın kapalı), V3 sipariş izleyicisini yeniden başlat,
+   AYAS gözlemcisini yeniden başlat (daemon.ps1 stderr düzeltmesi ancak yeniden açılışta etkinleşir).
+3. AYNI OTURUMDA Node.js 24.18 → 26.13.1 (owner 14 Kas "tamam öyle yap"): kur, SHA-256 doğrula, new-pc-setup.ps1 /
+   ayas-prebuilt-runtime pinlerini güncelle, telefon erişimini yeniden yayınla, owner ile telefondan test.
+4. Güncelleme radarı: Wrangler 4.162.0 deneme PASSED → owner "Uygula". ESLint 10.15.0 denemesi sıradaydı (sonucu bak:
+   data/brain/self-improvement/update-trials/state.json). TypeScript 7.0.2: owner onayı geri aldı; canlıya almadan sonra
+   yeniden "Onayla ve dene" (deneme CANLI commit'ten başlar; TS7 ile 0 hata ölçüldü).
+5. Owner kararı bekleyen öneriler (güvenlik ajanı): sunucu tarafı çıkış iptali (7 günlük oturum; öneri evet), geniş SSRF
+   listesi (NAT64/6to4/fec0/198.18; pinli smoke bump gerekir; evet), V3BudgetError `this.name` yok → mikro-parti adayı
+   her 5 dk yeniden doğrulanıyor (293×; tek satır, evet) + başarısız aday HEAD başına hatırlansın, tam CSP sonra,
+   cloudflared 2026.8.3 → 2026.11.0 elle, zod/minimatch dev açıkları radar ile.
+6. Uzun video riskleri (B ajanı): 20 dk senaryo ~1,7–3,7 $ (4 $ tavana yakın); kapanış abone cümlesi son sahnede olmayan
+   karaktere gidebilir; bölüm kısalığı yalnız günlüğe yazılıyor.
+
 ## 14 Kasım 2026 (1) — 02:50 devam: 2.5D bitirme + uzun video eşitleme + AYAS/güvenlik + atölye/araştırma denetimi
 
 Önceki oturum 13 Kas 19:54'te kullanım sınırına takıldı; 2.5D ajanının işi commit'siz ağaçta kaldı (13 dosya, ~500 satır:
