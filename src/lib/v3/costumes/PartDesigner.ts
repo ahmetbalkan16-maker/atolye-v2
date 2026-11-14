@@ -140,7 +140,41 @@ export interface ShelfPart {
 
 const FACE_SLOTS: readonly PartSlot[] = ["beard", "mustache", "hair"];
 const STOP_WORDS = new Set(["the", "and", "with", "for", "his", "her", "its", "from"]);
-const partWords = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i").split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+
+/**
+ * The hand-drawn packs name their parts in Turkish ("ottoman-1453/vezir-sarigi"), the orders are English. Siege of
+ * Baghdad 1638, 13 Nov 2026: "white turban" failed three rounds while the Ottoman pack held two turbans, and the finding
+ * offered none — no word in common. Each catalog word is read in the orders' English (possessive forms included).
+ */
+const CATALOG_GLOSS: Readonly<Record<string, string>> = {
+  sarik: "turban", sarigi: "turban", kavuk: "turban", kavugu: "turban", migfer: "helmet", migferi: "helmet", tac: "crown", taci: "crown",
+  bork: "cap", borku: "cap", burku: "cap", kece: "felt cap", kecesi: "felt cap", sakal: "beard", biyik: "moustache", sac: "hair",
+  beyaz: "white", kahve: "brown", koyu: "dark", kizil: "red", genc: "young", ince: "thin", pala: "thick", kisa: "short", uzun: "long",
+  kilic: "sword", cekic: "hammer", parsomen: "scroll", harita: "map", tug: "standard", asa: "staff sceptre", kalkan: "shield", kalkani: "shield",
+  zincir: "chain", altin: "gold", nisan: "order", kusak: "sash", kusagi: "sash", padisah: "sultan", vezir: "vizier", yeniceri: "janissary",
+  isci: "worker", usta: "master", bizans: "byzantine", italyan: "italian", cenova: "genoese",
+};
+/** English spellings of one thing ("mustache"/"moustache", "golden"/"gold"). */
+const SAME_WORD: Readonly<Record<string, string>> = { mustache: "moustache", golden: "gold", scepter: "sceptre", saber: "sabre", helm: "helmet" };
+/**
+ * Words that say what the part IS: sharing one is as good as two shared words ("white turban" ~ a vizier's turban). Not
+ * the slot's own name (every beard is a beard) and not a colour.
+ */
+const KIND_WORDS = new Set(["turban", "helmet", "crown", "cap", "hat", "wreath", "hood", "veil", "bicorne", "tricorne", "shako", "fez", "diadem", "tiara", "sword", "sabre", "spear", "staff", "sceptre", "scroll", "hammer", "map", "standard", "banner", "flag", "shield", "axe", "bow", "musket", "pistol", "chain", "sash", "medal", "cloak", "cape", "quiver"]);
+/** One word's plain form: "viziers" → "vizier", "janissaries" → "janissary" ("cuirass", "Augustus" stay). */
+const singular = (w: string) => (w.length > 4 && w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.length > 3 && w.endsWith("s") && !/(ss|us)$/.test(w) ? w.slice(0, -1) : w);
+const partWords = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/ı/g, "i")
+    .split(/[^a-z0-9]+/)
+    .flatMap((w) => (CATALOG_GLOSS[w] ?? w).split(" "))
+    .map((w) => SAME_WORD[w] ?? SAME_WORD[singular(w)] ?? singular(w))
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+/** A part kept for one person or role ("only the sultan", "janissaries only"). */
+const RESERVED = /\bonly\b/i;
 
 /**
  * Parts the studio already has that could stand in for an order that failed, best first: the same slot, sharing at
@@ -148,6 +182,9 @@ const partWords = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}
  * drawn for another named person (foreignFacePart). Approved Kostüm beyni proposal (Caesar and the pirates, 2 Nov
  * 2026: "the reasons a part was rejected and the alternatives must be judged faster"): a failed part only said
  * "3 rounds, removed", and its reasons were spread over the rounds of the debate.
+ * Words are compared in the orders' English (Turkish catalog ids glossed, plurals and spellings folded); a shared word
+ * naming what the part is (KIND_WORDS) counts twice; a part reserved for a role ("only the sultan") is offered only to
+ * an order that names a word of that note; on a tie the part saying the least besides the order comes first.
  */
 export function partAlternatives(order: PartOrder, shelf: readonly ShelfPart[], max = 3): ShelfPart[] {
   const want = new Set(partWords(order.tarif));
@@ -155,9 +192,14 @@ export function partAlternatives(order: PartOrder, shelf: readonly ShelfPart[], 
   if (!need) return [];
   return shelf
     .filter((p) => p.slot === order.slot && !(FACE_SLOTS.includes(p.slot) && foreignFacePart(p.ref, [order.tarif])))
-    .map((p, i) => ({ p, i, shared: new Set(partWords(`${p.ref.replace(/^.*\//, "")} ${p.not ?? ""}`).filter((w) => want.has(w))).size }))
-    .filter((x) => x.shared >= need)
-    .sort((a, b) => b.shared - a.shared || a.i - b.i)
+    .filter((p) => !p.not || !RESERVED.test(p.not) || partWords(p.not.split(/\bnever\b/i)[0]!).some((w) => w !== "only" && want.has(w)))
+    .map((p, i) => {
+      const words = new Set(partWords(`${p.ref.replace(/^.*\//, "")} ${p.not ?? ""}`));
+      const shared = [...words].filter((w) => want.has(w));
+      return { p, i, score: shared.length + (shared.some((w) => KIND_WORDS.has(w)) ? 1 : 0), share: shared.length / words.size };
+    })
+    .filter((x) => x.score >= need)
+    .sort((a, b) => b.score - a.score || b.share - a.share || a.i - b.i)
     .slice(0, max)
     .map((x) => x.p);
 }

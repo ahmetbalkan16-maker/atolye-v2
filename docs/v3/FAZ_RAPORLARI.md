@@ -608,7 +608,11 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   değerlendirilebilmeli"): 3 turda kabul edilmeyen parçanın bulgusu artık son ret sebebini ve stüdyonun elindeki,
   aynı yuvadan en çok kelimesi ortak en fazla 3 parçayı (`pack/item` + notu) tek satırda verir; başka bir kişinin yüz
   parçası önerilmez (`PartDesigner.partAlternatives`, `failedPartFinding`; `gardirop.json` kaydında `alternatifler`).
-  Üretim hiçbir parçayı kendiliğinden değiştirmez; karar senaryoda verilir.
+  Üretim hiçbir parçayı kendiliğinden değiştirmez; karar senaryoda verilir. Kostüm beyninin onaylı önerisi (kostum-72,
+  Bağdat 1638): "white turban" düştüğünde Osmanlı paketindeki sarıklar önerilmemişti, kimlikler Türkçe
+  (`vezir-sarigi`). Eşleştirme artık katalog sözcüklerini İngilizceye çevirir (`CATALOG_GLOSS`), çoğulu ve yazımı katlar
+  (mustache/moustache), parçanın ne olduğunu söyleyen ortak sözcük (sarık, miğfer, taç, kılıç…) tek başına yeter, "only"
+  notlu parça (padişah kavuğu) yalnız o rolü anan siparişe önerilir; eşitlikte siparişe en yakın parça önde.
 - Kostüm beyninin onaylı önerisi (kostum-43, Waterloo Short): aynı kişinin aynı yuva ve dönemdeki parçası başka sözlerle
   istenince gardırop kütüphanedekini kullanır (`PartDesigner.similarOwnPart`, sahip adı dışındaki kelimelerin %75'i;
   sahipsiz siparişler yalnız birebir). Blücher'in "Prussian and allied medals and orange sash" siparişi üç turda düşmüştü,
