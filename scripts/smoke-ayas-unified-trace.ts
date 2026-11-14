@@ -11,7 +11,7 @@ import { NextRequest } from "next/server";
 import { streamAyasChat, type AyasChatStreamEvent } from "../src/lib/ayas/AyasChatStream";
 import { BoundedAyasTraceStore, readAyasTraceSnapshot, startAyasTrace, AYAS_TRACE_MAX_EVENTS, AYAS_TRACE_MAX_SPANS, type AyasTraceHandle, type AyasTraceSnapshot, type AyasTraceStore } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
-import { AYAS_SESSION_COOKIE, issueSession } from "../src/lib/auth/accessGate";
+import { AYAS_SESSION_COOKIE, AYAS_SESSION_TTL_SECONDS, issueSession } from "../src/lib/auth/accessGate";
 import { GET as readTrace } from "../app/api/ayas/trace/[traceId]/route";
 import { ayasTraceErrorCode, ayasTraceSessionScope, ayasTraceStore, isAyasTraceId } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 
@@ -251,7 +251,7 @@ async function main(): Promise<void> {
     try {
       const token = await issueSession(key);
       const otherToken = await issueSession(key, Date.now() - 2_000);
-      const expiredToken = await issueSession(key, Date.now() - 13 * 60 * 60 * 1000);
+      const expiredToken = await issueSession(key, Date.now() - (AYAS_SESSION_TTL_SECONDS + 3600) * 1000);
       const dot = token.indexOf(".");
       const tamperedToken = `${token.slice(0, dot + 1)}${token.slice(dot + 1).split("").reverse().join("")}`;
       assert.notEqual(token, otherToken);

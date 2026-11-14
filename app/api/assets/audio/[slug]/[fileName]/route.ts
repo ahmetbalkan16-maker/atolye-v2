@@ -1,4 +1,5 @@
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
+import { PRIVATE_ASSET_CACHE_CONTROL } from "@/lib/assets/storage/PrivateAssetCacheControl";
 
 type RouteContext = {
   params: Promise<{
@@ -25,7 +26,7 @@ export async function GET(_request: Request, context: RouteContext) {
       headers: {
         "Content-Type": "audio/wav",
         "Content-Length": String(file.length),
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": PRIVATE_ASSET_CACHE_CONTROL,
       },
     });
   } catch {

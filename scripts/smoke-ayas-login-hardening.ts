@@ -212,6 +212,24 @@ async function main() {
     assert.equal(res.headers.get("location"), "/login");
     assert.equal(res.cookies.get(AYAS_SESSION_COOKIE)?.value, "");
   });
+  await scenario("logout route: a cross-site post is refused and clears nothing; same-origin clears with the login's Secure flag", async () => {
+    const { POST } = await import("../app/api/auth/logout/route");
+    const post = (headers: Record<string, string>) => POST(new NextRequest("http://127.0.0.1:3000/api/auth/logout", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", host: "ayas.example", ...headers },
+      body: "",
+    }));
+    const evil = await post({ origin: "https://evil.example" });
+    assert.equal(evil.status, 403);
+    assert.equal(evil.cookies.get(AYAS_SESSION_COOKIE), undefined, "a refused logout sets no cookie");
+    const evilReferer = await post({ referer: "https://evil.example/page" });
+    assert.equal(evilReferer.status, 403);
+    const own = await post({ origin: "https://ayas.example", "x-forwarded-proto": "https" });
+    assert.equal(own.status, 303);
+    assert.equal(own.cookies.get(AYAS_SESSION_COOKIE)?.value, "");
+    assert.equal(own.cookies.get(AYAS_SESSION_COOKIE)?.secure, true, "behind the tunnel the clearing cookie is Secure like the login's");
+    assert.match(own.headers.get("set-cookie") ?? "", /Max-Age=0/i);
+  });
   await scenario("login route: 21 failures with forged X-Forwarded-For make the next try wait; the correct passcode still gets in", async () => {
     await withEnv({ AYAS_ACCESS_KEY: KEY }, async () => {
       const { POST } = await import("../app/api/auth/login/route");

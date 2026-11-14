@@ -27,6 +27,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // 14 Nov 2026 security audit: no page set any framing rule, so another site could load AYAS in a hidden
+        // frame and steer a click onto a one-click owner action ("ONAYLA VE UYGULA", "BATCH ONAYLA VE UYGULA").
+        // AYAS frames nothing of its own from elsewhere; same-origin framing stays allowed. The Referrer-Policy is
+        // the browsers' own default, pinned so a cross-site link never carries an AYAS path or query.
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+      {
         // The service worker must always be revalidated so a redeploy's new
         // sw.js is picked up promptly — otherwise a stale worker keeps serving
         // an old build and the app renders as a client-side 404.

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { Readable } from "node:stream";
+import { PRIVATE_ASSET_CACHE_CONTROL } from "@/lib/assets/storage/PrivateAssetCacheControl";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 
 type RouteContext = {
@@ -55,7 +56,7 @@ export async function GET(request: Request, context: RouteContext) {
     const baseHeaders: Record<string, string> = {
       "Content-Type": "video/mp4",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": PRIVATE_ASSET_CACHE_CONTROL,
     };
 
     if (range && "satisfiable" in range) {

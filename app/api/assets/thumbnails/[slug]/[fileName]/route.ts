@@ -1,3 +1,4 @@
+import { PRIVATE_ASSET_CACHE_CONTROL } from "@/lib/assets/storage/PrivateAssetCacheControl";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 
 type RouteContext = {
@@ -13,7 +14,7 @@ export async function GET(_request: Request, context: RouteContext) {
       headers: {
         "Content-Type": thumbnail.mimeType,
         "Content-Length": String(thumbnail.data.length),
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": PRIVATE_ASSET_CACHE_CONTROL,
       },
     });
   } catch {

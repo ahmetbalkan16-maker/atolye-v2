@@ -1,4 +1,5 @@
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
+import { PRIVATE_ASSET_CACHE_CONTROL } from "@/lib/assets/storage/PrivateAssetCacheControl";
 
 type RouteContext = {
   params: Promise<{
@@ -25,7 +26,7 @@ export async function GET(_req: Request, context: RouteContext) {
     const headers: Record<string, string> = {
       "Content-Type": image.mimeType,
       "Content-Length": String(image.data.length),
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": PRIVATE_ASSET_CACHE_CONTROL,
       "X-Content-Type-Options": "nosniff",
     };
     if (image.mimeType === "image/svg+xml") {

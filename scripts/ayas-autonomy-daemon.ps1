@@ -30,6 +30,12 @@ $repo = Split-Path -Parent $PSScriptRoot
 # the marker; nothing here can stop the observer from launching. Never touches
 # the live copy, which runs from its own snapshot.
 $PlannedSyncExitCode = 75
+# Every native command below runs in a child scope with "Continue" (14 Nov 2026 audit). The logon launcher
+# (ayas-observer-hidden.vbs) redirects all streams with `*>`; under this script's "Stop", Windows PowerShell 5.1 then
+# turns each stderr line of a native command into a terminating NativeCommandError. Live evidence: every dependency
+# sync since 13 Nov failed on npm's own "npm warn ERESOLVE ..." line (marker kept, a planned restart each hour for
+# nothing), and the observer's crash report on stderr ended this whole restart loop instead of being retried. Only
+# the exit code ($LASTEXITCODE) decides; stderr still reaches the log.
 function Sync-AyasDependencies {
   $marker = Join-Path $repo "data\brain\self-improvement\update-trials\canonical-sync-required.json"
   if (-not (Test-Path -LiteralPath $marker)) { return }
@@ -50,13 +56,13 @@ function Sync-AyasDependencies {
     Copy-Item -LiteralPath (Join-Path $repo "package.json"), (Join-Path $repo "package-lock.json") -Destination $staging
     $global:LASTEXITCODE = 0
     if ($DependencySyncScript) {
-      & $DependencySyncScript $staging
+      & { $ErrorActionPreference = "Continue"; & $DependencySyncScript $staging }
     } else {
       $npmCli = Join-Path (Split-Path -Parent (Get-Command node).Source) "node_modules\npm\bin\npm-cli.js"
       $env:TEMP = Join-Path $studio "private\temp"; $env:TMP = $env:TEMP
       $env:NPM_CONFIG_CACHE = Join-Path $studio "private\npm-cache"
       Push-Location -LiteralPath $staging
-      try { & node $npmCli ci --ignore-scripts --prefer-offline --no-audit --no-fund } finally { Pop-Location }
+      try { & { $ErrorActionPreference = "Continue"; & node $npmCli ci --ignore-scripts --prefer-offline --no-audit --no-fund } } finally { Pop-Location }
     }
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $staging "node_modules"))) {
       Write-Output "AYAS dependency sync: install failed (exit $LASTEXITCODE); current node_modules kept."
@@ -127,7 +133,9 @@ try {
     while ($true) {
       Sync-AyasDependencies
       $startedAt = Get-Date
-      & npx @daemonArgs
+      # "Continue" (see Sync-AyasDependencies): a crash report on stderr must reach the retry below, not end the loop.
+      # npx.ps1 re-parses this inner statement, so it must stay exactly `& npx @daemonArgs`.
+      & { $ErrorActionPreference = "Continue"; & npx @daemonArgs }
       $code = $LASTEXITCODE
       if ($code -eq 0) { exit 0 }
       # A planned restart for the dependency sync is not a crash: not counted, no delay.

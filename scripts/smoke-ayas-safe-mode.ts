@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { issueSession } from "../src/lib/auth/accessGate";
+import { AYAS_SESSION_TTL_SECONDS, issueSession } from "../src/lib/auth/accessGate";
 import { createAyasActionFirewall } from "../src/lib/ayas/execution/AyasActionFirewall";
 import { AYAS_DISCOVERY_RUN_ACTION, type AyasOwnerCapabilityLeaseAudit, type AyasOwnerCapabilityProof } from "../src/lib/ayas/execution/AyasCapabilityScope";
 import { AyasExecutionAuthorizationStore } from "../src/lib/ayas/execution/AyasExecutionAuthorization";
@@ -112,7 +112,8 @@ async function main() {
     const root = freshRepo(); await enter(root);
     let healthCalls = 0; const counted = async () => { healthCalls++; return healthy(); };
     // No session, a forged one, another key, an expired one, an unconfigured or misconfigured gate: refused before anything is read.
-    const expired = await session(KEY, NOW - 13 * 60 * 60 * 1000), valid = await session(), forged = valid.slice(0, -1) + (valid.endsWith("A") ? "B" : "A");
+    const PAST_TTL_MS = (AYAS_SESSION_TTL_SECONDS + 3600) * 1000; // one hour past the session lifetime, whatever it is
+    const expired = await session(KEY, NOW - PAST_TTL_MS), valid = await session(), forged = valid.slice(0, -1) + (valid.endsWith("A") ? "B" : "A");
     for (const [ownerSession, sessionEnv] of [[undefined, env], ["", env], ["a.b", env], [forged, env], [await session("another-owner-key-00002"), env], [expired, env],
       [await session(), {}], [await session(), { NODE_ENV: "test" }], [await session(), { AYAS_ACCESS_KEY: "short", NODE_ENV: "production" }]] as const)
       await rejects(exitAyasSafeMode({ repoRoot: root, ownerSession, env: sessionEnv, nowMs: () => NOW, health: counted }), "AYAS_SAFE_MODE_OWNER_SESSION_REQUIRED");
@@ -121,7 +122,7 @@ async function main() {
     for (const report of [[{ id: "gate", ok: false, code: "GATE_OPEN" }], [{ id: "a", ok: true, code: "OK" }, { id: "b", ok: false, code: "BAD" }], []] as AyasSafeModeHealthCheck[][])
       await assert.rejects(exit(root, { health: async () => report }), (error: unknown) => error instanceof AyasSafeModeExitRefusedError && error.code === "AYAS_SAFE_MODE_HEALTH_CHECK_FAILED" && error.healthChecks.length === report.length);
     // The session is checked again after the checks have run.
-    let clock = NOW; await rejects(exit(root, { nowMs: () => clock, health: async () => { clock = NOW + 13 * 60 * 60 * 1000; return healthy(); } }), "AYAS_SAFE_MODE_OWNER_SESSION_REQUIRED");
+    let clock = NOW; await rejects(exit(root, { nowMs: () => clock, health: async () => { clock = NOW + PAST_TTL_MS; return healthy(); } }), "AYAS_SAFE_MODE_OWNER_SESSION_REQUIRED");
     assert.deepEqual(events(root), ["000001.json"]); assert.equal(readAyasSafeMode(root).state, "SAFE_READ_ONLY");
     const left = await exit(root);
     assert.deepEqual([left.state, left.state === "NORMAL" && left.sequence, left.state === "NORMAL" && left.exitedAt], ["NORMAL", 2, new Date(NOW).toISOString()]); assert.deepEqual(events(root), ["000001.json", "000002.json"]);

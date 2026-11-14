@@ -170,6 +170,8 @@ async function main() {
         assert.equal(ok.status, 200);
         assert.equal(ok.headers.get("Content-Type"), "image/png");
         assert.equal(ok.headers.get("X-Content-Type-Options"), "nosniff");
+        // 14 Nov 2026 audit: never `public` — the Cloudflare edge would serve a session-gated image without the session.
+        assert.equal(ok.headers.get("Cache-Control"), "private, max-age=31536000, immutable");
         assert.ok(Buffer.from(await ok.arrayBuffer()).equals(PNG_1X1));
 
         const svgOk = await imageRouteGet(new Request("http://local/img"), {
