@@ -785,6 +785,8 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     // Waterloo's box (13 Nov 2026): block templates and <hr> keep numbers apart, an approximate count and a flag-labelled count are said.
     assert.equal(wikitextToPlain("{{tree list}}\n* '''Total''': 118,000\n** 7,500 gunners{{sfn|Bodart|1908|p=487}}{{tree list/end}}{{Ubl|{{*}}282{{ndash}}288 guns{{#tag:ref|Bodart's older estimate.{{sfn|Bodart|1908}}|group=nb}}}}<hr />Wellington's army: {{approximately|68,000}} soldiers\n** {{flagicon|Nassau}} 3,000"), "Total: 118,000; 7,500 gunners; 282 – 288 guns; Wellington's army: c. 68,000 soldiers; Nassau 3,000");
     assert.equal(wikitextToPlain("26,000–27,000{{efn|24–26,000}}{{Ubl|{{*}}25,000 killed}}"), "26,000–27,000; 25,000 killed", "a footnote's number never joins the count");
+    // 14 Nov 2026: a count written through a number template kept its words and lost its number ("infantry").
+    assert.equal(wikitextToPlain("{{formatnum:40000}} infantry{{efn|est.}}<br>{{val|100}} cannons<br>{{nts|211}} towers<br>{{sort|20000|20,000+}} massacred<br>{{formatnum:12500|R}} cavalry"), "40,000 infantry; 100 cannons; 211 towers; 20,000+ massacred; 12500 cavalry");
 
     // In the research: the infobox's facts join the bank with their evidence, free; offline or off they are skipped softly.
     const mainText = `${article.text} ${"Murad IV led the army from Constantinople across Anatolia to the walls of the city. ".repeat(20)}`;
@@ -1491,6 +1493,10 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.deepEqual(await inventedPeople(cast([{ id: "b", ad: "Bektash Khan", wiki: "Bektash Khan" }, { id: "s", ad: "General Saru Khan" }]), lookup, `${baghdad}\nKilling their commander Saru Khan in his own tent.`), []);
     assert.equal((await inventedPeople(cast([{ id: "b", ad: "Bektash Khan", wiki: "Bektash Khan" }]), lookup)).length, 1);
     assert.equal((await inventedPeople(cast([{ id: "x", ad: "Imam Quli Khan", wiki: "Imam Quli Khan (Baghdad)" }, { id: "y", ad: "Captain Rustam Mirza" }]), lookup, baghdad)).length, 2);
+    // 14 Nov 2026: a name shaped like a nationality (-an, -ic, -ish, -ese) is a role only right before a rank or a role;
+    // "Captain Ivan Morgan" read as two nationalities and an invented officer passed.
+    assert.equal((await inventedPeople(cast([{ id: "a", ad: "Captain Ivan Morgan" }, { id: "b", ad: "Commander Eric Logan" }, { id: "c", ad: "General Hassan Khan" }]), lookup)).length, 3);
+    assert.deepEqual(await inventedPeople(cast([{ id: "a", ad: "Ottoman Pasha" }, { id: "b", ad: "Admiral of the Italian Fleet" }, { id: "c", ad: "General of the Roman Legions" }, { id: "d", ad: "Japanese Admiral" }]), lookup), []);
   });
 
   await scenario("the Guadalcanal Short's dawn map (12 Nov 2026): the planes a narrator line names fly on it, the ship it tells sunk goes down on it, a dawn map is no night map", async () => {

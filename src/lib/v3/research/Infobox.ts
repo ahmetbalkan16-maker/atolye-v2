@@ -128,6 +128,9 @@ const INLINE_TEMPLATES = /^(?:nowrap|nobr|small|smaller|big|larger|sup|sub|toolt
 const BLOCK_TEMPLATES = /^(?:tree list|tree list\/end|hr|clear|-|break|br|\*|bulleted list\/end|endplainlist|end plainlist|startplainlist|start plainlist)$/i;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+/** A plain number with English thousands separators ("40000" → "40,000"); anything else as it is. */
+const groupDigits = (s: string): string => (/^-?\d+(?:\.\d+)?$/.test(s) ? s.replace(/^(-?\d+)/, (int) => int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")) : s);
+
 /** One template (innermost, no nested braces) as the text a reader sees; unknown ones (flags, citations, notes) vanish. */
 function renderTemplate(inner: string): string {
   const [rawName = "", ...args] = inner.split("|");
@@ -152,6 +155,13 @@ function renderTemplate(inner: string): string {
     return y ? String(y) : "";
   }
   if (name === "lang" || name === "transl") return pos.at(-1) ?? "";
+  // A number written through a template or magic word is the field's number (14 Nov 2026: "{{formatnum:40000}} infantry"
+  // read "infantry", the count gone — a strength fact with no strength).
+  const formatnum = /^formatnum\s*:\s*(.+)$/.exec(name);
+  if (formatnum) return pos.some((a) => /^(?:r|nosep)$/i.test(a)) ? formatnum[1]!.trim() : groupDigits(formatnum[1]!.trim());
+  if (name === "val") return pos[0] ? `${groupDigits(pos[0])}${pos[1] ? ` ± ${pos[1]}` : ""}` : "";
+  if (name === "nts" || name === "nts2") return pos[0] ? groupDigits(pos[0]) : "";
+  if (name === "sort" || name === "sortkey") return pos[1] ?? pos[0] ?? "";
   if (LIST_TEMPLATES.test(name)) return `\n${pos.join("\n")}\n`;
   if (INLINE_TEMPLATES.test(name)) return name === "sortname" ? pos.slice(0, 2).join(" ") : /^(?:ill|interlanguage link|tooltip|abbr|abbrlink)$/.test(name) ? (pos[0] ?? "") : pos.join(" ");
   // Footnotes, citations and anything unknown say nothing; a space keeps the words around them apart.

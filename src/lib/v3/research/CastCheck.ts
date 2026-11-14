@@ -18,8 +18,15 @@ export type ArticleLookup = (title: string) => Promise<{ readonly title: string;
 /** Ranks and titles a person's name may carry (English and Turkish). */
 const TITLE = /^(?:adm(?:iral)?|vice[- ]?admiral|rear[- ]?admiral|amiral|gen(?:eral)?|lt|lieut(?:enant)?|capt(?:ain)?|cdr|commander|col(?:onel)?|maj(?:or)?|sgt|sergeant|cpl|corporal|pvt|private|ensign|commodore|marshal|field|sir|lord|lady|pasha|paşa|bey|consul|senator|tribune|centurion|yüzbaşı|teğmen|binbaşı|albay|kaptan|reis)\.?$/iu;
 
-/** Words that make a name a role, not a person: kinds of people and nationalities (an "Italian Admiral" is fine). */
-const ROLE = /^(?:pilot|sailor|soldier|gunner|crewman|officer|guard|sentry|lookout|messenger|scout|spy|observer|chief|pirate|legionary|knight|archer|rider|cavalryman|envoy|ambassador|priest|monk|merchant|farmer|villager|citizen|navy|army|fleet|squadron|air|arm|base|harbour|harbor|the|of|[a-zçğıöşü]+(?:an|ish|ese|ic))$/iu;
+/** Words that make a name a role, not a person: kinds of people and of units (an "Italian gunner" is fine). */
+const ROLE = /^(?:(?:pilot|sailor|soldier|gunner|crewman|officer|guard|sentry|lookout|messenger|scout|spy|observer|chief|pirate|legion|legionary|knight|archer|rider|cavalryman|envoy|ambassador|priest|monk|merchant|farmer|villager|citizen|navy|army|armie|fleet|squadron|marine|troop|force|garrison|regiment|base|harbour|harbor)s?|infantry|cavalry|air|arm|the|of)$/iu;
+/**
+ * A nationality's shape ("Italian", "British", "Japanese", "Cilician"): a role word only right before a rank or a role
+ * ("Italian Admiral", "Ottoman Pasha", "Cilician Pirate"). Until 14 Nov 2026 any such word was one — and given names
+ * and surnames of the same shape (Ivan, Juan, Hassan, Khan, Morgan, Duncan, Eric, Logan) with it, so "Captain Ivan
+ * Morgan", an invented officer, passed as a role.
+ */
+const NATION_LIKE = /^[a-zçğıöşü]+(?:an|ish|ese|ic)$/iu;
 
 /** The words of a cast name with its titles taken off. */
 function nameWords(ad: string): { titled: boolean; words: string[] } {
@@ -27,6 +34,16 @@ function nameWords(ad: string): { titled: boolean; words: string[] } {
   let titled = false;
   const words = all.filter((w) => (TITLE.test(w) ? ((titled = true), false) : true));
   return { titled, words };
+}
+
+/** A name's personal words: capitalised, not a title, not a role, not a nationality before a rank or role. */
+function personalWords(ad: string): string[] {
+  const all = ad.split(/\s+/).filter(Boolean);
+  return all.filter((w, i) => {
+    if (TITLE.test(w) || ROLE.test(w) || !/^\p{Lu}/u.test(w)) return false;
+    const next = all[i + 1];
+    return !(NATION_LIKE.test(w) && next !== undefined && (TITLE.test(next) || ROLE.test(next)));
+  });
 }
 
 /** The surname a real person's article must name: the last name word that is not a particle. */
@@ -41,7 +58,7 @@ function surnameOf(ad: string): string | undefined {
  * because he has no article of his own — the next draft was told a real man was invented.
  */
 function namedBySources(ad: string, sources: string): boolean {
-  const words = nameWords(ad).words.filter((w) => /^\p{Lu}/u.test(w) && !ROLE.test(w));
+  const words = personalWords(ad);
   if (!words.length || !sources) return false;
   return ` ${sources} `.includes(` ${lettersOnly(words.join(" "))} `);
 }
@@ -72,8 +89,8 @@ export async function inventedPeople(episode: Pick<Episode, "oyuncu_kadrosu">, l
       }
       continue;
     }
-    const { titled, words } = nameWords(c.ad);
-    const personal = words.filter((w) => /^\p{Lu}/u.test(w) && !ROLE.test(w));
+    const { titled } = nameWords(c.ad);
+    const personal = personalWords(c.ad);
     if (titled && personal.length >= 2 && !namedBySources(c.ad, known)) {
       out.push(`"${c.ad}" is an invented character with a rank and a full name, which viewers take for a real officer of this event: call them by their role ("Swordfish pilot", "Italian gunner") or a first name only, or use the real person the sources name (with "portre").`);
     }
