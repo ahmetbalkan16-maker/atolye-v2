@@ -63,8 +63,8 @@ if (-not $aliasItem) {
 # are hash-pinned by the qualified phone-access build, so the exact versions are
 # installed and then pinned in winget so an upgrade cannot break phone access.
 $tools = @(
-  @{ Name = 'Node.js'; Id = 'OpenJS.NodeJS.LTS'; Version = '24.18.0'; Exe = 'C:\Program Files\nodejs\node.exe'
-     Sha256 = '9a4eb5f1c29c6a2e93852ead46b999e284a6a5ca8bab4d4e241d587d025a52de' },
+  @{ Name = 'Node.js'; Id = 'OpenJS.NodeJS.LTS'; Version = '26.13.1'; Exe = 'C:\Program Files\nodejs\node.exe'
+     Sha256 = 'f5109dc868ec38703ad8f305e0aceece717cb60d4889873f434017af4e96cccb' },
   @{ Name = 'cloudflared'; Id = 'Cloudflare.cloudflared'; Version = '2026.8.3'; Exe = 'C:\Program Files (x86)\cloudflared\cloudflared.exe'
      Sha256 = '83e726ed18ea78c5ad5213c4c3a3a27051393950d2bc8ed4de69bec12d14eaae' },
   @{ Name = 'Ollama'; Id = 'Ollama.Ollama'; Version = '0.40.5'; Exe = (Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe') },
