@@ -30,7 +30,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 async function main(): Promise<void> {
-  assert.equal(typeof nextConfig.headers, "function");
+  assert.equal(typeof nextConfig.headers, "function", "assert.equal(typeof nextConfig.headers, \"function\")");
   const rules = await nextConfig.headers!();
 
   await scenario("every path gets SAMEORIGIN framing and the pinned Referrer-Policy", () => {
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
     assert.equal(all.has, undefined, "the catch-all is unconditional");
     assert.equal(all.missing, undefined, "the catch-all is unconditional");
     const value = (key: string) => all.headers.find((h) => h.key.toLowerCase() === key.toLowerCase())?.value;
-    assert.equal(value("X-Frame-Options"), "SAMEORIGIN");
-    assert.equal(value("Referrer-Policy"), "strict-origin-when-cross-origin");
+    assert.equal(value("X-Frame-Options"), "SAMEORIGIN", "assert.equal(value(\"X-Frame-Options\"), \"SAMEORIGIN\")");
+    assert.equal(value("Referrer-Policy"), "strict-origin-when-cross-origin", "assert.equal(value(\"Referrer-Policy\"), \"strict-origin-when-cross-origin\")");
   });
 
   await scenario("the referrer policy still sends a same-origin Referer (the CSRF backstop's fallback reads it)", () => {
@@ -50,8 +50,8 @@ async function main(): Promise<void> {
 
   await scenario("the service worker keeps its own no-store rule", () => {
     const sw = rules.find((rule) => rule.source === "/sw.js");
-    assert.ok(sw);
-    assert.equal(sw.headers.find((h) => h.key === "Cache-Control")?.value, "no-cache, no-store, must-revalidate");
+    assert.ok(sw, "assert.ok(sw)");
+    assert.equal(sw.headers.find((h) => h.key === "Cache-Control")?.value, "no-cache, no-store, must-revalidate", "assert.equal(sw.headers.find((h) => h.key === \"Cache-Control\")?.value, \"no-cache, no-store, must-revalidate\")");
   });
 
   await scenario("no app/middleware code loosens framing on its own (ALLOWALL / ALLOW-FROM / frame-ancestors *)", () => {
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
         offenders.push(path.relative(REPO_ROOT, file));
       }
     }
-    assert.deepEqual(offenders, []);
+    assert.deepEqual(offenders, [], "assert.deepEqual(offenders, [])");
   });
 
   console.log(`PASS (${count} scenarios)`);
