@@ -43,9 +43,9 @@ function urlPathOf(file: string): string {
 function main(): void {
   scenario("the shared asset value forbids shared caches and keeps the browser's own cache", () => {
     const directives = PRIVATE_ASSET_CACHE_CONTROL.split(",").map((d) => d.trim().toLowerCase());
-    assert.ok(directives.includes("private"));
-    assert.ok(!directives.includes("public"));
-    assert.ok(!directives.some((d) => d.startsWith("s-maxage")));
+    assert.ok(directives.includes("private"), "assert.ok(directives.includes(\"private\"))");
+    assert.ok(!directives.includes("public"), "assert.ok(!directives.includes(\"public\"))");
+    assert.ok(!directives.some((d) => d.startsWith("s-maxage")), "assert.ok(!directives.some((d) => d.startsWith(\"s-maxage\")))");
     assert.ok(directives.some((d) => /^max-age=\d+$/.test(d)), "the owner's browser may still cache immutable assets");
   });
 
@@ -68,12 +68,12 @@ function main(): void {
         if (/\bpublic\b|s-maxage/i.test(m[1]!)) offenders.push(`${path.relative(REPO_ROOT, file)}: ${m[1]}`);
       }
     }
-    assert.deepEqual(offenders, []);
+    assert.deepEqual(offenders, [], "assert.deepEqual(offenders, [])");
   });
 
   scenario("the scan sees the asset routes as session-gated (it would not pass vacuously)", () => {
     for (const rel of ASSET_ROUTES) assert.ok(isProtectedPath(urlPathOf(path.join(REPO_ROOT, rel))), rel);
-    assert.equal(isProtectedPath(urlPathOf(path.join(REPO_ROOT, "app", "api", "auth", "login", "route.ts"))), false);
+    assert.equal(isProtectedPath(urlPathOf(path.join(REPO_ROOT, "app", "api", "auth", "login", "route.ts"))), false, "assert.equal(isProtectedPath(urlPathOf(path.join(REPO_ROOT, \"app\", \"api\", \"auth\", \"login\", \"route.ts\"))), false)");
   });
 
   console.log(`PASS (${count} scenarios)`);
