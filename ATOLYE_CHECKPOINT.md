@@ -8,11 +8,10 @@ gözlemci npm stderr), c44b2b65 EVAL 15F.4-v74. Hepsinde tsc/lint 0, ilgili smok
 kalanı ortam/donuk.
 
 AÇIK — DEVAM SIRASI:
-1. 2.5D görsel QA ajanı (14 Kas ~10:55 başladı) duruşta hâlâ çalışıyordu; işi commit'SİZ ağaçta: remotion-v3/src/scene/
-   MapView.tsx, tilt.ts, src/lib/v3/maps/MapBuilder.ts, MapGround.ts, scripts/smoke-v3-episode-director.ts, smoke-v3-motion.ts.
-   Kareler D:\URETIM\private\temp\25d-qa\. Yeni oturumda: `git diff` oku, tsc + remotion tsc + lint + smoke-v3-episode-director/
-   motion/render/shorts-rotate/council çalıştır, karelere bak (eğik Bağdat s2'de "MEDITERRANEAN SEA" ve "OTTOMAN CONQUESTS"
-   açıklaması kayboluyordu — ajan inceliyordu), geçerse Vaka/Ders ile commit; yarımsa bitir ya da geri al.
+1. 2.5D görsel QA BİTTİ ve commit'li (e829e5ec: deniz/devlet adları kadrajda, gemi kolu, nehir yedeği; tüm smoke PASS).
+   Ağaç temiz. İstersen kalan *-sonra kareleri son kodla yeniden alınabilir (D:\URETIM\private\temp\25d-qa; .remotion içindeki
+   120 MB Chrome silinebilir). Bilinen, düz haritada da olan: deniz adı pusula/gemi/rozet üstüne binebilir; Cannae s3'te
+   Maharbal'ın konuşma balonu kılıçları örtüyor.
 2. TOPLU CANLIYA ALMA (owner istedi): canlı dala merge, canonical pull --ff-only, Graphify, elle yayın
    (`scripts/ayas-publish-live.ps1 -Commit <sha> -Apply`, otomatik yayın kapalı), V3 sipariş izleyicisini yeniden başlat,
    AYAS gözlemcisini yeniden başlat (daemon.ps1 stderr düzeltmesi ancak yeniden açılışta etkinleşir).
