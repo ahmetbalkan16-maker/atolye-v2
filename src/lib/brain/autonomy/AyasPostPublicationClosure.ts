@@ -41,6 +41,13 @@ export interface AyasPostPublicationClosureDeps {
   readonly nowMs?: () => number;
   readonly sleepMs?: (milliseconds: number) => void;
 }
+/**
+ * Upper bound for the one `graphify update` run after a push. A full run on the canonical repo took 4 min 09 s on
+ * 2026-11-16 (33177c00), and the 5-minute bound left the batch before it (7e2fbbb0) RECOVERY_REQUIRED on
+ * `spawnSync cmd.exe ETIMEDOUT` although its commit and push had already succeeded ("paket kurtarma"). 15 minutes
+ * leaves room for a busy machine; a run that is really stuck still fails closed into the same recovery path.
+ */
+export const AYAS_POST_PUBLICATION_GRAPHIFY_TIMEOUT_MS = 900_000;
 const GRAPHIFY_METADATA_CONVERGENCE_TIMEOUT_MS = 30_000;
 const GRAPHIFY_METADATA_POLL_MS = 250;
 function defaultSleep(milliseconds: number): void { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds); }
@@ -59,7 +66,7 @@ function defaultRefreshGraphify(repoRoot: string): void {
       ? [process.env.ComSpec ?? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "cmd.exe"), ["/d", "/s", "/c", "npx.cmd graphify update --scope all --no-description --no-label ."]] as const
       : ["npx", graphifyArgs] as const;
     execFileSync(command[0], command[1], {
-      cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 300_000,
+      cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: AYAS_POST_PUBLICATION_GRAPHIFY_TIMEOUT_MS,
     });
   } catch (error) {
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_REFRESH_FAILED", error instanceof Error ? error.message : String(error));

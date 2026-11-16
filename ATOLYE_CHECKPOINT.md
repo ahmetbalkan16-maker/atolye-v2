@@ -1,3 +1,13 @@
+## 16 Kasım 2026 (1) — "PAKET KURTARMA" kök nedeni giderildi (canlıya alınmayı bekliyor)
+
+Gelişim Merkezi'ndeki "1 paket kurtarma bekliyor": mikro-parti b159a548 13:05 commit + push edildi (7e2fbbb0) ama push
+sonrası `graphify update` 5 dk sınırını aştı (`spawnSync cmd.exe ETIMEDOUT`) → RECOVERY_REQUIRED; 13:18'de self-heal
+PUBLISHED_VERIFIED ile kapattı, uyarı 13:20'de söndü (iş kaybı yok). Ölçüm: aynı repoda tam yenileme 4 dk 09 sn (33177c00) —
+sınır çok dardı. Düzeltme: AyasPostPublicationClosure `AYAS_POST_PUBLICATION_GRAPHIFY_TIMEOUT_MS` = 15 dk (paket, öneri,
+kod hattı, güncelleme ve self-heal hepsi bu yolu kullanır). Kanıt: yeni smoke-ayas-post-publication-closure-timeout PASS 4;
+windows-launcher 3, micro-batch-approval 15, proposal-approval 28, firewall-closure 13, qualification-baseline PASS; tsc, lint
+0/0. Toplu canlıya almada gider. AÇIK: Windows'ta zaman aşımı yalnız cmd.exe'yi öldürür, graphify alt süreci yetim kalabilir.
+
 ## 14 Kasım 2026 (3) — TOPLU CANLIYA ALMA YAPILDI + Node 26
 
 Canlı: ayas-live-4fc578ad (Node 26.13.1, dış erişim healthy); canonical + canlı dal de565fa6; Graphify taze. Önceki
