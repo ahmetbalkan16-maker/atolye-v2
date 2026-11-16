@@ -32,21 +32,21 @@ async function main() {
     runtime.deferRestore(() => { AIManager.runResearch = original; });
     for (const value of ["", "   ", 42, null]) {
       const response = await POST(request(value));
-      assert.equal(response.status, 400); assert.equal(calls, 0); scenarios++;
+      assert.equal(response.status, 400, "assert.equal(response.status, 400)"); assert.equal(calls, 0, "assert.equal(calls, 0)"); scenarios++;
     }
     const response = await POST(request("1480 yılında Osmanlı yeniçerilerinin günlük hayatı."));
     const body = await response.json();
-    assert.equal(response.status, 200); assert.equal(body.success, true); assert.equal(calls, 1);
-    assert.equal(body.projectUrl, `/project/${body.project.slug}`);
+    assert.equal(response.status, 200, "assert.equal(response.status, 200)"); assert.equal(body.success, true, "assert.equal(body.success, true)"); assert.equal(calls, 1, "assert.equal(calls, 1)");
+    assert.equal(body.projectUrl, `/project/${body.project.slug}`, "assert.equal(body.projectUrl, `/project/${body.project.slug}`)");
     const research = await ProjectManager.getResearch(body.project.slug, runtime.runtimeStorageContext);
-    assert.deepEqual(research, body.research);
+    assert.deepEqual(research, body.research, "assert.deepEqual(research, body.research)");
     const manifest = await ProjectManager.getManifest(body.project.slug, runtime.runtimeStorageContext);
-    assert.equal(manifest?.packages.research.status, "completed");
+    assert.equal(manifest?.packages.research.status, "completed", "assert.equal(manifest?.packages.research.status, \"completed\")");
     for (const stage of ["script", "scenes", "visuals", "video", "audio", "assembly", "youtube"] as const) {
       assert.equal(manifest?.packages[stage].status, "pending", "research entry cannot run subsequent stages");
     }
     const usage = await AIUsageManager.getUsageLog(body.project.slug);
-    assert.equal(usage.records.length, 1);
+    assert.equal(usage.records.length, 1, "assert.equal(usage.records.length, 1)");
     assert(usage.records.every(r => r.projectSlug === body.project.slug && r.stage === "research"));
     assert(!fs.existsSync(path.join(runtime.runtimeStorageContext.projectsRoot, "unknown")), "never write the shared unknown namespace");
     scenarios++;
@@ -54,12 +54,12 @@ async function main() {
     const failedTopic = "Research entry retained failure 20261013";
     const failed = await POST(request(failedTopic));
     const failure = await failed.json();
-    assert.equal(failed.status, 500); assert.equal(failure.success, false);
-    assert.equal(failure.projectUrl, `/project/${ProjectManager.createSlug(failedTopic)}`);
+    assert.equal(failed.status, 500, "assert.equal(failed.status, 500)"); assert.equal(failure.success, false, "assert.equal(failure.success, false)");
+    assert.equal(failure.projectUrl, `/project/${ProjectManager.createSlug(failedTopic)}`, "assert.equal(failure.projectUrl, `/project/${ProjectManager.createSlug(failedTopic)}`)");
     assert.notEqual(failure.error, "Pipeline error");
     const failedManifest = await ProjectManager.getManifest(failure.slug, runtime.runtimeStorageContext);
-    assert.equal(failedManifest?.packages.research.status, "failed");
-    assert.equal(failedManifest?.packages.script.status, "pending");
+    assert.equal(failedManifest?.packages.research.status, "failed", "assert.equal(failedManifest?.packages.research.status, \"failed\")");
+    assert.equal(failedManifest?.packages.script.status, "pending", "assert.equal(failedManifest?.packages.script.status, \"pending\")");
     scenarios++;
   });
   const actions = renderToStaticMarkup(createElement(ProjectActions, { slug: "example" }));
