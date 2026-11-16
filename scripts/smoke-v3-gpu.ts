@@ -30,10 +30,10 @@ const ok = { content: "{}", finishReason: "stop" as const, refused: false, compl
 
 async function main() {
   await scenario("the V3 options open AYAS's monitor and trip at the owner's stop", async () => {
-    assert.equal(GPU_LIMIT_C, A2000_GPU_HARD_STOP_C);
+    assert.equal(GPU_LIMIT_C, A2000_GPU_HARD_STOP_C, "assert.equal(GPU_LIMIT_C, A2000_GPU_HARD_STOP_C)");
     const env = V3_OLLAMA_THERMAL.environment!;
-    assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C)).tripped, true);
-    assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C - 1)).tripped, false);
+    assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C)).tripped, true, "assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C)).tripped, true)");
+    assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C - 1)).tripped, false, "assert.equal((await readAyasGpuThermal(env, async () => GPU_LIMIT_C - 1)).tripped, false)");
     assert.equal((await readAyasGpuThermal(env, async () => undefined)).tripped, false, "an unreadable sensor never blocks");
   });
 
@@ -55,21 +55,21 @@ async function main() {
     const flaky: AIProvider = { generate: async () => (++calls === 1 ? Promise.reject(new OllamaThermalHardStopError()) : ok) };
     const logs: string[] = [];
     const out = await coolGpuProvider(flaky, (s) => logs.push(s), async (limit) => void waits.push(limit)).generate("x");
-    assert.deepEqual(out, ok);
-    assert.equal(calls, 2);
-    assert.deepEqual(waits, [GPU_CALL_START_C, GPU_CALL_START_C]);
-    assert.ok(logs.some((l) => l.includes(String(GPU_LIMIT_C))));
+    assert.deepEqual(out, ok, "assert.deepEqual(out, ok)");
+    assert.equal(calls, 2, "assert.equal(calls, 2)");
+    assert.deepEqual(waits, [GPU_CALL_START_C, GPU_CALL_START_C], "assert.deepEqual(waits, [GPU_CALL_START_C, GPU_CALL_START_C])");
+    assert.ok(logs.some((l) => l.includes(String(GPU_LIMIT_C))), "assert.ok(logs.some((l) => l.includes(String(GPU_LIMIT_C))))");
   });
 
   await scenario("a second abort is not retried again, other errors not at all", async () => {
     let calls = 0;
     const hot: AIProvider = { generate: async () => (calls++, Promise.reject(new OllamaThermalHardStopError())) };
     await assert.rejects(coolGpuProvider(hot, () => {}, async () => {}).generate("x"), OllamaThermalHardStopError);
-    assert.equal(calls, 2);
+    assert.equal(calls, 2, "assert.equal(calls, 2)");
     calls = 0;
     const broken: AIProvider = { generate: async () => (calls++, Promise.reject(new Error("boom"))) };
     await assert.rejects(coolGpuProvider(broken, () => {}, async () => {}).generate("x"), /boom/);
-    assert.equal(calls, 1);
+    assert.equal(calls, 1, "assert.equal(calls, 1)");
   });
 
   await scenario("every V3 local model is built with the in-call stop", async () => {
