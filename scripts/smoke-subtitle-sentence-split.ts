@@ -67,39 +67,39 @@ function run() {
       "Şehir kuşatıldı.",
       "Toplar ateşlendi.",
       "Surlar düştü.",
-    ]);
+    ], "assert.deepEqual(parts, [\n      \"Şehir kuşatıldı.\",\n      \"Toplar ateşlendi.\",\n      \"Surlar düştü.\",\n    ])");
   });
 
   scenario("splitTurkishSentences keeps 'II. Murad' as one sentence", () => {
     const parts = splitTurkishSentences(
       "Babası II. Murad 1451'de öldü. Genç padişah tahta çıktı.",
     );
-    assert.equal(parts.length, 2);
-    assert.equal(parts[0], "Babası II. Murad 1451'de öldü.");
+    assert.equal(parts.length, 2, "assert.equal(parts.length, 2)");
+    assert.equal(parts[0], "Babası II. Murad 1451'de öldü.", "assert.equal(parts[0], \"Babası II. Murad 1451'de öldü.\")");
   });
 
   scenario("splitTurkishSentences keeps digit ordinal '2. Mehmed' joined", () => {
     const parts = splitTurkishSentences("Fatih 2. Mehmed bunu emretti. Ordu hazırlandı.");
-    assert.equal(parts.length, 2);
-    assert.equal(parts[0], "Fatih 2. Mehmed bunu emretti.");
+    assert.equal(parts.length, 2, "assert.equal(parts.length, 2)");
+    assert.equal(parts[0], "Fatih 2. Mehmed bunu emretti.", "assert.equal(parts[0], \"Fatih 2. Mehmed bunu emretti.\")");
   });
 
   scenario("splitTurkishSentences does not split on abbreviation 'vb.'", () => {
     const parts = splitTurkishSentences("Toplar, kuşatma kuleleri vb. hazırlandı. Saldırı başladı.");
-    assert.equal(parts.length, 2);
-    assert.equal(parts[0], "Toplar, kuşatma kuleleri vb. hazırlandı.");
+    assert.equal(parts.length, 2, "assert.equal(parts.length, 2)");
+    assert.equal(parts[0], "Toplar, kuşatma kuleleri vb. hazırlandı.", "assert.equal(parts[0], \"Toplar, kuşatma kuleleri vb. hazırlandı.\")");
   });
 
   scenario("splitTurkishSentences returns single element when no boundary", () => {
     assert.deepEqual(splitTurkishSentences("tek bir cümle burada"), [
       "tek bir cümle burada",
-    ]);
+    ], "assert.deepEqual(splitTurkishSentences(\"tek bir cümle burada\"), [\n      \"tek bir cümle burada\",\n    ])");
   });
 
   scenario("splitTurkishSentences handles '?!' and '...' runs", () => {
     const parts = splitTurkishSentences("Şehir düşecek mi?! Kimse bilmiyordu... Sonra sabah geldi.");
-    assert.equal(parts.length, 3);
-    assert.equal(parts[1], "Kimse bilmiyordu...");
+    assert.equal(parts.length, 3, "assert.equal(parts.length, 3)");
+    assert.equal(parts[1], "Kimse bilmiyordu...", "assert.equal(parts[1], \"Kimse bilmiyordu...\")");
   });
 
   scenario("long multi-sentence chapter splits into per-sentence cues by char length", () => {
@@ -111,16 +111,16 @@ function run() {
       audioWith([section(1, `${s1} ${s2}`)]),
       new Map([[1, 30]]),
     );
-    assert.equal(result.cues.length, 2);
-    assert.equal(result.cues[0].text, s1);
-    assert.equal(result.cues[1].text, s2);
-    assert.equal(result.cues[0].startSeconds, 0);
+    assert.equal(result.cues.length, 2, "assert.equal(result.cues.length, 2)");
+    assert.equal(result.cues[0].text, s1, "assert.equal(result.cues[0].text, s1)");
+    assert.equal(result.cues[1].text, s2, "assert.equal(result.cues[1].text, s2)");
+    assert.equal(result.cues[0].startSeconds, 0, "assert.equal(result.cues[0].startSeconds, 0)");
     // boundary is contiguous and proportional to s1's share of characters
-    assert.equal(result.cues[0].endSeconds, result.cues[1].startSeconds);
-    assert.equal(result.cues[1].endSeconds, 30);
+    assert.equal(result.cues[0].endSeconds, result.cues[1].startSeconds, "assert.equal(result.cues[0].endSeconds, result.cues[1].startSeconds)");
+    assert.equal(result.cues[1].endSeconds, 30, "assert.equal(result.cues[1].endSeconds, 30)");
     const expectedBoundary = (s1.length / (s1.length + s2.length)) * 30;
-    assert.ok(Math.abs(result.cues[0].endSeconds - expectedBoundary) < 1e-9);
-    assert.equal(result.totalDurationSeconds, 30);
+    assert.ok(Math.abs(result.cues[0].endSeconds - expectedBoundary) < 1e-9, "assert.ok(Math.abs(result.cues[0].endSeconds - expectedBoundary) < 1e-9)");
+    assert.equal(result.totalDurationSeconds, 30, "assert.equal(result.totalDurationSeconds, 30)");
   });
 
   scenario("short chapter stays a single cue (unreadably short slices rejected)", () => {
@@ -128,9 +128,9 @@ function run() {
       audioWith([section(1, "Kısa cümle bir. Kısa cümle iki.")]),
       new Map([[1, 2]]),
     );
-    assert.equal(result.cues.length, 1);
-    assert.equal(result.cues[0].startSeconds, 0);
-    assert.equal(result.cues[0].endSeconds, 2);
+    assert.equal(result.cues.length, 1, "assert.equal(result.cues.length, 1)");
+    assert.equal(result.cues[0].startSeconds, 0, "assert.equal(result.cues[0].startSeconds, 0)");
+    assert.equal(result.cues[0].endSeconds, 2, "assert.equal(result.cues[0].endSeconds, 2)");
   });
 
   scenario("multi-chapter: cue indices are global and chapter windows are preserved", () => {
@@ -145,16 +145,16 @@ function run() {
       ]),
     );
     // chapter 1 -> 2 cues, chapter 2 -> 1 cue
-    assert.equal(result.cues.length, 3);
+    assert.equal(result.cues.length, 3, "assert.equal(result.cues.length, 3)");
     assert.deepEqual(
       result.cues.map((c) => c.index),
-      [1, 2, 3],
+      [1, 2, 3], "assert.deepEqual(\n      result.cues.map((c) => c.index),\n      [1, 2, 3],\n    )",
     );
-    assert.equal(result.cues[0].startSeconds, 0);
-    assert.equal(result.cues[1].endSeconds, 30); // chapter 1 window ends at 30
-    assert.equal(result.cues[2].startSeconds, 30); // chapter 2 starts at 30
-    assert.equal(result.cues[2].endSeconds, 42);
-    assert.equal(result.totalDurationSeconds, 42);
+    assert.equal(result.cues[0].startSeconds, 0, "assert.equal(result.cues[0].startSeconds, 0)");
+    assert.equal(result.cues[1].endSeconds, 30, "assert.equal(result.cues[1].endSeconds, 30)"); // chapter 1 window ends at 30
+    assert.equal(result.cues[2].startSeconds, 30, "assert.equal(result.cues[2].startSeconds, 30)"); // chapter 2 starts at 30
+    assert.equal(result.cues[2].endSeconds, 42, "assert.equal(result.cues[2].endSeconds, 42)");
+    assert.equal(result.totalDurationSeconds, 42, "assert.equal(result.totalDurationSeconds, 42)");
     // SRT cue numbering is sequential
     assert.match(result.srt, /^1\r\n00:00:00,000 -->/);
     assert.match(result.srt, /\r\n3\r\n00:00:30,000 --> 00:00:42,000\r\n/);
