@@ -56,15 +56,15 @@ async function main() {
     const total = 18 * 60 * 30;
     const shots = Array.from({ length: 80 }, (_, i) => i * 405);
     const chunks = planChunks(total, shots, 30);
-    assert.equal(chunks[0]!.from, 0);
-    assert.equal(chunks[chunks.length - 1]!.to, total - 1);
+    assert.equal(chunks[0]!.from, 0, "assert.equal(chunks[0]!.from, 0)");
+    assert.equal(chunks[chunks.length - 1]!.to, total - 1, "assert.equal(chunks[chunks.length - 1]!.to, total - 1)");
     for (let i = 1; i < chunks.length; i++) assert.equal(chunks[i]!.from, chunks[i - 1]!.to + 1, "no gap, no overlap");
     for (const c of chunks.slice(1)) assert.ok(shots.includes(c.from), `piece starts on a shot (${c.from})`);
     assert.ok(chunks.length >= 5 && chunks.length <= 7, `${chunks.length} pieces of ~${CHUNK_TARGET_S} s`);
     // No shot start near the ideal cut: the cut falls on the ideal frame.
-    assert.deepEqual(planChunks(600, [0], 1, 200).map((c) => c.from), [0, 200, 400]);
+    assert.deepEqual(planChunks(600, [0], 1, 200).map((c) => c.from), [0, 200, 400], "assert.deepEqual(planChunks(600, [0], 1, 200).map((c) => c.from), [0, 200, 400])");
     // A remainder under 1.5 pieces stays with the last one.
-    assert.deepEqual(planChunks(250, [], 1, 100).map((c) => [c.from, c.to]), [[0, 99], [100, 249]]);
+    assert.deepEqual(planChunks(250, [], 1, 100).map((c) => [c.from, c.to]), [[0, 99], [100, 249]], "assert.deepEqual(planChunks(250, [], 1, 100).map((c) => [c.from, c.to]), [[0, 99], [100, 249]])");
   });
 
   await scenario("B the render key follows the plan, the Remotion code and the output settings", () => {
@@ -83,14 +83,14 @@ async function main() {
   await scenario("C a crash keeps the finished pieces; the rerun renders only the missing ones and joins them in order", async () => {
     const first = fakeDeps({ failAt: 600 });
     await assert.rejects(renderInChunks(base, first.deps), /Chrome crashed/);
-    assert.deepEqual(first.rendered, [[0, 299], [300, 599]]);
+    assert.deepEqual(first.rendered, [[0, 299], [300, 599]], "assert.deepEqual(first.rendered, [[0, 299], [300, 599]])");
     assert.ok(!existsSync(base.out), "no half video for the next run to take as finished");
     const second = fakeDeps();
     const r = await renderInChunks(base, second.deps);
     assert.deepEqual(second.rendered, [[600, 999]], "only the missing piece");
-    assert.deepEqual(r, { chunks: 3, reused: 2 });
-    assert.deepEqual(second.list().trim().split("\n"), ["file '01-0-299.mp4'", "file '02-300-599.mp4'", "file '03-600-999.mp4'"]);
-    assert.equal(await fs.readFile(base.out, "utf8"), "1000");
+    assert.deepEqual(r, { chunks: 3, reused: 2 }, "assert.deepEqual(r, { chunks: 3, reused: 2 })");
+    assert.deepEqual(second.list().trim().split("\n"), ["file '01-0-299.mp4'", "file '02-300-599.mp4'", "file '03-600-999.mp4'"], "assert.deepEqual(second.list().trim().split(\"\\n\"), [\"file '01-0-299.mp4'\", \"file '02-300-599.mp4'\", \"file '03-600-999.mp4'\"])");
+    assert.equal(await fs.readFile(base.out, "utf8"), "1000", "assert.equal(await fs.readFile(base.out, \"utf8\"), \"1000\")");
     assert.ok(!existsSync(base.chunkDir), "pieces are removed once joined");
   });
 
@@ -107,9 +107,9 @@ async function main() {
   await scenario("E one piece: no join, the video is the piece", async () => {
     const one = fakeDeps();
     const r = await renderInChunks({ ...base, durationInFrames: 120 }, one.deps);
-    assert.deepEqual(r, { chunks: 1, reused: 0 });
+    assert.deepEqual(r, { chunks: 1, reused: 0 }, "assert.deepEqual(r, { chunks: 1, reused: 0 })");
     assert.equal(one.list(), "", "no concat for a single piece");
-    assert.equal(await fs.readFile(base.out, "utf8"), "120");
+    assert.equal(await fs.readFile(base.out, "utf8"), "120", "assert.equal(await fs.readFile(base.out, \"utf8\"), \"120\")");
   });
 
   await scenario("G the layout probe's boxes stay with their piece, survive a crash and are merged with the video", async () => {
@@ -131,7 +131,7 @@ async function main() {
     await renderInChunks({ ...base, layout }, probing().deps);
     const merged = JSON.parse(await fs.readFile(layout.out, "utf8")) as { every: number; width: number; kareler: { kare: number }[] };
     assert.deepEqual(merged.kareler.map((k) => k.kare), [0, 100, 200, 300, 400, 500, 600, 700, 800, 900], "the reused pieces keep their boxes; an old run's file is dropped");
-    assert.deepEqual([merged.every, merged.width], [100, 1920]);
+    assert.deepEqual([merged.every, merged.width], [100, 1920], "assert.deepEqual([merged.every, merged.width], [100, 1920])");
   });
 
   await scenario("F Remotion's bundle server gets a port free on IPv4 and IPv6 alike (4.0.538 took :3000 from the live app listening on ::)", async () => {
@@ -164,7 +164,7 @@ async function main() {
     } as unknown as Pick<V3RenderPlan, "shots" | "width" | "height" | "stage">;
     assert.deepEqual(depthTargets(plan), [{ src: "bg/rubicon-donem.jpg", fit: "kapla" }, { src: "ara/haritasi.png", fit: "sigdir" }, { src: "ara/bozuk.png", fit: "sigdir" }], "once per picture; never a set, a drawn set, a map shot or film");
     assert.deepEqual(depthTargets({ ...plan, width: 1080, height: 1920 }), [{ src: "bg/rubicon-donem.jpg", fit: "kapla" }], "a Short's cut-ins pan across the tall frame: flat");
-    assert.equal(depthFileFor("bg/rubicon-donem.jpg", "kapla"), "bg/rubicon-donem-derinlik-kapla.png");
+    assert.equal(depthFileFor("bg/rubicon-donem.jpg", "kapla"), "bg/rubicon-donem-derinlik-kapla.png", "assert.equal(depthFileFor(\"bg/rubicon-donem.jpg\", \"kapla\"), \"bg/rubicon-donem-derinlik-kapla.png\")");
     const pub = path.join(tmp, "derinlik-public");
     for (const f of ["bg/rubicon-donem.jpg", "ara/haritasi.png", "ara/bozuk.png"]) {
       await fs.mkdir(path.dirname(path.join(pub, f)), { recursive: true });
@@ -188,23 +188,23 @@ async function main() {
     const logs: string[] = [];
     const deps = { publicDir: pub, python: "yok", script: "yok", model: "yok", log: (s: string) => logs.push(s), run, env: { ATOLYE_V3_DERINLIK: "1" } };
     const first = await addDepthMaps(plan, deps);
-    assert.deepEqual([first.yeni, first.hazir, first.hata], [2, 0, 1]);
+    assert.deepEqual([first.yeni, first.hazir, first.hata], [2, 0, 1], "assert.deepEqual([first.yeni, first.hazir, first.hata], [2, 0, 1])");
     assert.deepEqual(runs[0], [{ en: 960, boy: 540, mod: "kapla" }, { en: 960, boy: 960, mod: "sigdir" }, { en: 960, boy: 960, mod: "sigdir" }], "a background cut to the stage, a still whole");
-    assert.deepEqual(first.plan.shots.map((s) => s.background.depth ?? null), ["bg/rubicon-donem-derinlik-kapla.png", null, "bg/rubicon-donem-derinlik-kapla.png", null, null]);
-    assert.deepEqual(first.plan.shots[1]!.inserts!.map((i) => i.depth ?? null), ["ara/haritasi-derinlik-sigdir.png", null]);
+    assert.deepEqual(first.plan.shots.map((s) => s.background.depth ?? null), ["bg/rubicon-donem-derinlik-kapla.png", null, "bg/rubicon-donem-derinlik-kapla.png", null, null], "assert.deepEqual(first.plan.shots.map((s) => s.background.depth ?? null), [\"bg/rubicon-donem-derinlik-kapla.png\", null, \"bg/rubicon-donem-derinlik-kapla.png\", null, null])");
+    assert.deepEqual(first.plan.shots[1]!.inserts!.map((i) => i.depth ?? null), ["ara/haritasi-derinlik-sigdir.png", null], "assert.deepEqual(first.plan.shots[1]!.inserts!.map((i) => i.depth ?? null), [\"ara/haritasi-derinlik-sigdir.png\", null])");
     assert.equal(first.plan.shots[4]!.inserts![0]!.depth, undefined, "the broken picture keeps its flat drift");
-    assert.ok(logs.some((l) => /bozuk-derinlik-sigdir\.png çıkarılamadı \(UnidentifiedImageError\)/.test(l)));
+    assert.ok(logs.some((l) => /bozuk-derinlik-sigdir\.png çıkarılamadı \(UnidentifiedImageError\)/.test(l)), "assert.ok(logs.some((l) => /bozuk-derinlik-sigdir\\.png çıkarılamadı \\(UnidentifiedImageError\\)/.test(l)))");
     assert.ok(!existsSync(path.join(pub, ".derinlik-isleri.json")), "the jobs file is cleaned up");
     // The next render reuses the maps and asks only for the one still missing.
     const second = await addDepthMaps(plan, deps);
-    assert.deepEqual([second.yeni, second.hazir, runs.length, runs[1]!.length], [0, 2, 2, 1]);
+    assert.deepEqual([second.yeni, second.hazir, runs.length, runs[1]!.length], [0, 2, 2, 1], "assert.deepEqual([second.yeni, second.hazir, runs.length, runs[1]!.length], [0, 2, 2, 1])");
     // Off unless asked (owner, 12 Nov 2026: "fotoğraflarda hala kayma var" — the depth move warped the photos), or
     // without the model: the plan as it was, the map maker never run.
     const ran = runs.length;
-    for (const env of [{}, { ATOLYE_V3_DERINLIK: "0" }, { ATOLYE_V3_DERINLIK: "" }]) assert.equal((await addDepthMaps(plan, { ...deps, env })).plan, plan);
+    for (const env of [{}, { ATOLYE_V3_DERINLIK: "0" }, { ATOLYE_V3_DERINLIK: "" }]) assert.equal((await addDepthMaps(plan, { ...deps, env })).plan, plan, "assert.equal((await addDepthMaps(plan, { ...deps, env })).plan, plan)");
     assert.equal(runs.length, ran, "switched off, no map is made");
     const noModel = await addDepthMaps(plan, { publicDir: path.join(tmp, "bos"), python: "yok", script: "yok", model: "yok", log: () => {}, env: { ATOLYE_V3_DERINLIK: "1" } });
-    assert.deepEqual([noModel.yeni, noModel.plan.shots[0]!.background.depth], [0, undefined]);
+    assert.deepEqual([noModel.yeni, noModel.plan.shots[0]!.background.depth], [0, undefined], "assert.deepEqual([noModel.yeni, noModel.plan.shots[0]!.background.depth], [0, undefined])");
   });
 
   await fs.rm(tmp, { recursive: true, force: true });
