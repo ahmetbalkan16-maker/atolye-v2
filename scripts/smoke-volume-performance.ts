@@ -37,12 +37,12 @@ for(const action of ['TALK','POINT','CHEER','BOW','FIGHT'] as const) {
   for(let i=1;i<90;i++){const t=i/15,p=volumePerformanceFrame(character,actor,characterAnimationFrame(blocking,plan,t).c1!,t,120);assert.deepEqual(p.contacts,reference,'stationary gesture must preserve planted feet');}
 }
 for(const boundary of [2.5,3.2,8.3,9,12]) assert(Math.abs(volumeCameraZoom(boundary+.00001,12)-volumeCameraZoom(boundary-.00001,12))<.0001,'camera must enter and exit continuously');
-assert.equal(volumeCameraZoom(4,4),1);
+assert.equal(volumeCameraZoom(4,4),1, "assert.equal(volumeCameraZoom(4,4),1)");
 const art={version:'4' as const,culture:'OTTOMAN' as const,faith:'UNSPECIFIED' as const,roles:[{id:'c1',role:'GUARD' as const}]};
 const examples=[[1480,'JANISSARY','JANISSARY_EARLY'],[1710,'JANISSARY_OFFICER','JANISSARY_OFFICER_18'],[1790,'JANISSARY_GUARDHOUSE','JANISSARY_GUARDHOUSE_18'],[1550,'ARMOURED','OTTOMAN_MAIL_PLATE']] as const;
 const hashes=new Set<string>();
 for(const [year,unit,profile] of examples) {
-  const design=createPeriodDesign(blocking,art,[year],unit);assert.equal(design.actors[0]!.profile,profile);assert.equal(design.actors[0]!.status,'REFERENCE_INSPIRED_NEEDS_REVIEW');
+  const design=createPeriodDesign(blocking,art,[year],unit);assert.equal(design.actors[0]!.profile,profile, "assert.equal(design.actors[0]!.profile,profile)");assert.equal(design.actors[0]!.status,'REFERENCE_INSPIRED_NEEDS_REVIEW', "assert.equal(design.actors[0]!.status,'REFERENCE_INSPIRED_NEEDS_REVIEW')");
   const joints=volumePerformanceFrame(character,undefined,{x:character.x,pose:POSE_ANGLES.STAND,mouthOpen:false},0,120).joints;
   const mesh=createVolumeCharacter({culture:'OTTOMAN',role:'GUARD',pose:'STAND',mouthOpen:false,faith:'UNSPECIFIED',designProfile:profile,joints,handProp:'SPEAR'});
   assert(mesh.length<40000,'bounded richer costume geometry');
@@ -50,15 +50,15 @@ for(const [year,unit,profile] of examples) {
 }
 assert.equal(hashes.size,4,'period-specific hat, uniform and armour silhouettes must differ');
 assert.equal(createPeriodDesign(blocking,art,[1850],'JANISSARY').actors[0]!.profile,'BASE','do not invent a Janissary uniform after the institution ended');
-assert.equal(createPeriodDesign(blocking,art,[1480,1710],'JANISSARY').actors[0]!.status,'RESEARCH_REQUIRED');
+assert.equal(createPeriodDesign(blocking,art,[1480,1710],'JANISSARY').actors[0]!.status,'RESEARCH_REQUIRED', "assert.equal(createPeriodDesign(blocking,art,[1480,1710],'JANISSARY').actors[0]!.status,'RESEARCH_REQUIRED')");
 assert.equal(createPeriodDesign(blocking,{...art,culture:'ROMAN'},[1480],'JANISSARY').actors[0]!.profile,'BASE','no cross-culture costume leakage');
-assert.equal(periodUnitFromScene('1480 yılında yeniçeri askerleri yürüyor.'),'JANISSARY');
-assert.equal(periodUnitFromScene('1710 yılında yeniçeri ağası konuşuyor.'),'JANISSARY_OFFICER');
-assert.equal(periodUnitFromScene('1790 yılında karakol yeniçerisi.'),'JANISSARY_GUARDHOUSE');
-assert.equal(periodUnitFromScene('1550 yılında Osmanlı zırhlı sipahisi.'),'ARMOURED');
+assert.equal(periodUnitFromScene('1480 yılında yeniçeri askerleri yürüyor.'),'JANISSARY', "assert.equal(periodUnitFromScene('1480 yılında yeniçeri askerleri yürüyor.'),'JANISSARY')");
+assert.equal(periodUnitFromScene('1710 yılında yeniçeri ağası konuşuyor.'),'JANISSARY_OFFICER', "assert.equal(periodUnitFromScene('1710 yılında yeniçeri ağası konuşuyor.'),'JANISSARY_OFFICER')");
+assert.equal(periodUnitFromScene('1790 yılında karakol yeniçerisi.'),'JANISSARY_GUARDHOUSE', "assert.equal(periodUnitFromScene('1790 yılında karakol yeniçerisi.'),'JANISSARY_GUARDHOUSE')");
+assert.equal(periodUnitFromScene('1550 yılında Osmanlı zırhlı sipahisi.'),'ARMOURED', "assert.equal(periodUnitFromScene('1550 yılında Osmanlı zırhlı sipahisi.'),'ARMOURED')");
 assert.equal(periodUnitFromScene('1480 yılında yeniçeri ve zırhlı sipahi karşılaştırması.'),'UNSPECIFIED','ambiguous mixed troop scene requires actor-specific research');
 assert.equal(periodUnitFromScene('1480 yılında yeniçeri değil.'),'UNSPECIFIED','do not enact a negated costume');
-const old=createVolumeScenePlan(blocking,art,[1480]);assert(!old.design);assert.deepEqual(findVolumeScenePlanProblems(old,blocking,art),[]);
-const current=createVolumeScenePlan(blocking,art,[1480],'JANISSARY');assert.deepEqual(findVolumeScenePlanProblems(current,blocking,art),[]);
+const old=createVolumeScenePlan(blocking,art,[1480]);assert(!old.design);assert.deepEqual(findVolumeScenePlanProblems(old,blocking,art),[], "assert.deepEqual(findVolumeScenePlanProblems(old,blocking,art),[])");
+const current=createVolumeScenePlan(blocking,art,[1480],'JANISSARY');assert.deepEqual(findVolumeScenePlanProblems(current,blocking,art),[], "assert.deepEqual(findVolumeScenePlanProblems(current,blocking,art),[])");
 assert(findVolumeScenePlanProblems({...current,design:{...current.design!,actors:current.design!.actors.map(a=>({...a,profile:'OTTOMAN_FEZ_COURT'}))}},blocking,art).length,'tampered costume must fail canonical metadata check');
 console.log('Grounded performance: PASS (12 dense walk/run trajectories, planted-foot invariance, bone lengths, stationary gestures, arrival, continuous camera, four distinct sourced uniform silhouettes, era/culture/ambiguity/tamper/old-volume guards)');
