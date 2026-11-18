@@ -99,12 +99,12 @@ async function main() {
     const rate = 24_000;
     const x = take(rate, 0, 1, 0, { hard: true });
     const t = trimVoice(x, rate);
-    assert.equal(t.samples.length, x.length);
-    assert.equal(t.samples[0], 0);
+    assert.equal(t.samples.length, x.length, "assert.equal(t.samples.length, x.length)");
+    assert.equal(t.samples[0], 0, "assert.equal(t.samples[0], 0)");
     const halfMs = Math.round(0.0005 * rate);
     for (let k = 0; k <= halfMs; k++) assert.ok(Math.abs(t.samples[k]!) < 0.01 && Math.abs(t.samples[t.samples.length - 1 - k]!) < 0.01, `edge sample ${k}`);
     const fadeEnd = Math.round(TRIM_FADE_IN_MIN_S * rate);
-    assert.equal(t.samples[fadeEnd + 5], x[fadeEnd + 5]);
+    assert.equal(t.samples[fadeEnd + 5], x[fadeEnd + 5], "assert.equal(t.samples[fadeEnd + 5], x[fadeEnd + 5])");
   });
 
   await scenario("over digital silence in the pad the fade starts on the sound, and the pad keeps its length", () => {
@@ -113,24 +113,24 @@ async function main() {
     const t = trimVoice(x, rate);
     const expected = rate * (1 + TRIM_PAD_START_S + TRIM_PAD_END_S);
     assert.ok(Math.abs(t.samples.length - expected) <= 2, `length ${t.samples.length}`);
-    assert.deepEqual(ticks(t.samples, rate), []);
+    assert.deepEqual(ticks(t.samples, rate), [], "assert.deepEqual(ticks(t.samples, rate), [])");
     assert.ok(ticks(x, rate).length >= 2, "the hard take itself has both edges");
   });
 
   await scenario("a take with no sound is kept whole", () => {
     const x = take(TTS_RATE, 0.4, 0, 0);
     const t = trimVoice(x, TTS_RATE);
-    assert.equal(t.samples.length, x.length);
-    assert.equal(t.soundStart, -1);
-    assert.equal(trimVoice(new Float32Array(0), TTS_RATE).samples.length, 0);
+    assert.equal(t.samples.length, x.length, "assert.equal(t.samples.length, x.length)");
+    assert.equal(t.soundStart, -1, "assert.equal(t.soundStart, -1)");
+    assert.equal(trimVoice(new Float32Array(0), TTS_RATE).samples.length, 0, "assert.equal(trimVoice(new Float32Array(0), TTS_RATE).samples.length, 0)");
   });
 
   await scenario("the filter chain no longer trims; the old trim is kept only as text", () => {
-    assert.ok(!postProcessFilter(plain, 1).includes("silenceremove"));
-    assert.equal(postProcessFilter(plain, 1), "loudnorm=I=-18:TP=-2:LRA=9,aresample=48000,adelay=40,apad=pad_dur=0.04");
+    assert.ok(!postProcessFilter(plain, 1).includes("silenceremove"), "assert.ok(!postProcessFilter(plain, 1).includes(\"silenceremove\"))");
+    assert.equal(postProcessFilter(plain, 1), "loudnorm=I=-18:TP=-2:LRA=9,aresample=48000,adelay=40,apad=pad_dur=0.04", "assert.equal(postProcessFilter(plain, 1), \"loudnorm=I=-18:TP=-2:LRA=9,aresample=48000,adelay=40,apad=pad_dur=0.04\")");
     // The vibrato reads 20 ms of zeros first (FFmpeg reads its delay line before writing it), then they are cut off.
-    assert.ok(postProcessFilter(shifted, 1).startsWith("rubberband=pitch=0.86554:tempo=0.9200,adelay=delays=960S,vibrato=f=5.5:d=0.06,atrim=start_sample=960,asetpts=PTS-STARTPTS,loudnorm="));
-    assert.equal(LEGACY_TRIM_FILTER.split(",").length, 4);
+    assert.ok(postProcessFilter(shifted, 1).startsWith("rubberband=pitch=0.86554:tempo=0.9200,adelay=delays=960S,vibrato=f=5.5:d=0.06,atrim=start_sample=960,asetpts=PTS-STARTPTS,loudnorm="), "assert.ok(postProcessFilter(shifted, 1).startsWith(\"rubberband=pitch=0.86554:tempo=0.9200,adelay=delays=960S,vibrato=f=5.5:d=0.06,atrim=start_sample=960,asetpts=PTS-STARTPTS,loudnorm=\"))");
+    assert.equal(LEGACY_TRIM_FILTER.split(",").length, 4, "assert.equal(LEGACY_TRIM_FILTER.split(\",\").length, 4)");
   });
 
   await scenario("cache key changes with the trim; the take seed is the one the old key gave", () => {
@@ -142,20 +142,20 @@ async function main() {
       .digest("hex")
       .slice(0, 32);
     const k = lineKeys(parts);
-    assert.equal(k.take, oldKey);
+    assert.equal(k.take, oldKey, "assert.equal(k.take, oldKey)");
     assert.notEqual(k.cache, oldKey);
     assert.match(k.cache, /^[0-9a-f]{32}$/);
-    assert.ok(TRIM_SPEC.startsWith("node-trim-v1:"));
+    assert.ok(TRIM_SPEC.startsWith("node-trim-v1:"), "assert.ok(TRIM_SPEC.startsWith(\"node-trim-v1:\"))");
     // A Turkish Chatterbox line (no language/emotion fields) keeps the same rule.
     const tr: LineKeyParts = { ...parts, provider: "chatterbox", language: "tr", refHash: "abc" };
     const oldTr = createHash("sha256").update(JSON.stringify({ v: 1, model: tr.model, speech: tr.speech, voice: plain, provider: "chatterbox", boost: 0.1, speed: 1, refHash: "abc", filter: oldFilter })).digest("hex").slice(0, 32);
-    assert.equal(lineKeys(tr).take, oldTr);
+    assert.equal(lineKeys(tr).take, oldTr, "assert.equal(lineKeys(tr).take, oldTr)");
     assert.notEqual(lineKeys(tr).cache, oldTr);
     assert.notEqual(lineKeys({ ...tr, speed: 0.95 }).cache, lineKeys(tr).cache);
     // A vibrato voice's take key is its old key too (the old chain had the vibrato without its pre-roll).
     const old = { ...tr, voice: shifted };
     const oldVib = createHash("sha256").update(JSON.stringify({ v: 1, model: tr.model, speech: tr.speech, voice: shifted, provider: "chatterbox", boost: 0.1, speed: 1, refHash: "abc", filter: `${LEGACY_TRIM_FILTER},rubberband=pitch=0.86554:tempo=0.9200,vibrato=f=5.5:d=0.06,loudnorm=I=-18:TP=-2:LRA=9,aresample=48000,adelay=40,apad=pad_dur=0.04` })).digest("hex").slice(0, 32);
-    assert.equal(lineKeys(old).take, oldVib);
+    assert.equal(lineKeys(old).take, oldVib, "assert.equal(lineKeys(old).take, oldVib)");
     assert.notEqual(lineKeys(old).cache, oldVib);
   });
 
@@ -181,9 +181,9 @@ async function main() {
           const before = readWavPcm16(readFileSync(old));
           const after = readWavPcm16(readFileSync(out));
           oldTicks += ticks(before.samples, before.sampleRate).length;
-          assert.equal(after.sampleRate, 48_000);
-          assert.deepEqual(ticks(after.samples, 48_000), []);
-          assert.ok(stuckSeconds(readFileSync(out)) <= STUCK_MAX_S);
+          assert.equal(after.sampleRate, 48_000, "assert.equal(after.sampleRate, 48_000)");
+          assert.deepEqual(ticks(after.samples, 48_000), [], "assert.deepEqual(ticks(after.samples, 48_000), [])");
+          assert.ok(stuckSeconds(readFileSync(out)) <= STUCK_MAX_S, "assert.ok(stuckSeconds(readFileSync(out)) <= STUCK_MAX_S)");
           // Same length as the old processing within a few hundredths (lip sync is timed on these clips).
           const dOld = before.samples.length / 48_000, dNew = after.samples.length / 48_000;
           assert.ok(Math.abs(dNew - dOld) < 0.03, `length ${dNew} vs ${dOld}`);
