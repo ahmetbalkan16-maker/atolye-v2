@@ -48,7 +48,7 @@ async function main(): Promise<void> {
       assert.equal(sha256(fs.readFileSync(sourcePath)), sha256(baselineBytes), "clone must contain the frozen baseline");
       fs.mkdirSync(path.dirname(evaluatorPath), { recursive: true });
       fs.writeFileSync(evaluatorPath, frozenEvaluator); // Host oracle; never project this into a model request.
-      assert.equal(sha256(fs.readFileSync(evaluatorPath)), sha256(frozenEvaluator));
+      assert.equal(sha256(fs.readFileSync(evaluatorPath)), sha256(frozenEvaluator), "assert.equal(sha256(fs.readFileSync(evaluatorPath)), sha256(frozenEvaluator))");
 
       const baseline = runFrozenEvaluator(sandbox.repoDir, sandbox.runRoot, item.evaluatorScript);
       assert.ok(!baseline.timedOut && baseline.exit === 1,
