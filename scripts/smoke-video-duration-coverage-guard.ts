@@ -69,7 +69,7 @@ function run() {
   // real i-stanbul-un-fethi-1453 numbers (90s estimate; 94s/153s/155s real). ===
   scenario("A: 90s->155s large mismatch is rejected, no large tpad accepted", () => {
     const report = computeVideoDurationCoverage(scenarioScenes(90, 155.4), null);
-    assert.equal(report.passed, false);
+    assert.equal(report.passed, false, "assert.equal(report.passed, false)");
     assert.ok(report.paddingRatio > 0.4, `expected large padding ratio, got ${report.paddingRatio}`);
     assert.throws(
       () => assertVideoDurationCoverage(scenarioScenes(90, 155.4), null),
@@ -86,7 +86,7 @@ function run() {
 
   scenario("C: 90s->153s reconciliation-scale mismatch is rejected", () => {
     const report = computeVideoDurationCoverage(scenarioScenes(90, 153), null);
-    assert.equal(report.passed, false);
+    assert.equal(report.passed, false, "assert.equal(report.passed, false)");
   });
 
   // === explicit 5% / 20% / 70% tiered mismatch behavior ===
@@ -107,10 +107,10 @@ function run() {
   scenario("NaN/Infinity narration or source duration never crashes the guard (fails closed instead)", () => {
     const nanScenes: VideoAssemblySceneVideoInput[] = [sceneVideo(1, Number.NaN, 20)];
     assert.doesNotThrow(() => computeVideoDurationCoverage(nanScenes, null));
-    assert.equal(computeVideoDurationCoverage(nanScenes, null).passed, false);
+    assert.equal(computeVideoDurationCoverage(nanScenes, null).passed, false, "assert.equal(computeVideoDurationCoverage(nanScenes, null).passed, false)");
     const infScenes: VideoAssemblySceneVideoInput[] = [sceneVideo(1, Number.POSITIVE_INFINITY, 20)];
     assert.doesNotThrow(() => computeVideoDurationCoverage(infScenes, null));
-    assert.equal(computeVideoDurationCoverage(infScenes, null).passed, false);
+    assert.equal(computeVideoDurationCoverage(infScenes, null).passed, false, "assert.equal(computeVideoDurationCoverage(infScenes, null).passed, false)");
   });
 
   // === D: minimum scene duration policy ===
@@ -118,7 +118,7 @@ function run() {
     const scenes = [sceneVideo(1, 0.5, 0.5)]; // below MINIMUM_SCENE_NARRATION_SECONDS, exact coverage otherwise
     const report = computeVideoDurationCoverage(scenes, null);
     assert.equal(report.passed, false, "a scene entirely below the minimum narration floor must fail closed even with perfect coverage");
-    assert.ok(report.scenes[0].narrationDurationSeconds < MINIMUM_SCENE_NARRATION_SECONDS);
+    assert.ok(report.scenes[0].narrationDurationSeconds < MINIMUM_SCENE_NARRATION_SECONDS, "assert.ok(report.scenes[0].narrationDurationSeconds < MINIMUM_SCENE_NARRATION_SECONDS)");
   });
 
   // === E: one extremely long scene does not corrupt other scenes' own metrics ===
@@ -128,10 +128,10 @@ function run() {
       sceneVideo(2, 20, 20), // perfectly covered sibling
     ];
     const report = computeVideoDurationCoverage(scenes, null);
-    assert.equal(report.passed, false);
-    assert.equal(report.worstScene?.sceneId, 1);
+    assert.equal(report.passed, false, "assert.equal(report.passed, false)");
+    assert.equal(report.worstScene?.sceneId, 1, "assert.equal(report.worstScene?.sceneId, 1)");
     const sibling = report.scenes.find((s) => s.sceneId === 2)!;
-    assert.equal(sibling.paddingSeconds, 0);
+    assert.equal(sibling.paddingSeconds, 0, "assert.equal(sibling.paddingSeconds, 0)");
     assert.equal(sibling.withinTolerance, true, "the well-covered sibling scene must still read as within tolerance on its own");
   });
 
@@ -146,16 +146,16 @@ function run() {
     const report = computeVideoDurationCoverage(scenes, null);
     // Aggregate padding ratio (20 / 120 ~ 16.7%) could look tolerable in isolation,
     // but the guard must still fail on the single scene's own ratio.
-    assert.equal(report.passed, false);
-    assert.equal(report.worstScene?.sceneId, 1);
+    assert.equal(report.passed, false, "assert.equal(report.passed, false)");
+    assert.equal(report.worstScene?.sceneId, 1, "assert.equal(report.worstScene?.sceneId, 1)");
   });
 
   // === TTS shorter than expected: video longer than narration is truncated, never "negative padding" ===
   scenario("TTS shorter than expected (video longer than narration) never produces negative padding and always passes", () => {
     const scenes = [sceneVideo(1, 18, 25)]; // source footage longer than the real narration -> gets trimmed downstream, not padded
     const report = computeVideoDurationCoverage(scenes, null);
-    assert.equal(report.paddingDurationSeconds, 0);
-    assert.equal(report.passed, true);
+    assert.equal(report.paddingDurationSeconds, 0, "assert.equal(report.paddingDurationSeconds, 0)");
+    assert.equal(report.passed, true, "assert.equal(report.passed, true)");
     assert.ok(report.coverageRatio > 1, `expected coverageRatio > 1 (excess footage), got ${report.coverageRatio}`);
   });
 
@@ -163,7 +163,7 @@ function run() {
   scenario("maximum scene duration (120s) is handled without overflow/precision issues", () => {
     const report = computeVideoDurationCoverage(scenarioScenes(120, 124), null);
     assert.equal(report.passed, true, JSON.stringify(report));
-    assert.ok(Number.isFinite(report.paddingRatio));
+    assert.ok(Number.isFinite(report.paddingRatio), "assert.ok(Number.isFinite(report.paddingRatio))");
   });
 
   // === malformed / zero duration robustness (should never crash; upstream normally prevents these) ===
@@ -171,7 +171,7 @@ function run() {
     const scenes = [sceneVideo(1, 0, 0)];
     assert.doesNotThrow(() => computeVideoDurationCoverage(scenes, null));
     const report = computeVideoDurationCoverage(scenes, null);
-    assert.equal(report.passed, false);
+    assert.equal(report.passed, false, "assert.equal(report.passed, false)");
   });
 
   // === H/I: retry/resume are safe because the guard is a pure recomputation, never cached state ===
@@ -179,16 +179,16 @@ function run() {
     const scenes = scenarioScenes(90, 155.4);
     const first = computeVideoDurationCoverage(scenes, null);
     const second = computeVideoDurationCoverage(scenes, null);
-    assert.deepEqual(first, second);
+    assert.deepEqual(first, second, "assert.deepEqual(first, second)");
   });
 
   scenario("I: mutating input between calls changes the output on the next call (always reads current state, never stale)", () => {
     const before = computeVideoDurationCoverage(scenarioScenes(90, 155.4), null);
-    assert.equal(before.passed, false);
+    assert.equal(before.passed, false, "assert.equal(before.passed, false)");
     // Simulates a video-stage regeneration correcting the scene's own
     // durationSeconds to the real narration length.
     const after = computeVideoDurationCoverage(scenarioScenes(155.4, 155.4), null);
-    assert.equal(after.passed, true);
+    assert.equal(after.passed, true, "assert.equal(after.passed, true)");
   });
 
   // === J: regeneration propagating a corrected TTS duration downstream turns a failing render into a passing one ===
@@ -248,7 +248,7 @@ function run() {
 
   // === sanity on the reused, not reinvented, threshold source ===
   scenario("the acceptance-policy padding ratio constant matches productionAcceptanceDuration (5/90), not an arbitrary number", () => {
-    assert.ok(Math.abs(ACCEPTANCE_POLICY_PADDING_RATIO - 5 / 90) < 1e-9);
+    assert.ok(Math.abs(ACCEPTANCE_POLICY_PADDING_RATIO - 5 / 90) < 1e-9, "assert.ok(Math.abs(ACCEPTANCE_POLICY_PADDING_RATIO - 5 / 90) < 1e-9)");
   });
 
   console.log(`Video duration coverage guard smoke: PASS (${count} scenarios)`);
