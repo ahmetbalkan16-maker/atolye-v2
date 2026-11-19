@@ -156,6 +156,26 @@ function catalogText(catalog: readonly PackCatalogEntry[]): string {
     .join("\n");
 }
 
+/**
+ * A long video's retention beats beside rule 1 (owner, 19 Nov 2026: "content skills — bize yarıyorsa sisteme entegre
+ * et"), paraphrased from github.com/sergebulaev/youtube-skills (MIT, f422cea3,
+ * skills/yt-hook-scripter/references/retention-beats.md): a cold open, the title's promise said again early, an open
+ * question paid off later, a re-hook at every chapter break. A Short has its own opening rules (SHORTS_RULES).
+ * EpisodeValidator.throatClearingOpening warns when the written first lines still open on a greeting.
+ */
+const RETENTION_BEATS: Readonly<Record<ScriptLanguage, string>> = {
+  tr: `   Soğuk açılış: videonun ilk satırı izleyiciyi doğrudan olayın içine atar — selam, "hoş geldiniz", "bu videoda",
+   "bugün sizlere" yok. İlk ~10 saniyede anlatım başlığın vaadini kendi sözleriyle yeniden söyler; erkenden açık bir soru
+   sorar, cevabını ancak ilerde verir (ve mutlaka verir). Her bölüm geçişinde küçük bir yeniden kanca: bölüm sıradakine
+   merak uyandıran bir ipucuyla biter ya da yeni bölüm beklenmedik bir dönüşle açılır.
+`,
+  en: `   Cold open: the video's very first line drops the viewer into the story — no greeting, no "welcome", no "in this
+   video", no "today we". Within its first ~10 seconds the narration restates the title's promise in its own words; early
+   on it raises one open question that the story answers only later (and does answer). At every chapter break, a small
+   re-hook: end the chapter on a tease of what comes next, or open the new one with a turn the viewer did not expect.
+`,
+};
+
 const RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `Sen Atölye'nin baş senaristisin: kukla/çöp adam karakterlerle anlatılan, mizahi ama tarihsel olarak doğru Türkçe YouTube belgeselleri yazıyorsun.
 
@@ -168,7 +188,7 @@ TON: ${b.ton}
 
 ANLATIM KURALLARI
 1. Kanca: ilk 10 saniyede bir soru, çatışma ya da şaşırtıcı bilgi; ilk 30 saniyede "bu videoda ne öğreneceksin" vaadi.
-2. Anlatıcı ile karakter diyaloğu karışık; sahnelerin en az %30'unda en az iki satır görünür karakterlere aittir.
+${isShortBrief(b) ? "" : RETENTION_BEATS.tr}2. Anlatıcı ile karakter diyaloğu karışık; sahnelerin en az %30'unda en az iki satır görünür karakterlere aittir.
 3. Her 20–40 saniyede bir espri ya da ters köşe. Mizah zekice ve saygılı; argo, küfür ve hakaret yok.
 4. Kısa cümleler: satır başına ortalama en fazla 14 kelime, hiçbir satır 22 kelimeyi geçmez; konuşma dili.
 5. Tarihsel doğruluk: anlatıcının her olgusal iddiası "kaynak" alanıyla kaynaklar listesine bağlanır. Tartışmalı bilgi
@@ -189,7 +209,7 @@ TONE: ${b.ton}
 
 STORYTELLING RULES
 1. Hook: a question, a conflict or a surprising fact within the first 10 seconds; a clear "what you'll learn" promise within 30 seconds.
-2. Mix narrator and character dialogue; in at least 40% of scenes at least two lines belong to visible characters.
+${isShortBrief(b) ? "" : RETENTION_BEATS.en}2. Mix narrator and character dialogue; in at least 40% of scenes at least two lines belong to visible characters.
    Show, don't only tell: most narrator lines are acted out by the characters on screen (a gesture, a face, a sound
    effect), and a character often answers the narrator's line with a short quip right after; now and then a character
    talks back to the narrator.
@@ -264,6 +284,8 @@ export function shortsShape(targetS: number): { readonly min: number; readonly m
  * A Short's recipe (owner, 2 Nov 2026): a hook in the first 2 seconds, one moment, ~150 words, no cover or subscribe
  * line, the last line leading back into the first. It overrides the long rules where they differ. Since 11 Nov 2026 a
  * Short runs up to 3 minutes: the moment then gets its build-up and outcome (still one event, never a whole war).
+ * Since 13 Nov 2026 the main character's subscribe invitation is the last line, so the loop became a callback: the line
+ * before it answers the first line (19 Nov 2026, retention beats — see RETENTION_BEATS).
  */
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `
@@ -280,6 +302,8 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
   pulları ve gemileri oynar.
 - "kelime" ve "bolum" yazı kartı YOK (tam ekran siyah kart akışta kaydırtır); en fazla ilk sahnede bir "yer_tarih".
 - "Ne öğreneceksin" vaadi ve sonraki videoya köprü YOK.
+- Son, başa bağlanır: davetten hemen önceki satır ilk satırın sözüne ya da sorusuna geri döner (cevabı ya da tersi), video
+  başa döndüğünde kanca yeniden anlam kazanır.
 - EN SON satırı ANA KARAKTER (en çok konuşan görünür karakter, son sahnede) kendi üslubuyla söyler: izleyiciyi kanalımız
   Crowns & Doodles'a abone olmaya davet eden, konuya bağlı, sıcak ve esprili bir cümle (en fazla 14 kelime).`,
   en: (b, words) => `
@@ -296,6 +320,8 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
   badges, tokens and ships on the map.
 - NO "kelime" or "bolum" title card (a full-screen black card makes a feed viewer swipe); at most one "yer_tarih" card on the first scene.
 - NO "what you'll learn" promise and NO bridge to the next video.
+- The end ties back to the start: the line just before the invitation calls back to the first line's words or question
+  (its answer, or its twist), so when the Short starts over the hook lands again.
 - The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last
   scene), in their own voice: a warm, witty invitation to subscribe to our channel Crowns & Doodles, tied to the topic,
   at most 14 words.`,

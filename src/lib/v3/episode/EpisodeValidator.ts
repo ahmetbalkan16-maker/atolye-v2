@@ -714,7 +714,66 @@ export function validateEpisode(input: unknown): EpisodeValidation {
   };
   if (scenes.length && metrics.dialogueSceneRatio < 0.3) warn("DIYALOG_AZ", "$.sahneler", `diyaloglu sahne oranı %${Math.round(metrics.dialogueSceneRatio * 100)} (hedef ≥%30)`);
   if (lineCount && metrics.averageWordsPerLine > 14) warn("CUMLE_UZUN", "$.sahneler", `ortalama ${metrics.averageWordsPerLine.toFixed(1)} kelime/satır (hedef ≤14)`);
+  for (const opening of openingLines(scenes)) {
+    const hit = throatClearingOpening(opening.text);
+    if (hit) warn("ACILIS_SELAM", opening.path, `video selam/giriş cümlesiyle açılıyor ("${hit}"): soğuk açılış — ilk satır doğrudan olayın içinden başlar`);
+  }
   return { ok: errors.length === 0, errors, warnings, metrics };
+}
+
+/**
+ * Openings that clear the throat instead of hooking (owner, 19 Nov 2026: "content skills — bize yarıyorsa sisteme entegre
+ * et"). Retention beats paraphrased from github.com/sergebulaev/youtube-skills (MIT, f422cea3,
+ * skills/yt-hook-scripter/references/retention-beats.md): the first seconds decide who stays, and a greeting, a "welcome"
+ * or an "in this video" spends them on nothing. Matched at the start of folded text (ı→i, marks dropped, lower case), so
+ * "Hoş geldiniz" and "Welcome back" both count; a bare "Hey!" or "Today, Constantinople fell" does not.
+ */
+const THROAT_CLEARING: readonly RegExp[] = [
+  /^hello\b/,
+  /^(hi|hey|greetings|what'?s up)\b[\s,!.]*(every ?one|everybody|there|guys|folks|friends|y'?all|all)\b/,
+  /^welcome\b/,
+  /^(in|on) (this|today'?s) (video|episode)\b/,
+  /^today,? (we|i)\b/,
+  /^let'?s (talk|dive|get started|begin|start|take a look)\b/,
+  /^before we (begin|start|get started|dive in)\b/,
+  /^(don'?t|do not) forget to (like|subscribe|hit)\b/,
+  /^(herkese )?(merhaba|selam(lar)?)\b/,
+  /^(tekrar |kanalimiza )?hos ?geldin(iz)?\b/,
+  /^(bu|bugunku) (videoda|bolumde)\b/,
+  /^bugun (sizlere|size|sizinle|bu videoda)\b/,
+  /^baslamadan (once|evvel)\b/,
+  /^abone olmayi unutma/,
+  /^(sevgili )?(arkadaslar|izleyiciler)\b/,
+  /^(haydi|hadi) (baslayalim|konusalim)\b/,
+];
+
+/** The greeting or throat-clearing phrase a line opens with, or undefined when it opens on the story itself. */
+export function throatClearingOpening(text: string): string | undefined {
+  const folded = text
+    .replace(/ı/g, "i")
+    .replace(/İ/g, "I")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[’`´]/g, "'")
+    .replace(/^[^\p{L}]+/u, "");
+  for (const re of THROAT_CLEARING) {
+    const m = re.exec(folded);
+    if (m) return m[0];
+  }
+  return undefined;
+}
+
+/** The episode's first two spoken lines (a Short's character hook and the narrator after it), with their paths. */
+function openingLines(scenes: readonly unknown[]): { text: string; path: string }[] {
+  const out: { text: string; path: string }[] = [];
+  scenes.forEach((s, si) => {
+    if (!isObj(s) || !Array.isArray(s.satirlar)) return;
+    s.satirlar.forEach((l, li) => {
+      if (out.length < 2 && isObj(l) && typeof l.metin === "string" && l.metin.trim()) out.push({ text: l.metin, path: `$.sahneler[${si}].satirlar[${li}]` });
+    });
+  });
+  return out;
 }
 
 export function assertEpisode(input: unknown): Episode {

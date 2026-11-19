@@ -25,7 +25,7 @@ import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, markOn
 import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
-import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
+import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -420,6 +420,28 @@ async function main() {
     // Owner, 11 Nov 2026: real period pictures in the Shorts, as in the Gallipoli video — every map scene marks its line.
     assert.ok(long.includes("REAL PERIOD PICTURES") && long.includes("EVERY map scene marks one NARRATOR line") && !en.includes("REAL PERIOD PICTURES"), long.slice(0, 300));
     assert.ok(writingPrompt({ konu: "Taranto", donem: "1940", hedefSureSn: 180, ton: "mizahi", dil: "tr" }, CATALOG).includes("GERÇEK DÖNEM GÖRSELLERİ"));
+  });
+
+  await scenario("I2 retention beats (owner, 19 Nov 2026, from youtube-skills): a long video's cold open, promise, open question and re-hooks; a Short's callback; a greeting opening is warned", () => {
+    const en = writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 1500, ton: "epik", dil: "en" }, CATALOG);
+    for (const needle of ["Cold open", "restates the title's promise", "one open question", "re-hook"]) assert.ok(en.includes(needle), `long rule missing: ${needle}`);
+    const tr = writingPrompt({ konu: "Fetih", donem: "1453", hedefSureSn: 1500, ton: "mizahi", dil: "tr" }, CATALOG);
+    assert.ok(tr.includes("Soğuk açılış") && tr.includes("yeniden kanca"), "tr long rule missing");
+    // A Short keeps its own 2-second character hook and ends on the invitation: no long beats, a callback instead.
+    const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 170, ton: "mizahi", dil: "en" }, CATALOG);
+    assert.ok(!short.includes("Cold open") && short.includes("calls back to the first line") && short.indexOf("calls back to the first line") < short.indexOf("The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last\n  scene)"));
+    assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 170, ton: "mizahi", dil: "tr" }, CATALOG).includes("Son, başa bağlanır"));
+    for (const [line, hit] of [["Hello everyone, and welcome!", "hello"], ["Hi guys! Rome is about to fall.", "hi guys"], ["Welcome back to Crowns & Doodles.", "welcome"], ["In this video we look at Rome.", "in this video"], ["Today, we talk about Rome.", "today, we"], ["Let's talk about Rome.", "let's talk"], ["Before we begin, a word.", "before we begin"], ["Don't forget to subscribe!", "don't forget to subscribe"], ["Herkese merhaba!", "herkese merhaba"], ["Hoş geldiniz.", "hos geldiniz"], ["Bu videoda İstanbul'un fethini anlatacağız.", "bu videoda"], ["“Bugün sizlere bir kaleden bahsedeceğim.", "bugun sizlere"]] as const) assert.equal(throatClearingOpening(line), hit, line);
+    for (const line of ["Hey! Who moved my cannon?", "Today, Constantinople fell.", "Welcoming no one, Mehmed rode on.", "Rome had one job.", "Bir kale dört ayda biter mi?", "Hiç kimse beklemiyordu."]) assert.equal(throatClearingOpening(line), undefined, line);
+    // The validator warns (never fails) when the first spoken lines clear their throat; a later greeting is a character's.
+    const ep = episode();
+    assert.equal(validateEpisode(ep).warnings.some((w) => w.code === "ACILIS_SELAM"), false);
+    const greeted = structuredClone(ep) as unknown as { sahneler: { satirlar: { metin: string }[] }[] };
+    greeted.sahneler[0]!.satirlar[1]!.metin = "Bu videoda Rumeli Hisarı'nı anlatacağız.";
+    greeted.sahneler[1]!.satirlar[0]!.metin = "Merhaba Halil!";
+    const v = validateEpisode(greeted);
+    assert.equal(v.ok, true, JSON.stringify(v.errors.slice(0, 2)));
+    assert.deepEqual(v.warnings.filter((w) => w.code === "ACILIS_SELAM").map((w) => w.path), ["$.sahneler[0].satirlar[1]"]);
   });
 
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {
