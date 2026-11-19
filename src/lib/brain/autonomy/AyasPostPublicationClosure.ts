@@ -56,7 +56,32 @@ function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
 }
 
+/**
+ * PowerShell that ends what a timed-out Windows launch left behind. Node's timeout kills only the `cmd.exe` it started;
+ * the `npx` → `graphify` processes under it keep running as orphans (open since 2026-11-16). Their ParentProcessId
+ * still names the dead launcher, so every direct child of that pid created after the launch began is ended with its
+ * own tree (`taskkill /T /F`). The creation-time floor keeps a reused pid's older, unrelated children out.
+ */
+export function ayasWindowsOrphanSweepScript(launcherPid: number, startedAtMs: number): string {
+  if (!Number.isSafeInteger(launcherPid) || launcherPid <= 0) throw new RangeError("launcher pid must be a positive integer");
+  if (!Number.isSafeInteger(startedAtMs) || startedAtMs <= 0) throw new RangeError("start time must be epoch milliseconds");
+  return `$floor = [DateTimeOffset]::FromUnixTimeMilliseconds(${startedAtMs - 2_000}).LocalDateTime; `
+    + `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${launcherPid}' | `
+    + `Where-Object { $_.CreationDate -ge $floor } | `
+    + `ForEach-Object { & taskkill.exe /PID $_.ProcessId /T /F 2>&1 | Out-Null }`;
+}
+
+/** Best-effort sweep after a Windows timeout; a sweep failure never hides the refresh failure itself. */
+export function sweepAyasWindowsOrphans(launcherPid: number, startedAtMs: number): void {
+  try {
+    execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ayasWindowsOrphanSweepScript(launcherPid, startedAtMs)], {
+      encoding: "utf8", windowsHide: true, timeout: 60_000,
+    });
+  } catch { /* the closure already fails closed; nothing else to do */ }
+}
+
 function defaultRefreshGraphify(repoRoot: string): void {
+  const startedAtMs = Date.now();
   try {
     const graphifyArgs = ["graphify", "update", "--scope", "all", "--no-description", "--no-label", "."];
     // Node cannot directly spawn a Windows .cmd shim (spawnSync npx.cmd EINVAL).
@@ -69,6 +94,8 @@ function defaultRefreshGraphify(repoRoot: string): void {
       cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: AYAS_POST_PUBLICATION_GRAPHIFY_TIMEOUT_MS,
     });
   } catch (error) {
+    const launch = error as { readonly code?: unknown; readonly pid?: unknown };
+    if (process.platform === "win32" && launch.code === "ETIMEDOUT" && typeof launch.pid === "number") sweepAyasWindowsOrphans(launch.pid, startedAtMs);
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_REFRESH_FAILED", error instanceof Error ? error.message : String(error));
   }
 }
