@@ -3,7 +3,7 @@ import path from "node:path";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runProcess } from "../util/Proc";
 import { readJsonAnswer } from "./Council";
-import { codeExperienceLines, devBrainDir, gradedFiles, isV3Smoke, listLessons, listWriteExams, recordLesson, recordWriteExam, relevantLessons, say, similarChanges, listChanges, type WriteExam, writeReadiness } from "./DevBrain";
+import { codeExperienceLines, devBrainDir, gradedFiles, isV3Smoke, listLessons, listWriteExams, modelUnreached, recordLesson, recordWriteExam, relevantLessons, say, similarChanges, listChanges, type WriteExam, writeReadiness } from "./DevBrain";
 import { forbiddenChanges } from "./DevQueue";
 import { dropWorktree, linkShared } from "./Developer";
 import { codeOf, commitFiles, commitTask, guessTask, meaningNeighbours, type ResearchDeps, v3Commits } from "./DevResearch";
@@ -61,7 +61,8 @@ export function examCapUsd(env: Readonly<Record<string, string | undefined>> = p
 
 /** The commits fit for an exam, newest first, that it has not sat yet (at most `maxFiles` graded files each). */
 export async function examCandidates(repoRoot: string, workRoot: string, limit = 400, maxFiles = examCodeFiles()): Promise<ExamCommit[]> {
-  const sat = new Set((await listWriteExams(workRoot)).map((x) => x.id));
+  // An exam whose model was never reached did not happen: that commit is still a candidate.
+  const sat = new Set((await listWriteExams(workRoot)).filter((x) => !modelUnreached(x)).map((x) => x.id));
   const out: ExamCommit[] = [];
   for (const c of (await v3Commits(repoRoot, limit)).reverse()) {
     if (sat.has(c.sha)) continue;
@@ -186,6 +187,8 @@ export async function writeExam(c: ExamCommit, d: ExamDeps): Promise<WriteExam> 
       { dir, repoRoot: d.repoRoot, budget: d.writer.budget, model: d.writer.model, changed, diff: () => sandboxDiff(dir, c.testler), check: async (ch) => runChecks(dir, checksFor(dir, ch, c.testler)), log: d.log, ...(d.maxTurns ? { maxTurns: d.maxTurns } : {}), ...(d.stop ? { stop: d.stop } : {}) },
     );
     if (w.durdu) return await record({ ...base, sonuc: "gecersiz", turlar: w.turlar, maliyetUsd: w.maliyetUsd, dosyalar: w.dosyalar, model: w.model, neden: `yarıda kaldı: ${w.durdu}` });
+    // The model was never reached (expired key, no credit): no exam happened — no lesson, and the commit stays a candidate.
+    if (!w.gecti && modelUnreached({ turlar: w.turlar, maliyetUsd: w.maliyetUsd, neden: w.neden })) return await record({ ...base, sonuc: "gecersiz", turlar: 0, maliyetUsd: 0, dosyalar: [], model: w.model, neden: w.neden ?? "" });
     // What it wrote is kept to read later (the exam's tests left out).
     const patchDir = path.join(devBrainDir(d.workRoot), "yazma");
     await fs.mkdir(patchDir, { recursive: true });
@@ -248,6 +251,34 @@ export async function apprenticePolicy(repoRoot: string, workRoot: string, env: 
   if (mode !== "yedek" && mode !== "once") return undefined;
   if (!writeReadiness(await listWriteExams(workRoot)).yazabilir) return undefined;
   return { agent: apprenticeAgent(repoRoot, workRoot), when: mode };
+}
+
+/** Days between two exam days (`ATOLYE_V3_CIRAK_SINAV_GUN`; 1 = every day as before 19 Nov 2026). */
+export const EXAM_EVERY_DAYS = 7;
+export function examEveryDays(env: Readonly<Record<string, string | undefined>> = process.env): number {
+  const n = Math.floor(Number(env.ATOLYE_V3_CIRAK_SINAV_GUN));
+  return n >= 1 ? n : EXAM_EVERY_DAYS;
+}
+
+/** The machine's own calendar day (the owner's "bugün"), not the UTC one. */
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Whether the writing exams may run today (owner, 19 Nov 2026: "çırak her gün değil haftada 1 gün yapsın — bugün yaptı,
+ * haftaya bugün yapsın; boşu boşuna sürekli para harcıyor"). The exam day is the last day an exam really spent money;
+ * on that day the exams go on under the day's cap, then not again until `every` days later. An exam whose model was
+ * never reached (modelUnreached) or that cost nothing does not make a day. Learning commits, lessons and cases is not
+ * gated — only the paid writing exams.
+ */
+export function examDayDue(exams: readonly WriteExam[], now = new Date(), every = examEveryDays()): { readonly due: boolean; readonly son?: string; readonly sonraki?: string } {
+  const paid = exams.filter((x) => x.maliyetUsd > 0 && !modelUnreached(x)).map((x) => new Date(x.tarih)).filter((d) => !Number.isNaN(d.getTime()));
+  if (!paid.length) return { due: true };
+  const last = new Date(Math.max(...paid.map((d) => d.getTime())));
+  const son = localDay(last);
+  const next = new Date(last.getFullYear(), last.getMonth(), last.getDate() + every);
+  const sonraki = localDay(next);
+  const today = localDay(now);
+  return { due: today === son || today >= sonraki, son, sonraki };
 }
 
 /** Today's spend on writing exams (the daily cap's measure). */

@@ -15,8 +15,8 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import os from "node:os";
 import path from "node:path";
 import { loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
-import { addedTestCode, apprenticePolicy, EXAM_CAP_USD, EXAM_CODE_FILES, EXAM_MAX_CODE_FILES, examCandidates, examCapUsd, examCodeFiles, testImports, writeExam } from "../src/lib/v3/council/DevApprentice";
-import { listLessons, listWriteExams, loadDevBrainView, recordWriteExam, type WriteExam, WRITE_MIN_EXAMS, writeReadiness } from "../src/lib/v3/council/DevBrain";
+import { addedTestCode, apprenticePolicy, EXAM_CAP_USD, EXAM_CODE_FILES, EXAM_MAX_CODE_FILES, examCandidates, examCapUsd, examCodeFiles, examDayDue, examEveryDays, testImports, writeExam } from "../src/lib/v3/council/DevApprentice";
+import { listLessons, listWriteExams, loadDevBrainView, modelUnreached, recordWriteExam, type WriteExam, WRITE_MIN_EXAMS, writeReadiness } from "../src/lib/v3/council/DevBrain";
 import { dropWorktree, linkShared } from "../src/lib/v3/council/Developer";
 import { runDevJob } from "../src/lib/v3/council/DevResearch";
 import { BASE_SKILLS, listSkills, parseSkill, pickSkills, skillsText } from "../src/lib/v3/council/DevSkills";
@@ -362,6 +362,26 @@ async function main() {
     const backup = await runDevJob((await listProposals(work)).find((x) => x.proposal.id === id)!.proposal, { repoRoot: repo, workRoot: work, budget: mockBudget([]), model: MOCK, log: () => {} }, { agent: claude, checks: [], worktreeRoot: path.join(base, "gelistirme"), cirak: { agent: stuck, when: "once" } });
     assert.deepEqual([backup.durum, backup.is?.yazan, backup.is?.deneme], ["hazir", "claude", 2], JSON.stringify(backup.is));
     assert.ok(existsSync(path.join(work, "_kutuphane", "gelisim", "isler", id, "ajan-1.log")), "the apprentice's try is kept beside Claude's");
+  });
+
+  await scenario("W one exam day a week (owner 19 Nov 2026); an exam whose model was never reached does not count", () => {
+    const ex = (tarih: string, sonuc: WriteExam["sonuc"], maliyetUsd: number, neden = "", turlar = 3): WriteExam => ({ id: tarih, tarih, gorev: "g", sonuc, turlar, maliyetUsd, dosyalar: [], gercek: [], testler: [], model: "gpt-4.1", neden });
+    const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h);
+    const dead = (d: number) => ex(at(2026, 11, d, 13).toISOString(), "kaldi", 0, "model çağrısı yapılamadı: OpenAI HTTP 401: Your API key has expired", 0);
+    const week = [ex(at(2026, 11, 18, 8).toISOString(), "kaldi", 0.16), dead(19), dead(19)];
+    assert.equal(examDayDue([], at(2026, 11, 19)).due, true, "never examined: today");
+    assert.deepEqual(examDayDue(week, at(2026, 11, 18, 22), 7), { due: true, son: "2026-11-18", sonraki: "2026-11-25" }, "the exam day itself goes on under the day's cap");
+    assert.equal(examDayDue(week, at(2026, 11, 19), 7).due, false, "the expired-key day is not an exam day; the next day waits");
+    assert.equal(examDayDue(week, at(2026, 11, 24, 23), 7).due, false);
+    assert.equal(examDayDue(week, at(2026, 11, 25, 0), 7).due, true, "a week later, same weekday");
+    assert.equal(examDayDue(week, at(2026, 11, 19), 1).due, true, "ATOLYE_V3_CIRAK_SINAV_GUN=1 is daily as before");
+    assert.equal(examEveryDays({}), 7);
+    assert.equal(examEveryDays({ ATOLYE_V3_CIRAK_SINAV_GUN: "3" }), 3);
+    assert.equal(modelUnreached(dead(19)), true);
+    assert.equal(modelUnreached(ex("t", "kaldi", 0.2, "model çağrısı yapılamadı: cap\nSON TURUN SONUCU: x", 4)), false, "a cap hit after real rounds is a real try");
+    const passed = Array.from({ length: WRITE_MIN_EXAMS }, (_, i) => ex(`p${i}`, i % 2 ? "gecti" : "kaldi", 0.1));
+    assert.equal(writeReadiness([...passed, ...Array.from({ length: 9 }, () => dead(19))]).sayilan, WRITE_MIN_EXAMS, "nine expired-key 'kaldi' records leave the score as it was");
+    assert.equal(writeReadiness([...passed, ...Array.from({ length: 9 }, () => dead(19))]).yazabilir, true);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

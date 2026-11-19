@@ -23,8 +23,8 @@ import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
 import { researchTopic, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
 import { brainBudget, brainVision, steadyJudge, writerBudget } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
-import { apprenticePolicy, examCandidates, examCapUsd, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
-import { listGrades, listWriteExams, readiness, writeReadiness } from "../../src/lib/v3/council/DevBrain";
+import { apprenticePolicy, examCandidates, examCapUsd, examDayDue, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
+import { listGrades, listWriteExams, modelUnreached, readiness, writeReadiness } from "../../src/lib/v3/council/DevBrain";
 import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { learnAyasCode, learnCommitLessons, learnRefs } from "../../src/lib/v3/council/CommitLessons";
@@ -120,11 +120,14 @@ const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
 ];
 
 /**
- * One writing exam per cycle (owner, 6 Nov 2026: "Claude olmadan yazabilecek duruma gelsin"), inside its day's cap,
- * only with OpenAI (the local model's code failed the checks and heated the card). `ATOLYE_V3_CIRAK_SINAV=0` stops it.
+ * Writing exams (owner, 6 Nov 2026: "Claude olmadan yazabilecek duruma gelsin"), on one exam day a week since 19 Nov
+ * 2026 (examDayDue), inside its day's cap, only with OpenAI (the local model's code failed the checks and heated the card). `ATOLYE_V3_CIRAK_SINAV=0` stops it.
  */
 async function writingExam(paths: V3Paths, research: Parameters<typeof writeExam>[1]["research"]): Promise<{ yapildi: boolean; satir: string }> {
   if (/^(0|kapali|off)$/i.test(process.env.ATOLYE_V3_CIRAK_SINAV ?? "")) return { yapildi: false, satir: "kapalı (ATOLYE_V3_CIRAK_SINAV=0)" };
+  // Owner, 19 Nov 2026: one exam day a week, not every day (examDayDue; `ATOLYE_V3_CIRAK_SINAV_GUN` sets the days).
+  const day = examDayDue(await listWriteExams(paths.workRoot));
+  if (!day.due) return { yapildi: false, satir: `haftalık sınav günü değil (son ${day.son}, sıradaki ${day.sonraki})` };
   // An order that comes in stops the exam at its next round (the watcher waits for this cycle before producing).
   const stop = async () => ((await listOrders(paths.workRoot)).some((o) => o.order.durum === "bekliyor") ? "sipariş geldi" : undefined);
   const lines: string[] = [];
@@ -149,6 +152,8 @@ async function writingExam(paths: V3Paths, research: Parameters<typeof writeExam
     writerSpent += x.maliyetUsd;
     lines.push(`"${x.gorev.slice(0, 60)}" ${x.sonuc === "gecti" ? "geçti" : x.sonuc === "kaldi" ? "kaldı" : "sayılmadı"} (${x.turlar} tur, $${x.maliyetUsd.toFixed(3)})`);
     if (x.neden?.startsWith("yarıda kaldı")) break;
+    // An unreachable model (expired key, no credit) fails every next exam the same way: stop the cycle's exams.
+    if (modelUnreached(x)) break;
   }
   return { yapildi: true, satir: `${lines.join(" · ")}; ${writeReadiness(await listWriteExams(paths.workRoot)).ozet}` };
 }

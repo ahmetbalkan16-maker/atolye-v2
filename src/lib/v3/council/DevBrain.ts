@@ -772,8 +772,16 @@ export interface WriteReadiness {
   readonly ozet: string;
 }
 
+/**
+ * An exam in which the model was never reached (no round, nothing spent: an expired key, no credit). It says nothing
+ * about the apprentice: on 19 Nov 2026 an expired OpenAI key recorded nine such exams as `kaldi` and its score dropped
+ * for nothing. Read as not counted, also in records written before this rule.
+ */
+export const modelUnreached = (e: Pick<WriteExam, "turlar" | "maliyetUsd" | "neden">): boolean =>
+  e.turlar === 0 && e.maliyetUsd === 0 && /^model çağrısı yapılamadı/.test(e.neden ?? "");
+
 export function writeReadiness(exams: readonly WriteExam[]): WriteReadiness {
-  const counted = exams.filter((e) => e.sonuc !== "gecersiz").slice(-WRITE_WINDOW);
+  const counted = exams.filter((e) => e.sonuc !== "gecersiz" && !modelUnreached(e)).slice(-WRITE_WINDOW);
   const gecen = counted.filter((e) => e.sonuc === "gecti").length;
   const oran = counted.length ? Math.round((gecen / counted.length) * 100) : 0;
   const yazabilir = counted.length >= WRITE_MIN_EXAMS && gecen / counted.length >= WRITE_PASS_SHARE;
