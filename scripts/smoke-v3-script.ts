@@ -26,6 +26,7 @@ import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
+import { dateOpener, HOOK_FOLLOW_MAX_WORDS, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems } from "../src/lib/v3/script/HookFollow";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -444,6 +445,50 @@ async function main() {
     assert.deepEqual(v.warnings.filter((w) => w.code === "ACILIS_SELAM").map((w) => w.path), ["$.sahneler[0].satirlar[1]"]);
   });
 
+  await scenario("I3 a Short's line after the hook (19 Nov 2026, organic retention: half the feed left on it): no date opener, at most 12 words — asked in the repair round, in the prompt, measured", async () => {
+    // The eight Shorts made so far: every narrator line after the hook fails (date opener and/or too long).
+    const real: [string, HookFollowFault[]][] = [
+      ["Around 75 BC, Julius Caesar was kidnapped by Cilician pirates along the southern coast of Asia Minor.", ["uzun", "tarih"]],
+      ["Sultan Khalid seized the palace after the old sultan died suddenly. The British wanted someone else.", ["uzun"]],
+      ["Napoleon wakes to a soaked battlefield. His last big gamble, and it's already slippery.", ["uzun"]],
+      ["On August 2nd, 216 BC, Rome fields its biggest army ever—eighty-six thousand men. Hannibal? Only fifty thousand.", ["uzun", "tarih"]],
+      ["The night of November 11, 1940. Taranto, Italy: the heart of the Italian battle fleet.", ["uzun", "tarih"]],
+      ["It’s 1:25 a.m. Two fleets have stumbled into each other at point-blank range.", ["uzun", "tarih"]],
+      ["Baghdad, December 1638. The Ottomans have been pounding these walls for weeks. Sultan Murad IV is not a patient man.", ["uzun", "tarih"]],
+      ["MÖ 216'da Roma en büyük ordusunu sahaya sürdü.", ["tarih"]],
+    ];
+    for (const [line, faults] of real) assert.deepEqual(hookFollowFaults(line), faults, line);
+    for (const line of ["Rome just tripled its own ransom.", "Murad IV marches with 108,589 men.", "(grinning) Twenty talents? He asked for fifty.", "Kale dört ayda bitmezse Bizans gemileri geçer."]) assert.deepEqual(hookFollowFaults(line), [], line);
+    assert.equal(dateOpener("Twenty-one slow biplanes take off. It is 1940."), undefined, "a date later in the line is fine");
+    // Only the narrator's line after the hook is judged; a character answering the hook keeps the scene going.
+    const ep = episode();
+    assert.deepEqual(hookFollowLine(ep), { sahne: "s1-kanca", satir: 2, metin: "Hisar 1452 yazında tamamlandı.", anlatici: true });
+    assert.match(hookFollowProblems(ep)[0]!, /^scene "s1-kanca" line 2, the narrator's line right after the hook, opens on a date or a time \("1452"\)[^]*HOOK FOLLOW-UP$/);
+    const answered = { ...ep, sahneler: ep.sahneler.map((s, i) => (i === 0 ? { ...s, satirlar: [s.satirlar[0]!, { karakter: "halil", metin: "Around 75 BC, nobody built that fast, my Sultan!", duygu: "korkmus" as const, kurgu: true }] } : s)) };
+    assert.deepEqual(hookFollowProblems(answered), []);
+    // The prompt of a Short says it (both languages); a long video's does not.
+    assert.ok(writingPrompt({ konu: "Cannae", donem: "216 BC", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG).includes(`at stake in at most ${HOOK_FOLLOW_MAX_WORDS} words`));
+    assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 60, ton: "mizahi", dil: "tr" }, CATALOG).includes("Kancadan hemen sonraki satır"));
+    assert.ok(!writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 1500, ton: "epik", dil: "en" }, CATALOG).includes("The line right after the hook"));
+    // Through the writer: a 50 s Short's repair round asks for it beside the map shares; the fixed line is kept.
+    const longer = (follow: string) => {
+      const x = JSON.parse(validJson());
+      x.sahneler[0].satirlar[1].metin = follow;
+      for (let i = 0; i < 6; i++) x.sahneler[1].satirlar.push({ karakter: "halil", metin: "Sultanım, bu iş hiç de kolay olmayacak gibi görünüyor.", duygu: "korkmus", kurgu: true });
+      return JSON.stringify(x);
+    };
+    const fixedLine = "Bitmezse Bizans gemileri Boğaz'dan geçer.";
+    const openai = new FakeProvider([longer("Hisar 1452 yazında, yalnızca dört ayda tamamlandı ve Boğaz'ın en dar yerine, Anadolu Hisarı'nın tam karşısına kuruldu."), longer(fixedLine), JSON.stringify({ iddialar: [] })]);
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 1 });
+    const ask = openai.calls[1]!.prompt;
+    assert.ok(ask.includes("HOOK FOLLOW-UP") && ask.includes('("1452")') && ask.includes("has 17 words (at most 12)") && ask.includes("SHARES OF A SHORT"), ask.split("JSON:")[0]);
+    assert.equal(out.episode.sahneler[0]!.satirlar[1]!.metin, fixedLine);
+    // A Short under half a minute is not asked (as the map shares are not): the 12–25 s fixtures keep their rounds.
+    const short = new FakeProvider([longer("Hisar 1452 yazında tamamlandı."), JSON.stringify({ iddialar: [] })]);
+    await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 25, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: short } }), maxRepairs: 1 });
+    assert.ok(!short.calls.some((c) => c.prompt.includes("HOOK FOLLOW-UP")));
+  });
+
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "v3-secret-"));
     const file = path.join(dir, "main.env");
@@ -510,7 +555,8 @@ async function main() {
     const logs: string[] = [];
     const kept = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: again } }), log: (m) => logs.push(m), maxRepairs: 0 });
     assert.equal(kept.spokenWords, 21, "the shorter script with its map kept");
-    assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (1 → 2)")), logs.join("\n"));
+    // Since 19 Nov 2026 the count holds the fixture's line after the hook too ("Hisar 1452 …" opens on a date): 1 → 2 became 2 → 3.
+    assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (2 → 3)")), logs.join("\n"));
   });
 
   await scenario("P a group the narrator tells is seen as a crowd: asked in the repair round, added as a last resort", async () => {

@@ -4,6 +4,7 @@ import { countWords, type EpisodeValidation, validateEpisode } from "../episode/
 import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
+import { hookFollowProblems } from "./HookFollow";
 import { addToldStrengths } from "./ToldNumbers";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, markMapPictures, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
@@ -572,7 +573,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
+    // A Short's line after the hook is asked with its shares (19 Nov 2026, the channel's retention curves: HookFollow).
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -629,7 +631,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written, shortShares).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
+    const before = mapProblems(written).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
     if (revised.quality.length > before) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
       continue;

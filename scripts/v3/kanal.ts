@@ -4,7 +4,8 @@
  *   npx tsx scripts/v3/kanal.ts hedefler [--sure 60,120,180]   goals from content/v3/kanal-hedefleri.json, per length
  *   npx tsx scripts/v3/kanal.ts ornek > olcum.json           an empty measurement to fill from YouTube Studio
  *   npx tsx scripts/v3/kanal.ts kaydet --dosya olcum.json    record it, judge it against the goals, teach the brains
- *   npx tsx scripts/v3/kanal.ts cek [--video <id>]           read YouTube Analytics now, record and teach (owner, 19 Nov 2026)
+ *   npx tsx scripts/v3/kanal.ts cek [--video <id>] [--yeniden] read YouTube Analytics now, record and teach (owner, 19 Nov 2026);
+ *                                                            --yeniden reads the moments already read again (organic numbers)
  *   npx tsx scripts/v3/kanal.ts rapor                        every measured video (Studio and API), the channel summary,
  *                                                            the next Short's targets, the pilot
  *   npx tsx scripts/v3/kanal.ts pilot                        the 6-Short pilot plan and what is measured of it
@@ -15,7 +16,7 @@
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { channelSummary, retentionDrops } from "../../src/lib/v3/publish/ChannelAnalyticsMap";
+import { AFTER_HOOK_S, channelSummary, feedCurve, holdAfterHook, retentionDrops } from "../../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   type ChannelGoals, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, PERFORMANCE_METRICS, type PerformanceEvaluation,
   pilotTrends, recordViewRatio, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
@@ -48,14 +49,19 @@ function evaluationLines(record: VideoPerformanceRecord, e: PerformanceEvaluatio
     lines.push(`  ${name}: ${pct(c.deger)} → ${STATUS[c.durum]}${target}`);
   }
   if (record.metrikler.ortIzlemeSn !== null) lines.push(`  Ort. görüntüleme süresi: ${record.metrikler.ortIzlemeSn} sn / ${record.sureSn} sn`);
-  if (record.tutma?.length) {
-    // The API's retention curve: the hook and the steepest drops (`cek` names their scenes when it links a production).
-    const r = retentionDrops(record.tutma, record.sureSn);
+  if (record.organik) lines.push(`  Reklamsız (organik): ${record.organik.goruntuleme} görüntüleme, ort. ${record.organik.ortIzlemeSn ?? "?"} sn; reklam payı ${pct(record.organik.reklamPayi)}`);
+  const feed = feedCurve(record);
+  if (feed.curve.length) {
+    // The API's retention curve — a mostly paid video's organic one — the hook, what is left after it, the steepest
+    // drops (`cek` names their scenes when it links a production).
+    const r = retentionDrops(feed.curve, record.sureSn);
+    const hold = holdAfterHook(feed.curve, record.sureSn);
     const parts = [
       ...(r.kanca ? [`ilk ${r.kanca.sn} sn'de %${Math.round(r.kanca.kayip * 100)} gitti${r.kanca.goreli !== undefined ? ` (göreli ${r.kanca.goreli.toFixed(2)})` : ""}`] : []),
+      ...(hold !== undefined ? [`kanca sonrası 3→${AFTER_HOOK_S} sn kalan %${Math.round(hold * 100)}`] : []),
       ...r.dususler.map((x) => `${x.basSn}–${x.bitSn} sn'de %${Math.round(x.kayip * 100)}`),
     ];
-    lines.push(`  İzleyici tutma: ${parts.length ? parts.join("; ") : "belirgin düşüş yok"}`);
+    lines.push(`  İzleyici tutma${feed.organik ? " (organik)" : ""}: ${parts.length ? parts.join("; ") : "belirgin düşüş yok"}`);
   }
   if (record.trafik) lines.push(`  Trafik: ${Object.entries(record.trafik).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   if (e.eksikMetrikler.length) lines.push(`  Ölçülmeyen: ${e.eksikMetrikler.join(", ")}`);
@@ -114,7 +120,7 @@ async function main(): Promise<void> {
   if (command === "cek") {
     // Owner, 19 Nov 2026: the channel's numbers straight from YouTube (the idle cycle does this once a day by itself).
     const videoId = arg("--video");
-    const r = await youtubeAnalyticsTick({ workRoot: paths.workRoot, goals, settings: youtubeSettings(paths.repoRoot), fetcher: fetch, force: true, ...(videoId ? { videoId } : {}), log: (l) => console.log(l) });
+    const r = await youtubeAnalyticsTick({ workRoot: paths.workRoot, goals, settings: youtubeSettings(paths.repoRoot), fetcher: fetch, force: true, ...(videoId ? { videoId } : {}), ...(process.argv.includes("--yeniden") ? { yeniden: true } : {}), log: (l) => console.log(l) });
     if (r.durum === "token-yok") throw new Error("YouTube bağlı değil — önce: npx tsx scripts/v3/youtube.ts baglan");
     if (!r.sonuc) {
       console.log(r.satir);

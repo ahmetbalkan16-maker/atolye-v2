@@ -1,9 +1,9 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { say } from "../council/DevBrain";
-import { type ApiVideo, analyticsRecord, dueMoments, isRecent, parseVideos, RECENT_DAYS, type ReportRow, reportRows } from "./ChannelAnalyticsMap";
-import { type ChannelGoals, type VideoPerformanceRecord } from "./ChannelGoals";
-import { judgeAndTeach, linkOrder, loadTimeline, ordersWithPackages, teachRetention } from "./ChannelLearning";
+import { type ApiVideo, analyticsRecord, dueMoments, isRecent, organicViews, parseVideos, RECENT_DAYS, type ReportRow, reportRows, TIMELINE_TOLERANCE_S } from "./ChannelAnalyticsMap";
+import { AD_SHARE_SPLIT, type ChannelGoals, type VideoPerformanceRecord } from "./ChannelGoals";
+import { judgeAndTeach, linkCandidates, loadTimeline, ordersWithPackages, teachRetention } from "./ChannelLearning";
 import { type Fetcher, hasAnalyticsScope, isReconnectError, loadClient, loadToken, myChannel, refreshAccessToken, type YoutubeSettings } from "./YoutubeAuth";
 import { listPerformance, savePerformance } from "./VideoPerformanceStore";
 
@@ -97,13 +97,23 @@ export async function analyticsReport(fetcher: Fetcher, token: string, q: { read
   return reportRows(await readOrThrow(await get(fetcher, token, `${ANALYTICS_API}?${params.toString()}`), "YOUTUBE_ANALYTICS"));
 }
 
-/** One moment of one video: the basic numbers, the retention curve (one video per call) and the traffic sources. */
-export async function readMoment(fetcher: Fetcher, token: string, video: ApiVideo, moment: { readonly startDate: string; readonly endDate: string }): Promise<{ basic?: ReportRow; retention: ReportRow[]; traffic: ReportRow[] }> {
+const RETENTION_METRICS = "audienceWatchRatio,relativeRetentionPerformance";
+
+/**
+ * One moment of one video: the basic numbers, the traffic sources (views and average view each, so the paid ones can
+ * be taken out), the retention curve (one video per call) and, when paid views are AD_SHARE_SPLIT or more, the organic
+ * viewers' curve too (19 Nov 2026: the owner's promotion brought 82–93 % of five Shorts' views).
+ */
+export async function readMoment(fetcher: Fetcher, token: string, video: ApiVideo, moment: { readonly startDate: string; readonly endDate: string }): Promise<{ basic?: ReportRow; retention: ReportRow[]; traffic: ReportRow[]; organicRetention?: ReportRow[] }> {
   const base = { startDate: moment.startDate, endDate: moment.endDate, filters: `video==${video.videoId}` };
   const basic = (await analyticsReport(fetcher, token, { ...base, metrics: BASIC_METRICS.join(",") }))[0];
-  const retention = await analyticsReport(fetcher, token, { ...base, metrics: "audienceWatchRatio,relativeRetentionPerformance", dimensions: "elapsedVideoTimeRatio" });
-  const traffic = await analyticsReport(fetcher, token, { ...base, metrics: "views", dimensions: "insightTrafficSourceType", sort: "-views" });
-  return { ...(basic ? { basic } : {}), retention, traffic };
+  const traffic = await analyticsReport(fetcher, token, { ...base, metrics: "views,averageViewDuration", dimensions: "insightTrafficSourceType", sort: "-views" });
+  const retention = await analyticsReport(fetcher, token, { ...base, metrics: RETENTION_METRICS, dimensions: "elapsedVideoTimeRatio" });
+  const paid = organicViews(traffic);
+  const organicRetention = paid && paid.reklamPayi >= AD_SHARE_SPLIT
+    ? await analyticsReport(fetcher, token, { ...base, filters: `${base.filters};audienceType==ORGANIC`, metrics: RETENTION_METRICS, dimensions: "elapsedVideoTimeRatio" })
+    : undefined;
+  return { ...(basic ? { basic } : {}), retention, traffic, ...(organicRetention ? { organicRetention } : {}) };
 }
 
 export interface PullResult {
@@ -126,6 +136,8 @@ export async function pullChannelAnalytics(d: {
   readonly fetcher: Fetcher;
   readonly now?: Date;
   readonly videoId?: string;
+  /** Read again the moments already read (kanal.ts cek --yeniden): an older reading lacks the organic numbers. */
+  readonly yeniden?: boolean;
   readonly log?: (line: string) => void;
 }): Promise<PullResult> {
   const now = d.now ?? new Date();
@@ -144,15 +156,28 @@ export async function pullChannelAnalytics(d: {
   const satirlar: string[] = [];
   let ders = 0;
   for (const video of videos) {
-    const measured = new Set(existing.filter((r) => r.videoId === video.videoId && r.kaynak === "youtube-analytics-api").map((r) => r.olcumAni));
+    const measured = new Set(d.yeniden ? [] : existing.filter((r) => r.videoId === video.videoId && r.kaynak === "youtube-analytics-api").map((r) => r.olcumAni));
     const due = dueMoments(video.publishedAt, moments, measured, now);
     if (!due.length) continue;
-    const order = linkOrder(video, orders);
+    // The first candidate whose timeline fits the upload (a topic produced twice shares its file name).
+    const candidates = linkCandidates(video, orders);
+    let order = candidates[0];
+    let timeline = order ? await loadTimeline(order.cikti, video.durationS) : undefined;
+    if (!timeline || Math.abs(timeline.sureSn - video.durationS) > TIMELINE_TOLERANCE_S) {
+      for (const c of candidates.slice(1)) {
+        const t = await loadTimeline(c.cikti, video.durationS);
+        if (t && Math.abs(t.sureSn - video.durationS) <= TIMELINE_TOLERANCE_S) {
+          order = c;
+          timeline = t;
+          break;
+        }
+      }
+    }
     const fresh: VideoPerformanceRecord[] = [];
     try {
       for (const m of due) {
         const read = await readMoment(d.fetcher, accessToken, video, m);
-        const record = analyticsRecord({ video, moment: m, ...(read.basic ? { basic: read.basic } : {}), retention: read.retention, traffic: read.traffic, ...(order ? { siparisId: order.id } : {}) });
+        const record = analyticsRecord({ video, moment: m, ...(read.basic ? { basic: read.basic } : {}), retention: read.retention, traffic: read.traffic, ...(read.organicRetention ? { organicRetention: read.organicRetention } : {}), ...(order ? { siparisId: order.id } : {}) });
         await savePerformance(d.workRoot, record);
         fresh.push(record);
         d.log?.(`  ${video.videoId} ${m.olcumAni} (${m.startDate} … ${m.endDate}) okundu`);
@@ -167,7 +192,7 @@ export async function pullChannelAnalytics(d: {
     if (!newest) continue;
     const all = await listPerformance(d.workRoot);
     const judged = await judgeAndTeach({ workRoot: d.workRoot, goals: d.goals, record: newest, others: all.filter((r) => r.videoId !== newest.videoId), kismi: true });
-    const found = await teachRetention(d.workRoot, newest, order ? await loadTimeline(order.cikti) : undefined);
+    const found = await teachRetention(d.workRoot, newest, timeline);
     const taught = judged.lessons.length + found.filter((l) => l.metin).length;
     ders += taught;
     const ratio = judged.evaluation.kontroller.find((c) => c.metrik === "ortIzlenmeOrani");
@@ -233,6 +258,7 @@ export async function youtubeAnalyticsTick(d: {
   readonly now?: Date;
   readonly force?: boolean;
   readonly videoId?: string;
+  readonly yeniden?: boolean;
   readonly log?: (line: string) => void;
 }): Promise<{ readonly durum: TickState; readonly satir: string; readonly sonuc?: PullResult }> {
   const now = d.now ?? new Date();
@@ -244,7 +270,7 @@ export async function youtubeAnalyticsTick(d: {
     state.sonDeneme = now.toISOString();
     await writeState(d.workRoot, state);
     try {
-      const sonuc = await pullChannelAnalytics({ workRoot: d.workRoot, goals: d.goals, settings: d.settings, fetcher: d.fetcher, now, ...(d.videoId ? { videoId: d.videoId } : {}), ...(d.log ? { log: d.log } : {}) });
+      const sonuc = await pullChannelAnalytics({ workRoot: d.workRoot, goals: d.goals, settings: d.settings, fetcher: d.fetcher, now, ...(d.videoId ? { videoId: d.videoId } : {}), ...(d.yeniden ? { yeniden: true } : {}), ...(d.log ? { log: d.log } : {}) });
       state.sonCekim = now.toISOString();
       await writeState(d.workRoot, state);
       return { durum: "tamam", satir: `YouTube analitiği: ${sonuc.kayitlar.length} yeni ölçüm, ${sonuc.ders} ders — ${sonuc.satirlar.join(" · ")}`, sonuc };

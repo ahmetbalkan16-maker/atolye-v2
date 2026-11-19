@@ -4,7 +4,10 @@
  * an unmeasured number as reached, targets that only ever rise, and the pilot's balanced plan; since 19 Nov 2026 the
  * YouTube Analytics reader (J–P): API rows → records with null for what the API lacks, due moments, retention drops →
  * the right brain's lesson on the right scene and line, one owner message a day for a dead connection, no pull
- * without a token, and `kaydet`'s judge shared unchanged.
+ * without a token, and `kaydet`'s judge shared unchanged; Q (19 Nov 2026): a mostly paid video is read and taught on its
+ * organic viewers (traffic without ADVERTISING, the ORGANIC retention curve), and `--yeniden` reads it again; R: a video
+ * is linked to the production it came from by a renamed file in its folder, by the take whose plan fits its length, and
+ * by the delivered round's own plan.
  * No network (a fake fetcher), no model, no production data (records go to a TEMP work root).
  * Run: npx tsx scripts/smoke-v3-channel-goals.ts
  */
@@ -14,12 +17,13 @@ import os from "node:os";
 import path from "node:path";
 import { recentTalk } from "../src/lib/v3/council/DevBrain";
 import { allLessons } from "../src/lib/v3/council/ExperienceMemory";
-import { analyticsRecord, channelSummary, dueMoments, episodeTimeline, isoDurationS, retentionDrops, retentionLessons } from "../src/lib/v3/publish/ChannelAnalyticsMap";
+import { AFTER_HOOK_S, analyticsRecord, channelSummary, dueMoments, episodeTimeline, feedCurve, holdAfterHook, isoDurationS, organicViews, retentionDrops, retentionLessons } from "../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   channelGoalNote, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, openingChecks, parseChannelGoals,
-  PERFORMANCE_METRICS, performanceLessons, pilotTrends, scenePlanCheck, shortBeatRule, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
+  PERFORMANCE_METRICS, performanceLessons, pilotTrends, recordViewRatio, scenePlanCheck, shortBeatRule, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
 } from "../src/lib/v3/publish/ChannelGoals";
-import { judgeAndTeach } from "../src/lib/v3/publish/ChannelLearning";
+import { keepRound, restoreRound } from "../src/lib/v3/council/RetouchBrain";
+import { judgeAndTeach, linkCandidates, linkOrder, loadTimeline, ordersWithPackages } from "../src/lib/v3/publish/ChannelLearning";
 import { BASIC_METRICS, RECONNECT_NOTICE, youtubeAnalyticsTick } from "../src/lib/v3/publish/YoutubeAnalytics";
 import { connectionLines, type Fetcher, hasAnalyticsScope, YOUTUBE_SCOPES } from "../src/lib/v3/publish/YoutubeAuth";
 import { listPerformance, parsePerformanceInput, savePerformance } from "../src/lib/v3/publish/VideoPerformanceStore";
@@ -58,6 +62,14 @@ const CURVE_ROWS = Array.from({ length: 100 }, (_, j) => {
   return [i / 100, r4(w), i === 7 ? 0.3 : 0.5];
 });
 const TRAFFIC_ROWS = [["SHORTS", 900], ["YT_SEARCH", 50], ["SUBSCRIBER", 30], ["ADVERTISING", 20]];
+/** A promoted Short (the Cannae Short of 9 Nov 2026 had 2,369 of its 2,657 views from ads): 80 % paid. */
+const PAID_TRAFFIC_ROWS = [["ADVERTISING", 800, 36], ["SHORTS", 180, 20], ["YT_SEARCH", 20, 15]];
+/** The organic viewers of that Short: the hook holds, then half of them leave between 4 and 10 s (the narrator's date line). */
+const ORGANIC_ROWS = Array.from({ length: 100 }, (_, j) => {
+  const i = j + 1, t = i * 0.45;
+  const w = t <= 4 ? 1.2 - 0.02 * t : t <= 10 ? 1.12 - (0.56 * (t - 4)) / 6 : 0.56 - 0.004 * (t - 10);
+  return [i / 100, r4(w), 0.5];
+});
 const PLAN = {
   plan: {
     fps: 30, durationInFrames: 1350,
@@ -90,7 +102,7 @@ function fixture(o: { readonly token?: boolean; readonly scope?: string } = {}) 
 }
 
 /** Google, faked: the token endpoint, the Data API and the Analytics reports; every URL called is kept. */
-function fakeGoogle(o: { readonly tokenError?: string; readonly analytics403?: boolean } = {}) {
+function fakeGoogle(o: { readonly tokenError?: string; readonly analytics403?: boolean; readonly paid?: boolean } = {}) {
   const calls: string[] = [];
   const fetcher: Fetcher = async (url) => {
     calls.push(url);
@@ -110,14 +122,18 @@ function fakeGoogle(o: { readonly tokenError?: string; readonly analytics403?: b
     if (u.origin === "https://youtubeanalytics.googleapis.com") {
       if (o.analytics403) return Response.json({ error: { code: 403, message: "Request had insufficient authentication scopes.", errors: [{ reason: "insufficientPermissions" }] } }, { status: 403 });
       assert.equal(u.searchParams.get("ids"), "channel==MINE");
-      assert.equal(u.searchParams.get("filters"), `video==${VIDEO}`);
+      const filters = u.searchParams.get("filters");
+      assert.ok(filters === `video==${VIDEO}` || (o.paid && filters === `video==${VIDEO};audienceType==ORGANIC`), `filters ${filters}`);
       const dims = u.searchParams.get("dimensions");
       if (!dims) {
         assert.equal(u.searchParams.get("metrics"), BASIC_METRICS.join(","));
         return Response.json({ columnHeaders: BASIC_METRICS.map((name) => ({ name })), rows: [BASIC_METRICS.map((m) => BASIC_ROW[m])] });
       }
-      if (dims === "elapsedVideoTimeRatio") return Response.json({ columnHeaders: [{ name: "elapsedVideoTimeRatio" }, { name: "audienceWatchRatio" }, { name: "relativeRetentionPerformance" }], rows: CURVE_ROWS });
-      if (dims === "insightTrafficSourceType") return Response.json({ columnHeaders: [{ name: "insightTrafficSourceType" }, { name: "views" }], rows: TRAFFIC_ROWS });
+      if (dims === "elapsedVideoTimeRatio") return Response.json({ columnHeaders: [{ name: "elapsedVideoTimeRatio" }, { name: "audienceWatchRatio" }, { name: "relativeRetentionPerformance" }], rows: filters!.endsWith("ORGANIC") ? ORGANIC_ROWS : CURVE_ROWS });
+      if (dims === "insightTrafficSourceType") {
+        assert.equal(u.searchParams.get("metrics"), "views,averageViewDuration", "each source's average view, so the paid ones can be taken out");
+        return o.paid ? Response.json({ columnHeaders: [{ name: "insightTrafficSourceType" }, { name: "views" }, { name: "averageViewDuration" }], rows: PAID_TRAFFIC_ROWS }) : Response.json({ columnHeaders: [{ name: "insightTrafficSourceType" }, { name: "views" }], rows: TRAFFIC_ROWS });
+      }
     }
     throw new Error(`unexpected request ${url}`);
   };
@@ -228,6 +244,16 @@ async function main() {
     const bad = openingChecks(goals, { firstLine: { text: "In the year 75 BC, a young Roman nobleman sailed to Rhodes to study.", byCharacter: false, startS: 2.5 }, firstSceneCards: ["kelime"] });
     assert.deepEqual(bad.map((c) => c.ok), [false, false, false], "assert.deepEqual(bad.map((c) => c.ok), [false, false, false])");
     assert.match(bad[0]!.text, /ANLATICI, 14 kelime/);
+    // The line after the hook (19 Nov 2026): a fourth row only when the pipeline gives it; the narrator's date line fails.
+    const base = { firstLine: { text: "Twenty? I'm worth more!", byCharacter: true, startS: 0.3 }, firstVisualEventS: 0.5, firstSceneCards: ["yer_tarih"] };
+    const dated = openingChecks(goals, { ...base, followUp: { text: "Around 75 BC, Julius Caesar was kidnapped by Cilician pirates along the southern coast of Asia Minor.", byCharacter: false } });
+    assert.deepEqual(dated.map((c) => c.ok), [true, true, true, false]);
+    assert.match(dated[3]!.text, /^Kanca ardı: anlatıcı, 17 kelime, TARİHLE açılıyor \("75 bc"\)/);
+    assert.deepEqual(openingChecks(goals, { ...base, followUp: { text: "He told them to ask for fifty.", byCharacter: false } }).map((c) => c.ok), [true, true, true, true]);
+    assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[3]!.text, /karakter cevap veriyor/);
+    // The beat map no longer asks for a "who, where and when" set-up line after the hook.
+    assert.doesNotMatch(shortBeatRule(goals, 45, "en"), /set up who, where and when/);
+    assert.match(shortBeatRule(goals, 45, "en"), /2–9 s the stakes in one short line \(at most 12 words/);
     const scene = (id: string, extra: Record<string, unknown> = {}) => ({ id, muzik_ruh_hali: "playful", satirlar: [{ jest: "point", sfx: "pop" }], kamera: [{ tip: "zoom", t: 0 }], gecis: "wipe", ...extra });
     assert.equal(scenePlanCheck([scene("s1"), scene("s2")]).ok, true, "assert.equal(scenePlanCheck([scene(\"s1\"), scene(\"s2\")]).ok, true)");
     const gaps = scenePlanCheck([scene("s1"), scene("s2", { kamera: undefined, gecis: undefined, satirlar: [{}] }), scene("s3", { kamera: undefined, satirlar: [{}], harita: { kamera: [{}], ordular: [{}] } })]);
@@ -260,7 +286,10 @@ async function main() {
     const m = r.metrikler;
     assert.deepEqual([m.goruntuleme, m.aktifIzlenme, m.ortIzlemeSn, m.ortGoruntulenenYuzde, m.izlenmeSaat, m.aboneKazanimi, m.begeni, m.yorum, m.paylasim], [1000, 600, 27, 0.6, 7.5, 2, 40, 5, 3]);
     assert.deepEqual([m.izlemeyiSecenler, m.kaydiranlar, m.benzersizIzleyici], [null, null, null], "Studio-only numbers are never estimated");
-    assert.deepEqual(r.trafik, { shortsAkisi: 0.9, youtubeArama: 0.05, anaSayfaAbonelik: 0.03, diger: 0.02 });
+    assert.deepEqual(r.trafik, { shortsAkisi: 0.9, youtubeArama: 0.05, anaSayfaAbonelik: 0.03, reklam: 0.02 }, "paid views are named, not \"diger\"");
+    assert.equal(r.organik?.reklamPayi, 0.02);
+    assert.equal(recordViewRatio(r), 0.6, "2 % paid: the video's own numbers stand");
+    assert.equal(r.tutmaOrganik, undefined, "no organic curve asked for a video barely promoted");
     assert.equal(r.tutma?.length, 100);
     assert.equal(analyticsRecord({ video: { videoId: VIDEO, title: "", publishedAt: "2026-11-08T10:00:00Z", durationS: 45 }, moment: { olcumAni: "48s", endDate: "2026-11-10" } }).metrikler.goruntuleme, null, "no row → not measured, not 0");
     // The evaluation sees the view ratio but no "chose to view": VERI_EKSIK, never a pass.
@@ -309,7 +338,7 @@ async function main() {
     const r = await youtubeAnalyticsTick({ workRoot, goals, settings, fetcher: g.fetcher, now: NOW });
     assert.equal(r.durum, "tamam", r.satir);
     assert.deepEqual(r.sonuc!.kayitlar.map((x) => [x.olcumAni, x.siparisId, x.kaynak]), [["48s", "o-caesar", "youtube-analytics-api"], ["7g", "o-caesar", "youtube-analytics-api"]]);
-    assert.equal(g.calls.filter((u) => u.includes("youtubeanalytics")).length, 6, "three reports per moment");
+    assert.equal(g.calls.filter((u) => u.includes("youtubeanalytics")).length, 6, "three reports per moment (2 % paid: no organic curve)");
     assert.equal(g.calls.filter((u) => u.includes("playlistItems")).length, 1, "the older upload ends the listing (no second page)");
     assert.deepEqual((await listPerformance(workRoot)).map((x) => `${x.videoId}-${x.olcumAni}-${x.olcumTarihi}`).sort(), [`${VIDEO}-48s-2026-11-10`, `${VIDEO}-7g-2026-11-15`]);
     const mizah = await allLessons(workRoot, "mizah");
@@ -400,6 +429,86 @@ async function main() {
     const partial = rec("x0000000007", { ortIzlemeSn: 27 });
     assert.deepEqual((await judgeAndTeach({ workRoot: root, goals, record: partial, others: [] })).lessons, []);
     assert.equal((await judgeAndTeach({ workRoot: root, goals, record: partial, others: [], kismi: true })).lessons.length, 1);
+  });
+
+  await scenario("Q a mostly paid Short is read and taught on its organic viewers; --yeniden reads a moment again", async () => {
+    // Pure: the traffic report without ADVERTISING, the organic curve as the feed's.
+    const paid = organicViews(PAID_TRAFFIC_ROWS.map(([k, v, d]) => ({ insightTrafficSourceType: k!, views: v!, averageViewDuration: d! })));
+    assert.deepEqual(paid, { goruntuleme: 200, ortIzlemeSn: 19.5, reklamPayi: 0.8 });
+    assert.equal(organicViews(TRAFFIC_ROWS.filter(([k]) => k !== "ADVERTISING").map(([k, v]) => ({ insightTrafficSourceType: k!, views: v! }))), undefined, "no ad: nothing to split");
+    const { workRoot, settings } = fixture();
+    const g = fakeGoogle({ paid: true });
+    const r = await youtubeAnalyticsTick({ workRoot, goals, settings, fetcher: g.fetcher, now: NOW });
+    assert.equal(r.durum, "tamam", r.satir);
+    assert.equal(g.calls.filter((u) => u.includes("audienceType%3D%3DORGANIC")).length, 2, "one organic curve per moment");
+    const seven = r.sonuc!.kayitlar.find((x) => x.olcumAni === "7g")!;
+    assert.deepEqual([seven.trafik?.reklam, seven.organik?.goruntuleme, seven.tutmaOrganik?.length, feedCurve(seven).organik], [0.8, 200, 100, true]);
+    // The goal is judged on the 200 organic views (19.5 s of 45 s), not on the blended 60 %.
+    assert.equal(recordViewRatio(seven)!.toFixed(3), "0.433");
+    assert.equal(recordViewRatio({ ...seven, organik: { ...seven.organik!, goruntuleme: 20 } }), null, "too few organic views: not measured, never the ad viewers' ratio");
+    // The hook lesson is the organic one, with what was left after the hook and the line said then.
+    const hold = holdAfterHook(seven.tutmaOrganik!, 45)!;
+    assert.ok(hold > 0.45 && hold < 0.55, `hold ${hold}`);
+    assert.equal(holdAfterHook(seven.tutma!, 45)! > 0.75, true, "the blended curve would have hidden it");
+    const kurgu = await allLessons(workRoot, "kurgu");
+    const hook = kurgu.find((l) => l.bolum === `tutma ${VIDEO}`)!;
+    assert.ok(hook.metin.includes("of organic viewers left in the first 3.2 s"), hook.metin);
+    assert.ok(hook.metin.includes(`${Math.round(hold * 100)}% of them were still there at ${AFTER_HOOK_S} s, after "Rhodes was close."`), hook.metin);
+    // The hook held but the line after it lost half of them: the advice is about that line, not "keep this opening".
+    assert.ok(hook.metin.includes("never a date or place line") && !hook.metin.includes("Keep this kind of opening"), hook.metin);
+    assert.ok(retentionLessons(seven, episodeTimeline(PLAN, EPISODE)).every((l) => !l.metin || l.metin.includes("organic viewers")));
+    // --yeniden: the moments already read are read again (an older reading had no organic numbers), lessons not doubled.
+    const again = await youtubeAnalyticsTick({ workRoot, goals, settings, fetcher: g.fetcher, now: NOW, force: true, yeniden: true });
+    assert.equal(again.sonuc!.kayitlar.length, 2);
+    assert.equal((await listPerformance(workRoot)).length, 2, "the same files, overwritten");
+    assert.equal((await allLessons(workRoot, "kurgu")).filter((l) => l.bolum === `tutma ${VIDEO}`).length, 1);
+  });
+
+  await scenario("R linking: a renamed upload found in the folder, the take whose plan fits among two of the same file name, the delivered round's plan", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-yt-bag-"));
+    const workRoot = path.join(root, "work");
+    const order = (id: string, files: string[], planS?: number) => {
+      const cikti = path.join(workRoot, "bolumler", id);
+      mkdirSync(cikti, { recursive: true });
+      for (const n of files) writeFileSync(path.join(cikti, n), "");
+      if (planS !== undefined) writeFileSync(path.join(cikti, "plan.json"), JSON.stringify({ plan: { ...PLAN.plan, durationInFrames: planS * 30 } }));
+      writeFileSync(path.join(cikti, "episode.json"), JSON.stringify(EPISODE));
+      mkdirSync(path.join(workRoot, "_kutuphane", "siparisler"), { recursive: true });
+      writeFileSync(path.join(workRoot, "_kutuphane", "siparisler", `${id}.json`), JSON.stringify({ id, konu: id, donem: "1896", sure: "45sn", dil: "en", ton: "mizahi", kaynak: "owner", olusturuldu: "2026-11-01T00:00:00Z", durum: "teslim", cikti }));
+      return cikti;
+    };
+    // The owner renamed the Taranto upload; the copy sits in the order's folder (no youtube.json names it).
+    order("o-taranto", ["final.mp4", "Taranto Raid 1940 21 Biplanes vs İtalian Battleships.mp4"], 113.5);
+    // The Zanzibar Short was produced twice: both folders hold the same file name, the second take is the uploaded one.
+    order("o-zanzibar-1", ["38-minute-war-1896-animated-history.mp4"], 56);
+    order("o-zanzibar-2", ["38-minute-war-1896-animated-history.mp4"], 48.9);
+    const orders = await ordersWithPackages(workRoot);
+    assert.equal(linkOrder({ videoId: "4Tb0rpczWAQ", title: "21 Biplanes vs. Italy's Battleships", fileName: "Taranto Raid 1940 21 Biplanes vs İtalian Battleships.mp4" }, orders)?.id, "o-taranto");
+    const zanzibar = { videoId: "K-sDKh24Lgs", title: "THE SHORTEST WAR IN HISTORY!", fileName: "38-minute-war-1896-animated-history.mp4" };
+    assert.deepEqual(linkCandidates(zanzibar, orders).map((o) => o.id), ["o-zanzibar-1", "o-zanzibar-2"]);
+    // Through the puller: the take whose plan fits the 49 s upload teaches; its drops are placed in scenes.
+    const g = fakeGoogle();
+    const settingsRoot = fixture();
+    const cikti2 = path.join(workRoot, "bolumler", "o-zanzibar-2");
+    const fetcher: Fetcher = async (url, init) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/youtube/v3/videos")) return Response.json({ items: [{ id: VIDEO, snippet: { title: "THE SHORTEST WAR IN HISTORY!", publishedAt: "2026-11-08T10:00:00Z" }, contentDetails: { duration: "PT49S" }, fileDetails: { fileName: zanzibar.fileName } }] });
+      return g.fetcher(url, init);
+    };
+    const r = await youtubeAnalyticsTick({ workRoot, goals, settings: settingsRoot.settings, fetcher, now: NOW });
+    assert.equal(r.durum, "tamam", r.satir);
+    assert.deepEqual(r.sonuc!.kayitlar.map((x) => x.siparisId), ["o-zanzibar-2", "o-zanzibar-2"], "the second take, whose 48.9 s plan fits the 49 s upload");
+    assert.match(r.satir, /yapım o-zanzibar-2/);
+    // The delivered round's plan: round 0 delivered (45 s), plan.json left from round 1 (42.3 s); keepRound keeps each
+    // round's plan and loadTimeline finds the one that fits; restoreRound never puts a plan back.
+    const caesar = order("o-caesar-2", ["final.mp4"], 45);
+    await keepRound(caesar, "final.mp4", { tur: 0, kisiler: [], setler: [] });
+    writeFileSync(path.join(caesar, "plan.json"), JSON.stringify({ plan: { ...PLAN.plan, durationInFrames: 1269 } }));
+    await keepRound(caesar, "final.mp4", { tur: 1, kisiler: [], setler: [] });
+    await restoreRound(caesar, "final.mp4", 0);
+    assert.equal(JSON.parse(readFileSync(path.join(caesar, "plan.json"), "utf8")).plan.durationInFrames, 1269, "the plan is not restored");
+    assert.deepEqual([(await loadTimeline(caesar))!.sureSn, (await loadTimeline(caesar, 45))!.sureSn, (await loadTimeline(caesar, 42))!.sureSn], [42.3, 45, 42.3]);
+    assert.ok(existsSync(path.join(cikti2, "plan.json")));
   });
 
   console.log(`PASS (${scenarios} scenarios)`);
