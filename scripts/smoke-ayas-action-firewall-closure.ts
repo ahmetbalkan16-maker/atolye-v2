@@ -205,7 +205,7 @@ const SURFACES: Readonly<Record<string, Surface>> = {
   // "Uygula" (AyasUpdateApplyRunner, OWNER_PUBLICATION), under the owner's standing decision in CLAUDE.md instead of a
   // per-commit seal. It changes no Git state and the decision module (AyasAutoLivePublish) starts no process.
   "scripts/ayas-update-executor.ts": {
-    what: "the observer's update executor child: one owner-approved job per run (an update trial or Uygula, a model download and measurement, a model switch, or the standing automatic live publish of the pushed HEAD)", agent: true,
+    what: "the observer's update executor child: one owner-approved job per run (an update trial or Uygula, a model download and measurement, a model switch, the standing grace auto-approval of one item that waited for the owner, or the standing automatic live publish of the pushed HEAD)", agent: true,
     allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE", "LOCAL_MODEL"],
     // The guarded publication's import closure is the resume worker's; the runners below are the executor's own.
     modules: {
@@ -217,6 +217,12 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       // Owner decision 2026-11-09 (EVAL v72): "ONAYLA VE UYGULA" on a developer build — the build proven from Git,
       // its checks re-run in a separate worktree on a newer HEAD, then the guarded code-change lane's commit and push.
       "src/lib/brain/autonomy/AyasCodeChangeApplyRunner.ts": "OWNER_PUBLICATION",
+      // Owner instruction 2026-11-19, grace auto-approval: an item that waited its full grace period with no owner
+      // decision or hold is approved through the owner publication worker's own call (micro-batch and proposal lanes),
+      // with a sealed standing-grace admission bound to the same id + hash; the stores re-verify it like a click.
+      "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts": "OWNER_PUBLICATION",
+      "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts": "OWNER_LEASE",
+      "src/lib/brain/autonomy/AyasOwnerPublicationWorker.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasModelTrialRunner.ts": "OWNER_LEASE",
       // 2026-11-05 self-heal: completes the push of an owner-approved commit proven by its own durable record, and
       // re-runs the publication closure's Graphify refresh for a HEAD whose closure never completed.

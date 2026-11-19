@@ -14,6 +14,13 @@
  *     is proven from Git, checked again on a newer HEAD, committed and pushed through the guarded code-change lane,
  *     then the Graphify closure; the automatic live publish below takes it live (AyasCodeChangeApplyRunner; CLAUDE.md
  *     standing exception for this click). A build touching the V3 studio waits while a V3 production runs or waits.
+ *   - GRACE: grace auto-approval (owner instruction 2026-11-19: "5 dakika orada onayda beklesin, ben onay vermezsem
+ *     bile kendisi işleme alsın ve onaylasın"). An item waiting for one of the four one-click approvals in Gelişim
+ *     Merkezi that has waited AYAS_GRACE_AUTO_APPROVE_MS (default 5 minutes) without an owner decision or hold is
+ *     approved through the same service as the click, with a sealed standing-grace admission; at most one per run,
+ *     never an excluded kind (AyasGraceAutoApproval, AyasGraceAutoApprovalRunner). AYAS_GRACE_AUTO_APPROVE=0 turns it
+ *     off. Its live publish waits for the owner's batched go-live: a grace-approved update is not taken live while
+ *     AYAS_AUTO_LIVE_PUBLISH=0.
  *   - WORKSPACE_SYNC: after an applied sub-package update (V3's remotion-v3/, owner decision 2026-11-02), its canonical
  *     node_modules is reinstalled from the committed lock while no V3 production runs or waits. No Git change.
  *   - MODEL_SWITCH: an owner "Bu modele geç": AYAS_OLLAMA_MODEL in both .env.local files, a live restart and a short
@@ -49,6 +56,8 @@ import { collectAyasGraphHealFacts, countAyasOpenRecoveries, decideAyasGraphHeal
 import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { readAyasOwnerChatActivityAt } from "../src/lib/ayas/AyasOwnerChatActivity";
+import { runAyasGraceAutoApprovalTick } from "../src/lib/brain/autonomy/AyasGraceAutoApprovalRunner";
+import { isAyasOwnerGraceAdmission } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
 import { AYAS_LIVE_APP_PATHS, decideAyasAutoLivePublish, readAyasAutoLiveAttempts, type AyasAutoLiveFacts } from "../src/lib/brain/autonomy/AyasAutoLivePublish";
 import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
 import {
@@ -129,7 +138,8 @@ async function main(): Promise<void> {
   const hold = ayasSafeModeHold(root);
   if (hold) return report("SAFE_MODE_HOLD", { code: hold });
   // Owner seals verify only under the access key; without it no approval counts, so nothing may run.
-  if (resolveAccessGate().mode !== "enforced") return report("NO_ACCESS_KEY");
+  const gate = resolveAccessGate();
+  if (gate.mode !== "enforced" || typeof gate.key !== "string") return report("NO_ACCESS_KEY");
 
   const trials = createAyasUpdateTrialStore();
   const release = acquireLock(path.join(trials.rootDir, "executor.lock"));
@@ -207,7 +217,13 @@ async function main(): Promise<void> {
     const head = git(["rev-parse", "HEAD"]);
     const approvalState = createAyasUpdateApprovalStore().load();
 
-    const applyJob = selectAyasUpdateApplyJob({ decisions: listAyasUpdateApplyDecisions(approvalState), trials: trials.load().trials, applies: trials.load().applies ?? [] });
+    // Owner 2026-11-13, batched go-live: an update the owner did not click himself (grace auto-approval) is committed and
+    // pushed, but its live publish waits for the batch while AYAS_AUTO_LIVE_PUBLISH=0. Only the selection sees this.
+    const graceDecisionIds = new Set((approvalState.applyDecisions ?? []).filter((d) => isAyasOwnerGraceAdmission(d.ownerAdmission)).map((d) => d.decisionId));
+    const liveHeldForBatch = (apply: { readonly applyDecisionId: string; readonly livePending?: boolean }): boolean =>
+      apply.livePending === true && process.env.AYAS_AUTO_LIVE_PUBLISH === "0" && graceDecisionIds.has(apply.applyDecisionId);
+    const selectableApplies = (trials.load().applies ?? []).map((apply) => (liveHeldForBatch(apply) ? { ...apply, livePending: false } : apply));
+    const applyJob = selectAyasUpdateApplyJob({ decisions: listAyasUpdateApplyDecisions(approvalState), trials: trials.load().trials, applies: selectableApplies });
     if (applyJob.kind !== "NONE" && dryRun) return report("DRY_RUN", { job: applyJob.kind, head });
     if (applyJob.kind === "LIVE_PUBLISH") {
       const done = await runAyasUpdateLivePublish(applyJob.apply, { repoRoot: root, store: trials });
@@ -241,6 +257,17 @@ async function main(): Promise<void> {
       const done = await runAyasCodeChangeApply(codeJob.decision, codeJob.build, { repoRoot: root, store: codeStore, report: reportCode });
       return report("CODE_APPLY_" + done.status, { jobId: done.jobId, commit: done.commitSha?.slice(0, 8), verified: done.verified, reasons: done.reasons });
     }
+
+    // Owner instruction 2026-11-19: grace auto-approval, after the owner's own clicks were carried out (one item per run).
+    const v3Busy = async (): Promise<boolean> => (await listOrders(v3WorkRoot).catch(() => [])).some(({ order }) => order.durum === "calisiyor" || order.durum === "bekliyor");
+    const grace = await runAyasGraceAutoApprovalTick({
+      repoRoot: root, head, key: gate.key, dryRun,
+      codeBuilds: async () => new Map(codeBuilds), codeStore,
+      reportCode: async (jobId, reasons) => { await reportCode(jobId, { status: "QUEUED", reasons: [...reasons] }); },
+      v3Busy, ownerChatAt: readAyasOwnerChatActivityAt(root),
+    });
+    if (grace.acted) return report(grace.status, { kind: grace.kind, id: grace.id, provenance: grace.provenance, code: grace.outcome.code, commit: grace.outcome.commitSha?.slice(0, 8) });
+    if (dryRun && grace.due) return report("DRY_RUN", { job: "GRACE_APPROVE", due: grace.due, waiting: grace.waiting });
 
     // An applied sub-package update (V3's remotion-v3/) reinstalls its canonical node_modules, only while no V3
     // production runs or waits to start, since a production renders from it.
@@ -300,7 +327,8 @@ async function main(): Promise<void> {
         ...(done.failureReason ? { reason: done.failureReason } : done.lastError ? { note: done.lastError } : {}),
       });
     }
-    if (job.kind === "NONE") return report("IDLE", { reason: job.reason, autoLive: autoLive.reason, graph: healDecision.kind === "NONE" ? healDecision.reason : undefined });
+    if (job.kind === "NONE") return report("IDLE", { reason: job.reason, autoLive: autoLive.reason, graph: healDecision.kind === "NONE" ? healDecision.reason : undefined,
+      grace: grace.acted ? undefined : { wait: grace.wait, waiting: grace.waiting, excluded: grace.excluded, ...(grace.nextDueAt ? { nextDueAt: grace.nextDueAt } : {}) } });
     if (dryRun) return report("DRY_RUN", { job: job.kind, reason: job.reason, sourceId: job.approval.sourceId, targetVersion: job.approval.targetVersion, head });
 
     const trialRoots = resolveAyasUpdateTrialRoots(root);
