@@ -13,6 +13,8 @@ import { createAyasMicroItemStore, type AyasMicroItemStore, type AyasMicroItem }
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch, type AyasMicroBatchItemRef } from "./AyasMicroBatch";
 import { evaluateAyasMicroBatchReadiness, AYAS_MICRO_BATCH_MAX_ITEMS, AYAS_MICRO_BATCH_MAX_ATTEMPTS_PER_TICK } from "./AyasMicroBatchLimits";
 import { supersedeStaleBatchOrphans } from "./AyasMicroBatchStaleness";
+import { ayasMicroCandidateValidationFingerprint, classifyAyasMicroValidationFailure, createAyasMicroBatchFailureStore, isAyasMicroCandidateSuppressed } from "./AyasMicroBatchFailureMemory";
+import type { AyasSandboxUnvalidatableStore } from "./AyasSandboxUnvalidatableStore";
 import type { AyasDaemonObservation } from "./AyasAutonomyDaemon";
 
 /**
@@ -45,6 +47,8 @@ export interface AyasMicroBatchAccumulatorDeps {
   readonly batchStore?: AyasMicroBatchStoreHandle;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly maxAttemptsPerTick?: number;
+  /** Memory of failed validations (`AyasMicroBatchFailureMemory`); defaults to the repository's own runtime record directory. */
+  readonly failureStore?: AyasSandboxUnvalidatableStore;
 }
 
 function totalLinesOf(content: string): number {
@@ -62,6 +66,7 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
   const batchStore = deps.batchStore ?? createAyasMicroBatchStore();
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
   const maxAttempts = deps.maxAttemptsPerTick ?? AYAS_MICRO_BATCH_MAX_ATTEMPTS_PER_TICK;
+  const failureStore = deps.failureStore ?? createAyasMicroBatchFailureStore(repoRoot);
 
   // Discovery may only turn fresh Graphify knowledge into durable,
   // owner-actionable micro-batch state.  Do not reconcile, rebuild the
@@ -117,12 +122,18 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
   }
 
   const activeSemanticKeys = new Set((activeBatch?.items ?? []).map((i) => i.semanticKey));
+  const activeBatchPatchHashes = (activeBatch?.items ?? []).map((i) => i.patchHash);
+  const fingerprintOf = (generated: ReturnType<typeof generateAyasErrorCodeContractPatch>): string =>
+    ayasMicroCandidateValidationFingerprint({ head: observation.head, batchPatchHashes: activeBatchPatchHashes, generatorIdentity: generated.generatorIdentity, replacements: generated.replacements });
   const gaps = findAyasErrorCodeContractGaps(repoRoot).filter((gap) => {
     const generated = generateAyasErrorCodeContractPatch(gap);
     if (fs.existsSync(path.join(repoRoot, generated.exactFiles[0]!))) return false; // completed-target detection
     if (activeSemanticKeys.has(generated.candidateId)) return false; // already in this batch
     const priorActive = itemStore.findBySemanticKey(generated.candidateId).some((item) => item.state !== "REJECTED" && item.state !== "SUPERSEDED");
-    return !priorActive; // cross-restart/cross-tick dedup
+    if (priorActive) return false; // cross-restart/cross-tick dedup
+    // Owner decision 2026-11-19: a candidate whose exact validation (HEAD + batch + bytes) already failed is skipped
+    // before it takes an attempt slot — 293 identical failures on 14 Nov. An unreadable record never suppresses.
+    return !isAyasMicroCandidateSuppressed(failureStore.load(generated.candidateId), fingerprintOf(generated));
   });
 
   const itemsAdded: AyasMicroItem[] = [];
@@ -154,7 +165,22 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
+      const failureKind = classifyAyasMicroValidationFailure(error);
+      const failingSummary = error instanceof AyasValidatorFailedError ? error.results.find((r) => !r.pass)?.summary : undefined;
       rejections.push({ semanticKey: generated.candidateId, reason: `sandbox validation failed: ${reason}` });
+      try {
+        failureStore.record({
+          semanticKey: generated.candidateId,
+          generatorIdentity: generated.generatorIdentity,
+          contentFingerprint: fingerprintOf(generated),
+          reason: `sandbox validation failed (${failureKind}): ${reason}${failingSummary ? ` — ${failingSummary}` : ""}`,
+          requiredCapability: failureKind === "TRANSIENT"
+            ? "environment — retried a bounded number of times at this HEAD, then on the next HEAD, batch or candidate change"
+            : "none — retried on the next HEAD, batch or candidate change",
+          retryable: failureKind === "TRANSIENT",
+          now: observation.now,
+        });
+      } catch { /* best-effort memory only — never blocks accumulation */ }
       continue;
     }
 
@@ -201,6 +227,7 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
     const validated = itemStore.transition(item.microItemId, "SANDBOX_VALIDATED", observation.now);
     itemsAdded.push(validated);
     for (const f of generated.exactFiles) activeExactFiles.add(f);
+    activeBatchPatchHashes.push(artifact.patchHash); // later candidates this tick are validated with this item in the worktree
   }
 
   if (itemsAdded.length === 0) {

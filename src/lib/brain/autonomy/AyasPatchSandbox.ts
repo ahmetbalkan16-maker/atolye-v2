@@ -87,7 +87,10 @@ export function createAyasSandboxTypecheckValidator(): AyasValidator {
       await execFileAsync(process.execPath, [entry, "--noEmit"], { cwd: sandboxRoot, encoding: "utf8", windowsHide: true, timeout: 150_000, maxBuffer: 4_000_000 });
       return { validator: "typecheck-project", pass: true, summary: "tsc --noEmit passed" };
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
+      // tsc prints its diagnostics to stdout, so a type error and a timeout both read "Command failed: …"; name the kill
+      // so the micro-batch lane can tell the environment from the candidate (AyasMicroBatchFailureMemory, 2026-11-19).
+      const killed = (error as { readonly killed?: unknown } | null)?.killed === true;
+      const detail = `${killed ? "tsc --noEmit timed out or was killed: " : ""}${error instanceof Error ? error.message : String(error)}`;
       return { validator: "typecheck-project", pass: false, summary: detail.replace(/\s+/g, " ").trim().slice(0, 500) };
     }
   };
