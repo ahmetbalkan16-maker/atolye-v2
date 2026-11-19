@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AtolyeBrainsView, QueueRow } from "@/lib/v3/council/BrainsReport";
 import { applyAyasCodeChangeAction, rejectAyasCodeChangeAction, requestAyasDevelopmentAction } from "../../../app/brain/actions";
+import { AyasGraceAutoApprovalNotice } from "./AyasGraceAutoApprovalNotice";
 
 /**
  * Atölye V3's brains in the Gelişim Merkezi (owner approval, 2 Nov 2026): AYAS's director's council on the latest cut,
@@ -217,6 +218,7 @@ function ReadyBuild({ k, pending, error, onApply, onReject }: { readonly k: Queu
       <details><summary>{y.dosyalar.length} dosya · {y.kontroller} kontrol geçti{y.tabandaDusen.length ? ` · ${y.tabandaDusen.length} test zaten tabanda düşüyordu` : ""}</summary><ul>{y.dosyalar.map((f) => <li key={f}>{f}</li>)}</ul>{y.tabandaDusen.length ? <p>Tabanda da düşen (yapının hatası sayılmadı): {y.tabandaDusen.join(", ")}</p> : null}</details>
       {k.uygulama ? <p className="bc-dev__notice bc-dev__notice--safe" role="status">{k.uygulama.durum}{k.uygulama.ayrinti ? ` — ${k.uygulama.ayrinti}` : ""}</p> : null}
       {y.engel ? <p className="bc-dev__notice bc-dev__notice--warn">{y.engel}</p> : null}
+      <AyasGraceAutoApprovalNotice kind="code-apply" id={k.id} hash={y.buildHash} onlyOutcome={busy} />
       {error ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{error}</p> : null}
       <div className="bc-dev__actions">
         {y.buildHash ? <button type="button" disabled={pending !== null || busy} onClick={() => onApply(y.buildHash!)}>{pending === k.id ? "KAYDEDİLİYOR…" : busy ? "UYGULANIYOR…" : "ONAYLA VE UYGULA"}</button> : null}

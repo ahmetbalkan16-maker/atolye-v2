@@ -32,11 +32,25 @@ import type { AyasInboxDecisionRecord } from "./AyasApprovalInboxStore";
 
 export const AYAS_OWNER_ADMISSION_SCHEMA = "ayas-owner-admission:v1";
 export const AYAS_OWNER_ADMISSION_AUTH_METHOD = "AYAS_OWNER_SESSION_HMAC_V1";
+/**
+ * The owner's standing grace policy (owner instruction 2026-11-19: "böyle bir geliştirme keşfetti, 5 dakika orada
+ * onayda beklesin, ben onay vermezsem bile kendisi işleme alsın ve onaylasın"). Not a session and never a cookie: the
+ * observer's update executor mints it, with the access key, for one item that has waited its full grace period in
+ * Gelişim Merkezi without an owner decision or hold (`AyasGraceAutoApproval`). `sessionIssuedAt` is the moment the item
+ * became ready, `verifiedAt` the moment the wait was found complete, and `sessionRef` a keyed digest of that wait, so
+ * the record says itself that no person clicked. It is accepted only for the four one-click actions below.
+ */
+export const AYAS_OWNER_GRACE_AUTH_METHOD = "AYAS_OWNER_STANDING_GRACE_V1";
+export type AyasOwnerAdmissionAuthMethod = typeof AYAS_OWNER_ADMISSION_AUTH_METHOD | typeof AYAS_OWNER_GRACE_AUTH_METHOD;
+/** The shortest wait a standing-grace admission may carry, whatever AYAS_GRACE_AUTO_APPROVE_MS says. */
+export const AYAS_OWNER_GRACE_MIN_WAIT_MS = 60 * 1000;
 /** A decision must be recorded within this long after its session was verified. */
 export const AYAS_OWNER_ADMISSION_MAX_AGE_MS = 5 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 const SESSION_REFERENCE_DOMAIN = "ayas-owner-session-reference:v1";
 const SEAL_DOMAIN = "ayas-owner-admission-seal:v1";
+const GRACE_SEAL_DOMAIN = "ayas-owner-grace-admission-seal:v1";
+const GRACE_REFERENCE_DOMAIN = "ayas-owner-grace-reference:v1";
 
 export type AyasOwnerAdmissionAction =
   | "decideAyasApproval"
@@ -69,7 +83,8 @@ export interface AyasOwnerAdmission {
   readonly schema: typeof AYAS_OWNER_ADMISSION_SCHEMA;
   /** The single principal the access gate admits. Not a named person. */
   readonly principal: "OWNER";
-  readonly authMethod: typeof AYAS_OWNER_ADMISSION_AUTH_METHOD;
+  /** A verified owner session, or the owner's standing grace policy (see AYAS_OWNER_GRACE_AUTH_METHOD). */
+  readonly authMethod: AyasOwnerAdmissionAuthMethod;
   readonly action: AyasOwnerAdmissionAction;
   /** Server-generated, one per owner action call; a store accepts it once. */
   readonly actionRef: string;
@@ -84,7 +99,7 @@ export interface AyasOwnerAdmission {
 }
 
 export class AyasOwnerAdmissionError extends Error {
-  constructor(readonly code: "OWNER_ADMISSION_REQUIRED" | "OWNER_ADMISSION_GATE_UNAVAILABLE" | "OWNER_ADMISSION_INVALID_SUBJECT") {
+  constructor(readonly code: "OWNER_ADMISSION_REQUIRED" | "OWNER_ADMISSION_GATE_UNAVAILABLE" | "OWNER_ADMISSION_INVALID_SUBJECT" | "OWNER_GRACE_NOT_ELAPSED") {
     // The message is the code: server actions surface `error.message`, and the
     // code is the only thing the owner-facing label lookup can match.
     super(code);
@@ -176,11 +191,72 @@ export async function admitAyasOwnerApproval(input: {
   return { ...unsealed, seal: await keyedAuditDigest(SEAL_DOMAIN, canonicalJson(unsealed), input.gate.key) };
 }
 
+/** The one-click actions a standing-grace admission may stand in for, each with its exact subject kind and decision. */
+const GRACE_ACTION_BY_SUBJECT: Readonly<Record<string, AyasOwnerAdmissionAction>> = {
+  "micro-batch:APPROVE": "batchOnaylaVeUygula",
+  "micro-batch:EXECUTE": "executeAyasApprovedMicroBatch",
+  "proposal:APPROVE": "proposalOnaylaVeUygula",
+  "proposal:EXECUTE": "executeAyasApprovedProposal",
+  "update-apply:APPLY": "applyAyasUpdate",
+  "code-apply:APPLY": "applyAyasCodeChange",
+};
+
+const graceActionFor = (subject: AyasOwnerAdmissionSubject): AyasOwnerAdmissionAction | undefined =>
+  Object.hasOwn(GRACE_ACTION_BY_SUBJECT, `${subject.kind}:${subject.decision}`) ? GRACE_ACTION_BY_SUBJECT[`${subject.kind}:${subject.decision}`] : undefined;
+
+/** True when the admission came from the owner's standing grace policy rather than a person's click. */
+export function isAyasOwnerGraceAdmission(admission: Pick<AyasOwnerAdmission, "authMethod"> | undefined): boolean {
+  return admission?.authMethod === AYAS_OWNER_GRACE_AUTH_METHOD;
+}
+
+/**
+ * Mints the standing-grace admission for one item (owner instruction 2026-11-19, see AYAS_OWNER_GRACE_AUTH_METHOD).
+ * Only the observer's update executor calls it (`AyasGraceAutoApprovalRunner`), with the access key it already needs
+ * to verify owner seals. Refuses unless the item has waited `graceMs` (never less than AYAS_OWNER_GRACE_MIN_WAIT_MS)
+ * since `readyAt`, and unless the action is the exact one-click action for this subject. The stores then check it like
+ * any owner admission: exact subject, fresh, unused, sealed.
+ */
+export function mintAyasOwnerGraceAdmission(input: {
+  readonly key: string | undefined;
+  readonly action: AyasOwnerAdmissionAction;
+  readonly subject: AyasOwnerAdmissionSubject;
+  readonly readyAt: string;
+  readonly graceMs: number;
+  readonly now?: number;
+}): AyasOwnerAdmission {
+  if (typeof input.key !== "string" || input.key.length < 12) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_GATE_UNAVAILABLE");
+  const subject = normalizeSubject(input.subject);
+  if (!subject || graceActionFor(subject) !== input.action) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_INVALID_SUBJECT");
+  const now = input.now ?? Date.now();
+  const readyMs = isIso(input.readyAt) ? Date.parse(input.readyAt) : NaN;
+  if (!Number.isSafeInteger(input.graceMs) || input.graceMs < AYAS_OWNER_GRACE_MIN_WAIT_MS || !Number.isFinite(readyMs) || now - readyMs < input.graceMs) {
+    throw new AyasOwnerAdmissionError("OWNER_GRACE_NOT_ELAPSED");
+  }
+  const key = input.key;
+  const hmac = (domain: string, material: string): string => crypto.createHmac("sha256", key).update(`${domain}\n${material}`).digest("hex");
+  const unsealed: Omit<AyasOwnerAdmission, "seal"> = {
+    schema: AYAS_OWNER_ADMISSION_SCHEMA,
+    principal: "OWNER",
+    authMethod: AYAS_OWNER_GRACE_AUTH_METHOD,
+    action: input.action,
+    actionRef: `ayas-owner-action-${crypto.randomUUID()}`,
+    sessionRef: hmac(GRACE_REFERENCE_DOMAIN, canonicalJson({ subject, readyAt: input.readyAt, graceMs: input.graceMs })),
+    sessionIssuedAt: input.readyAt,
+    // The same freshness window an owner session gives one decision.
+    sessionExpiresAt: new Date(now + AYAS_OWNER_ADMISSION_MAX_AGE_MS).toISOString(),
+    verifiedAt: new Date(now).toISOString(),
+    subject,
+  };
+  return { ...unsealed, seal: hmac(GRACE_SEAL_DOMAIN, canonicalJson(unsealed)) };
+}
+
 /** True when the seal matches under `key`, i.e. the record was written by something holding the access key and was not edited since. */
 export function verifyAyasOwnerAdmissionSealSync(admission: unknown, key: string | undefined = resolveAccessGate().key): admission is AyasOwnerAdmission {
   if (!key || key.length < 12 || !isAyasOwnerAdmissionShape(admission)) return false;
   const { seal, ...unsealed } = admission;
-  const expected = crypto.createHmac("sha256", key).update(SEAL_DOMAIN + "\n" + canonicalJson(unsealed)).digest("hex");
+  // A grace admission is sealed under its own domain, so neither kind can be passed off as the other.
+  const domain = admission.authMethod === AYAS_OWNER_GRACE_AUTH_METHOD ? GRACE_SEAL_DOMAIN : SEAL_DOMAIN;
+  const expected = crypto.createHmac("sha256", key).update(domain + "\n" + canonicalJson(unsealed)).digest("hex");
   return crypto.timingSafeEqual(Buffer.from(seal), Buffer.from(expected));
 }
 
@@ -196,7 +272,9 @@ export function isAyasOwnerAdmissionShape(value: unknown): value is AyasOwnerAdm
   if (keys !== "action,actionRef,authMethod,principal,schema,seal,sessionExpiresAt,sessionIssuedAt,sessionRef,subject,verifiedAt") return false;
   return a.schema === AYAS_OWNER_ADMISSION_SCHEMA
     && a.principal === "OWNER"
-    && a.authMethod === AYAS_OWNER_ADMISSION_AUTH_METHOD
+    && (a.authMethod === AYAS_OWNER_ADMISSION_AUTH_METHOD
+      || (a.authMethod === AYAS_OWNER_GRACE_AUTH_METHOD && isIso(a.sessionIssuedAt) && isIso(a.verifiedAt)
+        && Date.parse(a.verifiedAt as string) - Date.parse(a.sessionIssuedAt as string) >= AYAS_OWNER_GRACE_MIN_WAIT_MS))
     && typeof a.action === "string" && ACTIONS.has(a.action)
     && typeof a.actionRef === "string" && ACTION_REF.test(a.actionRef)
     && typeof a.sessionRef === "string" && HEX64.test(a.sessionRef)
@@ -269,6 +347,8 @@ export function isAyasReservedDecisionReason(reason: unknown): boolean {
 
 /** A verified action must match its exact subject and decision. */
 export function isAyasOwnerAdmissionActionCompatible(a: AyasOwnerAdmission): boolean {
+  // The standing grace policy stands in for exactly the four one-click actions, never for any other decision.
+  if (a.authMethod === AYAS_OWNER_GRACE_AUTH_METHOD && graceActionFor(a.subject) !== a.action) return false;
   // An update radar decision is its own action and never authorizes a proposal or batch, nor the reverse.
   if (a.subject.kind === "update-radar") return a.action === "decideAyasUpdateRadar";
   if (a.subject.kind === "update-apply") return a.action === "applyAyasUpdate";

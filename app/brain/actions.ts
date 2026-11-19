@@ -82,6 +82,7 @@ import {
 import { AYAS_SESSION_COOKIE, resolveAccessGate, verifySession } from "@/lib/auth/accessGate";
 import { type AtolyeBrainsView, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
 import { AyasCodeChangeError, createAyasCodeChangeStore, decideAyasCodeChangeApply } from "@/lib/brain/autonomy/AyasCodeChangeStore";
+import { createAyasGraceStore, isAyasGraceSubject, loadAyasGraceView, type AyasGraceSubject, type AyasGraceView } from "@/lib/brain/autonomy/AyasGraceAutoApproval";
 import { codeBuildOf } from "@/lib/v3/council/DevQueue";
 import { decideProposal, listProposals, recordCodeApply, rejectBuild, requestDevelopment } from "@/lib/v3/council/SelfImprovement";
 import { resolveV3Paths } from "@/lib/v3/V3Paths";
@@ -680,6 +681,32 @@ export async function applyAyasCodeChangeAction(input: { id: string; buildHash: 
     return { ok: true, view: await loadAtolyeBrainsView(workRoot) };
   } catch (error) {
     return { ok: false, code: v3Code(error, "CODE_APPLY_FAILED"), view: await loadAtolyeBrainsView(workRoot) };
+  }
+}
+
+/**
+ * The grace auto-approval ledger for Gelişim Merkezi's cards (owner instruction 2026-11-19): which item AYAS counts down,
+ * which it never approves by itself, which it approved after the wait. Read-only, behind the verified brain session.
+ */
+export async function loadAyasGraceViewAction(): Promise<AyasGraceView> {
+  await requireBrainSession();
+  return loadAyasGraceView();
+}
+
+/**
+ * "Otomatik onayı durdur" on one exact item (kind + id + hash): AYAS then never approves it by itself and it waits for
+ * the owner like before. A hold only withholds authority, so the verified brain session is enough; it approves nothing.
+ */
+export async function holdAyasGraceAutoApprovalAction(input: AyasGraceSubject): Promise<{ readonly ok: boolean; readonly code?: string; readonly view: AyasGraceView }> {
+  try {
+    await requireBrainSession();
+    const subject = { kind: input?.kind, id: String(input?.id ?? ""), hash: String(input?.hash ?? "") };
+    if (!isAyasGraceSubject(subject)) return { ok: false, code: "AYAS_GRACE_INVALID_SUBJECT", view: loadAyasGraceView() };
+    createAyasGraceStore().hold(subject, new Date().toISOString());
+    return { ok: true, view: loadAyasGraceView() };
+  } catch (error) {
+    const code = /^(authentication_required|brain_report_decision_unavailable)$/.test((error as Error)?.message ?? "") ? (error as Error).message : "AYAS_GRACE_HOLD_FAILED";
+    return { ok: false, code, view: loadAyasGraceView() };
   }
 }
 

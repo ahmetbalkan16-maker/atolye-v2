@@ -238,6 +238,33 @@ This project is developed across many sequential AI sessions under strict, check
     `AYAS_AUTO_LIVE_PUBLISH=0` (executor dry run: `"autoLive":"DISABLED"`), so main-AYAS code-lane
     commits also wait for the batch. A batch go-live runs `scripts/ayas-publish-live.ps1 -Commit <sha>
     -Apply` by hand (or removes that line for one tick and puts it back).
+  - **Grace auto-approval (owner 2026-11-19, in his words: "gelişim merkezine gelen ... geliştirmelerini
+    benden onay almadan yapmasını istiyorum; örnek veriyorum, böyle bir geliştirme keşfetti, 5 dakika
+    orada onayda beklesin, ben onay vermezsem bile kendisi işleme alsın ve onaylasın"; this was also his
+    explicit approval for changing the lane, the queue's approval and the executor for it):** an item
+    that waits in Gelişim Merkezi for one of the four one-click approvals above — a `READY_FOR_REVIEW`
+    micro-batch, a `PENDING` `SAFE` patch-artifact proposal, a `hazir` developer build, a `PASSED` update
+    trial on the current HEAD — and has waited `AYAS_GRACE_AUTO_APPROVE_MS` (default 300000, never
+    under 60000) since the observer's update executor first recorded it ready, with no owner REDDET /
+    ERTELE / "Otomatik onayı durdur", is approved by that executor through the same service the click
+    calls (`performAyasOwnerPublication`, `decideAyasCodeChangeApply`, `decideAyasUpdateApply`), bound to
+    the same id + hash, with every gate of the click path (Package C, Graphify, TypeScript, tests, lane
+    refusals, guarded publication). In place of the session it carries a sealed standing-grace admission
+    (`AYAS_OWNER_STANDING_GRACE_V1`, own seal domain, ready time and elapsed wait on record, accepted only
+    for those four actions; `mintAyasOwnerGraceAdmission`, called only by `AyasGraceAutoApprovalRunner`),
+    and the ledger `data/brain/self-improvement/grace-approvals/` records `owner-standing-grace: <ms> ms
+    elapsed since <readyAt>`. At most one item per executor run; a changed hash waits again from the
+    start; a failed attempt is never retried by itself; it waits while the owner chatted with AYAS in the
+    last 5 minutes, while another publication runs, and (V3-touching items) while a V3 order runs or
+    waits. Never approved this way, always the owner's: `REVIEW_REQUIRED`/`FORBIDDEN_AUTONOMOUS` and
+    non-patch-artifact proposals, anything the code lane refuses (homepage, `src/lib/brain/autonomy/` and
+    the rest of the approval/execution machinery, eval-pinned files, operator scripts, restart or config
+    writes), the approval surfaces themselves (`app/brain/actions.ts`, `src/lib/auth/`, the Gelişim
+    Merkezi approval components), proposals the owner deferred or rejected once, and updates that bring a
+    new known vulnerability. It grants commit and push only: live publish still follows the batched
+    go-live rule above (a grace-approved update is not taken live while `AYAS_AUTO_LIVE_PUBLISH=0`).
+    `AYAS_GRACE_AUTO_APPROVE=0` turns it off (no countdown starts; turning it on gives every item its
+    full wait). Details: `docs/AYAS_KOD_HATTI.md`.
 
 ## graphify
 

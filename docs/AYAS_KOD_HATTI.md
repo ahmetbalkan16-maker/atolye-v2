@@ -67,6 +67,33 @@ olmayan bir uygulamayı yürütücü kendisi gönderir: commit'i kanıtlar, tek 
 dışındaki durumlar RECOVERY_REQUIRED olur ve elle incelenir. FAILED ya da ROLLED_BACK sonrasında aynı yapıya
 yeniden tıklanabilir.
 
+## Bekleme süreli otomatik onay (19 Kasım 2026)
+
+Owner kararı: "böyle bir geliştirme keşfetti, 5 dakika orada onayda beklesin, ben onay vermezsem bile kendisi işleme
+alsın ve onaylasın". Gelişim Merkezi'nde tek tıklık onay bekleyen dört tür öğe için geçerlidir: onaya hazır küçük
+geliştirme paketi, SAFE ve yama dosyalı öneri, hazır geliştirici yapısı (bu kod hattı), mevcut HEAD'de geçmiş
+güncelleme denemesi.
+
+- Yürütücü öğeyi ilk gördüğü anı mühürlü olarak kaydeder (`data/brain/self-improvement/grace-approvals/`, Git dışında).
+  Kartta geri sayım görünür: "X dk Y sn içinde onaylamazsan AYAS kendisi onaylayıp uygulayacak".
+- Süre (`AYAS_GRACE_AUTO_APPROVE_MS`, varsayılan 5 dakika, en az 1 dakika) dolunca ve sen REDDET, ERTELE ya da
+  **Otomatik onayı durdur** demediysen, yürütücü öğeyi senin tıklamanın çağırdığı servisle, aynı kimlik ve hash ile
+  onaylar. Bu kod hattında bu, `decideAyasCodeChangeApply` kararıdır; sonraki turda yukarıdaki `CODE_APPLY` adımları
+  aynen çalışır.
+- Kayıt senin tıklamandan ayrıdır: onay mührü `AYAS_OWNER_STANDING_GRACE_V1` türündedir, hazır olma zamanını ve geçen
+  süreyi taşır; kartta "Otomatik onaylandı (5 dk bekleme)" yazar. İş kartına `owner-standing-grace: <ms> ms elapsed
+  since <readyAt>` notu düşer.
+- Her turda en fazla bir öğe. Yapı değişirse (yeni hash) süre baştan başlar. Başarısız bir otomatik onay bir daha
+  kendiliğinden denenmez. Son 5 dakikada AYAS ile sohbet ettiysen, başka bir yayın sürüyorsa ya da (V3 dosyalarında) V3
+  siparişi çalışıyor veya bekliyorsa bekler.
+- Hiç otomatik onaylanmayanlar: aşağıdaki listede kod hattının reddettiği her şey, onay ekranları ve eylemleri
+  (`app/brain/actions.ts`, `src/lib/auth/`, Gelişim Merkezi onay bileşenleri), REVIEW_REQUIRED ya da yama dosyası
+  olmayan öneriler, bir kez ertelediğin ya da reddettiğin öneriler, yeni bilinen güvenlik açığı getiren güncellemeler.
+- Otomatik onay commit ve push yapar; canlıya alma toplu canlıya alma kuralına kalır (`AYAS_AUTO_LIVE_PUBLISH=0`
+  iken otomatik onaylanan güncelleme de canlıya alınmaz).
+- Kapatmak için `AYAS_GRACE_AUTO_APPROVE=0`. Kapalıyken geri sayım başlamaz; açınca her öğe tam süreyi yeniden bekler.
+- Test: `scripts/smoke-ayas-grace-auto-approval.ts`.
+
 ## Bu yolla hiç değişmeyenler
 
 Kurallar `src/lib/brain/autonomy/AyasCodeChangeLane.ts` (`ayasCodeLaneRefusals`) içindedir. Kart bu dosyalardan
