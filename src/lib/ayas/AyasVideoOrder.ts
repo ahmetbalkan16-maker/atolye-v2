@@ -106,11 +106,13 @@ export function searchTopicOf(text: string): string | undefined {
   return topic.length >= 2 && !EMPTY_TOPIC.test(topic.toLocaleLowerCase("tr")) ? topic : undefined;
 }
 
-const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
+// "shorts" alone is a video noun too (owner, 19 Nov 2026: "Viyana kuşatmasıyla ilgili bir shorts hazırla").
+const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli|shorts?|shorts?['’]?u)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
 const LENGTH_TR = "\\d{1,4}\\s*(?:dakikalık|saniyelik|dk['’]?lık|sn['’]?lik)";
-const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|shorts?|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
-const ORDER_TR_COLON = new RegExp(`^${VIDEO}\\s+${MAKE}\\s*[:\\-–]\\s*(.{3,160})$`, "u");
+// "… hakkında", or the topic glued to "-(y)la/-(y)le ilgili" ("Viyana kuşatmasıyla ilgili", "Mohaç'la ilgili").
+const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)(?:\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)|['’]?y?l[ae]\\s+ilgili)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|shorts?|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
+const ORDER_TR_COLON = new RegExp(`^(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|shorts?|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}\\s*[:\\-–]\\s*(.{3,160})$`, "u");
 const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:(?:short|new|\d{1,4}[- ]?(?:minute|min|second|sec)s?)\s+){0,2}(?:video|episode)\s+(?:about|on)\s+(.{3,160})$/u;
 // A video/order word in any inflection and a progress question anywhere after it ("videom ne durumda", "Sezar videosu
 // ne oldu", "video yapılıyor mu"); until 22 Oct 2026 only "video durumu"-like pairs were seen and the rest went to the
