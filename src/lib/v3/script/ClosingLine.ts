@@ -1,4 +1,5 @@
-import type { Episode, SceneLine } from "../episode/EpisodeTypes";
+import type { Episode, EpisodeScene, SceneLine } from "../episode/EpisodeTypes";
+import { LONG_FORM_MIN_S } from "./V3Budget";
 
 /**
  * Every video ends with its main character inviting the viewer to subscribe (owner, 13 Nov 2026, after the Siege of
@@ -17,14 +18,15 @@ export const invitesToSubscribe = (text: string): boolean => SUBSCRIBE.test(text
 /**
  * The episode's main character: a visible character named in the topic or the title (the Baghdad Short's first pick by
  * lines alone was a Safavid foot soldier, not Murad IV), else the one with the most lines (ties: the first in the cast).
+ * `among` limits the pick to those characters (a long video's last scene: closingSpeaker).
  */
-export function mainCharacter(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler"> & { readonly baslik?: string }, topic = ""): string | undefined {
-  const visible = episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id);
+export function mainCharacter(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler"> & { readonly baslik?: string }, topic = "", among?: ReadonlySet<string>): string | undefined {
+  const visible = episode.oyuncu_kadrosu.filter((c) => c.gorunur && (!among || among.has(c.id))).map((c) => c.id);
   if (!visible.length) return undefined;
   const lines = new Map(visible.map((id) => [id, 0]));
   for (const s of episode.sahneler) for (const l of s.satirlar) if (lines.has(l.karakter)) lines.set(l.karakter, lines.get(l.karakter)! + 1);
   const told = `${topic} ${episode.baslik ?? ""}`.toLocaleLowerCase("en-US");
-  for (const c of episode.oyuncu_kadrosu) if (c.gorunur && c.ad.trim().length > 2 && told.includes(c.ad.trim().toLocaleLowerCase("en-US"))) lines.set(c.id, lines.get(c.id)! + 1000);
+  for (const c of episode.oyuncu_kadrosu) if (lines.has(c.id) && c.ad.trim().length > 2 && told.includes(c.ad.trim().toLocaleLowerCase("en-US"))) lines.set(c.id, lines.get(c.id)! + 1000);
   return visible.reduce((best, id) => (lines.get(id)! > lines.get(best)! ? id : best), visible[0]!);
 }
 
@@ -35,19 +37,41 @@ export function closingText(dil: "tr" | "en", channel: string): { metin: string;
     : { metin: `If you enjoyed this story, subscribe to ${channel} — history is more fun here!`, balon: "Don't forget to subscribe!" };
 }
 
+/** The visible characters a scene puts on screen: its blocking, its speakers and those spoken to (Director.placeScene). */
+export function onStage(scene: Pick<EpisodeScene, "sahne_duzeni" | "satirlar">, visible: ReadonlySet<string>): Set<string> {
+  const ids = [...(scene.sahne_duzeni ?? []).map((b) => b.karakter), ...scene.satirlar.flatMap((l) => [l.karakter, typeof l.hedef === "string" ? l.hedef : ""])];
+  return new Set(ids.filter((id) => visible.has(id)));
+}
+
+/**
+ * Who speaks the closing invitation. A Short is one moment: its main character is put on stage if missing (the
+ * Baghdad Short's last scene staged only a soldier; the owner wanted Murad IV). A long video's last scene can be decades
+ * and countries away from the chapters its main character filled (14 Nov 2026 audit: a 20–30 minute episode's subscribe
+ * line could go to a character who is not on stage there, dragged into a scene he was never in): there the line goes to
+ * the main character among those on stage (ScriptPrompts rule 7: "on stage in the last scene"); with nobody visible on
+ * stage, the main character is still brought on.
+ */
+export function closingSpeaker(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler" | "hedef_sure_sn"> & { readonly baslik?: string }, topic = ""): string | undefined {
+  const main = mainCharacter(episode, topic);
+  const last = episode.sahneler.at(-1);
+  if (!main || !last || last.harita !== undefined || !(episode.hedef_sure_sn > LONG_FORM_MIN_S)) return main;
+  const present = onStage(last, new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id)));
+  return present.has(main) || !present.size ? main : mainCharacter(episode, topic, present);
+}
+
 /**
  * The episode with its last line the main character's subscribe invitation, and what was done (for the log). A last
  * scene on the map gets no new speaker (a character without a badge cannot speak there): the line is added to the last
  * stage scene only when it is the last scene; else, on a map ending, an invitation already written keeps its speaker.
  */
 export function ensureClosingLine(episode: Episode, dil: "tr" | "en", channel: string, topic = ""): { episode: Episode; fixes: string[] } {
-  const main = mainCharacter(episode, topic);
+  const main = closingSpeaker(episode, topic);
   const last = episode.sahneler.at(-1);
   if (!main || !last || !last.satirlar.length) return { episode, fixes: [] };
   const end = last.satirlar.at(-1)!;
   if (end.karakter === main && SUBSCRIBE.test(end.metin)) return { episode, fixes: [] };
   const onMap = last.harita !== undefined;
-  const staged = !onMap && (last.sahne_duzeni ?? []).some((b) => b.karakter === main);
+  const staged = !onMap && onStage(last, new Set([main])).has(main);
   if (onMap) return { episode, fixes: [] };
   const blocking = staged ? last.sahne_duzeni : [...(last.sahne_duzeni ?? []), { karakter: main, x: 0.5 }];
   let satirlar: SceneLine[];

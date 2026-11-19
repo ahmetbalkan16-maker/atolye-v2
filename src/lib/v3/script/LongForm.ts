@@ -268,6 +268,26 @@ export interface LongFormDeps {
  */
 export const CHAPTER_LENGTH_MIN = 0.9;
 
+/** A chapter takes at most this share of its planned length on top from the chapters before it (carryShortfall). */
+export const CHAPTER_CARRY_MAX = 0.5;
+
+/**
+ * A chapter still short after its lengthening round hands its missing seconds to the next chapter (14 Nov 2026 audit
+ * of 20–30 minute videos: a short chapter was only written to the log, and its gap reached the finished cut as a video
+ * well under its minutes). No extra model call: the next chapter is simply written longer, up to CHAPTER_CARRY_MAX of
+ * its own plan on top; the last chapter has no one to hand to. `planned` is the plan as read (the cap's base).
+ */
+export function carryShortfall(chapters: readonly ChapterPlan[], planned: readonly ChapterPlan[], index: number, has: number, want: number): { bolumler: ChapterPlan[]; carriedS: number } {
+  const ch = chapters[index];
+  const next = chapters[index + 1];
+  const plan = planned[index + 1];
+  if (!ch || !next || !plan || want <= 0 || has >= want * CHAPTER_LENGTH_MIN) return { bolumler: [...chapters], carriedS: 0 };
+  const missing = Math.round(ch.sure_sn * (1 - has / want));
+  const sure = Math.min(Math.round(plan.sure_sn * (1 + CHAPTER_CARRY_MAX)), next.sure_sn + missing);
+  if (sure <= next.sure_sn) return { bolumler: [...chapters], carriedS: 0 };
+  return { bolumler: chapters.map((b, j) => (j === index + 1 ? { ...b, sure_sn: sure } : b)), carriedS: sure - next.sure_sn };
+}
+
 /**
  * The plan's sources limited to the source bank's (a single video's script is sent back for one outside it,
  * ScriptEngine.bankProblems): every chapter cites only the plan's, so one made up in the plan would reach the
@@ -335,7 +355,8 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
   if (!plan.outline) throw new Error(`V3_SCRIPT_INVALID: bölüm planı okunamadı: ${plan.problems.slice(0, 4).join("; ")}`);
   const sourced = bankSourcesOnly(plan.outline.header, d.brief.kaynakBankasi);
   if (sourced.dropped.length) log(`  senaryo planı: kaynak bankasında olmayan kaynaklar çıkarıldı — ${sourced.dropped.join(", ")}`);
-  const outline: EpisodeOutline = { ...plan.outline, header: sourced.header };
+  let outline: EpisodeOutline = { ...plan.outline, header: sourced.header };
+  const planned = outline.bolumler;
   log(`senaryo planı: ${outline.bolumler.length} bölüm — ${outline.bolumler.map((b) => `${b.baslik} (${b.sure_sn} sn)`).join(" · ")}`);
   // 2) Chapter by chapter.
   const scenes: Record<string, unknown>[] = [];
@@ -390,6 +411,12 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     scenes.push(...chapterScenes);
     previous = chapterEnding(chapterScenes, outline.header.oyuncu_kadrosu);
     log(`  bölüm ${i + 1}/${outline.bolumler.length} "${ch.baslik}": ${chapterScenes.length} sahne, ${wordsOf(chapterScenes)}/${want} kelime`);
+    // Still short after its lengthening round: the next chapter is written longer by the seconds it is missing.
+    const carry = carryShortfall(outline.bolumler, planned, i, wordsOf(chapterScenes), want);
+    if (carry.carriedS) {
+      outline = { ...outline, bolumler: carry.bolumler };
+      log(`  bölüm ${i + 1}: kısa kaldı — eksik ~${carry.carriedS} sn sonraki bölüme eklendi (bölüm ${i + 2}: ${carry.bolumler[i + 1]!.sure_sn} sn)`);
+    } else if (lastChapter && wordsOf(chapterScenes) < want * CHAPTER_LENGTH_MIN) log(`  bölüm ${i + 1}: son bölüm kısa kaldı — eksiği taşıyacak bölüm yok`);
     const checkPrompt = factCheckPrompt(JSON.stringify(chapterEpisode(outline, i, chapterScenes)), d.brief.dil, d.brief.kaynakBankasi, d.brief.konu, d.brief.denetciDersleri);
     let checkText = (await d.budget.generate(`dogrulama-${i + 1}`, d.checker, checkPrompt, { maxTokens: CHAPTER_CHECK_MAX_TOKENS })).result.content;
     if (d.readableCheck && !d.readableCheck(checkText)) {

@@ -15,8 +15,8 @@ import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikip
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
 import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
-import { closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
-import { bankSourcesOnly, chapterBrief, chapterCount, chapterProblems, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
+import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
+import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
@@ -1241,6 +1241,49 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.deepEqual(out.episode.kaynaklar.map((k) => k.id), ["avunduk-2008"]);
     assert.deepEqual(out.episode.sahneler.flatMap((s) => (s.yazi_karti ?? []).filter((k) => k.stil === "bolum").map((k) => `${s.id}:${k.alt_metin}`)), [1, 2, 3, 4, 5, 6].map((n) => `b${n}-bolum-s1-kanca:Chapter ${n}`));
     assert.ok(out.validation.ok);
+    // Every chapter stays short after its lengthening round: each hands its missing seconds on, up to +50% of the plan.
+    const asked = [1, 5, 8, 11, 14, 17].map((n) => Number(/"sure_hedef" adding up to (\d+)/.exec(prompts[n]!)?.[1]));
+    assert.equal(asked[0], 120);
+    assert.ok(asked.slice(1).every((s) => s > 120 && s <= 180), `the later chapters are written longer: ${asked.join(", ")}`);
+    assert.ok(lines.some((l) => /^ {2}bölüm 1: kısa kaldı — eksik ~\d+ sn sonraki bölüme eklendi \(bölüm 2: \d+ sn\)$/.test(l)), lines.join("\n"));
+    assert.ok(lines.some((l) => l === "  bölüm 6: son bölüm kısa kaldı — eksiği taşıyacak bölüm yok"), lines.join("\n"));
+  });
+
+  await scenario("L3 a long video's chapter still short after its lengthening round hands its missing seconds to the next chapter (14 Nov 2026 audit: only logged)", () => {
+    const plan = Array.from({ length: 3 }, (_, i) => ({ id: `b${i + 1}-x`, baslik: `C${i + 1}`, ozet: "o", sure_sn: 120 }));
+    // 200 of 300 words: a third of 120 s missing, carried to chapter 2.
+    const one = carryShortfall(plan, plan, 0, 200, 300);
+    assert.deepEqual([one.carriedS, one.bolumler.map((b) => b.sure_sn)], [40, [120, 160, 120]]);
+    // Within the band (≥ 90%): nothing moves; the last chapter has no one to hand to.
+    assert.equal(carryShortfall(plan, plan, 0, 280, 300).carriedS, 0);
+    assert.equal(carryShortfall(plan, plan, 2, 10, 300).carriedS, 0);
+    // A chapter already carrying keeps to +50% of its own plan.
+    const grown = plan.map((b, i) => (i === 1 ? { ...b, sure_sn: 170 } : b));
+    const capped = carryShortfall(grown, plan, 0, 0, 300);
+    assert.deepEqual([capped.carriedS, capped.bolumler[1]!.sure_sn], [10, 120 * (1 + CHAPTER_CARRY_MAX)]);
+    assert.equal(carryShortfall(capped.bolumler, plan, 0, 0, 300).carriedS, 0, "a full chapter takes no more");
+  });
+
+  await scenario("L4 a long video's subscribe line goes to a character on stage in its last scene, not a main character it would drag in (14 Nov 2026 audit)", () => {
+    const cast = [{ id: "anlatici", ad: "Narrator", gorunur: false }, { id: "hannibal", ad: "Hannibal", gorunur: true }, { id: "scipio", ad: "Scipio", gorunur: true }, { id: "masinissa", ad: "Masinissa", gorunur: true }];
+    const line = (karakter: string, metin: string) => ({ karakter, metin, duygu: "notr" as const });
+    const early = { id: "b1-s1", satirlar: [line("hannibal", "Elephants!"), line("hannibal", "Over the Alps!"), line("hannibal", "Cannae!"), line("scipio", "Hm."), line("masinissa", "Horses!"), line("scipio", "Africa.")] };
+    // Decades later in Rome: Scipio on stage, Hannibal far away; the narrator closes.
+    const long = { hedef_sure_sn: 1200, oyuncu_kadrosu: cast, sahneler: [early, { id: "b10-s9", sahne_duzeni: [{ karakter: "scipio", x: 0.4 }], satirlar: [line("anlatici", "Rome remembers."), line("masinissa", "And Numidia too.")] }] } as unknown as Episode;
+    assert.equal(mainCharacter(long), "hannibal");
+    assert.equal(closingSpeaker(long), "scipio", "the on-stage character with the most lines");
+    const closed = ensureClosingLine(long, "en", "Crowns & Doodles").episode.sahneler.at(-1)!;
+    assert.equal(closed.satirlar.at(-1)!.karakter, "scipio");
+    assert.ok(!closed.sahne_duzeni!.some((b) => b.karakter === "hannibal"), "the absent main character is not dragged on stage");
+    assert.deepEqual(closed.sahne_duzeni, [{ karakter: "scipio", x: 0.4 }], "an on-stage closer keeps the scene's blocking");
+    // The narrator's invitation is handed to one on stage, not the absent main character; a speaker counts as on stage.
+    const absent = { ...long, sahneler: [early, { id: "b10-s9", satirlar: [line("masinissa", "Numidia rides on."), line("anlatici", "Subscribe for more elephants!")] }] } as unknown as Episode;
+    const handed = ensureClosingLine(absent, "en", "C").episode.sahneler.at(-1)!;
+    assert.deepEqual([handed.satirlar.at(-1)!.karakter, handed.satirlar.at(-1)!.metin, handed.sahne_duzeni], ["masinissa", "Subscribe for more elephants!", undefined]);
+    // Nobody visible on stage: the main character is still brought on; a Short keeps its main character.
+    const empty = { ...long, sahneler: [early, { id: "b10-s9", satirlar: [line("anlatici", "And so it ended.")] }] } as unknown as Episode;
+    assert.equal(ensureClosingLine(empty, "en", "C").episode.sahneler.at(-1)!.satirlar.at(-1)!.karakter, "hannibal");
+    assert.equal(closingSpeaker({ ...long, hedef_sure_sn: 170 } as Episode), "hannibal", "a Short's main character is put on stage");
   });
 
   await scenario("map rules (owner, 21 Oct 2026): between places on the living map — a map-named scene needs a map, a map needs something happening, a voyage needs its route", () => {
