@@ -2,7 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { forgetSource, remember } from "../council/ExperienceMemory";
 import { listOrders, type ProductionOrder } from "../orders/ProductionOrders";
-import { type EpisodeTimeline, episodeTimeline, retentionLessons } from "./ChannelAnalyticsMap";
+import { type EpisodeTimeline, episodeTimeline, retentionLessons, TIMELINE_TOLERANCE_S } from "./ChannelAnalyticsMap";
 import { type ChannelGoals, evaluatePerformance, nextShortTargets, type PerformanceEvaluation, performanceLessons, type VideoPerformanceRecord } from "./ChannelGoals";
 import { sameTitle } from "./YoutubeUpload";
 
@@ -68,51 +68,87 @@ export interface LinkableVideo {
   readonly fileName?: string;
 }
 
+/** A delivered order with its YouTube package and the video files in its folder (ordersWithPackages). */
+export interface PackagedOrder {
+  readonly order: ProductionOrder;
+  readonly paket?: { readonly dosya?: string; readonly basliklar: readonly string[] };
+  readonly dosyalar?: readonly string[];
+}
+
 /**
  * The production a video on the channel came from, with what exists: the order AYAS uploaded it for
- * (`yayin.videoId`), else the file name the owner uploaded (youtube.json's `dosya`, e.g. `1638-animated-history.mp4`),
- * else one of the package's titles. Undefined when nothing matches (the video is then reported by time only).
+ * (`yayin.videoId`), else the file name the owner uploaded (youtube.json's `dosya`, e.g. `1638-animated-history.mp4`,
+ * or a video file of that name in the order's folder — the owner renames before uploading: "Taranto Raid 1940 21
+ * Biplanes vs İtalian Battleships.mp4", 19 Nov 2026), else one of the package's titles. Undefined when nothing matches
+ * (the video is then reported by time only).
  */
-export function linkOrder(video: LinkableVideo, orders: readonly { readonly order: ProductionOrder; readonly paket?: { readonly dosya?: string; readonly basliklar: readonly string[] } }[]): ProductionOrder | undefined {
+export function linkOrder(video: LinkableVideo, orders: readonly PackagedOrder[]): ProductionOrder | undefined {
+  return linkCandidates(video, orders)[0];
+}
+
+/**
+ * Every order the video may have come from, best first (linkOrder's rules). Several orders can share an upload's file
+ * name — the Zanzibar Short was produced twice and both folders hold "38-minute-war-1896-animated-history.mp4" — so the
+ * puller takes the first whose timeline fits the upload's length.
+ */
+export function linkCandidates(video: LinkableVideo, orders: readonly PackagedOrder[]): ProductionOrder[] {
   const withOutput = orders.filter((x) => x.order.cikti);
-  const byId = withOutput.find((x) => x.order.yayin?.videoId === video.videoId);
-  if (byId) return byId.order;
   const file = video.fileName ? path.basename(video.fileName.replace(/\\/g, "/")) : undefined;
-  const byFile = file ? withOutput.find((x) => x.paket?.dosya && path.basename(x.paket.dosya) === file) : undefined;
-  if (byFile) return byFile.order;
-  return withOutput.find((x) => x.paket?.basliklar.some((t) => sameTitle(t, video.title)))?.order;
+  const ranked = [
+    ...withOutput.filter((x) => x.order.yayin?.videoId === video.videoId),
+    ...(file ? withOutput.filter((x) => (x.paket?.dosya && path.basename(x.paket.dosya) === file) || x.dosyalar?.includes(file)) : []),
+    ...withOutput.filter((x) => x.paket?.basliklar.some((t) => sameTitle(t, video.title))),
+  ].map((x) => x.order);
+  return ranked.filter((o, i) => ranked.findIndex((x) => x.id === o.id) === i);
 }
 
 /** Every delivered order with its YouTube package (youtube.json), read once per pull. */
-export async function ordersWithPackages(workRoot: string): Promise<{ readonly order: ProductionOrder; readonly paket?: { readonly dosya?: string; readonly basliklar: readonly string[] } }[]> {
-  const out: { order: ProductionOrder; paket?: { dosya?: string; basliklar: readonly string[] } }[] = [];
+export async function ordersWithPackages(workRoot: string): Promise<PackagedOrder[]> {
+  const out: PackagedOrder[] = [];
   for (const { order } of await listOrders(workRoot)) {
     const file = order.cikti ? path.join(order.cikti, "youtube.json") : "";
+    // The video files in the folder (the owner's renamed upload copy among them).
+    const dosyalar = order.cikti && existsSync(order.cikti) ? (await fs.readdir(order.cikti)).filter((n) => /\.mp4$/i.test(n)) : [];
     if (!file || !existsSync(file)) {
-      out.push({ order });
+      out.push({ order, dosyalar });
       continue;
     }
     try {
       const yt = JSON.parse(await fs.readFile(file, "utf8")) as { dosya?: unknown; paket?: { basliklar?: unknown } };
       const basliklar = Array.isArray(yt.paket?.basliklar) ? yt.paket.basliklar.filter((t): t is string => typeof t === "string") : [];
-      out.push({ order, paket: { ...(typeof yt.dosya === "string" ? { dosya: yt.dosya } : {}), basliklar } });
+      out.push({ order, paket: { ...(typeof yt.dosya === "string" ? { dosya: yt.dosya } : {}), basliklar }, dosyalar });
     } catch {
-      out.push({ order });
+      out.push({ order, dosyalar });
     }
   }
   return out;
 }
 
-/** The production's timeline (plan.json + episode.json in its output folder), or undefined. */
-export async function loadTimeline(cikti: string | undefined): Promise<EpisodeTimeline | undefined> {
+/**
+ * The production's timeline (plan.json + episode.json in its output folder), or undefined. With `durationS` (the
+ * upload's length) the delivered round's is looked for too: a kept round's `tur<N>/plan.json` (RetouchBrain.keepRound)
+ * whose length fits within TIMELINE_TOLERANCE_S, with that round's episode; the folder's own when none fits.
+ */
+export async function loadTimeline(cikti: string | undefined, durationS?: number): Promise<EpisodeTimeline | undefined> {
   if (!cikti) return undefined;
-  const plan = path.join(cikti, "plan.json");
-  if (!existsSync(plan)) return undefined;
-  try {
-    const episodeFile = path.join(cikti, "episode.json");
-    const episode = existsSync(episodeFile) ? JSON.parse(await fs.readFile(episodeFile, "utf8")) : undefined;
-    return episodeTimeline(JSON.parse(await fs.readFile(plan, "utf8")), episode);
-  } catch {
-    return undefined;
+  const read = async (dir: string): Promise<EpisodeTimeline | undefined> => {
+    const plan = path.join(dir, "plan.json");
+    if (!existsSync(plan)) return undefined;
+    try {
+      const episodeFile = [path.join(dir, "episode.json"), path.join(cikti, "episode.json")].find((f) => existsSync(f));
+      const episode = episodeFile ? JSON.parse(await fs.readFile(episodeFile, "utf8")) : undefined;
+      return episodeTimeline(JSON.parse(await fs.readFile(plan, "utf8")), episode);
+    } catch {
+      return undefined;
+    }
+  };
+  const own = await read(cikti);
+  const fits = (t?: EpisodeTimeline) => !!t && durationS !== undefined && Math.abs(t.sureSn - durationS) <= TIMELINE_TOLERANCE_S;
+  if (durationS === undefined || fits(own)) return own;
+  const rounds = existsSync(cikti) ? (await fs.readdir(cikti)).filter((n) => /^tur\d+$/.test(n)).sort() : [];
+  for (const r of rounds) {
+    const t = await read(path.join(cikti, r));
+    if (fits(t)) return t;
   }
+  return own;
 }

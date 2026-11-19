@@ -228,8 +228,21 @@ export interface VideoPerformanceRecord {
    * median of videos of similar length on YouTube).
    */
   readonly tutma?: readonly RetentionPoint[];
+  /**
+   * The same curve of organic viewers only (`audienceType==ORGANIC`), read when paid views are at least AD_SHARE_SPLIT
+   * of the video's views (19 Nov 2026: five Shorts had 82–93 % of their views from the owner's ads, and the blended
+   * curve's "biggest loss at 7–9 s" was the ad viewers' own drop, not the feed's).
+   */
+  readonly tutmaOrganik?: readonly RetentionPoint[];
+  /** Views and average view without the paid ones (from the traffic report), stored when any view came from an ad. */
+  readonly organik?: { readonly goruntuleme: number; readonly ortIzlemeSn: number | null; readonly reklamPayi: number };
   readonly not?: string;
 }
+
+/** From this share of paid views on, a video is judged and taught by its organic viewers only. */
+export const AD_SHARE_SPLIT = 0.1;
+/** Fewer organic views than this on a mostly paid video: its view ratio is not measured (too few to read). */
+export const MIN_ORGANIC_VIEWS = 50;
 
 export interface RetentionPoint { readonly oran: number; readonly izlenme: number; readonly goreli?: number }
 
@@ -257,9 +270,15 @@ function check(metrik: GoalCheck["metrik"], value: number | null | undefined, ba
   return { metrik, durum, deger: value, hedef: band, ...(band.baslangic !== undefined ? { baslangicFarki: Math.round((value - band.baslangic) * 1000) / 1000 } : {}) };
 }
 
-/** The view ratio of a record: its own average-viewed share if Studio gave it, else average view seconds / length. */
+/**
+ * The view ratio of a record: its organic viewers' when paid views are AD_SHARE_SPLIT or more (19 Nov 2026), else its own
+ * average-viewed share if Studio or the API gave it, else average view seconds / length.
+ */
 export function recordViewRatio(record: VideoPerformanceRecord): number | null {
   const m = record.metrikler;
+  // A mostly paid video is the feed's only through its organic viewers (an ad viewer chose nothing).
+  const o = record.organik;
+  if (o && o.reklamPayi >= AD_SHARE_SPLIT) return o.goruntuleme >= MIN_ORGANIC_VIEWS && o.ortIzlemeSn !== null && record.sureSn > 0 ? viewRatio(o.ortIzlemeSn, record.sureSn) : null;
   if (m.ortGoruntulenenYuzde !== null && Number.isFinite(m.ortGoruntulenenYuzde)) return m.ortGoruntulenenYuzde;
   return m.ortIzlemeSn !== null && record.sureSn > 0 ? viewRatio(m.ortIzlemeSn, record.sureSn) : null;
 }

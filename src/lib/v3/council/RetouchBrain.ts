@@ -221,6 +221,9 @@ export const ROUND_FILES = ["QC.md", "KURUL.md", "yapim-raporu.json", "youtube.j
  */
 export const ROUND_FILES_IF_KEPT = ["episode.json", "yonetmen-kurulu.json", "olcum.json"] as const;
 
+/** A round's render plan, kept beside its files for ChannelLearning.loadTimeline; restoreRound never copies it back. */
+export const ROUND_PLAN = "plan.json";
+
 export const roundVideo = (finalName: string, tur: number) => finalName.replace(/\.mp4$/, `-tur${tur}.mp4`);
 
 /** Keeps a finished round — its video, its package and its scores — in `tur<N>/` before the next round overwrites them. */
@@ -229,6 +232,9 @@ export async function keepRound(work: string, finalName: string, score: RoundSco
   await fs.mkdir(dir, { recursive: true });
   await fs.copyFile(path.join(work, finalName), path.join(work, roundVideo(finalName, score.tur)));
   for (const name of [...ROUND_FILES, ...ROUND_FILES_IF_KEPT]) if (existsSync(path.join(work, name))) await fs.copyFile(path.join(work, name), path.join(dir, name));
+  // The round's render plan, for the channel reader only (never put back): the Caesar Short delivered round 0 while
+  // plan.json held round 1's timeline (42.3 s for a 44 s upload), so its retention drops could not be placed (19 Nov 2026).
+  if (existsSync(path.join(work, ROUND_PLAN))) await fs.copyFile(path.join(work, ROUND_PLAN), path.join(dir, ROUND_PLAN));
   await fs.writeFile(path.join(dir, "puan.json"), `${JSON.stringify(score, null, 2)}\n`);
 }
 

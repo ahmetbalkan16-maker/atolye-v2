@@ -103,10 +103,45 @@ export const TRAFFIC_KEYS: Readonly<Record<string, string>> = {
   SHORTS: "shortsAkisi", YT_SEARCH: "youtubeArama", YT_CHANNEL: "kanalSayfasi", EXT_URL: "harici",
   SUBSCRIBER: "anaSayfaAbonelik", RELATED_VIDEO: "onerilenVideo", NO_LINK_OTHER: "dogrudan", PLAYLIST: "oynatmaListesi",
   NOTIFICATION: "bildirim", HASHTAGS: "etiketSayfasi", END_SCREEN: "bitisEkrani", YT_OTHER_PAGE: "digerYoutube",
+  // Paid views (19 Nov 2026): five Shorts' "diger" 82–93 % was ADVERTISING — the owner's promotion, not the feed.
+  ADVERTISING: "reklam", SHORTS_CONTENT_LINKS: "shortsBaglantisi", YT_PLAYLIST_PAGE: "oynatmaListesiSayfasi",
+  CAMPAIGN_CARD: "kampanyaKarti", SOUND_PAGE: "sesSayfasi", VIDEO_REMIXES: "remiks",
 };
+
+/** The API's traffic type of paid views. */
+export const AD_TRAFFIC = "ADVERTISING";
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
 const r4 = (x: number) => Math.round(x * 10_000) / 10_000;
+
+/**
+ * Views and average view without the paid ones, from the traffic report (views and averageViewDuration per source).
+ * Undefined when no view came from an ad (the video's own numbers are then its organic ones).
+ */
+export function organicViews(rows: readonly ReportRow[]): { readonly goruntuleme: number; readonly ortIzlemeSn: number | null; readonly reklamPayi: number } | undefined {
+  let ads = 0, views = 0, seconds = 0, timed = 0;
+  for (const r of rows) {
+    const v = num(r.views);
+    if (v === null || v <= 0) continue;
+    if (r.insightTrafficSourceType === AD_TRAFFIC) {
+      ads += v;
+      continue;
+    }
+    views += v;
+    const d = num(r.averageViewDuration);
+    if (d !== null) {
+      seconds += d * v;
+      timed += v;
+    }
+  }
+  if (!ads) return undefined;
+  return { goruntuleme: views, ortIzlemeSn: timed ? Math.round((seconds / timed) * 10) / 10 : null, reklamPayi: r4(ads / (ads + views)) };
+}
+
+/** The curve the feed's viewers drew: the organic one when it was read (a mostly paid video), else the whole one. */
+export function feedCurve(record: Pick<VideoPerformanceRecord, "tutma" | "tutmaOrganik">): { readonly curve: readonly RetentionPoint[]; readonly organik: boolean } {
+  return record.tutmaOrganik?.length ? { curve: record.tutmaOrganik, organik: true } : { curve: record.tutma ?? [], organik: false };
+}
 
 /** Views per traffic source as shares of the video's views (0..1); undefined when no view came at all. */
 export function trafficShares(rows: readonly ReportRow[]): Record<string, number> | undefined {
@@ -143,6 +178,8 @@ export function analyticsRecord(input: {
   readonly basic?: ReportRow;
   readonly traffic?: readonly ReportRow[];
   readonly retention?: readonly ReportRow[];
+  /** The organic viewers' curve, read only for a mostly paid video (YoutubeAnalytics.readMoment). */
+  readonly organicRetention?: readonly ReportRow[];
   readonly siparisId?: string;
 }): VideoPerformanceRecord {
   const b = input.basic ?? {};
@@ -162,6 +199,8 @@ export function analyticsRecord(input: {
   const metrikler = Object.fromEntries(PERFORMANCE_METRICS.map((k) => [k, fromApi[k] ?? null])) as Record<PerformanceMetric, number | null>;
   const trafik = input.traffic ? trafficShares(input.traffic) : undefined;
   const tutma = input.retention ? retentionCurve(input.retention) : [];
+  const tutmaOrganik = input.organicRetention ? retentionCurve(input.organicRetention) : [];
+  const organik = input.traffic ? organicViews(input.traffic) : undefined;
   return {
     schemaVersion: 1,
     videoId: input.video.videoId,
@@ -175,6 +214,8 @@ export function analyticsRecord(input: {
     metrikler,
     ...(trafik ? { trafik } : {}),
     ...(tutma.length ? { tutma } : {}),
+    ...(tutmaOrganik.length ? { tutmaOrganik } : {}),
+    ...(organik ? { organik } : {}),
     not: "YouTube Analytics API; izlemeyi seçenler/kaydıranlar ve benzersiz izleyici API'de yok (ölçülmedi).",
   };
 }
@@ -240,6 +281,30 @@ export function retentionDrops(curve: readonly RetentionPoint[], durationS: numb
   return { ...(kanca ? { kanca } : {}), dususler: picked.map((w) => ({ basSn: r1(t(curve[w.i - k]!)), bitSn: r1(t(curve[w.i]!)), kayip: r3(w.d) })) };
 }
 
+/** Where the line after the hook is judged: the hook scene's narration has run its course by then in every Short so far. */
+export const AFTER_HOOK_S = 12;
+/**
+ * A hold after the hook below this is weak: between the channel's two groups of 19 Nov 2026 (organic 0.44–0.57 on the
+ * four 45–56 s Shorts, 0.68–0.78 on the four 108–164 s ones). The channel's own yardstick, not YouTube's.
+ */
+export const AFTER_HOOK_HOLD_OK = 0.65;
+
+/**
+ * The share of the audience still there at HOOK_S that is still there at AFTER_HOOK_S (19 Nov 2026). The organic curves
+ * of the four 45–56 s Shorts kept their hook (relative 0.43–0.53 at 3 s), then lost 43–56 % of it by 12 s while the
+ * narrator read a 14–18-word date-and-place line: the number the next Shorts are compared by. Undefined when the curve
+ * has no point before HOOK_S or the video is not longer than AFTER_HOOK_S.
+ */
+export function holdAfterHook(curve: readonly RetentionPoint[], durationS: number): number | undefined {
+  if (curve.length < 3 || !(durationS > AFTER_HOOK_S)) return undefined;
+  const t = (p: RetentionPoint) => p.oran * durationS;
+  if (t(curve[0]!) >= HOOK_S) return undefined;
+  const last = (s: number) => [...curve].reverse().find((p) => t(p) <= s + 1e-9);
+  const a = last(HOOK_S), b = last(AFTER_HOOK_S);
+  if (!a || !b || !(a.izlenme > 0)) return undefined;
+  return Math.round(Math.min(1, b.izlenme / a.izlenme) * 1000) / 1000;
+}
+
 /* ------------------------------------------------- production timeline --- */
 
 /** What a scene is for the brains: a joke scene (mood "komik") → mizah, a map scene → kalite, else the story → kurgu. */
@@ -301,11 +366,16 @@ export type RetentionBrain = "kurgu" | "mizah" | "kalite";
  * What a retention curve teaches (English, each under the memory's 300 characters): the hook to the writer (kurgu);
  * each named drop to the brain of the scene it falls in — a joke scene to mizah, a map scene to kalite, any other to
  * kurgu — with the line being said. A drop is taught only when the video is linked to its production and the plan's
- * length matches the upload (TIMELINE_TOLERANCE_S); otherwise it is reported by time only.
+ * length matches the upload (TIMELINE_TOLERANCE_S); otherwise it is reported by time only. A mostly paid video is read
+ * on its organic viewers' curve (feedCurve): an ad viewer's leaving says nothing about the feed (19 Nov 2026).
  */
 export function retentionLessons(record: VideoPerformanceRecord, timeline?: EpisodeTimeline): { readonly beyin: RetentionBrain; readonly metin?: string; readonly tr: string }[] {
-  if (!record.tutma?.length) return [];
-  const { kanca, dususler } = retentionDrops(record.tutma, record.sureSn);
+  const feed = feedCurve(record);
+  if (!feed.curve.length) return [];
+  const { kanca, dususler } = retentionDrops(feed.curve, record.sureSn);
+  const hold = holdAfterHook(feed.curve, record.sureSn);
+  const who = feed.organik ? "organic viewers" : "viewers";
+  const trWho = feed.organik ? "organik izleyicinin" : "izleyicinin";
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const kind = videoKind(record.sureSn) === "short" ? "Short" : "video";
   const title = (record.baslik ?? record.videoId).replace(/\s*#shorts\b/gi, "").slice(0, 60);
@@ -316,23 +386,30 @@ export function retentionLessons(record: VideoPerformanceRecord, timeline?: Epis
   if (kanca) {
     const verdict = kanca.goreli === undefined ? "" : kanca.goreli < 0.5 ? ` — worse than similar videos (relative ${kanca.goreli.toFixed(2)})` : ` — as good as or better than similar videos (relative ${kanca.goreli.toFixed(2)})`;
     const open = fits?.satirlar.find((l) => l.basSn < HOOK_S);
-    const advice = kanca.goreli !== undefined && kanca.goreli >= 0.5 ? "Keep this kind of opening." : "Open on a stranger, more concrete line said by a character in mid-action, with something moving at once.";
+    // The line said after the hook (the first one starting at or after the hook line ends).
+    const follow = open ? fits?.satirlar.find((l) => l.basSn >= open.bitSn && l.basSn < AFTER_HOOK_S) : undefined;
+    const weakHook = !(kanca.goreli !== undefined && kanca.goreli >= 0.5);
+    const weakHold = hold !== undefined && hold < AFTER_HOOK_HOLD_OK;
+    const advice = weakHold
+      ? `${weakHook ? "Open on a stranger line by a character in mid-action, then s" : "The hook held; then s"}ay the stakes in at most 12 words, never a date or place line.`
+      : weakHook ? "Open on a stranger, more concrete line said by a character in mid-action, with something moving at once." : "Keep this kind of opening.";
     out.push({
       beyin: "kurgu",
-      metin: `${kind} "${title}": ${pct(kanca.kayip)} of viewers left in the first ${kanca.sn} s${verdict}.${open ? ` Opening line: ${quote(open.metin)}.` : ""} ${advice}`,
-      tr: `ilk ${kanca.sn} sn'de izleyicinin %${Math.round(kanca.kayip * 100)}'i gitti${kanca.goreli !== undefined ? ` (göreli ${kanca.goreli.toFixed(2)}; 0,5 = benzer videoların ortancası)` : ""}`,
+      // A weak hold teaches the line after the hook (quoted instead of the opening line: the lesson stays under 300 characters).
+      metin: `${kind} "${title}": ${pct(kanca.kayip)} of ${who} left in the first ${kanca.sn} s${verdict}.${open && !weakHold ? ` Opening line: ${quote(open.metin)}.` : ""}${hold !== undefined ? ` ${pct(hold)} of them were still there at ${AFTER_HOOK_S} s${follow && weakHold ? `, after ${quote(follow.metin)}` : ""}.` : ""} ${advice}`,
+      tr: `ilk ${kanca.sn} sn'de ${trWho} %${Math.round(kanca.kayip * 100)}'i gitti${kanca.goreli !== undefined ? ` (göreli ${kanca.goreli.toFixed(2)}; 0,5 = benzer videoların ortancası)` : ""}${hold !== undefined ? `; ${HOOK_S}. sn'dekilerin %${Math.round(hold * 100)}'i ${AFTER_HOOK_S}. sn'de hâlâ izliyordu` : ""}`,
     });
   }
   for (const d of dususler) {
     const where = `${d.basSn}–${d.bitSn} s`;
     const place = fits ? placeAt(fits, (d.basSn + d.bitSn) / 2) : undefined;
-    const tr = `${d.basSn}–${d.bitSn} sn'de izleyicinin %${Math.round(d.kayip * 100)}'i gitti${place?.sahne ? ` (sahne ${place.sahne.id}${place.satir ? `, "${place.satir.metin.slice(0, 50)}"` : ""})` : fits ? "" : " (yapımla eşleşmedi: yalnız zaman)"}`;
+    const tr = `${d.basSn}–${d.bitSn} sn'de ${trWho} %${Math.round(d.kayip * 100)}'i gitti${place?.sahne ? ` (sahne ${place.sahne.id}${place.satir ? `, "${place.satir.metin.slice(0, 50)}"` : ""})` : fits ? "" : " (yapımla eşleşmedi: yalnız zaman)"}`;
     if (!place?.sahne) {
       out.push({ beyin: "kurgu", tr });
       continue;
     }
     const line = place.satir ? ` while ${quote(place.satir.metin)} is said` : "";
-    const head = `${kind} "${title}": the steepest drop was at ${where} (${pct(d.kayip)} of viewers)`;
+    const head = `${kind} "${title}": the steepest drop was at ${where} (${pct(d.kayip)} of ${who})`;
     const s = place.sahne;
     const lesson = s.tur === "komik"
       ? { beyin: "mizah" as const, metin: `${head}, in the joke scene ${s.id}${line}. This joke lost viewers: give it a clearer setup and a quicker, sharper punchline, or cut it shorter.` }
