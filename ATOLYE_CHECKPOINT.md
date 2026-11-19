@@ -1,4 +1,24 @@
-## 19 Kasım 2026 (1) — Paket kapısı, haftalık çırak, izleyici tutma vuruşları (push'lu, canlıya alınmayı bekliyor)
+## 19 Kasım 2026 (2) — TOPLU CANLIYA ALMA YAPILDI (canlı ayas-live-45449636) + YouTube Analytics BAĞLANDI
+
+Canlı: ayas-live-45449636 (19:20, dış erişim healthy; geri dönüş ayas-live-d37b248a). Canlı dal = feature dal =
+45449636; canonical pull --ff-only; Graphify taze. İçerik: aşağıdaki (1) + 271d45f6 uzun video (abone cümlesi son
+sahnedeki karaktere, kısa bölümün eksiği sonraki bölüme `LongForm.carryShortfall`) + 8a89b118 YouTube Analytics okuyucu
+(`YoutubeAnalytics.ts` ağ, `ChannelAnalyticsMap.ts` saf, `ChannelLearning.ts`; `karsilastir` görevinde günde ≤1;
+`kanal.ts cek|rapor`) + canlı daldan Remotion 4.0.545 / Wrangler 4.165.0 / AYAS mikro-iyileştirmeleri (74f05703) +
+45449636 workerd 1.20261118.1 install.js inceleme kaydı (release-provenance). Kanıt: birleşik ağaçta tsc, remotion tsc,
+lint 0/0, 17 kritik smoke PASS, cf49 CLOSED_PASS; tam tarama (651 suite) 615 PASS, kalan ortam/donuk + aşağıdaki açık.
+YouTube: owner Analytics API'yi açtı + test kullanıcısı; token.json 19 Kas (Testing modu → 7 günde bir `youtube.ts
+baglan`; düşünce AYAS'a mesaj). İlk çekim: 14 ölçüm, 22 ders; bütün Shorts'ta kanca zayıf (3. sn göreli tutma 0,15–0,41,
+ortanca 0,5), en büyük kayıp 4–9 sn s1-hook. Studio: kanalın varsayılan video dili BOŞ → İngilizce (ABD) yapılmalı.
+TypeScript 7.0.2: kod düzeltmesiyle olmaz (TS7 derleyici API'sini taşımıyor; typescript-eslint <6.1) → radar'da atla.
+V3 izleyicisi yeniden başlatılmadı: her döngü/üretim canonical koddan yeni alt süreç → yeni kod sonraki döngüde etkin.
+AÇIK: (1) OWNER yarın: OpenAI anahtarı kullanıcı ortam değişkeninde (çalışıyor), ama 12:40'tan beri çalışan izleyici,
+gözlemci eski (süresi dolmuş) anahtarı tutuyor → PC yeniden başlat ya da izleyiciyi yeniden başlat (Claude'a otomatik
+mod izin vermedi); sonra iki video incelemesi (Ezye4-m4hZE, FW2gcvtHiUQ) yeniden. (2) smoke-ayas-golden-experiment-gate
+-mutations Node 26'dan beri yerelde kırık (satır 120: `JSON.stringify(undefined)?.slice` mesajı undefined → Node 26
+TypeError); dosya EVAL pinli → düzeltme EVAL v76 bump + cf49 ister; CI'da koşmuyor, CI yeşil.
+
+## 19 Kasım 2026 (1) — Paket kapısı, haftalık çırak, izleyici tutma vuruşları
 
 Owner 19 Kas: "kaldığın yerden devam; çırak haftada 1 gün; burda yapılanları beyinler öğrensin; content skills ve open
 design'a bak, yarıyorsa entegre et". Push'lu (feature/cop-adam-v3, canlı DEĞİL — toplu canlıya almada gider):
