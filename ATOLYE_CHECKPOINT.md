@@ -1,3 +1,22 @@
+## 19 Kasım 2026 (1) — Paket kapısı, haftalık çırak, izleyici tutma vuruşları (push'lu, canlıya alınmayı bekliyor)
+
+Owner 19 Kas: "kaldığın yerden devam; çırak haftada 1 gün; burda yapılanları beyinler öğrensin; content skills ve open
+design'a bak, yarıyorsa entegre et". Push'lu (feature/cop-adam-v3, canlı DEĞİL — toplu canlıya almada gider):
+- cde288a2 başlık–kapak uyum kapısı (`thumbnail/PackageLint.ts`, 16 Kas onaylı Faz 1): 14 paketin 9'unda kapak başlık
+  kelimesini tekrarlıyordu → kapı modelin kendi 3×3 seçeneğinden tekrarsız çifti seçer (model çağrısı yok); günlükte
+  "Paket denetimi:". smoke-v3-youtube 8.
+- 76b61b45 çırağın yazma sınavları haftada bir gün (`DevApprentice.examDayDue`, `ATOLYE_V3_CIRAK_SINAV_GUN`, varsayılan 7;
+  son ücretli sınav 18 Kas → sıradaki 25 Kas). Commit/ders/vaka öğrenmesi her döngü sürer. + `DevBrain.modelUnreached`:
+  modele hiç ulaşamayan sınav sayılmaz (19 Kas 9 sınav süresi dolmuş anahtarla "kaldı" yazılmıştı). smoke-v3-cirak 6.
+- d91db551 senaryo istemine izleyici tutma vuruşları (uzun video: soğuk açılış, vaat tekrarı, açık soru, bölüm kancası;
+  Short: davetten önceki satır ilk satıra döner) + `EpisodeValidator` ACILIS_SELAM uyarısı. smoke-v3-script 53.
+Araştırma: "content skills" için tek bir kanonik depo yok; en uygunu sergebulaev/youtube-skills (MIT), kuralları yukarıda
+alındı (açıklama denetimi ve 120 px kapak kontrolü sonraya). nexu-io/open-design (Apache-2.0) web/UI tasarım çalışma
+alanı: video hattına katkısı yok, AYAS yanında ikinci tasarım sistemi olur → ENTEGRE EDİLMEDİ.
+ACİL — OWNER: OpenAI API anahtarının süresi 19 Kas'ta doldu (HTTP 401) → yeni anahtar canonical `.env.v3.local` /
+`.env.local`'a; o olmadan V3 siparişleri, beyinler ve çırak çalışmaz. Haftalık kural canlıya alma + izleyici yeniden
+başlatılınca etkinleşir.
+
 ## 16 Kasım 2026 (1) — "PAKET KURTARMA" kök nedeni giderildi (canlıya alınmayı bekliyor)
 
 Gelişim Merkezi'ndeki "1 paket kurtarma bekliyor": mikro-parti b159a548 13:05 commit + push edildi (7e2fbbb0) ama push
