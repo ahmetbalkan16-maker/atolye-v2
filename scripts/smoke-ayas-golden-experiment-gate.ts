@@ -117,7 +117,7 @@ async function main(): Promise<void> {
     // No answer is not a held answer, and neither is one that only says so.
     for (const missing of [undefined, null, "GOLDEN_HELD" as unknown as AyasGoldenRegressionResult, { ...golden.held, authority: "OWNER" } as unknown as AyasGoldenRegressionResult,
       { ...golden.held, failingCaseIds: [golden.second] }, { ...golden.held, cases: 0 }, { ...golden.held, vaultDigest: null }, { ...golden.held, decision: "APPROVED" } as unknown as AyasGoldenRegressionResult]) {
-      assert.deepEqual(verdict(missing), ["INCONCLUSIVE", ["GOLDEN_NOT_MEASURED"]], JSON.stringify(missing)?.slice(0, 80));
+      assert.deepEqual(verdict(missing), ["INCONCLUSIVE", ["GOLDEN_NOT_MEASURED"]], JSON.stringify(missing)?.slice(0, 80) ?? String(missing));
     }
     // The measured numbers stay what they were; only the verdict and its reason change.
     const stopped = evaluateAyasExperiment({ ...input, golden: golden.regressed }); assert.deepEqual([stopped.targetGain, stopped.fixedCaseIds, stopped.newlyFailingCaseIds], [2, ["ref-follow-up", "ref-ordinal"], []]);
