@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Every page renders per request (owner approval 2026-11-19, the Content-Security-Policy): Next stamps the
+ * middleware's per-request nonce on its scripts only while rendering, so a page prerendered at build time would have
+ * scripts the policy blocks. Not a visual change; see `src/lib/auth/contentSecurityPolicy.ts`.
+ */
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#04050a",
   width: "device-width",

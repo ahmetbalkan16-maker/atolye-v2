@@ -254,9 +254,10 @@ await scenario("sw.js executed: install metadata uses the live manifest over sta
   assert.equal(await offline.dispatch(route), stale, "keep the offline shell metadata fallback");
 });
 
-await scenario("offline page exists and is static, no execution", () => {
+await scenario("offline page exists, renders per request (CSP nonce, 19 Nov 2026), no execution", () => {
   const src = fs.readFileSync(path.join(REPO, "app/offline/page.tsx"), "utf8");
-  assert.match(src, /force-static/);
+  // Was force-static; a prerendered page carries no CSP nonce and its scripts would be blocked.
+  assert.doesNotMatch(src, /force-static/);
   assert.match(src, /çevrimdışı|çevrimiçi/i);
   for (const banned of ["fetch(", "askAyas", "PipelineRunner", "useEffect"]) {
     assert.ok(!src.includes(banned), `offline page must not use "${banned}"`);

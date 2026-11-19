@@ -1,9 +1,13 @@
 /**
  * Offline shell (spec §7). Served by the service worker when a navigation fails
- * and nothing better is cached. Static, no data, no execution — AYAS itself
- * needs the network + a valid session, so this page only tells the user that.
+ * and nothing better is cached. No data, no execution — AYAS itself needs the
+ * network + a valid session, so this page only tells the user that.
+ *
+ * Rendered per request like every page (root layout, 19 Nov 2026 CSP): a
+ * prerendered copy has no script nonce, so the policy would block its scripts.
+ * The service worker caches the HTML together with its own policy header, so
+ * the cached copy stays consistent offline.
  */
-export const dynamic = "force-static";
 
 export default function OfflinePage() {
   return (

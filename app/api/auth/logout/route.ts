@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AYAS_SESSION_COOKIE, isRequestOverHttps, isSameOriginRequest } from "@/lib/auth/accessGate";
+import { AYAS_SESSION_COOKIE, isRequestOverHttps, isSameOriginRequest, resolveAccessGate } from "@/lib/auth/accessGate";
+import { revokeSession } from "@/lib/auth/sessionRevocation";
 
-/** POST /api/auth/logout — clear the session cookie. */
+/**
+ * POST /api/auth/logout — end the session: the server records the cookie as logged out (`sessionRevocation.ts`, owner
+ * approval 19 Nov 2026), so a copy of it is refused from now on, and the browser is told to forget it.
+ */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // `/api/auth/` is open in `middleware.ts`, so its same-origin backstop never ran here (14 Nov 2026 audit): any site
   // could post a form here and sign the owner out. Same rule as every gated state-changing request.
@@ -14,6 +18,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })
   ) {
     return NextResponse.json({ error: "cross_origin_request_blocked" }, { status: 403 });
+  }
+
+  const gate = resolveAccessGate(process.env);
+  if (gate.mode === "enforced") {
+    const revocation = await revokeSession(request.cookies.get(AYAS_SESSION_COOKIE)?.value, gate.key as string);
+    // The browser cookie is cleared below either way; a failed record is logged, never hidden as a success.
+    if (revocation.kind === "write-failed") console.error(`[ayas-logout] server-side revocation not recorded: ${revocation.reason}`);
   }
 
   const contentType = request.headers.get("content-type") ?? "";
