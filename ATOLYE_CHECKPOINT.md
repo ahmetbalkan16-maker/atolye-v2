@@ -1,3 +1,22 @@
+## 19 Kasım 2026 (3) — (2)'nin açıkları: Node 26 smoke düzeldi (EVAL v76), iki video incelendi; izleyici yeniden başlatma OWNER'da
+
+Owner: "önceki oturumda kalan yapılmayanları bul ve yap". Push'lu (feature/cop-adam-v3, canlı DEĞİL — toplu canlıya almada):
+- f4a03f12 smoke-ayas-golden-experiment-gate satır 120 `?? String(missing)` (Node 26 undefined assert mesajını TypeError
+  yapıyordu) + 9fc36f02 EVAL 15F.4-v76 (v75 bayt bayt arşivlendi, tek pin commit'li blob'dan). Kanıt: suite PASS 11,
+  -mutations 35/35, eval-governance 10, -mutations 8/8, eval-yardstick-protection 7, cf49 CLOSED_PASS (9fc36f02). Aynı
+  kalıplı iki suite (historical-storytelling-mutations 47/47, operation-telemetry-mutations 16/16) zaten geçiyordu.
+- İki video incelemesi yeni anahtarlı kabuktan `referans.ts incele` ile yapıldı: Ezye4-m4hZE (Haçlı Seferleri, 3 ders,
+  $0.019), FW2gcvtHiUQ (MÖ 1200 çöküşü, 7 ders, $0.022); `referanslar/istekler/` iki dosya durum=tamam. Vaka
+  el-20261119T170136-syww (eski anahtarlı uzun ömürlü süreç) beyinlere yazıldı.
+AÇIK — OWNER: V3 izleyicisi (12:40) ve AYAS gözlemcisi (13:59) hâlâ süresi dolmuş anahtarı tutuyor → gelişim döngüsünün
+bütün model adımları (kendi aramaları, istem/ayar denemesi, çırak sınavı) 401 ile düşüyor. Otomatik mod taskkill'i yine
+reddetti. Üretim yokken PowerShell'de çalıştır (izleyici; gözlemci için PC yeniden başlatmak en kolayı):
+`Get-CimInstance Win32_Process | ? { $_.Name -eq 'wscript.exe' -and $_.CommandLine -match 'atolye-v3-yapim-hidden' } | % { taskkill /PID $_.ProcessId /T /F }; Start-Process wscript.exe -ArgumentList '//B','//NoLogo','D:\ÜRETİM\Atolye\atolye-v2\scripts\atolye-v3-yapim-hidden.vbs'`
+AÇIK (tasarım onayı bekliyor): 16 Kas'taki yetim graphify — `AyasPostPublicationClosure.defaultRefreshGraphify` Windows'ta
+cmd.exe → npx → node zinciri; 15 dk zaman aşımı yalnız cmd.exe'yi öldürür. Öneri: Windows'ta cmd/npx yerine
+`process.execPath` + global `@sentropic/graphify/dist/cli.js` doğrudan (zaman aşımı asıl işi öldürür), bulunamazsa eski yol.
+`src/lib/brain/autonomy/` olduğu için owner onayı olmadan yapılmadı.
+
 ## 19 Kasım 2026 (2) — TOPLU CANLIYA ALMA YAPILDI (canlı ayas-live-45449636) + YouTube Analytics BAĞLANDI
 
 Canlı: ayas-live-45449636 (19:20, dış erişim healthy; geri dönüş ayas-live-d37b248a). Canlı dal = feature dal =
