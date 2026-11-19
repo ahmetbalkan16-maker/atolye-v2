@@ -16,6 +16,14 @@ import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasAppro
 import type { AyasProposalStructuredImpact } from "@/lib/brain/autonomy/AyasProposalImpact";
 // Dependency-free module, safe for this client bundle.
 import { isAyasDesignReviewMutationKind } from "@/lib/brain/autonomy/AyasDesignReviewKinds";
+import { AyasGraceAutoApprovalNotice } from "./AyasGraceAutoApprovalNotice";
+
+/** What the card itself already says about grace auto-approval (owner instruction 2026-11-19); the executor applies the same rules. */
+function proposalGraceExclusion(proposal: AyasDevelopmentProposal): string | undefined {
+  if (proposal.safetyClassification !== "SAFE") return `Güvenlik sınıfı ${proposal.safetyClassification}: yalnız sen onaylayabilirsin.`;
+  if (proposal.mutationKind !== "patch-artifact:v1") return "Yalnız donmuş yama dosyalı öneriler kendiliğinden onaylanır.";
+  return undefined;
+}
 
 /** Mirrors `AyasAutonomousExecutionGate.AyasOwnerDecision`, kept a local literal for the same client-bundle reason as `AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL` below. */
 type AyasOwnerDecisionLiteral = "APPROVE" | "REJECT";
@@ -366,6 +374,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
       <SafetyNotice proposal={proposal} />
       {designReview ? <p className="bc-dev__notice bc-dev__notice--safe">TASARIM İNCELEMESİ · Onayın yalnız kararını kaydeder; AYAS hiçbir dosyayı değiştirmez, hiçbir şeyi yürütmez.</p> : null}
       <PublicationActivityNotice displayState={proposal.displayState} />
+      {proposal.status === "PENDING" ? <AyasGraceAutoApprovalNotice kind="proposal" id={proposal.proposalId} hash={proposal.proposalHash} neverAuto={proposalGraceExclusion(proposal)} /> : null}
       <ProposalDetails proposal={proposal} />
       {confirming && proposal.approvalReady ? (
         <div className="bc-dev__confirm" role="group" aria-label="Onay verirsem ne olacak?">
@@ -499,6 +508,7 @@ function TimelineCard({ proposal, executingId, executionError, onExecute }: { re
       {proposal.result ? <p className="bc-dev__outcome">Yürütme sonucu: {proposal.result.outcome} · Testler: {proposal.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
       {proposal.result?.recoveryResolution ? <p className="bc-dev__outcome">Kurtarma kaydını AYAS kapattı: {recoveryResolutionLabel[proposal.result.recoveryResolution.kind]} · Kanıt: {proposal.result.recoveryResolution.evidence.slice(0, 24)}</p> : null}
       {proposal.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
+      <AyasGraceAutoApprovalNotice kind="proposal" id={proposal.proposalId} hash={proposal.proposalHash} onlyOutcome />
       <ExecuteControl proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />
       <details><summary>Ayrıntıları göster</summary><ProposalDetails proposal={proposal} /></details>
     </article>
@@ -587,6 +597,7 @@ function MicroBatchEntry({ entry, onaylaPending, onaylaError, onBatchOnaylaVeUyg
       {entry.decision ? <p className="bc-dev__outcome">Karar: {entry.decision.decision} · {new Date(entry.decision.decidedAt).toLocaleString("tr-TR")}</p> : null}
       {entry.result ? <p className="bc-dev__outcome">Yürütme sonucu: {entry.result.outcome} · Testler: {entry.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
       <PublicationActivityNotice displayState={entry.displayState} />
+      <AyasGraceAutoApprovalNotice kind="micro-batch" id={entry.batchId} hash={entry.batchHash} onlyOutcome={entry.status !== "READY_FOR_REVIEW"} />
       <div className="bc-dev__micro-items">{entry.items.map((item) => <MicroBatchItemCard key={item.microItemId} item={item} />)}</div>
       <BatchOnaylaVeUygulaControl entry={entry} pending={onaylaPending} error={onaylaError} onApprove={onBatchOnaylaVeUygula} />
     </article>

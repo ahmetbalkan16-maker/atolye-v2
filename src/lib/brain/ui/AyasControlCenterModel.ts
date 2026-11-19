@@ -574,7 +574,7 @@ function approvalsDomain(input: AyasControlCenterInput, items: AyasCcAttentionIt
       domain: "approvals",
       level: "ACTION_REQUIRED",
       title: `${pluralCount(actionable.length, "öneri")} kararını bekliyor`,
-      reason: recommended > 0 ? `AYAS bunlardan ${recommended} tanesini onay için öneriyor.` : "Mevcut onay denetimleriyle karar ver; hiçbir şey kendiliğinden uygulanmaz.",
+      reason: recommended > 0 ? `AYAS bunlardan ${recommended} tanesini onay için öneriyor.` : "Mevcut onay denetimleriyle karar ver; her kart, beklersen AYAS'ın onu kendisi onaylayıp onaylamayacağını gösterir.",
       source: "AyasApprovalInboxView",
       at: latest(actionable),
       next: { kind: "OWNER_APPROVAL", label: "Gelişim Merkezi'nde karar ver", panel: "development" },

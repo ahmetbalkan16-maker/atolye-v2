@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AyasGraceAutoApprovalNotice } from "./AyasGraceAutoApprovalNotice";
 import { applyAyasUpdateTrialAction, createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasModelTrialAction, decideAyasUpdateRadarAction, switchAyasModelAction } from "../../../app/brain/actions";
 import { refreshAyasResearchEngineStatus } from "../../../app/brain/observerActions";
 
@@ -195,6 +196,9 @@ function TrialSteps({ trial }: { readonly trial: AyasUpdateTrialView }) {
   return <ul>{trial.steps.map((step) => <li key={step.name}>{step.ok ? "✓" : "✗"} {TRIAL_STEP_LABEL[step.name] ?? step.name}: {step.summary.split("\n").at(-1)}</li>)}</ul>;
 }
 
+/** Grace auto-approval (owner 2026-11-19) commits and pushes an update; its live publish waits for the owner's batched go-live. */
+const GRACE_UPDATE_LIVE_NOTE = "Otomatik onayda commit ve push yapılır; canlıya alma senin toplu canlıya almanı bekler.";
+
 /** The sub-package folder of a radar target (`npm:remotion-v3/remotion` → `remotion-v3`); a root package has none. */
 const workspaceOf = (target: string): string | undefined => /^npm:([a-z0-9][a-z0-9-]*)\//.exec(target)?.[1];
 
@@ -216,6 +220,7 @@ function UpdateTrialState({ trial, apply, onApply, workspace }: {
         <strong>Uygula: {APPLY_STATUS_LABEL[apply.status] ?? apply.status}{live ? ` · ${live}` : ""}</strong>
         <p>{apply.commitSha ? `commit ${apply.commitSha.slice(0, 8)} · ` : ""}{formatAyasScheduleTime(apply.finishedAt ?? apply.startedAt)}{apply.closure && !apply.closure.ok ? " · bilgi grafiği güncellenemedi" : ""}</p>
         {apply.reasons?.length ? <ul>{apply.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}
+        <AyasGraceAutoApprovalNotice kind="update-apply" id={trial.trialId} hash={trial.trialHash} onlyOutcome liveNote={GRACE_UPDATE_LIVE_NOTE} />
       </div>
     );
   }
@@ -246,6 +251,7 @@ function UpdateTrialState({ trial, apply, onApply, workspace }: {
       <strong>Deneme geçti</strong>
       <p>{trial.lockChanges ? `${trial.lockChanges.changed} paket değişiyor, ${trial.lockChanges.added} ekleniyor, ${trial.lockChanges.removed} kaldırılıyor. ` : ""}{trial.preExistingSmokeFailures.length ? `${trial.preExistingSmokeFailures.length} test güncellemeden önce de başarısızdı; sayılmadı.` : ""}</p>
       <details><summary>Adımlar</summary><TrialSteps trial={trial} /></details>
+      <AyasGraceAutoApprovalNotice kind="update-apply" id={trial.trialId} hash={trial.trialHash} liveNote={GRACE_UPDATE_LIVE_NOTE} />
       {!confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>Uygula</button> : (
         <div role="group" aria-label="Uygulama onayı">
           <strong>Uygularsam ne olacak?</strong>
@@ -299,7 +305,7 @@ function UpdateApprovalControl({ item, approval, trial, apply, onDecision, onApp
           <strong>Onaylarsam ne olacak?</strong>
           <p>{pinned
             ? `Kararın ${item.toolName} ${item.installedVersion} → ${item.latestVersion} için kaydedilir. Node.js telefon erişimine sabitli; yeni sürümü kurup sabitlemek owner adımıdır.`
-            : `AYAS ${item.toolName} ${item.installedVersion} → ${item.latestVersion} güncellemesini ayrı bir kopyada dener: kurar, paket imzalarını ve bilinen güvenlik açıklarını denetler, TypeScript, lint, ${workspaceOf(item.target) ? "kısa bir deneme videosu" : "üretim derlemesi"} ve testleri çalıştırır. Bu sırada ana koda ve canlıya dokunmaz. Testler geçerse kartta "Uygula" çıkar; uygulama ancak sen ona basınca olur.`} Onayı istediğin zaman geri alabilirsin.</p>
+            : `AYAS ${item.toolName} ${item.installedVersion} → ${item.latestVersion} güncellemesini ayrı bir kopyada dener: kurar, paket imzalarını ve bilinen güvenlik açıklarını denetler, TypeScript, lint, ${workspaceOf(item.target) ? "kısa bir deneme videosu" : "üretim derlemesi"} ve testleri çalıştırır. Bu sırada ana koda ve canlıya dokunmaz. Testler geçerse kartta "Uygula" çıkar; kart, basmazsan AYAS'ın onu bekleme süresinden sonra kendisi uygulayıp uygulamayacağını gösterir.`} Onayı istediğin zaman geri alabilirsin.</p>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(item.itemHash, "APPROVE")}>{busy ? "KAYDEDİLİYOR…" : pinned ? "Evet, onayla" : "Evet, onayla ve dene"}</button>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
         </div>
@@ -336,7 +342,7 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
   return (
     <section className="bc-dev__section" aria-labelledby="ayas-update-radar" data-testid="ayas-update-radar">
       <h3 id="ayas-update-radar">Güncelleme Radarı <span>{radar.length}</span></h3>
-      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz: onayladığını AYAS önce ayrı bir kopyada dener; testler geçerse uygulama ancak sen &quot;Uygula&quot;ya basınca olur.</p>
+      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri senin onayın olmadan denenmez: onayladığını AYAS önce ayrı bir kopyada dener; testler geçerse &quot;Uygula&quot; çıkar ve kart, basmazsan AYAS&apos;ın onu bekleme süresinden sonra kendisi uygulayıp uygulamayacağını gösterir.</p>
       {!approvals ? <p className="bc-empty">Onay durumu okunamadı; onay düğmeleri gizlendi.</p> : null}
       {offRadar.length ? <ul data-testid="ayas-update-approvals-off-radar">{offRadar.map((approval) => <li key={approval.decisionId}>{approval.toolName} {approval.targetVersion}: {approval.status === "APPLIED" ? `uygulandı (kurulu ${approval.currentInstalledVersion})` : "onaylı, uygulanmayı bekliyor"} · onay {formatAyasScheduleTime(approval.approvedAt)}</li>)}</ul> : null}
       {radar.length ? radar.map((item) => (
