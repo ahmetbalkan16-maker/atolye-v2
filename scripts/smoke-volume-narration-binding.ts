@@ -20,7 +20,7 @@ async function main(){
     await ProjectManager.saveAudio(slug,audio.audio,runtime.runtimeStorageContext);
     await ProjectManager.saveScenes(slug,{scenes:[{id:51,chapterId:5,title:'A',description:'A',duration:1},{id:52,chapterId:5,title:'B',description:'B',duration:3}],createdAt:new Date().toISOString()},runtime.runtimeStorageContext);
     const first=await readVolumeNarration(project.id,slug,51,runtime.runtimeStorageContext),second=await readVolumeNarration(project.id,slug,52,runtime.runtimeStorageContext);
-    assert(first&&second);assert.equal(first.durationSeconds,.5);assert.equal(second.durationSeconds,1.5);assert.equal(volumeSpeechLevel(first,.2),0);assert(volumeSpeechLevel(second,.1)>.5,'scene B starts half a second into its shared chapter');assert.equal(volumeSpeechLevel(second,1),0);
+    assert(first&&second);assert.equal(first.durationSeconds,.5, "assert.equal(first.durationSeconds,.5)");assert.equal(second.durationSeconds,1.5, "assert.equal(second.durationSeconds,1.5)");assert.equal(volumeSpeechLevel(first,.2),0, "assert.equal(volumeSpeechLevel(first,.2),0)");assert(volumeSpeechLevel(second,.1)>.5,'scene B starts half a second into its shared chapter');assert.equal(volumeSpeechLevel(second,1),0, "assert.equal(volumeSpeechLevel(second,1),0)");
     const asset=audio.projectAssets.assets.find(a=>a.id===audio.audio.sections[0]!.outputAssetId)!;
     await assert.rejects(readVolumeNarration(project.id,slug,51,runtime.runtimeStorageContext,{filePath:asset.filePath!.replace(slug,'other-project'),startSeconds:0,durationSeconds:1}),'foreign project audio must be refused');
     await assert.rejects(readVolumeNarration(project.id,slug,51,runtime.runtimeStorageContext,{filePath:asset.filePath!,startSeconds:1.8,durationSeconds:1}));

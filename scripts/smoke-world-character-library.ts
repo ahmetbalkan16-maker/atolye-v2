@@ -30,20 +30,20 @@ function readyFixture(): WorldPack {
 }
 
 test('exact four requested namespaces; all structural placeholders', () => {
-  assert.deepEqual(packs.filter(p => p.character.variant === 'default').map(p => p.character.civilization).sort(), ['byzantium', 'egypt', 'ottoman', 'persia']);
+  assert.deepEqual(packs.filter(p => p.character.variant === 'default').map(p => p.character.civilization).sort(), ['byzantium', 'egypt', 'ottoman', 'persia'], "assert.deepEqual(packs.filter(p => p.character.variant === 'default').map(p => p.character.civilization).sort(), ['byzantium', 'egypt', 'ottoman', 'persia'])");
   assert(packs.filter(p => p.character.variant === 'default').every(p => p.assets.length === 4 && p.assets.every(a => a.status === 'placeholder' && a.files.length === 0)));
 });
 test('policy has no implicit fallback or cultural sharing', () => {
-  assert.equal(policy.mode, 'deny-by-default');
-  for (const key of ['crossCivilization', 'crossPeriod', 'implicitFallback', 'sharedCulturalAssets'] as const) assert.equal(policy[key], false);
-  assert.deepEqual(policy.requireExact, ['civilization', 'period', 'role', 'version']);
-  assert.deepEqual(policy.sharedCore, ['style', 'rig', 'schema']);
+  assert.equal(policy.mode, 'deny-by-default', "assert.equal(policy.mode, 'deny-by-default')");
+  for (const key of ['crossCivilization', 'crossPeriod', 'implicitFallback', 'sharedCulturalAssets'] as const) assert.equal(policy[key], false, "assert.equal(policy[key], false)");
+  assert.deepEqual(policy.requireExact, ['civilization', 'period', 'role', 'version'], "assert.deepEqual(policy.requireExact, ['civilization', 'period', 'role', 'version'])");
+  assert.deepEqual(policy.sharedCore, ['style', 'rig', 'schema'], "assert.deepEqual(policy.sharedCore, ['style', 'rig', 'schema'])");
 });
 test('placeholder is never selectable', () => assert.throws(() => selectWorldCharacterPack(pack, context), /NOT_READY/));
 test('every added draft stays unselectable', () => { for (const p of packs.filter(p => p.character.status === 'draft')) assert.throws(() => selectWorldCharacterPack(p, { civilization: p.character.civilization, period: p.character.period, role: p.character.role, characterId: p.character.id }), /NOT_READY/); });
 test('metadata-ready exact context can be selected; caller cannot mutate returned pack', () => {
   const ready = readyFixture(), selected = selectWorldCharacterPack(ready, context);
-  selected.assets[0].files.length = 0; assert.equal(ready.assets[0].files.length, 2);
+  selected.assets[0].files.length = 0; assert.equal(ready.assets[0].files.length, 2, "assert.equal(ready.assets[0].files.length, 2)");
 });
 for (const [field, value] of [['civilization', 'persia'], ['period', 'late-modern'], ['role', 'archer'], ['characterId', 'ottoman.early-modern.janissary.default.v2']] as const) {
   test(`selection rejects wrong ${field}`, () => assert.throws(() => selectWorldCharacterPack(readyFixture(), { ...context, [field]: value }), /SELECTION_CONTEXT/));
@@ -86,13 +86,13 @@ try {
   fs.cpSync(path.resolve('libraries/world-characters'), root, { recursive: true });
   const recordPath = path.join(root, pack.directory, 'metadata', 'character.json');
   const original = fs.readFileSync(recordPath);
-  test('filesystem audit is read-only', () => { assert.equal(readWorldCharacterLibrary(root).length, packs.length); assert.deepEqual(fs.readFileSync(recordPath), original); });
+  test('filesystem audit is read-only', () => { assert.equal(readWorldCharacterLibrary(root).length, packs.length, "assert.equal(readWorldCharacterLibrary(root).length, packs.length)"); assert.deepEqual(fs.readFileSync(recordPath), original, "assert.deepEqual(fs.readFileSync(recordPath), original)"); });
   const ready = readyFixture();
   for (const a of ready.assets) fs.writeFileSync(path.join(root, ready.directory, 'metadata', `${a.kind}.json`), JSON.stringify(a));
   const sheetPath = path.join(root, ready.directory, 'design', 'front.png');
   const partPath = path.join(root, ready.directory, 'parts', 'torso.png');
   fs.writeFileSync(sheetPath, sheet); fs.writeFileSync(partPath, part);
-  test('declared bytes verified by hash (fixture is not an image decoder test)', () => assert.equal(readWorldCharacterLibrary(root).length, packs.length));
+  test('declared bytes verified by hash (fixture is not an image decoder test)', () => assert.equal(readWorldCharacterLibrary(root).length, packs.length, "assert.equal(readWorldCharacterLibrary(root).length, packs.length)"));
   test('tampered file rejected', () => { fs.writeFileSync(sheetPath, 'tamper'); assert.throws(() => readWorldCharacterLibrary(root), /FILE_HASH/); fs.writeFileSync(sheetPath, sheet); });
   test('missing file rejected', () => { fs.unlinkSync(partPath); assert.throws(() => readWorldCharacterLibrary(root), /ENOENT/); fs.writeFileSync(partPath, part); });
   test('unregistered cultural file rejected', () => { const extra = path.join(root, ready.directory, 'props', 'foreign.png'); fs.writeFileSync(extra, 'foreign'); assert.throws(() => readWorldCharacterLibrary(root), /UNDECLARED_FILE/); fs.unlinkSync(extra); });

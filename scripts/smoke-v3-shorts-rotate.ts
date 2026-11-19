@@ -25,16 +25,16 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 
 async function run() {
   await scenario("A a Short is laid out whole (no vertical window) unless the old layout is asked for", () => {
-    assert.equal(shortsLayout({}), "dondur");
-    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "dikey" }), "dikey");
-    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "baska" }), "dondur");
+    assert.equal(shortsLayout({}), "dondur", "assert.equal(shortsLayout({}), \"dondur\")");
+    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "dikey" }), "dikey", "assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: \"dikey\" }), \"dikey\")");
+    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "baska" }), "dondur", "assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: \"baska\" }), \"dondur\")");
     assert.equal(outputFrame(true, "dondur"), undefined, "the director lays a rotated Short out like a 16:9 video");
-    assert.deepEqual(outputFrame(true, "dikey"), SHORTS_SIZE);
+    assert.deepEqual(outputFrame(true, "dikey"), SHORTS_SIZE, "assert.deepEqual(outputFrame(true, \"dikey\"), SHORTS_SIZE)");
     assert.equal(outputFrame(false, "dikey"), undefined, "a long video never gets the window");
     const a = rotatedShortArgs("in.mp4", "out.mp4");
-    assert.equal(a[a.indexOf("-vf") + 1], "transpose=clock");
+    assert.equal(a[a.indexOf("-vf") + 1], "transpose=clock", "assert.equal(a[a.indexOf(\"-vf\") + 1], \"transpose=clock\")");
     assert.equal(a[a.indexOf("-c:a") + 1], "copy", "the sound is not encoded again");
-    assert.deepEqual([a[a.indexOf("-i") + 1], a[a.length - 1]], ["in.mp4", "out.mp4"]);
+    assert.deepEqual([a[a.indexOf("-i") + 1], a[a.length - 1]], ["in.mp4", "out.mp4"], "assert.deepEqual([a[a.indexOf(\"-i\") + 1], a[a.length - 1]], [\"in.mp4\", \"out.mp4\"])");
   });
 
   await scenario("B the studio's FFmpeg turns a 16:9 clip into 9:16, its top edge to the right, sound kept", async () => {
@@ -57,7 +57,7 @@ async function run() {
     const raw = await runProcess(paths.ffmpeg, ["-v", "error", "-y", "-i", out, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", rawFile], { timeoutMs: 30_000 });
     assert.equal(raw.code, 0, raw.stderr);
     const buf = readFileSync(rawFile);
-    assert.equal(buf.length, 180 * 320 * 3);
+    assert.equal(buf.length, 180 * 320 * 3, "assert.equal(buf.length, 180 * 320 * 3)");
     const px = (x: number, y: number) => [buf[(y * 180 + x) * 3]!, buf[(y * 180 + x) * 3 + 1]!, buf[(y * 180 + x) * 3 + 2]!];
     const [rR, rG] = px(170, 160);
     const [lR, lG] = px(10, 160);

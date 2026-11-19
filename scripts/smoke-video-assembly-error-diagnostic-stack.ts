@@ -20,16 +20,16 @@ function run() {
   const error = new VideoAssemblyError();
 
   // Public contract: unchanged.
-  assert.equal(error.message, "Video assembly failed.");
+  assert.equal(error.message, "Video assembly failed.", "assert.equal(error.message, \"Video assembly failed.\")");
   pass("public message unchanged");
 
-  assert.equal(error.name, "VideoAssemblyError");
+  assert.equal(error.name, "VideoAssemblyError", "assert.equal(error.name, \"VideoAssemblyError\")");
   pass("public name unchanged");
 
-  assert.equal(error.code, "VIDEO_ASSEMBLY_FAILED");
+  assert.equal(error.code, "VIDEO_ASSEMBLY_FAILED", "assert.equal(error.code, \"VIDEO_ASSEMBLY_FAILED\")");
   pass("public code unchanged");
 
-  assert.equal(error.stack, undefined);
+  assert.equal(error.stack, undefined, "assert.equal(error.stack, undefined)");
   pass("public stack is undefined (unchanged)");
 
   // Diagnostic stack: present, safe shape, points at this file.

@@ -138,13 +138,13 @@ function main(): void {
     assert.equal(f.launches(), 2, `the crashed observer must be launched again\n${log}`);
     assert.match(log, /exited unexpectedly \(exit code 1, attempt 1\/3\)/);
     assert.match(log, /simulated crash/, "stderr still reaches the log");
-    assert.deepEqual(f.npxArgs(), ["tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000", "tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000"]);
+    assert.deepEqual(f.npxArgs(), ["tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000", "tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000"], "assert.deepEqual(f.npxArgs(), [\"tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000\", \"tsx scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000\"])");
   });
 
   scenario("a dependency sync whose installer warns on stderr still swaps node_modules in and clears the marker", () => {
     const f = wrapperFixture([0]);
     f.requestSync();
-    assert.ok(fs.existsSync(f.marker));
+    assert.ok(fs.existsSync(f.marker), "assert.ok(fs.existsSync(f.marker))");
     const code = runLikeLauncher(f.wrapper, `-Continuous -MaxRestarts 3 -RestartDelaySeconds 0 -DependencySyncScript ${q(f.install)}`, f.log, f.shim);
     const log = readLog(f.log);
     assert.equal(code, 0, log);
@@ -153,7 +153,7 @@ function main(): void {
     assert.ok(fs.existsSync(path.join(f.repo, "node_modules", "new-pkg")), "the new tree is in place");
     assert.equal(fs.existsSync(path.join(f.repo, "node_modules", "old-pkg")), false, "the old tree is gone");
     assert.equal(fs.existsSync(f.marker), false, "the marker is cleared, so no further planned restarts");
-    assert.equal(f.launches(), 1);
+    assert.equal(f.launches(), 1, "assert.equal(f.launches(), 1)");
   });
 
   scenario("an installer that really fails (non-zero exit) still keeps node_modules and the marker", () => {
@@ -164,8 +164,8 @@ function main(): void {
     const log = readLog(f.log);
     assert.equal(code, 0, log);
     assert.match(log, /install failed \(exit 3\); current node_modules kept/);
-    assert.equal(fs.readFileSync(path.join(f.repo, "node_modules", "old-pkg", "index.js"), "utf8"), "old\n");
-    assert.ok(fs.existsSync(f.marker));
+    assert.equal(fs.readFileSync(path.join(f.repo, "node_modules", "old-pkg", "index.js"), "utf8"), "old\n", "assert.equal(fs.readFileSync(path.join(f.repo, \"node_modules\", \"old-pkg\", \"index.js\"), \"utf8\"), \"old\\n\")");
+    assert.ok(fs.existsSync(f.marker), "assert.ok(fs.existsSync(f.marker))");
   });
 
   console.log(`PASS (${count} scenarios)`);

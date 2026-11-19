@@ -36,7 +36,7 @@ try {
   });
   const positive = run();
   assert.equal(positive.status, 0, positive.stderr);
-  assert.equal(JSON.parse(positive.stdout.trim()).scenarios, 20);
+  assert.equal(JSON.parse(positive.stdout.trim()).scenarios, 20, "assert.equal(JSON.parse(positive.stdout.trim()).scenarios, 20)");
   for (const [id, from, to] of mutants) {
     assert.equal(original.split(from).length, 2, id + ": exact mutation anchor");
     fs.writeFileSync(path.join(temporary, moduleFile), original.replace(from, to));
@@ -46,16 +46,16 @@ try {
     assert.match(result.stderr, /AssertionError/, id + ": assertion-caught");
     assert.doesNotMatch(result.stderr, /SyntaxError|MODULE_NOT_FOUND|Cannot find module/, id + ": load-valid");
   }
-  assert.equal(fs.readFileSync(path.join(repository, moduleFile), "utf8"), original);
+  assert.equal(fs.readFileSync(path.join(repository, moduleFile), "utf8"), original, "assert.equal(fs.readFileSync(path.join(repository, moduleFile), \"utf8\"), original)");
   console.log(JSON.stringify({ status: "PASS", suite: "production-runtime-health-response-mutations",
     controls: mutants.length, assertionCaught: mutants.length, originalSourceUnchanged: true,
     fixture: "OWNED_TEMP_ONLY_NO_RUNTIME_AUTHORITY_OR_CREDENTIAL_ENV" }));
 } finally {
-  assert.equal(path.dirname(path.resolve(temporary)), path.resolve(os.tmpdir()));
-  assert.ok(path.basename(temporary).startsWith("ayas-health-response-mutations-"));
+  assert.equal(path.dirname(path.resolve(temporary)), path.resolve(os.tmpdir()), "assert.equal(path.dirname(path.resolve(temporary)), path.resolve(os.tmpdir()))");
+  assert.ok(path.basename(temporary).startsWith("ayas-health-response-mutations-"), "assert.ok(path.basename(temporary).startsWith(\"ayas-health-response-mutations-\"))");
   const modules = path.join(temporary, "node_modules");
   if (fs.existsSync(modules)) {
-    assert.ok(fs.lstatSync(modules).isSymbolicLink());
+    assert.ok(fs.lstatSync(modules).isSymbolicLink(), "assert.ok(fs.lstatSync(modules).isSymbolicLink())");
     fs.unlinkSync(modules);
   }
   fs.rmSync(temporary, { recursive: true, force: true });

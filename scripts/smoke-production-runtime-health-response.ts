@@ -13,7 +13,7 @@ const healthy: ProductionRuntimeStatus = Object.freeze({
 function responseFor(dependencies: Parameters<typeof createProductionRuntimeHealthResponse>[0]) {
   let response: ReturnType<typeof createProductionRuntimeHealthResponse> | undefined;
   assert.doesNotThrow(() => { response = createProductionRuntimeHealthResponse(dependencies); });
-  assert.ok(response);
+  assert.ok(response, "assert.ok(response)");
   return response;
 }
 
@@ -58,18 +58,18 @@ async function main() {
       now: () => { if (kind === "clock") throw Error("synthetic-private-payload"); return observedAt; },
     });
     const body = await response.json();
-    assert.equal(response.status, kind === "reader" ? 503 : 200);
-    assert.ok(!JSON.stringify(body).includes("synthetic-private-payload"));
-    assert.equal(new Date(Date.parse(body.observedAt)).toISOString(), body.observedAt);
-    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal(response.status, kind === "reader" ? 503 : 200, "assert.equal(response.status, kind === \"reader\" ? 503 : 200)");
+    assert.ok(!JSON.stringify(body).includes("synthetic-private-payload"), "assert.ok(!JSON.stringify(body).includes(\"synthetic-private-payload\"))");
+    assert.equal(new Date(Date.parse(body.observedAt)).toISOString(), body.observedAt, "assert.equal(new Date(Date.parse(body.observedAt)).toISOString(), body.observedAt)");
+    assert.equal(response.headers.get("Cache-Control"), "no-store", "assert.equal(response.headers.get(\"Cache-Control\"), \"no-store\")");
     scenarios++;
   }
   const response = responseFor({ getRuntimeStatus: () => healthy, now: () => observedAt });
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual((await response.json()).runtime, healthy);
+  assert.equal(response.status, 200, "assert.equal(response.status, 200)");
+  assert.equal(response.headers.get("Cache-Control"), "no-store", "assert.equal(response.headers.get(\"Cache-Control\"), \"no-store\")");
+  assert.deepEqual((await response.json()).runtime, healthy, "assert.deepEqual((await response.json()).runtime, healthy)");
   scenarios++;
-  assert.equal(scenarios, 20);
+  assert.equal(scenarios, 20, "assert.equal(scenarios, 20)");
   console.log(JSON.stringify({ status: "PASS", suite: "production-runtime-health-response",
     scenarios, fixture: "SYNTHETIC_SNAPSHOT_NO_LIVE_RUNTIME_OR_AUTHORITY" }));
 }

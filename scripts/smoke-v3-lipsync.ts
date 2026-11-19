@@ -48,7 +48,7 @@ async function main() {
 
   await scenario("A the RMS fallback opens the mouth with the sound and closes it after, within 2 frames", () => {
     const { samples, sampleRate } = readWavPcm16(wav(48000, [[0.5, 0], [0.6, 0.8], [0.4, 0]]));
-    assert.equal(sampleRate, 48000);
+    assert.equal(sampleRate, 48000, "assert.equal(sampleRate, 48000)");
     const cues = rmsVisemes(samples, sampleRate);
     const open = firstOpen(cues)!;
     assert.ok(Math.abs(open - 0.5) <= 2 * FRAME, `ağız ${open.toFixed(3)} sn'de açıldı (ses 0,5 sn'de başlıyor)`);
@@ -59,30 +59,30 @@ async function main() {
 
   await scenario("B silence stays closed", () => {
     const { samples, sampleRate } = readWavPcm16(wav(16000, [[1, 0]]));
-    assert.deepEqual(rmsVisemes(samples, sampleRate).map((c) => c.v), ["X"]);
+    assert.deepEqual(rmsVisemes(samples, sampleRate).map((c) => c.v), ["X"], "assert.deepEqual(rmsVisemes(samples, sampleRate).map((c) => c.v), [\"X\"])");
   });
 
   await scenario("C Rhubarb JSON becomes cues; unknown shapes are dropped", () => {
     const cues = parseRhubarb({ mouthCues: [{ start: 0, end: 0.1, value: "X" }, { start: 0.1, end: 0.2, value: "D" }, { start: 0.2, end: 0.3, value: "Q" }] });
-    assert.deepEqual(cues, [{ t: 0, v: "X" }, { t: 0.1, v: "D" }]);
+    assert.deepEqual(cues, [{ t: 0, v: "X" }, { t: 0.1, v: "D" }], "assert.deepEqual(cues, [{ t: 0, v: \"X\" }, { t: 0.1, v: \"D\" }])");
     assert.throws(() => parseRhubarb({}), /LIPSYNC_RHUBARB_SHAPE/);
   });
 
   await scenario("D whisper words: punctuation-only segments go, milliseconds become seconds", () => {
     const words = parseWhisperWords({ transcription: [{ offsets: { from: 120, to: 480 }, text: " Boğazı" }, { offsets: { from: 480, to: 500 }, text: "," }, { offsets: { from: 500, to: 900 }, text: " keseceğiz" }] });
-    assert.deepEqual(words, [{ text: "Boğazı", start: 0.12, end: 0.48 }, { text: "keseceğiz", start: 0.5, end: 0.9 }]);
+    assert.deepEqual(words, [{ text: "Boğazı", start: 0.12, end: 0.48 }, { text: "keseceğiz", start: 0.5, end: 0.9 }], "assert.deepEqual(words, [{ text: \"Boğazı\", start: 0.12, end: 0.48 }, { text: \"keseceğiz\", start: 0.5, end: 0.9 }])");
   });
 
   await scenario("E captions keep the script's words: one-to-one when counts agree, proportional otherwise", () => {
     const heard = [{ text: "bogazi", start: 0.1, end: 0.5 }, { text: "keseceğiz", start: 0.6, end: 1.0 }];
-    assert.deepEqual(alignWords("Boğazı keseceğiz!", heard, 1.2).map((w) => [w.text, w.start]), [["Boğazı", 0.1], ["keseceğiz!", 0.6]]);
+    assert.deepEqual(alignWords("Boğazı keseceğiz!", heard, 1.2).map((w) => [w.text, w.start]), [["Boğazı", 0.1], ["keseceğiz!", 0.6]], "assert.deepEqual(alignWords(\"Boğazı keseceğiz!\", heard, 1.2).map((w) => [w.text, w.start]), [[\"Boğazı\", 0.1], [\"keseceğiz!\", 0.6]])");
     const spread = alignWords("Boğazı hemen keseceğiz", heard, 1.2);
-    assert.equal(spread.length, 3);
-    assert.equal(spread[0]!.start, 0.1);
-    assert.ok(Math.abs(spread[2]!.end - 1.0) < 1e-9);
-    for (let i = 1; i < spread.length; i++) assert.ok(spread[i]!.start >= spread[i - 1]!.end - 1e-9);
+    assert.equal(spread.length, 3, "assert.equal(spread.length, 3)");
+    assert.equal(spread[0]!.start, 0.1, "assert.equal(spread[0]!.start, 0.1)");
+    assert.ok(Math.abs(spread[2]!.end - 1.0) < 1e-9, "assert.ok(Math.abs(spread[2]!.end - 1.0) < 1e-9)");
+    for (let i = 1; i < spread.length; i++) assert.ok(spread[i]!.start >= spread[i - 1]!.end - 1e-9, "assert.ok(spread[i]!.start >= spread[i - 1]!.end - 1e-9)");
     // Nothing heard: the whole line duration is used.
-    assert.ok(Math.abs(alignWords("tek söz", [], 2).at(-1)!.end - 2) < 1e-9);
+    assert.ok(Math.abs(alignWords("tek söz", [], 2).at(-1)!.end - 2) < 1e-9, "assert.ok(Math.abs(alignWords(\"tek söz\", [], 2).at(-1)!.end - 2) < 1e-9)");
   });
 
   console.log(`V3 lipsync smoke: PASS (${scenarios} scenarios)`);
