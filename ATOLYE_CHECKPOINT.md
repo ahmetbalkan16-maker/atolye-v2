@@ -1,3 +1,31 @@
+## 19 Kasım 2026 (4) — owner onaylı tasarım işleri, kanal incelemesi, 5 dk otomatik onay, Shorts hazırlığı
+
+Owner 19 Kas: "onay bekleyenleri onaylıyorum, tasarım gerekenlerde yap; kanaldaki videoları incele, nerede kişi
+kaybediyoruz bul ve yap; Gelişim Merkezi'ne gelen geliştirmeler 5 dk onayda beklesin, onay vermezsem kendisi onaylayıp
+işlesin; Shorts'a hazır olunca canlıya al". Ajanlara bölündü, hepsi feature/cop-adam-v3'e birleşti (push'lu):
+- 51127134 graphify zaman aşımında yetim süreç süpürme (Windows; ölü başlatıcının çocukları taskkill /T). post-publication-
+  closure-timeout PASS 6 (gerçek süreçlerle).
+- 918d9382 mikro-parti başarısız aday hafızası (AyasMicroBatchFailureMemory: HEAD+parti+aday parmak izi; gerçek hata bir daha
+  denenmez, geçici en çok 3). failure-memory 6, accumulator 14, +20 suite.
+- 04810b71 AYAS Shorts siparişi: "X'le ilgili bir shorts hazırla", "shorts yap: X" de sipariş (video-order 10).
+- 57deb295 + 649e8b98 kanal: "diger" trafiğin %82–93'ü REKLAM (owner tanıtımı) → eski "kanca zayıf" dersleri karışık eğriden;
+  organik eğri, reklamsız izlenme, kanca sonrası 3→12 sn kalan pay, yapım bağlama düzeltmesi; Short'ta kancadan sonraki satır
+  ≤12 kelime ve tarihle açılmaz (HookFollow.ts; organikte izleyicinin %43–56'sı bu satırda gidiyordu). channel-goals 18, script 56.
+- 5cdd7839 güvenlik: middleware nodejs runtime + çıkışta çerez iptal kaydı (data/brain/phone-access/session-revocations/);
+  istek başına nonce'lu zorunlu CSP (acil `AYAS_CSP=report-only|off`). Oturumlar düşmez. session-revocation 10, csp 11, UI 29/29.
+- 31bfc8dd + 4f963e67 bekleme süreli otomatik onay: paket / SAFE öneri / hazır build / PASSED deneme 5 dk owner kararı yoksa
+  yürütücü tıklamanın servisiyle aynı id+hash ile onaylar (AYAS_OWNER_STANDING_GRACE_V1; `AYAS_GRACE_AUTO_APPROVE=0` kapatır;
+  dışlananlar owner'da); Gelişim Merkezi'nde geri sayım + durdur. grace 17, ~40 suite. c6a7ca74 EVAL v77 (firewall pini), cf49 CLOSED_PASS.
+- El işleri (vaka kayıtlı): canonical + canlı `.env.local`'daki süresi dolmuş OpenAI anahtarı kullanıcı değişkenindekiyle
+  değiştirildi (yedekler private/yedek/*anahtar-oncesi), /v1/models 200. VoiceStudio incelendi: varsayılan modeli ticari
+  kullanıma kapalı (CC-BY-NC), AGPL, yeni motor getirmiyor → ENTEGRE EDİLMEDİ.
+Birleşik ağaç (c6a7ca74): tsc, remotion tsc, lint 0/0, cf49 CLOSED_PASS; ayas-ui-audit 29/29 sayfa temiz (dev worktree
+node_modules Next 16.4.3 → 16.4.6'ya eşitlendi, eski sürüm denetimi güvenlik uyarısıyla durduruyordu).
+Shorts hazırlığı: 24 V3 suite PASS; disk/GPU/Ollama tamam; bütçe $1 (son Short'lar $0,47–0,71). ENGEL: V3 izleyicisi bellekte
+eski anahtarı tutuyor (env dosyadan önce okunur) → izleyici yeniden başlatılmadan sipariş senaryoda 401 ile durur.
+Canlıya alma sonrası bir kez: canonical'da `npx tsx scripts/v3/kanal.ts cek --yeniden` (karışık-eğri derslerini değiştirir).
+Owner: YouTube token ~26 Kas yenile (`youtube.ts baglan`); Studio varsayılan dil İngilizce (ABD); birkaç Short reklamsız.
+
 ## 19 Kasım 2026 (3) — (2)'nin açıkları: Node 26 smoke düzeldi (EVAL v76), iki video incelendi; izleyici yeniden başlatma OWNER'da
 
 Owner: "önceki oturumda kalan yapılmayanları bul ve yap". Push'lu (feature/cop-adam-v3, canlı DEĞİL — toplu canlıya almada):
