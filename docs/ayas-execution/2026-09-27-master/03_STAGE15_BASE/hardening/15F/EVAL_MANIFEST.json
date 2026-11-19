@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v75",
+  "version": "15F.4-v76",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1793,7 +1793,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-experiment-gate.ts",
-          "sha256": "889e070b4e973e9daab221ab97981b65d0dace8d3c77b5962b840fa7d6f22a7d"
+          "sha256": "fefdffedca41c7e9af7a6db5a66eeb17c17a0cab44146b93c5c4c129364b02d1"
         },
         {
           "file": "scripts/fixtures/ayas-golden-fixtures.ts",
