@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { choosePackagePair, contentWords, lintPair, lintTitle } from "../src/lib/v3/thumbnail/PackageLint";
+import { choosePackagePair, contentWords, headlineLines, lintDescriptionLead, lintPair, lintTitle } from "../src/lib/v3/thumbnail/PackageLint";
 import { judgePrompt } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { mainCharacters, thumbnailPlans } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
@@ -102,6 +102,23 @@ function main() {
     assert.ok(lintPair("Rubicon 49 BC: Caesar Gambles", "THE DIE IS CAST TODAY").some((i) => i.kod === "kapak-kalabalik"));
     assert.deepEqual([...contentWords("Julius Caesar’s Pirates #Shorts")].sort(), [...contentWords("PIRATE CAESAR JULIUS")].sort(), "possessive, plural and #Shorts fold to the same stems");
     assert.equal(contentWords("The Pirates of the Sea #Shorts").has("shorts"), false);
+  });
+
+  scenario("G3 description lead and headline lines (youtube-skills description-template, thumbnail-principles)", () => {
+    const codes = (lead: string, title = "Anglo-Zanzibar War: The 38-Minute Clash #Shorts") => lintDescriptionLead(lead, title).map((i) => i.kod);
+    assert.deepEqual(codes("The Anglo-Zanzibar War was the shortest war in history, lasting just 38 minutes. Watch the palace burn."), []);
+    assert.deepEqual(codes("Discover the Anglo-Zanzibar War, the shortest war in history. Watch how a 38-minute clash changed Zanzibar."), ["giris-yapay"]);
+    assert.deepEqual(codes("A sultan, a palace and five British ships: the shortest fight ever lasted 38 minutes."), ["giris-anahtar"], "the title's subject (Anglo-Zanzibar War) is missing");
+    assert.deepEqual(codes(""), ["giris-yok"]);
+    assert.ok(codes(`The Anglo-Zanzibar War ${"was very short and ".repeat(8)}ended.`).includes("giris-uzun"));
+    const p = readPackage(JSON.stringify({ basliklar: ["Caesar Crosses the Rubicon 49 BC"], kapak_basliklari: ["DIE IS CAST"], aciklama_giris: "Explore how Caesar crossed the Rubicon." }), episode);
+    assert.deepEqual(p.aciklamaDenetim?.map((i) => i.kod), ["giris-yapay"], "the package carries the description's verdict");
+    assert.match(packagePrompt(episode), /within 150 characters[\s\S]*never open with "Discover"/);
+    assert.equal(headlineLines("WHO ASSASSINATED MURAD?"), 2, "measured on the Kosovo thumbnail: 16 capitals fill one line");
+    assert.equal(headlineLines("TRAPPED!"), 1);
+    assert.equal(headlineLines("THE GREATEST BETRAYAL IN ALL OF HISTORY"), 3);
+    assert.ok(lintPair("Waterloo 1815: Napoleon Falls", "THE GREATEST BETRAYAL IN ALL OF HISTORY").some((i) => i.kod === "kapak-satir"));
+    assert.ok(!lintPair("Waterloo 1815: Napoleon Falls", "WHO ASSASSINATED MURAD?").some((i) => i.kod === "kapak-satir"));
   });
 
   scenario("C chapters: from 0:00, short scenes merged, none when fewer than three remain", () => {

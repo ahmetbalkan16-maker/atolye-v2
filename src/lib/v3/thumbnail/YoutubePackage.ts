@@ -1,6 +1,6 @@
 import { readJsonAnswer } from "../council/Council";
 import type { Episode } from "../episode/EpisodeTypes";
-import { choosePackagePair, type PackageCheck } from "./PackageLint";
+import { choosePackagePair, lintDescriptionLead, type PackageCheck, type PackageIssue } from "./PackageLint";
 
 /**
  * The YouTube package of an episode (owner approval 20 Oct 2026; knowledge from the higgsfield-youtube-thumbnail and
@@ -19,6 +19,8 @@ export interface YoutubePackage {
   readonly aciklamaGiris: string;
   /** The title–thumbnail gate's verdict on the first title + first headline (PackageLint); absent in older packages. */
   readonly denetim?: PackageCheck;
+  /** The description's first lines against the chosen title (PackageLint.lintDescriptionLead); absent in older packages. */
+  readonly aciklamaDenetim?: readonly PackageIssue[];
 }
 
 /**
@@ -50,7 +52,7 @@ Write, in American English:
 - "kapak_basliklari": 3 thumbnail headlines, 2–4 words each, true to the video, opening a question the video answers (e.g. "POINT OF NO RETURN", "HE DID WHAT?"), never repeating the title word for word.
 ${long || shorts ? "" : `- "bolumler": ${episode.sahneler.length} chapter titles, one per scene in order, 2–5 words each.\n`}- "etiketler": 12 relevant search tags (people, places, events, era, "history animation").
 - "hashtagler": 3 hashtags without spaces, starting with "#".
-- "aciklama_giris": the description's first two sentences, under 160 characters together, with the main keyword and the hook.
+- "aciklama_giris": the description's first two sentences, under 160 characters together: the first states what happens (the payoff) with the main keyword and ends within 150 characters (YouTube cuts there); never open with "Discover", "Explore", "Join us" or "In this video".
 Return ONLY JSON with exactly these keys.`;
 }
 
@@ -77,6 +79,7 @@ export function readPackage(text: string, episode: Episode, shorts = false): You
     etiketler: list(v.etiketler, 15, 40),
     hashtagler: shorts ? ["#Shorts", ...hashtags.filter((h) => h.toLowerCase() !== "#shorts")].slice(0, 3) : hashtags,
     aciklamaGiris: clean(v.aciklama_giris, 200),
+    aciklamaDenetim: lintDescriptionLead(clean(v.aciklama_giris, 200), pair.basliklar[0]!),
   };
 }
 

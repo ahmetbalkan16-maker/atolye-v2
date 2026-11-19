@@ -23,7 +23,7 @@ export const TITLE_MAX_CAPS_WORDS = 2;
 /** Words a thumbnail headline can carry at feed size. */
 export const HEADLINE_MAX_WORDS = 3;
 
-export type PackageIssueCode = "tekrar" | "uzunluk" | "bagirma" | "mobil" | "bos-sifat" | "rakam-yok" | "kapak-kalabalik" | "yapay-dil" | "tire";
+export type PackageIssueCode = "tekrar" | "uzunluk" | "bagirma" | "mobil" | "bos-sifat" | "rakam-yok" | "kapak-kalabalik" | "yapay-dil" | "tire" | "kapak-satir" | "giris-yok" | "giris-anahtar" | "giris-yapay" | "giris-uzun";
 export interface PackageIssue {
   readonly kod: PackageIssueCode;
   /** HARD issues decide the pair; SOFT ones only break ties between pairs with the same hard count. */
@@ -108,6 +108,56 @@ export function lintPair(title: string, headline: string): PackageIssue[] {
   if (headWords > HEADLINE_MAX_WORDS) issues.push({ kod: "kapak-kalabalik", agirlik: "SOFT", metin: `kapakta ${headWords} kelime — akış boyutunda ${HEADLINE_MAX_WORDS} tavan` });
   const vague = [...new Set((headline.toLocaleLowerCase("en-US").match(/\p{L}+/gu) ?? []).filter((w) => VAGUE.has(w)))];
   if (vague.length) issues.push({ kod: "bos-sifat", agirlik: "SOFT", metin: `kapakta boş sıfat: ${vague.join(", ")}` });
+  const lines = headlineLines(headline);
+  if (lines > HEADLINE_MAX_LINES) issues.push({ kod: "kapak-satir", agirlik: "SOFT", metin: `kapak yazısı ${lines} satıra taşar — karakterin yüzünü örter` });
+  return issues;
+}
+
+/**
+ * Lines the thumbnail headline wraps into. remotion-v3 TitleCard "kucukresim" draws it at a fixed 150 px (1080p) in a
+ * heavy face, so it stays readable when the thumbnail is 120 px wide (youtube-skills thumbnail-principles, f422cea3), in
+ * a box 92 % of the width: about HEADLINE_LINE_CHARS capitals a line (measured: the 16 capitals "WHO ASSASSINATED" fill
+ * 83 % of the Kosovo thumbnail). A third line covers the top 43 % of the picture.
+ */
+export const HEADLINE_LINE_CHARS = 17;
+export const HEADLINE_MAX_LINES = 2;
+export function headlineLines(headline: string): number {
+  let lines = 1;
+  let used = 0;
+  for (const w of headline.trim().split(/\s+/).filter(Boolean)) {
+    const need = used ? used + 1 + w.length : w.length;
+    if (need <= HEADLINE_LINE_CHARS || !used) used = need;
+    else {
+      lines += 1;
+      used = w.length;
+    }
+  }
+  return lines;
+}
+
+/** Characters YouTube shows of a description before "…more" (search, under the player on a phone). */
+export const DESCRIPTION_VISIBLE_CHARS = 150;
+/** Openers that read as machine-written in a description (youtube-skills description-template, f422cea3). */
+const DESCRIPTION_OPENERS = /^(discover|explore|dive into|join us|welcome|in this (video|short)|get ready|uncover|learn how|step into|journey)\b/i;
+
+/**
+ * The description's first lines (owner, 19 Nov 2026, youtube-skills description-template): what shows before "…more"
+ * must carry the video's subject (a word of the title's subject) and its payoff, open on the story rather than on
+ * "Discover…", and end its first sentence before the cut. Advisory: the issues go to the log and youtube.json.
+ */
+export function lintDescriptionLead(lead: string, title: string): PackageIssue[] {
+  const t = lead.trim();
+  if (!t) return [{ kod: "giris-yok", agirlik: "HARD", metin: "açıklamanın giriş cümleleri yok — arama ve telefon ilk satırı gösterir" }];
+  const issues: PackageIssue[] = [];
+  const visible = t.slice(0, DESCRIPTION_VISIBLE_CHARS);
+  const clean = title.replace(/#\S+/g, " ");
+  const subject = contentWords(clean.slice(0, subjectEnd(clean)));
+  const seen = contentWords(visible);
+  if (subject.size && ![...subject].some((w) => seen.has(w))) issues.push({ kod: "giris-anahtar", agirlik: "SOFT", metin: `ilk ${DESCRIPTION_VISIBLE_CHARS} karakterde başlığın konusu yok (${[...subject].join(", ")})` });
+  const opener = DESCRIPTION_OPENERS.exec(t);
+  if (opener) issues.push({ kod: "giris-yapay", agirlik: "SOFT", metin: `açıklama "${opener[0]}" ile açılıyor — doğrudan olayla başlamalı` });
+  const firstEnd = t.search(/[.!?](\s|$)/);
+  if ((firstEnd < 0 ? t.length : firstEnd + 1) > DESCRIPTION_VISIBLE_CHARS) issues.push({ kod: "giris-uzun", agirlik: "SOFT", metin: `ilk cümle ${DESCRIPTION_VISIBLE_CHARS} karakterde bitmiyor — "…daha fazla"da kesilir` });
   return issues;
 }
 
