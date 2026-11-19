@@ -3,6 +3,9 @@
  * model, no render). Run: npx tsx scripts/smoke-v3-youtube.ts
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { choosePackagePair, contentWords, lintPair, lintTitle } from "../src/lib/v3/thumbnail/PackageLint";
 import { judgePrompt } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { mainCharacters, thumbnailPlans } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
@@ -45,7 +48,8 @@ function main() {
       episode,
     );
     assert.deepEqual(p.basliklar, ["Caesar Crosses the Rubicon: Rome's Point of No Return"]);
-    assert.deepEqual(p.kapakBasliklari, ["POINT OF NO RETURN", "HE DID WHAT?"]);
+    assert.deepEqual(p.kapakBasliklari, ["HE DID WHAT?"], "the headline repeating the title's words is not drawn (PackageLint)");
+    assert.equal(p.denetim?.yenidenSiralandi, true);
     assert.deepEqual(p.bolumler, ["The Border", "Panic in Rome", "the road to Rome"], "a missing chapter title falls back to the place");
     assert.deepEqual(p.hashtagler, ["#history", "#Rome"]);
     assert.match(packagePrompt(episode), /under 60 characters[\s\S]*2–4 words/);
@@ -64,6 +68,40 @@ function main() {
     const p = readPackage("no json", episode);
     assert.deepEqual(p.basliklar, [episode.baslik]);
     assert.deepEqual(p.kapakBasliklari, ["DECISION"]);
+  });
+
+  scenario("G title–thumbnail gate: on the studio's 14 real packages no chosen pair repeats a title word", () => {
+    const rows = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "v3-paket-dokuz.json"), "utf8")) as { id: string; basliklar: string[]; kapakBasliklari: string[] }[];
+    assert.equal(rows.length, 14);
+    const repeatedFirst = rows.filter((r) => lintPair(r.basliklar[0]!, r.kapakBasliklari[0]!).some((i) => i.kod === "tekrar"));
+    assert.equal(repeatedFirst.length, 9, "nine of the model's first pairs repeated a title word");
+    for (const r of rows) {
+      const c = choosePackagePair(r.basliklar, r.kapakBasliklari)!;
+      assert.ok(!c.denetim.sorunlar.some((i) => i.kod === "tekrar"), `${r.id}: ${c.denetim.baslik} / ${c.denetim.kapak}`);
+      assert.deepEqual([...c.basliklar].sort(), [...r.basliklar].sort(), "titles are only re-ordered, none lost or invented");
+      assert.ok(c.kapakBasliklari.every((h) => r.kapakBasliklari.includes(h)));
+      assert.ok(c.kapakBasliklari.slice(1).every((h) => !lintPair(c.basliklar[0]!, h).some((i) => i.kod === "tekrar")), "no other variant repeats the chosen title");
+    }
+    const kosovo = choosePackagePair(["Battle of Kosovo: When Leaders Die in Battle", "Battle of Kosovo 1389: Betrayal and Bloodshed"], ["ONLY SULTAN KILLED?"])!;
+    assert.equal(kosovo.basliklar[0], "Battle of Kosovo 1389: Betrayal and Bloodshed", "a soft issue (no year) decides between hard-clean titles");
+    const tie = choosePackagePair(["Rome 49 BC: Caesar Crosses", "Rome 49 BC: Caesar Marches"], ["DIE IS CAST", "NO WAY BACK"])!;
+    assert.equal(tie.denetim.yenidenSiralandi, false, "a tie keeps the model's order");
+  });
+
+  scenario("G2 title rules: length, shouting, phone cut, empty adjectives, AI phrasing and dashes (youtube-skills)", () => {
+    const codes = (t: string) => lintTitle(t).map((i) => i.kod);
+    assert.ok(codes("Hannibal's Elephants Cross the Alps in 218 BC and Rome Cannot Believe It").includes("uzunluk"));
+    assert.ok(codes("Hannibal CRUSHES ROME at CANNAE 216 BC").includes("bagirma"));
+    assert.ok(!codes("Murad IV Storms Baghdad: The 1638 Siege #Shorts").includes("bagirma"), "a Roman numeral is not shouting");
+    assert.ok(codes("The Epic Story of Cannae 216 BC").includes("bos-sifat"));
+    assert.ok(codes("A Deep Dive Into Cannae 216 BC").includes("yapay-dil"));
+    assert.ok(codes("Here’s What Nobody Tells You About Waterloo 1815").includes("yapay-dil"));
+    assert.ok(codes("Cannae — Rome — Hannibal 216 BC").includes("tire") && codes("Cannae – 216 BC").includes("tire"));
+    assert.deepEqual(codes("Cannae 216 BC — Hannibal’s Trap"), [], "one em dash, a year, the subject first: clean");
+    assert.ok(codes("Anglo-Zanzibar War: The 38-Minute Clash").every((c) => c !== "tire"), "hyphens are not dashes");
+    assert.ok(lintPair("Rubicon 49 BC: Caesar Gambles", "THE DIE IS CAST TODAY").some((i) => i.kod === "kapak-kalabalik"));
+    assert.deepEqual([...contentWords("Julius Caesar’s Pirates #Shorts")].sort(), [...contentWords("PIRATE CAESAR JULIUS")].sort(), "possessive, plural and #Shorts fold to the same stems");
+    assert.equal(contentWords("The Pirates of the Sea #Shorts").has("shorts"), false);
   });
 
   scenario("C chapters: from 0:00, short scenes merged, none when fewer than three remain", () => {

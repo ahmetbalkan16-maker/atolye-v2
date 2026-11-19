@@ -1183,6 +1183,7 @@ async function main() {
       } finally {
         await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
+      if (paket.denetim) log(`Paket denetimi: "${paket.denetim.baslik}" + "${paket.denetim.kapak}"${paket.denetim.yenidenSiralandi ? " (modelin ilk seçimi yerine)" : ""} — ${paket.denetim.sorunlar.length ? paket.denetim.sorunlar.map((s) => s.metin).join("; ") : "sorun yok"}`);
       const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind, ...(b.drawn ? { drawn: b.drawn } : {}) })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
       // Optional Canva cover (ATOLYE_V3_CANVA=1, owner 13 Nov 2026): kapak-canva.jpg becomes the uploaded thumbnail; kapak.jpg stays.
       const canva = kapak ? await canvaCoverFor({ paths, episode, workDir: work, publicDir: path.join(work, "public"), cover: kapak, headline: paket.kapakBasliklari[0], title: paket.basliklar[0], shorts, log }) : undefined;

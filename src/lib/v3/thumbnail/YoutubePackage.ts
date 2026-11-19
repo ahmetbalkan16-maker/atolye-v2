@@ -1,5 +1,6 @@
 import { readJsonAnswer } from "../council/Council";
 import type { Episode } from "../episode/EpisodeTypes";
+import { choosePackagePair, type PackageCheck } from "./PackageLint";
 
 /**
  * The YouTube package of an episode (owner approval 20 Oct 2026; knowledge from the higgsfield-youtube-thumbnail and
@@ -16,6 +17,8 @@ export interface YoutubePackage {
   readonly etiketler: readonly string[];
   readonly hashtagler: readonly string[];
   readonly aciklamaGiris: string;
+  /** The title–thumbnail gate's verdict on the first title + first headline (PackageLint); absent in older packages. */
+  readonly denetim?: PackageCheck;
 }
 
 /**
@@ -64,9 +67,12 @@ export function readPackage(text: string, episode: Episode, shorts = false): You
   const chapters = list(v.bolumler, episode.sahneler.length, 40);
   const hashtags = list(v.hashtagler, 3, 30).filter((h) => /^#\S+$/.test(h));
   const tagged = (t: string) => (shorts && !/#shorts\b/i.test(t) ? `${t} #Shorts` : t);
+  // The title and the thumbnail are one unit: the best pair of the model's own options goes first (no model call).
+  const pair = choosePackagePair((titles.length ? titles : [episode.baslik.slice(0, 70)]).map(tagged), headlines.length ? headlines : [fallbackHeadline])!;
   return {
-    basliklar: (titles.length ? titles : [episode.baslik.slice(0, 70)]).map(tagged),
-    kapakBasliklari: headlines.length ? headlines : [fallbackHeadline],
+    basliklar: pair.basliklar,
+    kapakBasliklari: pair.kapakBasliklari,
+    denetim: pair.denetim,
     bolumler: episode.sahneler.map((s, i) => chapters[i] || s.mekan.slice(0, 40)),
     etiketler: list(v.etiketler, 15, 40),
     hashtagler: shorts ? ["#Shorts", ...hashtags.filter((h) => h.toLowerCase() !== "#shorts")].slice(0, 3) : hashtags,
