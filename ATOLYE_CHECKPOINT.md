@@ -10,8 +10,10 @@ design'a bak, yarıyorsa entegre et". Push'lu (feature/cop-adam-v3, canlı DEĞ�
   modele hiç ulaşamayan sınav sayılmaz (19 Kas 9 sınav süresi dolmuş anahtarla "kaldı" yazılmıştı). smoke-v3-cirak 6.
 - d91db551 senaryo istemine izleyici tutma vuruşları (uzun video: soğuk açılış, vaat tekrarı, açık soru, bölüm kancası;
   Short: davetten önceki satır ilk satıra döner) + `EpisodeValidator` ACILIS_SELAM uyarısı. smoke-v3-script 53.
-Araştırma: "content skills" için tek bir kanonik depo yok; en uygunu sergebulaev/youtube-skills (MIT), kuralları yukarıda
-alındı (açıklama denetimi ve 120 px kapak kontrolü sonraya). nexu-io/open-design (Apache-2.0) web/UI tasarım çalışma
+- f36de007 açıklama girişi denetimi (`lintDescriptionLead`: konu ilk 150 karakterde, "Discover…" açılışı yok, ilk cümle
+  kesilmeden biter) + kapak yazısı 2 satırı aşmasın (`headlineLines`, 17 harf/satır Kosova kapağında ölçüldü). smoke-v3-youtube 9.
+Araştırma: "content skills" için tek bir kanonik depo yok; en uygunu sergebulaev/youtube-skills (MIT); işe yarayan
+kuralların hepsi alındı (başlık, açıklama, kapak satırı, izleyici tutma). nexu-io/open-design (Apache-2.0) web/UI tasarım çalışma
 alanı: video hattına katkısı yok, AYAS yanında ikinci tasarım sistemi olur → ENTEGRE EDİLMEDİ.
 ACİL — OWNER: OpenAI API anahtarının süresi 19 Kas'ta doldu (HTTP 401) → yeni anahtar canonical `.env.v3.local` /
 `.env.local`'a; o olmadan V3 siparişleri, beyinler ve çırak çalışmaz. Haftalık kural canlıya alma + izleyici yeniden
