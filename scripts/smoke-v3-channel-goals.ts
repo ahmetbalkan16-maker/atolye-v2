@@ -244,6 +244,16 @@ async function main() {
     const bad = openingChecks(goals, { firstLine: { text: "In the year 75 BC, a young Roman nobleman sailed to Rhodes to study.", byCharacter: false, startS: 2.5 }, firstSceneCards: ["kelime"] });
     assert.deepEqual(bad.map((c) => c.ok), [false, false, false], "assert.deepEqual(bad.map((c) => c.ok), [false, false, false])");
     assert.match(bad[0]!.text, /ANLATICI, 14 kelime/);
+    // The line after the hook (19 Nov 2026): a fourth row only when the pipeline gives it; the narrator's date line fails.
+    const base = { firstLine: { text: "Twenty? I'm worth more!", byCharacter: true, startS: 0.3 }, firstVisualEventS: 0.5, firstSceneCards: ["yer_tarih"] };
+    const dated = openingChecks(goals, { ...base, followUp: { text: "Around 75 BC, Julius Caesar was kidnapped by Cilician pirates along the southern coast of Asia Minor.", byCharacter: false } });
+    assert.deepEqual(dated.map((c) => c.ok), [true, true, true, false]);
+    assert.match(dated[3]!.text, /^Kanca ardı: anlatıcı, 17 kelime, TARİHLE açılıyor \("75 bc"\)/);
+    assert.deepEqual(openingChecks(goals, { ...base, followUp: { text: "He told them to ask for fifty.", byCharacter: false } }).map((c) => c.ok), [true, true, true, true]);
+    assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[3]!.text, /karakter cevap veriyor/);
+    // The beat map no longer asks for a "who, where and when" set-up line after the hook.
+    assert.doesNotMatch(shortBeatRule(goals, 45, "en"), /set up who, where and when/);
+    assert.match(shortBeatRule(goals, 45, "en"), /2–9 s the stakes in one short line \(at most 12 words/);
     const scene = (id: string, extra: Record<string, unknown> = {}) => ({ id, muzik_ruh_hali: "playful", satirlar: [{ jest: "point", sfx: "pop" }], kamera: [{ tip: "zoom", t: 0 }], gecis: "wipe", ...extra });
     assert.equal(scenePlanCheck([scene("s1"), scene("s2")]).ok, true, "assert.equal(scenePlanCheck([scene(\"s1\"), scene(\"s2\")]).ok, true)");
     const gaps = scenePlanCheck([scene("s1"), scene("s2", { kamera: undefined, gecis: undefined, satirlar: [{}] }), scene("s3", { kamera: undefined, satirlar: [{}], harita: { kamera: [{}], ordular: [{}] } })]);

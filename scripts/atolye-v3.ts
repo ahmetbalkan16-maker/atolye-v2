@@ -82,6 +82,7 @@ import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "..
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
+import { hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
@@ -1386,12 +1387,15 @@ async function main() {
     const goals = (() => { try { return loadChannelGoals(paths.contentRoot); } catch (e) { log(`  kanal hedefleri okunamadı: ${(e as Error).message.slice(0, 120)}`); return undefined; } })();
     const narrators = new Set(episode.oyuncu_kadrosu.filter((c) => !c.gorunur).map((c) => c.id));
     const firstLine = timeline.lines[0];
+    // The line after the hook (19 Nov 2026: the channel's Shorts lost half their viewers on it, 4–12 s).
+    const followLine = hookFollowLine(episode);
     const goalRows = shorts && goals
       ? [
           ...openingChecks(goals, {
             ...(firstLine ? { firstLine: { text: splitDirections(episode.sahneler[firstLine.sceneIndex]?.satirlar[firstLine.lineIndex]?.metin ?? "").speech, byCharacter: !narrators.has(firstLine.speaker), startS: firstLine.start } } : {}),
             ...(events.length ? { firstVisualEventS: events[0]! } : {}),
             firstSceneCards: (episode.sahneler[0]?.yazi_karti ?? []).map((k) => k.stil),
+            ...(followLine ? { followUp: { text: splitDirections(followLine.metin).speech, byCharacter: !followLine.anlatici } } : {}),
           }),
           scenePlanCheck(episode.sahneler),
         ].map((c) => row(c.ok, c.text))

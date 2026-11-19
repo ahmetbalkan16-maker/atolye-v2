@@ -84,7 +84,7 @@
     "not": "Süreler esnektir; hikâyenin doğal akışı bozulmaz. Kanca mutlak 0–2 sn'dir, diğer bölümler sürenin payıyla ölçeklenir.",
     "bolumler": [
       { "id": "kanca", "basSn": 0, "bitSn": 2, "tr": "Güçlü diyalog, şaşırtıcı olay ya da soru", "en": "the hook: a character's surprising line, event or question" },
-      { "id": "baglam", "basSn": 2, "bitSn": 9, "tr": "Olayın ve tarihsel bağlamın kurulması", "en": "set up who, where and when (one wider map beat is fine)" },
+      { "id": "baglam", "basSn": 2, "bitSn": 9, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when; one wider map beat is fine)" },
       { "id": "catisma", "basSn": 9, "bitSn": 24, "tr": "Karakter çatışması, mizah ve gerilim", "en": "the clash: characters argue, joke and raise the stakes" },
       { "id": "doruk", "basSn": 24, "bitSn": 38, "tr": "Hikâyenin en güçlü gelişmesi ve karşılığı", "en": "the strongest turn and its historical payoff (the threat made good)" },
       { "id": "final", "basSn": 38, "bitSn": 45, "tr": "Akılda kalan final, espri ya da yorum sorusu", "en": "a memorable closing quip that runs back into the first line, or a one-line question to the viewer (never \"subscribe\")" }

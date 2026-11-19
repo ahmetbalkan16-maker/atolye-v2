@@ -17,6 +17,7 @@ import {
 import { isShorts } from "../render/Format";
 import { type SeriesBrief, seriesText } from "./Series";
 import { SHORT_SHARES_FROM_S } from "./MapRules";
+import { HOOK_FOLLOW_MAX_WORDS } from "./HookFollow";
 
 /**
  * Prompt templates for the V3 script writer and its fact-check pass. Allowed values are read from the episode
@@ -294,6 +295,10 @@ YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da 
 - İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
   ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
+- Kancadan hemen sonraki satır izleyiciyi tutar: en fazla ${HOOK_FOLLOW_MAX_WORDS} kelimeyle ne olduğu ve neyin tehlikede olduğu (kim
+  ne istiyor, ne ters gitmek üzere). Tarih, saat ya da "yer, tarih" ile AÇILMAZ — "yer_tarih" kartı nerede ve ne zaman
+  olduğunu zaten gösteriyor; önemli bir tarih sonraki bir satıra girer. (Kanalın 45–56 sn'lik Short'larında izleyicinin
+  yaklaşık yarısı tam bu satırda, 4–12. saniyede kaydırdı.)
 - Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.${b.hedefSureSn > 90 ? " Süre uzun olduğu için o anın hazırlığını, kendisini ve sonucunu anlat — yine tek olay, başka olaya geçme." : ""}
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} sahne, yaklaşık ${words} konuşulan kelime. ${shortsShape(b.hedefSureSn).karakter} görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
 - Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
@@ -312,6 +317,10 @@ YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, w
 - The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
   "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
+- The line right after the hook keeps the scroller: what is happening and what is at stake in at most ${HOOK_FOLLOW_MAX_WORDS} words
+  (who wants what, what is about to go wrong). It NEVER opens on a date, a time or "place, date" — the "yer_tarih" card
+  already shows where and when; a date that matters goes in a later line. (On our 45–56 s Shorts about half the viewers
+  swiped away on exactly this line, between 4 and 12 seconds.)
 - Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.${b.hedefSureSn > 90 ? " With this length, tell that moment's build-up, the moment itself and its outcome — still one event, never a second one." : ""}
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} scenes, about ${words} spoken words. ${shortsShape(b.hedefSureSn).karakter} visible characters; at most two of them speak in a scene, standing side by side and seen together.
 - SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"

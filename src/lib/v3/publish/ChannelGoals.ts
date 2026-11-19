@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { isShorts } from "../render/Format";
+import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookFollowFaults } from "../script/HookFollow";
 
 /**
  * Crowns & Doodles' video goals (owner, 5 Nov 2026, from the channel's real YouTube Studio numbers): ONE source,
@@ -132,8 +133,18 @@ export function openingChecks(goals: ChannelGoals, input: {
   readonly firstLine?: { readonly text: string; readonly byCharacter: boolean; readonly startS: number };
   readonly firstVisualEventS?: number;
   readonly firstSceneCards: readonly string[];
+  /** The line after the hook (HookFollow.hookFollowLine): judged when given and the narrator's (19 Nov 2026). */
+  readonly followUp?: { readonly text: string; readonly byCharacter: boolean };
 }): QcCheck[] {
   const rules = goals.shortsYapisi.ilkUcSaniye;
+  const follow = input.followUp;
+  const followFaults = follow && !follow.byCharacter ? hookFollowFaults(follow.text) : [];
+  const followRow: QcCheck[] = follow
+    ? [{
+        ok: !followFaults.length,
+        text: `Kanca ardı: ${follow.byCharacter ? "karakter cevap veriyor" : `anlatıcı, ${follow.text.split(/\s+/).filter((w) => /\p{L}|\d/u.test(w)).length} kelime${followFaults.includes("tarih") ? `, TARİHLE açılıyor ("${dateOpener(follow.text)}")` : ""}`} (hedef: en çok ${HOOK_FOLLOW_MAX_WORDS} kelimeyle ne olduğu/ne tehlikede; tarih kartta — kanalın Short'larında izleyicinin yarısı 4–12. sn'de bu satırda gitti)`,
+      }]
+    : [];
   const words = input.firstLine ? input.firstLine.text.split(/\s+/).filter((w) => /\p{L}|\d/u.test(w)).length : 0;
   const fullScreen = input.firstSceneCards.filter((c) => c === "kelime" || c === "bolum");
   return [
@@ -146,6 +157,7 @@ export function openingChecks(goals: ChannelGoals, input: {
       text: `İlk 3 sn — ilk görsel olay ${input.firstVisualEventS === undefined ? "yok" : `${input.firstVisualEventS.toFixed(1)} sn'de`} (hedef ≤ ${rules.gorselOlayIlkSn} sn: hareket, jest ya da kamera)`,
     },
     { ok: !rules.kartYok || !fullScreen.length, text: `İlk 3 sn — tam ekran kart: ${fullScreen.length ? `VAR (${fullScreen.join(", ")})` : "yok"} (akışta kaydırtır)` },
+    ...followRow,
   ];
 }
 
