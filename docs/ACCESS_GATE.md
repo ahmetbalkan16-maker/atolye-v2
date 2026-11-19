@@ -38,7 +38,14 @@ the key → a signed, HttpOnly session cookie is set for 7 days (owner, 13 Nov 2
   (8 attempts / 10 min), process-local and best-effort.
 - No CORS headers are emitted anywhere, so cross-origin reads stay blocked by
   the browser.
-- `POST /api/auth/logout` clears the cookie.
+- `POST /api/auth/logout` clears the cookie and, since 19 Nov 2026, records it as
+  ended on the server (`src/lib/auth/sessionRevocation.ts`, one file per ended cookie
+  under the Git-ignored `data/brain/phone-access/session-revocations/`): a copy of a
+  logged-out cookie is refused. The middleware runs on the Node.js runtime for this.
+  Other signed-in devices stay signed in.
+- Every page response (not `/api/*`, which keeps its own, e.g. inert SVG) carries a per-request nonce Content-Security-Policy
+  (`src/lib/auth/contentSecurityPolicy.ts`; emergency switch `AYAS_CSP=report-only|off`).
+  Design and rollout notes: `docs/AYAS_GUVENLIK_CIKIS_CSP.md`.
 
 ## Limits (known)
 

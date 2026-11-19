@@ -22,7 +22,8 @@ export const AYAS_ACCESS_KEY_ENV = "AYAS_ACCESS_KEY";
 export const AYAS_ACCESS_KEY_MIN_LENGTH = 12;
 /**
  * Session lifetime: one week (owner, 13 Nov 2026: "sürekli giriş şifresi istemesin, gerekirse haftalık 1 kez istesin";
- * was 12 h). The cookie stays HttpOnly, signed and Secure; logout still ends it at once.
+ * was 12 h). The cookie stays HttpOnly, signed and Secure; logout ends it at once, on the server too
+ * (`sessionRevocation.ts`, 19 Nov 2026), so a copy of a logged-out cookie no longer works.
  */
 export const AYAS_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CLOCK_SKEW_SECONDS = 60;
@@ -136,6 +137,25 @@ export async function readVerifiedSessionClaims(
   const body = (token as string).slice(0, (token as string).indexOf("."));
   const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(body))) as SessionPayload;
   return { issuedAt: payload.iat, expiresAt: payload.exp, ...(payload.nonce ? { nonce: payload.nonce } : {}) };
+}
+
+/**
+ * The id under which a logout records this cookie (`sessionRevocation.ts`), and its expiry, or `null` when
+ * `verifySession` refuses it. The id is a keyed digest of the cookie's signed body — unique per issued cookie (its
+ * time and, since 13 Nov 2026, a random nonce) and the same for every copy of it — so a cookie from before the change
+ * is revoked the same way. The domain line keeps it apart from the cookie signature and from every audit digest; it
+ * cannot be turned back into the cookie or the key.
+ */
+export async function sessionRevocationTarget(
+  token: string | undefined | null,
+  key: string,
+  now: number = Date.now(),
+): Promise<{ readonly id: string; readonly expiresAt: number } | null> {
+  const claims = await readVerifiedSessionClaims(token, key, now);
+  if (!claims) return null;
+  const body = (token as string).slice(0, (token as string).indexOf("."));
+  const bytes = await hmacSha256(`ayas-session-revocation\n${body}`, key);
+  return { id: Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""), expiresAt: claims.expiresAt };
 }
 
 /**
