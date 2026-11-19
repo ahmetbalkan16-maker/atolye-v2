@@ -49,7 +49,7 @@ function main() {
     );
     assert.deepEqual(p.basliklar, ["Caesar Crosses the Rubicon: Rome's Point of No Return"], "assert.deepEqual(p.basliklar, [\"Caesar Crosses the Rubicon: Rome's Point of No Return\"])");
     assert.deepEqual(p.kapakBasliklari, ["HE DID WHAT?"], "the headline repeating the title's words is not drawn (PackageLint)");
-    assert.equal(p.denetim?.yenidenSiralandi, true);
+    assert.equal(p.denetim?.yenidenSiralandi, true, "assert.equal(p.denetim?.yenidenSiralandi, true)");
     assert.deepEqual(p.bolumler, ["The Border", "Panic in Rome", "the road to Rome"], "a missing chapter title falls back to the place");
     assert.deepEqual(p.hashtagler, ["#history", "#Rome"], "assert.deepEqual(p.hashtagler, [\"#history\", \"#Rome\"])");
     assert.match(packagePrompt(episode), /under 60 characters[\s\S]*2–4 words/);
@@ -72,14 +72,14 @@ function main() {
 
   scenario("G title–thumbnail gate: on the studio's 14 real packages no chosen pair repeats a title word", () => {
     const rows = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "v3-paket-dokuz.json"), "utf8")) as { id: string; basliklar: string[]; kapakBasliklari: string[] }[];
-    assert.equal(rows.length, 14);
+    assert.equal(rows.length, 14, "assert.equal(rows.length, 14)");
     const repeatedFirst = rows.filter((r) => lintPair(r.basliklar[0]!, r.kapakBasliklari[0]!).some((i) => i.kod === "tekrar"));
     assert.equal(repeatedFirst.length, 9, "nine of the model's first pairs repeated a title word");
     for (const r of rows) {
       const c = choosePackagePair(r.basliklar, r.kapakBasliklari)!;
       assert.ok(!c.denetim.sorunlar.some((i) => i.kod === "tekrar"), `${r.id}: ${c.denetim.baslik} / ${c.denetim.kapak}`);
       assert.deepEqual([...c.basliklar].sort(), [...r.basliklar].sort(), "titles are only re-ordered, none lost or invented");
-      assert.ok(c.kapakBasliklari.every((h) => r.kapakBasliklari.includes(h)));
+      assert.ok(c.kapakBasliklari.every((h) => r.kapakBasliklari.includes(h)), "assert.ok(c.kapakBasliklari.every((h) => r.kapakBasliklari.includes(h)))");
       assert.ok(c.kapakBasliklari.slice(1).every((h) => !lintPair(c.basliklar[0]!, h).some((i) => i.kod === "tekrar")), "no other variant repeats the chosen title");
     }
     const kosovo = choosePackagePair(["Battle of Kosovo: When Leaders Die in Battle", "Battle of Kosovo 1389: Betrayal and Bloodshed"], ["ONLY SULTAN KILLED?"])!;
@@ -90,35 +90,35 @@ function main() {
 
   scenario("G2 title rules: length, shouting, phone cut, empty adjectives, AI phrasing and dashes (youtube-skills)", () => {
     const codes = (t: string) => lintTitle(t).map((i) => i.kod);
-    assert.ok(codes("Hannibal's Elephants Cross the Alps in 218 BC and Rome Cannot Believe It").includes("uzunluk"));
-    assert.ok(codes("Hannibal CRUSHES ROME at CANNAE 216 BC").includes("bagirma"));
+    assert.ok(codes("Hannibal's Elephants Cross the Alps in 218 BC and Rome Cannot Believe It").includes("uzunluk"), "assert.ok(codes(\"Hannibal's Elephants Cross the Alps in 218 BC and Rome Cannot Believe It\").includes(\"uzunluk\"))");
+    assert.ok(codes("Hannibal CRUSHES ROME at CANNAE 216 BC").includes("bagirma"), "assert.ok(codes(\"Hannibal CRUSHES ROME at CANNAE 216 BC\").includes(\"bagirma\"))");
     assert.ok(!codes("Murad IV Storms Baghdad: The 1638 Siege #Shorts").includes("bagirma"), "a Roman numeral is not shouting");
-    assert.ok(codes("The Epic Story of Cannae 216 BC").includes("bos-sifat"));
-    assert.ok(codes("A Deep Dive Into Cannae 216 BC").includes("yapay-dil"));
-    assert.ok(codes("Here’s What Nobody Tells You About Waterloo 1815").includes("yapay-dil"));
-    assert.ok(codes("Cannae — Rome — Hannibal 216 BC").includes("tire") && codes("Cannae – 216 BC").includes("tire"));
+    assert.ok(codes("The Epic Story of Cannae 216 BC").includes("bos-sifat"), "assert.ok(codes(\"The Epic Story of Cannae 216 BC\").includes(\"bos-sifat\"))");
+    assert.ok(codes("A Deep Dive Into Cannae 216 BC").includes("yapay-dil"), "assert.ok(codes(\"A Deep Dive Into Cannae 216 BC\").includes(\"yapay-dil\"))");
+    assert.ok(codes("Here’s What Nobody Tells You About Waterloo 1815").includes("yapay-dil"), "assert.ok(codes(\"Here’s What Nobody Tells You About Waterloo 1815\").includes(\"yapay-dil\"))");
+    assert.ok(codes("Cannae — Rome — Hannibal 216 BC").includes("tire") && codes("Cannae – 216 BC").includes("tire"), "assert.ok(codes(\"Cannae — Rome — Hannibal 216 BC\").includes(\"tire\") && codes(\"Cannae – 216 BC\").includes(\"tire\"))");
     assert.deepEqual(codes("Cannae 216 BC — Hannibal’s Trap"), [], "one em dash, a year, the subject first: clean");
     assert.ok(codes("Anglo-Zanzibar War: The 38-Minute Clash").every((c) => c !== "tire"), "hyphens are not dashes");
-    assert.ok(lintPair("Rubicon 49 BC: Caesar Gambles", "THE DIE IS CAST TODAY").some((i) => i.kod === "kapak-kalabalik"));
+    assert.ok(lintPair("Rubicon 49 BC: Caesar Gambles", "THE DIE IS CAST TODAY").some((i) => i.kod === "kapak-kalabalik"), "assert.ok(lintPair(\"Rubicon 49 BC: Caesar Gambles\", \"THE DIE IS CAST TODAY\").some((i) => i.kod === \"kapak-kalabalik\"))");
     assert.deepEqual([...contentWords("Julius Caesar’s Pirates #Shorts")].sort(), [...contentWords("PIRATE CAESAR JULIUS")].sort(), "possessive, plural and #Shorts fold to the same stems");
-    assert.equal(contentWords("The Pirates of the Sea #Shorts").has("shorts"), false);
+    assert.equal(contentWords("The Pirates of the Sea #Shorts").has("shorts"), false, "assert.equal(contentWords(\"The Pirates of the Sea #Shorts\").has(\"shorts\"), false)");
   });
 
   scenario("G3 description lead and headline lines (youtube-skills description-template, thumbnail-principles)", () => {
     const codes = (lead: string, title = "Anglo-Zanzibar War: The 38-Minute Clash #Shorts") => lintDescriptionLead(lead, title).map((i) => i.kod);
-    assert.deepEqual(codes("The Anglo-Zanzibar War was the shortest war in history, lasting just 38 minutes. Watch the palace burn."), []);
-    assert.deepEqual(codes("Discover the Anglo-Zanzibar War, the shortest war in history. Watch how a 38-minute clash changed Zanzibar."), ["giris-yapay"]);
+    assert.deepEqual(codes("The Anglo-Zanzibar War was the shortest war in history, lasting just 38 minutes. Watch the palace burn."), [], "assert.deepEqual(codes(\"The Anglo-Zanzibar War was the shortest war in history, lasting just 38 minutes. Watch the palace burn.\"), [])");
+    assert.deepEqual(codes("Discover the Anglo-Zanzibar War, the shortest war in history. Watch how a 38-minute clash changed Zanzibar."), ["giris-yapay"], "assert.deepEqual(codes(\"Discover the Anglo-Zanzibar War, the shortest war in history. Watch how a 38-minute clash changed Zanzibar.\"), [\"giris-yapay\"])");
     assert.deepEqual(codes("A sultan, a palace and five British ships: the shortest fight ever lasted 38 minutes."), ["giris-anahtar"], "the title's subject (Anglo-Zanzibar War) is missing");
-    assert.deepEqual(codes(""), ["giris-yok"]);
-    assert.ok(codes(`The Anglo-Zanzibar War ${"was very short and ".repeat(8)}ended.`).includes("giris-uzun"));
+    assert.deepEqual(codes(""), ["giris-yok"], "assert.deepEqual(codes(\"\"), [\"giris-yok\"])");
+    assert.ok(codes(`The Anglo-Zanzibar War ${"was very short and ".repeat(8)}ended.`).includes("giris-uzun"), "assert.ok(codes(`The Anglo-Zanzibar War ${\"was very short and \".repeat(8)}ended.`).includes(\"giris-uzun\"))");
     const p = readPackage(JSON.stringify({ basliklar: ["Caesar Crosses the Rubicon 49 BC"], kapak_basliklari: ["DIE IS CAST"], aciklama_giris: "Explore how Caesar crossed the Rubicon." }), episode);
     assert.deepEqual(p.aciklamaDenetim?.map((i) => i.kod), ["giris-yapay"], "the package carries the description's verdict");
     assert.match(packagePrompt(episode), /within 150 characters[\s\S]*never open with "Discover"/);
     assert.equal(headlineLines("WHO ASSASSINATED MURAD?"), 2, "measured on the Kosovo thumbnail: 16 capitals fill one line");
-    assert.equal(headlineLines("TRAPPED!"), 1);
-    assert.equal(headlineLines("THE GREATEST BETRAYAL IN ALL OF HISTORY"), 3);
-    assert.ok(lintPair("Waterloo 1815: Napoleon Falls", "THE GREATEST BETRAYAL IN ALL OF HISTORY").some((i) => i.kod === "kapak-satir"));
-    assert.ok(!lintPair("Waterloo 1815: Napoleon Falls", "WHO ASSASSINATED MURAD?").some((i) => i.kod === "kapak-satir"));
+    assert.equal(headlineLines("TRAPPED!"), 1, "assert.equal(headlineLines(\"TRAPPED!\"), 1)");
+    assert.equal(headlineLines("THE GREATEST BETRAYAL IN ALL OF HISTORY"), 3, "assert.equal(headlineLines(\"THE GREATEST BETRAYAL IN ALL OF HISTORY\"), 3)");
+    assert.ok(lintPair("Waterloo 1815: Napoleon Falls", "THE GREATEST BETRAYAL IN ALL OF HISTORY").some((i) => i.kod === "kapak-satir"), "assert.ok(lintPair(\"Waterloo 1815: Napoleon Falls\", \"THE GREATEST BETRAYAL IN ALL OF HISTORY\").some((i) => i.kod === \"kapak-satir\"))");
+    assert.ok(!lintPair("Waterloo 1815: Napoleon Falls", "WHO ASSASSINATED MURAD?").some((i) => i.kod === "kapak-satir"), "assert.ok(!lintPair(\"Waterloo 1815: Napoleon Falls\", \"WHO ASSASSINATED MURAD?\").some((i) => i.kod === \"kapak-satir\"))");
   });
 
   scenario("C chapters: from 0:00, short scenes merged, none when fewer than three remain", () => {
