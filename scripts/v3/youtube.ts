@@ -2,17 +2,17 @@
  * Atölye V3 — the owner's YouTube channel (owner, 2 Nov 2026: "youtube kanalımı AYAS'a bağlayabiliriz").
  *
  *   npx tsx scripts/v3/youtube.ts baglan    # one consent in the browser; the token goes into ATOLYE_V3_YOUTUBE_DIR
- *   npx tsx scripts/v3/youtube.ts durum     # the connected channel and the settings that decide its audience
+ *   npx tsx scripts/v3/youtube.ts durum     # the connection (Analytics scope, age), the channel and its audience settings
  *
- * `baglan` listens on 127.0.0.1 only (a random port) for Google's answer, for ten minutes; the consent asks for upload
- * and read-only access, nothing that edits or deletes. Uploading itself is the order watcher's (`yapim.ts izle`), and
+ * `baglan` listens on 127.0.0.1 only (a random port) for Google's answer, for ten minutes; the consent asks for upload,
+ * read-only and (since 19 Nov 2026) Analytics read-only access, nothing that edits or deletes. Uploading itself is the order watcher's (`yapim.ts izle`), and
  * only for videos the owner approved.
  */
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { consentUrl, exchangeCode, loadClient, loadToken, myChannel, pkce, refreshAccessToken, saveToken, type YoutubeChannelInfo, youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
+import { connectionLines, consentUrl, exchangeCode, hasAnalyticsScope, loadClient, loadToken, myChannel, pkce, refreshAccessToken, saveToken, type YoutubeChannelInfo, youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { recentUploads } from "../../src/lib/v3/publish/YoutubeUpload";
 
 const CONSENT_WAIT_MS = 10 * 60_000;
@@ -66,6 +66,7 @@ async function connect(): Promise<void> {
   if (settings.channelId && channel.id !== settings.channelId) throw new Error(`YOUTUBE_WRONG_CHANNEL: "${channel.title}" (${channel.id}) seçildi, beklenen ${settings.channelId}; yeniden bağlan ve doğru kanalı seç`);
   await saveToken(settings, { refreshToken: granted.refreshToken, channelId: channel.id, channelTitle: channel.title, scope: granted.scope, baglandi: new Date().toISOString() });
   console.log(`Bağlandı. İzin ${settings.dir} klasöründe.\n`);
+  if (!hasAnalyticsScope(granted.scope)) console.log("UYARI: onay ekranında YouTube Analytics izni verilmedi — kanal performansı okunamaz. Yeniden bağlanıp o kutuyu da işaretle.\n");
   for (const line of audit(channel)) console.log(line);
 }
 
@@ -76,9 +77,11 @@ async function status(): Promise<void> {
     console.log(`YouTube bağlı değil (${settings.dir}\\token.json yok). Bağlamak için: npx tsx scripts/v3/youtube.ts baglan`);
     return;
   }
+  // From the token file first: shown even when Google refuses the token below.
+  for (const line of connectionLines(token)) console.log(line);
   const { accessToken } = await refreshAccessToken(fetch, await loadClient(settings), token);
   const channel = await myChannel(fetch, accessToken);
-  console.log(`Bağlı (${token.baglandi.slice(0, 10)}).`);
+  console.log("Bağlantı çalışıyor.");
   for (const line of audit(channel)) console.log(line);
   if (channel.uploadsPlaylist) {
     const uploads = await recentUploads(fetch, accessToken, channel.uploadsPlaylist);

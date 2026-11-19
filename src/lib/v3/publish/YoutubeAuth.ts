@@ -7,10 +7,26 @@ import { loadEnvFile } from "../V3Paths";
  * The owner's permission for AYAS to upload to their YouTube channel (owner, 2 Nov 2026: "yükleme iznini ayarlayalım").
  * A Desktop-app OAuth client the owner creates in Google Cloud (`client.json`, Google's own download) and one consent in
  * the owner's browser give a refresh token (`token.json`); both live in the secrets folder `ATOLYE_V3_YOUTUBE_DIR`,
- * never in git. The scopes are upload (video + thumbnail) and read-only (to prove the channel and see its uploads):
- * nothing here can delete or edit a video. The token is bound to one channel id; another channel is refused.
+ * never in git. The scopes are upload (video + thumbnail), read-only (to prove the channel and see its uploads) and,
+ * since 19 Nov 2026 (owner: "performansları incelesin, ona göre önlem alsın"), YouTube Analytics read-only (each
+ * video's numbers, audience retention and traffic sources): nothing here can delete or edit a video. The token is bound
+ * to one channel id; another channel is refused.
  */
-export const YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"] as const;
+export const YOUTUBE_ANALYTICS_SCOPE = "https://www.googleapis.com/auth/yt-analytics.readonly";
+export const YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", YOUTUBE_ANALYTICS_SCOPE] as const;
+
+/**
+ * Whether a consent granted the Analytics scope. A token from before 19 Nov 2026 (or a consent where the owner unticked
+ * it) still uploads, but reading numbers needs `youtube.ts baglan` once more.
+ */
+export function hasAnalyticsScope(scope: string | undefined): boolean {
+  return (scope ?? "").split(/\s+/).includes(YOUTUBE_ANALYTICS_SCOPE);
+}
+
+/** The refresh token is dead (`invalid_grant`: revoked, or 7 days old while the Google app is in "Testing"). */
+export function isReconnectError(e: unknown): boolean {
+  return e instanceof Error && e.message.startsWith("YOUTUBE_RECONNECT");
+}
 
 export type Fetcher = (input: string, init?: RequestInit & { duplex?: "half" }) => Promise<Response>;
 
@@ -71,6 +87,27 @@ export async function saveToken(settings: YoutubeSettings, token: YoutubeToken):
   const file = path.join(settings.dir, "token.json");
   await fs.writeFile(`${file}.tmp`, `${JSON.stringify(token, null, 2)}\n`);
   await fs.rename(`${file}.tmp`, file);
+}
+
+/** A Google OAuth app in "Testing" gets refresh tokens that die this many days after the consent. */
+export const TESTING_TOKEN_DAYS = 7;
+
+/**
+ * The connection's state for `youtube.ts durum`, read from the token file alone (it shows even when the token is dead):
+ * when it was given, whether it carries the Analytics scope, and when a "Testing" app's consent runs out.
+ */
+export function connectionLines(token: Pick<YoutubeToken, "baglandi" | "scope">, now = new Date()): string[] {
+  const at = Date.parse(token.baglandi);
+  const days = Number.isFinite(at) ? Math.floor((now.getTime() - at) / 86_400_000) : undefined;
+  const lines = [`Bağlandı: ${token.baglandi.slice(0, 10)}${days !== undefined ? ` (${days} gün önce)` : ""}.`];
+  lines.push(hasAnalyticsScope(token.scope) ? "Analytics izni: var (kanal performansı okunabilir)." : "Analytics izni YOK — performans okunamaz; yeniden bağlan: npx tsx scripts/v3/youtube.ts baglan");
+  if (days !== undefined && Number.isFinite(at)) {
+    const ends = new Date(at + TESTING_TOKEN_DAYS * 86_400_000).toISOString().slice(0, 10);
+    lines.push(days >= TESTING_TOKEN_DAYS
+      ? `İzin ${TESTING_TOKEN_DAYS} günden eski: Google uygulaması "Testing" durumundaysa süresi dolmuştur (aşağıdaki deneme gösterir); yeniden bağlan.`
+      : `Google uygulaması "Testing" durumundaysa izin ${ends} civarında düşer (${TESTING_TOKEN_DAYS} gün); düşünce AYAS günde bir kez haber verir. Uygulama yayınlanırsa (In production) bu sınır kalkar.`);
+  }
+  return lines;
 }
 
 /** PKCE (S256): the code the browser brings back is useless without the verifier this process keeps. */

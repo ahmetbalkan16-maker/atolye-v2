@@ -68,7 +68,8 @@ Mevcut tarif (`ScriptPrompts.ts`: karakterin 2 sn içinde kancası, tek an, 3–
 
 ## Yayın sonrası öğrenme döngüsü
 
-Kanal Analytics API'ye bağlı değil (owner, 3 Kasım: elle yükleme). Kaynak owner'ın Studio okumasıdır:
+İki kaynak aynı kayda yazar: owner'ın Studio okuması (aşağıdaki adımlar; "izlemeyi seçenler"i yalnız o verir) ve 19 Kasım
+2026'dan beri günde bir kez YouTube Analytics API (`kanal.ts cek`, ayrıntı `08_YOUTUBE_KANALI.md` → Kanal performansı):
 
 1. `npx tsx scripts/v3/kanal.ts ornek > olcum.json` — boş şablon (bilinmeyen sayı `null`, tahmin yazılmaz; `"52%"`,
    `"1.203"`, `"3,9"` biçimleri okunur).
@@ -98,7 +99,8 @@ doğruluk notu JSON'da (tartışmalı sayılar temkinli verilir). Not: mevcut ot
 
 ## Henüz yapılmayanlar
 
-- Analytics API bağlantısı yok; ölçüm elle girilir (owner kararı).
+- Analytics API okuyucusu hazır (19 Kasım 2026) ama owner `youtube.ts baglan` ile bağlayana kadar çalışmaz; "izlemeyi
+  seçenler / kaydıranlar" API'de olmadığı için Studio'dan elle girilir.
 - Kamera hareketi / yüz ifadesi / efekt kalitesi QC'de sayılır ama güçlendirmenin kendisi (yeni kamera dili, ifade
   animasyonu) ayrı geliştirme işi — araştırma adayları `docs/research/2026-11-05-ucretsiz-ai-video-arastirmasi.md`.
 - Pilot videoların üretimi başlatılmadı (görev: gerçek TTS/medya üretimi yok).

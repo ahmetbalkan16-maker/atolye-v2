@@ -4,20 +4,25 @@
  *   npx tsx scripts/v3/kanal.ts hedefler [--sure 60,120,180]   goals from content/v3/kanal-hedefleri.json, per length
  *   npx tsx scripts/v3/kanal.ts ornek > olcum.json           an empty measurement to fill from YouTube Studio
  *   npx tsx scripts/v3/kanal.ts kaydet --dosya olcum.json    record it, judge it against the goals, teach the brains
- *   npx tsx scripts/v3/kanal.ts rapor                        every measured video, the next Short's targets, the pilot
+ *   npx tsx scripts/v3/kanal.ts cek [--video <id>]           read YouTube Analytics now, record and teach (owner, 19 Nov 2026)
+ *   npx tsx scripts/v3/kanal.ts rapor                        every measured video (Studio and API), the channel summary,
+ *                                                            the next Short's targets, the pilot
  *   npx tsx scripts/v3/kanal.ts pilot                        the 6-Short pilot plan and what is measured of it
  *
- * Reads and writes only the V3 work root's `_kutuphane/kanal/performans/` and the brains' lesson memory; it calls no
- * YouTube API, uploads nothing and spends nothing. A number not in the file is "ölçülmedi", never a pass.
+ * Reads and writes only the V3 work root's `_kutuphane/kanal/performans/` and the brains' lesson memory. Only `cek`
+ * reaches YouTube (read-only Data and Analytics APIs with the owner's token; the idle cycle does the same once a day);
+ * nothing uploads and nothing spends. A number not in the file is "ölçülmedi", never a pass.
  */
-import { existsSync, promises as fs } from "node:fs";
+import { promises as fs } from "node:fs";
 import path from "node:path";
-import { forgetSource, remember } from "../../src/lib/v3/council/ExperienceMemory";
-import { listOrders } from "../../src/lib/v3/orders/ProductionOrders";
+import { channelSummary, retentionDrops } from "../../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   type ChannelGoals, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, PERFORMANCE_METRICS, type PerformanceEvaluation,
-  performanceLessons, pilotTrends, recordViewRatio, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
+  pilotTrends, recordViewRatio, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
 } from "../../src/lib/v3/publish/ChannelGoals";
+import { judgeAndTeach } from "../../src/lib/v3/publish/ChannelLearning";
+import { youtubeAnalyticsTick } from "../../src/lib/v3/publish/YoutubeAnalytics";
+import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { listPerformance, parsePerformanceInput, savePerformance } from "../../src/lib/v3/publish/VideoPerformanceStore";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
@@ -43,19 +48,21 @@ function evaluationLines(record: VideoPerformanceRecord, e: PerformanceEvaluatio
     lines.push(`  ${name}: ${pct(c.deger)} → ${STATUS[c.durum]}${target}`);
   }
   if (record.metrikler.ortIzlemeSn !== null) lines.push(`  Ort. görüntüleme süresi: ${record.metrikler.ortIzlemeSn} sn / ${record.sureSn} sn`);
+  if (record.tutma?.length) {
+    // The API's retention curve: the hook and the steepest drops (`cek` names their scenes when it links a production).
+    const r = retentionDrops(record.tutma, record.sureSn);
+    const parts = [
+      ...(r.kanca ? [`ilk ${r.kanca.sn} sn'de %${Math.round(r.kanca.kayip * 100)} gitti${r.kanca.goreli !== undefined ? ` (göreli ${r.kanca.goreli.toFixed(2)})` : ""}`] : []),
+      ...r.dususler.map((x) => `${x.basSn}–${x.bitSn} sn'de %${Math.round(x.kayip * 100)}`),
+    ];
+    lines.push(`  İzleyici tutma: ${parts.length ? parts.join("; ") : "belirgin düşüş yok"}`);
+  }
+  if (record.trafik) lines.push(`  Trafik: ${Object.entries(record.trafik).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
   if (e.eksikMetrikler.length) lines.push(`  Ölçülmeyen: ${e.eksikMetrikler.join(", ")}`);
   return lines;
 }
 
-/** The production's own opening check (its QC row), when the record names its order. */
-async function productionFacts(workRoot: string, record: VideoPerformanceRecord): Promise<{ konu?: string; kanca?: string } | undefined> {
-  if (!record.siparisId) return undefined;
-  const order = (await listOrders(workRoot)).map((x) => x.order).find((o) => o.id === record.siparisId);
-  if (!order?.cikti) return order ? { konu: order.konu } : undefined;
-  const qc = path.join(order.cikti, "QC.md");
-  const hook = existsSync(qc) ? (await fs.readFile(qc, "utf8")).split(/\r?\n/).find((l) => /^- \[[x ]\] Kanca:/.test(l)) : undefined;
-  return { konu: order.konu, ...(hook ? { kanca: hook.replace(/^- \[[x ]\] Kanca:\s*/, "").replace(/\s*\(Short:.*$/, "") } : {}) };
-}
+
 
 async function main(): Promise<void> {
   loadV3Settings();
@@ -95,24 +102,43 @@ async function main(): Promise<void> {
     const record = parsePerformanceInput(JSON.parse(await fs.readFile(file, "utf8")));
     const saved = await savePerformance(paths.workRoot, record);
     const others = (await listPerformance(paths.workRoot)).filter((r) => r.videoId !== record.videoId);
-    const targets = nextShortTargets(goals, others);
-    const evaluation = evaluatePerformance(record, goals, record.sureSn <= 60 ? targets : undefined);
+    // One path with the API reader (ChannelLearning.judgeAndTeach): judged against the next Short's targets, and the
+    // latest reading's lesson replaces the video's older one.
+    const { evaluation, lessons } = await judgeAndTeach({ workRoot: paths.workRoot, goals, record, others });
     console.log(`kaydedildi: ${saved}`);
     for (const line of evaluationLines(record, evaluation)) console.log(line);
-    // The brains learn from the latest reading of a video only: an older lesson of the same video is replaced.
-    const source = `performans ${record.videoId}`;
-    const lessons = performanceLessons(record, evaluation, await productionFacts(paths.workRoot, record));
-    for (const b of ["kurgu", "mizah"] as const) await forgetSource(paths.workRoot, b, source);
-    for (const l of lessons) await remember(paths.workRoot, { bolum: source, beyin: l.beyin, tur: "ders", konu: `kanal performansı: ${record.baslik ?? record.videoId}`.slice(0, 90), metin: l.metin });
     console.log(lessons.length ? `beyinlere ders: ${lessons.length} (kurgu beyni bir sonraki senaryoda okur)` : "ders yazılmadı: hedef metrikleri ölçülmemiş ya da hedef tanımlı değil");
+    return;
+  }
+
+  if (command === "cek") {
+    // Owner, 19 Nov 2026: the channel's numbers straight from YouTube (the idle cycle does this once a day by itself).
+    const videoId = arg("--video");
+    const r = await youtubeAnalyticsTick({ workRoot: paths.workRoot, goals, settings: youtubeSettings(paths.repoRoot), fetcher: fetch, force: true, ...(videoId ? { videoId } : {}), log: (l) => console.log(l) });
+    if (r.durum === "token-yok") throw new Error("YouTube bağlı değil — önce: npx tsx scripts/v3/youtube.ts baglan");
+    if (!r.sonuc) {
+      console.log(r.satir);
+      process.exitCode = 1;
+      return;
+    }
+    for (const line of r.sonuc.satirlar) console.log(line);
+    console.log(`${r.sonuc.kayitlar.length} yeni ölçüm kaydedildi, beyinlere ${r.sonuc.ders} ders yazıldı (kanal.ts rapor)`);
     return;
   }
 
   if (command === "rapor" || command === "pilot") {
     const records = await listPerformance(paths.workRoot);
     if (command === "rapor") {
-      if (!records.length) console.log("Henüz kayıtlı ölçüm yok (kanal.ts kaydet --dosya …).");
+      if (!records.length) console.log("Henüz kayıtlı ölçüm yok (kanal.ts kaydet --dosya … ya da kanal.ts cek).");
       for (const r of latestPerVideo(records).sort((a, b) => a.olcumTarihi.localeCompare(b.olcumTarihi))) for (const line of evaluationLines(r, evaluatePerformance(r, goals))) console.log(line);
+      const sum = channelSummary(records, goals);
+      if (sum.olculen) {
+        const v = (x: NonNullable<typeof sum.enIyi>) => `${x.videoId} "${x.baslik ?? "?"}" ort. izlenme ${pct(x.oran)} (${STATUS[x.sonuc] ?? x.sonuc})`;
+        console.log(`\nKanal özeti: ${sum.olculen} video ölçüldü (${sum.api} YouTube API'den); ${Object.entries(sum.sonuclar).map(([k, n]) => `${STATUS[k] ?? k}: ${n}`).join(", ")}`);
+        if (sum.enIyi) console.log(`  En iyi: ${v(sum.enIyi)}`);
+        if (sum.enKotu) console.log(`  En zayıf: ${v(sum.enKotu)}`);
+        if (sum.trafik.length) console.log(`  Trafik (görüntülemeye göre): ${sum.trafik.slice(0, 6).map((t) => `${t.kaynak} ${pct(t.pay)}`).join(", ")}`);
+      }
       const next = nextShortTargets(goals, records);
       console.log(`\nSonraki Short hedefi: izlemeyi seçenler ${pct(next.izlemeyiSecenler.min)}–${pct(next.izlemeyiSecenler.max)}, ort. izlenme ${pct(next.ortIzlenmeOrani.min)}–${pct(next.ortIzlenmeOrani.max)} (${next.neden})`);
       const ratios = latestPerVideo(records).map(recordViewRatio).filter((x): x is number => x !== null);
@@ -127,7 +153,7 @@ async function main(): Promise<void> {
     for (const s of trends.saatler) console.log(`  saat ${s.saat}: ${s.n} video${s.diziyeGoreFark !== undefined ? `, dizisine göre ${s.diziyeGoreFark >= 0 ? "+" : ""}${(s.diziyeGoreFark * 100).toFixed(1)} puan` : ""}`);
     return;
   }
-  throw new Error(`bilinmeyen komut: ${command} (hedefler | ornek | kaydet | rapor | pilot)`);
+  throw new Error(`bilinmeyen komut: ${command} (hedefler | ornek | kaydet | cek | rapor | pilot)`);
 }
 
 main().catch((e) => {
