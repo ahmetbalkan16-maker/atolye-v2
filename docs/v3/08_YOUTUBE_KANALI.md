@@ -14,6 +14,10 @@ ilk videolarda **owner onayı olmadan yükleme yok**; Fiverr'de insan döngüde 
 > kapandı; kanal kimliği aynı) ve Sezar Short'unu elle yükledi: `q8JW_i5Gt0M` (küçük q; büyük harfli yazım yok, 5 Kasım'da yt-dlp ile doğrulandı) "Never Kidnap a Future Emperor"; sipariş
 > `elle: true` işaretli, AYAS onu bir daha yüklemez.
 
+> **19 Kasım 2026 owner kararı: "AYAS'ı ve sistemi YouTube hesabıma bağlamak istiyorum; performansları incelesin, ona
+> göre önlem alsın, kendini geliştirsin."** Yüklemeler yine elle; AYAS kanalın sayılarını YouTube Analytics API'den
+> günde bir kez okur ve beyinlere ders yazar. Bağlantı adımları ve ne okunduğu: aşağıda **Kanal performansı**.
+
 ## Nasıl çalışır
 
 1. AYAS siparişi üretir, kalite beyni teslim eder (değişmedi).
@@ -91,11 +95,82 @@ Gelir notu: YouTube'un "özgün olmayan / seri üretim içerik" kuralı (Temmuz 
 videoları para kazanmadan çıkarır. Owner onayı, kaynaklı araştırma, her bölüme özgü çizim ve haftada 3 videoluk tempo
 bu riski düşürür; tempoyu kaliteden önce artırma.
 
+## Kanal performansı — YouTube Analytics (19 Kasım 2026)
+
+### Bağlantı (owner, bir kez; Google hesabına yalnız sen girebilirsin)
+
+1. <https://console.cloud.google.com/> → üstteki proje seçicide **`ayas-youtube`** projesini seç (yoksa aynı adla
+   oluştur; `client.json` bu projenin istemcisi olmalı).
+2. **API'ler ve Hizmetler → Kitaplık**: **YouTube Analytics API** → **Etkinleştir**; **YouTube Data API v3** de
+   etkin olmalı (değilse onu da etkinleştir).
+3. **Google Auth Platform / OAuth izin ekranı → Kitle (Audience) → Test kullanıcıları (Test users) → Kullanıcı ekle**:
+   Crowns & Doodles kanalının sahibi olan Google hesabının e-postasını ekle → Kaydet.
+4. İstemci yoksa: **İstemciler (Clients) → İstemci oluştur → Masaüstü uygulaması** → JSON'u indir →
+   `D:\ÜRETİM\private\AtolyeSecrets\AYAS-SECRETS\youtube\client.json` olarak kaydet.
+5. `npx tsx scripts/v3/youtube.ts baglan` → tarayıcıda o Google hesabıyla gir → hesap/kanal seçiminde **Crowns &
+   Doodles** (marka hesabı) → "Google bu uygulamayı doğrulamadı" ekranında **Gelişmiş → AYAS'a git** → **bütün
+   kutuları** işaretle (yükleme, YouTube hesabını görüntüleme, **YouTube Analytics raporlarını görüntüleme**) → izin ver.
+   Analytics kutusu boş kalırsa komut uyarır; yeniden bağlan.
+6. Kontrol: `npx tsx scripts/v3/youtube.ts durum` — "Analytics izni: var", bağlantı tarihi ve iznin ne zaman düşeceği.
+   İlk okuma: `npx tsx scripts/v3/kanal.ts cek`.
+
+**7 gün kuralı:** uygulama Google'da **Testing** durumundaysa yenileme izni **7 günde düşer** (`invalid_grant`). Düştüğünde
+AYAS günde en çok bir kez haber verir — "YouTube bağlantısının süresi doldu — `npx tsx scripts/v3/youtube.ts baglan`" —
+ve 5. adım tekrarlanır. Kalıcı çözüm uygulamayı yayınlamak (**Kitle → Uygulamayı yayınla / In production**); Google bunun
+için ana sayfa, gizlilik politikası ve kullanım şartları bağlantısı ister. Kapsamlar salt-okumadır (yükleme izni hariç);
+silme/düzenleme yoktur.
+
+### Ne okunur, nasıl kaydedilir
+
+Günde bir kez sipariş izleyicisinin boş döngüsünde (`gelisim.ts`, mevcut **karsilastir** görevi içinde; yeni görev
+eklenmedi), yalnız `token.json` varsa — yoksa sessizce atlanır. Son **60 günde** yayınlanmış videolar için, geçmiş
+ve henüz okunmamış her ölçüm anı (`content/v3/kanal-hedefleri.json` → `olcumAnlari`: **48s, 7g, 28g**) okunur; bir an
+yayından o kadar süre + **72 saat** (Analytics verisinin oturması) sonra okunur ve bir daha okunmaz. Pencere: yayın günü
+… yayın + an. Ücretsiz (yalnız API kotası: kanal 1 + yükleme listesi 1 + video ayrıntısı 1 birim; her video/an için 3
+Analytics raporu).
+
+| Kayıttaki alan | API'den | Not |
+|---|---|---|
+| goruntuleme | `views` | |
+| aktifIzlenme | `engagedViews` | Studio'nun "etkileşimli görüntüleme"si |
+| ortIzlemeSn | `averageViewDuration` | |
+| ortGoruntulenenYuzde | `averageViewPercentage` / 100 | döngü (loop) trafiği hariç |
+| izlenmeSaat | `estimatedMinutesWatched` / 60 | |
+| aboneKazanimi | `subscribersGained` | video filtresinde yalnız izleme sayfasından |
+| begeni / yorum / paylasim | `likes` / `comments` / `shares` | `paylasim` 19 Kasım'da eklendi |
+| trafik | `views` × `insightTrafficSourceType` | SHORTS → shortsAkisi, YT_SEARCH → youtubeArama, … (pay 0..1) |
+| tutma | `audienceWatchRatio`, `relativeRetentionPerformance` × `elapsedVideoTimeRatio` | 100 nokta, video başına bir çağrı |
+| **izlemeyiSecenler, kaydiranlar** | — | Studio'nun "izlemeyi seçenler / kaydıranlar"ı API'de **yok** → `null` (ölçülmedi) |
+| **benzersizIzleyici** | — | API'de yok → `null`; gösterim (impression) ve tıklama oranı da API'de yok |
+
+Kayıt: `<workRoot>/_kutuphane/kanal/performans/<videoId>-<an>-<pencere sonu>.json`, `kaynak: "youtube-analytics-api"`.
+Owner'ın Studio okuması (`kanal.ts kaydet`) aynı yere yazılır; "izlemeyi seçenler"i yalnız o verir.
+
+### Önlem: beyinlere giden dersler (modelsiz, deterministik)
+
+- **Hedef değerlendirmesi** `kaydet` ile aynı fonksiyon (`ChannelLearning.judgeAndTeach`). API "izlemeyi seçenler"i
+  vermediği için sonuç `VERI_EKSIK` olur; yine de ölçülen ortalama izlenme oranı hedefe göre kurgu beynine ders olur
+  ("chose-to-view not measured" diye yazılır).
+- **İzleyici tutma**: ilk 3 saniyedeki kayıp (YouTube'un göreli tutması 0,5'in altındaysa "benzer videolardan kötü") →
+  kurgu; sonraki en dik iki düşüş (açılıştan sonra, son %5 hariç, eğrinin ortanca düşüşünün en az 2 katı ve izleyicinin
+  en az %2'si) videonun yapımına bağlanırsa sahnesine ve o an söylenen satıra eşlenir: komik sahne → **mizah**, harita
+  sahnesi → **kalite**, diğer → **kurgu**. Yapım bağlantısı: AYAS'ın yüklediği video kimliği, yüklenen dosya adı
+  (`youtube.json` → `dosya`, ör. `1638-animated-history.mp4`) ya da paket başlığı; bağlanamazsa düşüş yalnız zamanıyla
+  raporlanır, ders yazılmaz. Videonun bir sonraki okuması eski dersin yerini alır (`tutma <videoId>`).
+- **Kanal özeti** (`kanal.ts rapor`): en iyi / en zayıf video (ortalama izlenme oranı), hedef sonuçlarının dağılımı,
+  görüntülemeye göre trafik payları.
+
 ## Komutlar
 
-- `npx tsx scripts/v3/youtube.ts baglan | durum` — bağlantı ve kanal denetimi.
+- `npx tsx scripts/v3/youtube.ts baglan | durum` — bağlantı ve kanal denetimi; `durum` Analytics iznini ve iznin yaşını da
+  gösterir.
+- `npx tsx scripts/v3/kanal.ts cek [--video <id>]` — Analytics'i şimdi oku, kaydet, beyinlere ders yaz (`--video` yaş
+  sınırına bakmaz); `kanal.ts rapor` — Studio ve API kayıtları, tutma düşüşleri, trafik, kanal özeti.
 - `npx tsx scripts/v3/yapim.ts onayla <sipariş id> [--hemen]` — AYAS'sız onay; `yapim.ts yayinla` tek yükleme turu;
   `yapim.ts durum` siparişlerin YouTube durumunu da gösterir.
 - Kod: `src/lib/v3/publish/` — `YoutubeAuth` (izin), `YoutubeUpload` (meta + parçalı yükleme), `PublishCalendar`
   (takvim, ağsız), `PublishApproval` (onay, ağsız; canlı sunucu yalnız bunlara ulaşır), `PublishOrder` (izleyicinin
-  yükleme turu). Test: `scripts/smoke-v3-youtube-yukleme.ts`.
+  yükleme turu), `YoutubeAnalytics` (Analytics okuyucu ve günlük tur; ağ yalnız enjekte edilen fetcher, canlı sunucu
+  içe aktarmaz), `ChannelAnalyticsMap` (eşleme, tutma analizi, kanal özeti; ağsız), `ChannelLearning` (hedef dersi ve
+  tutma dersleri, yapım bağlantısı). Test: `scripts/smoke-v3-youtube-yukleme.ts`, `scripts/smoke-v3-channel-goals.ts`
+  (J–P, sahte fetcher).

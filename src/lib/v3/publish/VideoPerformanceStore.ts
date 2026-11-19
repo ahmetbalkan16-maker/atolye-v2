@@ -4,8 +4,8 @@ import { PERFORMANCE_METRICS, type PerformanceMetric, SHARE_METRICS, type VideoP
 
 /**
  * Post-publish numbers per video (owner, 5 Nov 2026): `<workRoot>/_kutuphane/kanal/performans/<videoId>-<olcumAni>-<date>.json`.
- * The channel has no Analytics API connection (owner, 3 Nov 2026: uploads and Studio by hand), so the owner's reading of
- * YouTube Studio is the source; a later API reader writes the same shape with `kaynak: "youtube-analytics-api"`.
+ * Two sources write it: the owner's reading of YouTube Studio (`kaynak: "studio-elle"`, owner, 3 Nov 2026) and, since
+ * 19 Nov 2026, the daily YouTube Analytics reader (`YoutubeAnalytics.ts`, `kaynak: "youtube-analytics-api"`).
  * Nothing is estimated: a number Studio did not show is stored as null and reported as not measured.
  */
 

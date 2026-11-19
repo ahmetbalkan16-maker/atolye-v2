@@ -297,11 +297,11 @@ async function main() {
     assert.ok(sameTitle("Battle of Kosovo: When Leaders Die", "battle of kosovo when leaders die"));
   });
 
-  await scenario("K connection pieces: Desktop client only, upload + read-only scopes with PKCE, a token refreshed once an hour", async () => {
+  await scenario("K connection pieces: Desktop client only, upload + read-only + analytics read-only scopes with PKCE, a token refreshed once an hour", async () => {
     assert.throws(() => readClient(JSON.stringify({ web: { client_id: "x", client_secret: "y" } })), /YOUTUBE_CLIENT_NOT_DESKTOP/);
     const client = readClient(JSON.stringify({ installed: { client_id: "cid", client_secret: "sec" } }));
     const url = new URL(consentUrl(client, "http://127.0.0.1:5000/", "st", "ch"));
-    assert.deepEqual([url.searchParams.get("scope"), url.searchParams.get("code_challenge_method"), url.searchParams.get("access_type"), url.searchParams.get("prompt")], ["https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly", "S256", "offline", "consent"]);
+    assert.deepEqual([url.searchParams.get("scope"), url.searchParams.get("code_challenge_method"), url.searchParams.get("access_type"), url.searchParams.get("prompt")], ["https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly", "S256", "offline", "consent"]);
     let refreshes = 0;
     let clock = 0;
     const source = tokenSource(async () => {

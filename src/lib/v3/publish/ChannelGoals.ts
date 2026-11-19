@@ -190,10 +190,13 @@ export function channelGoalNote(goals: ChannelGoals, durationS: number): string 
 
 /* ---------------------------------------------------------- performance --- */
 
-/** The metrics the owner (or a future Analytics API reader) reports per video; null = not measured. */
+/**
+ * The metrics the owner (Studio) or the Analytics API reader reports per video; null = not measured. `paylasim`
+ * (shares) came with the API reader on 19 Nov 2026; an older record without it reads as not measured.
+ */
 export const PERFORMANCE_METRICS = [
   "goruntuleme", "aktifIzlenme", "izlemeyiSecenler", "kaydiranlar", "ortIzlemeSn", "ortGoruntulenenYuzde",
-  "izlenmeSaat", "aboneKazanimi", "begeni", "yorum", "benzersizIzleyici",
+  "izlenmeSaat", "aboneKazanimi", "begeni", "yorum", "benzersizIzleyici", "paylasim",
 ] as const;
 export type PerformanceMetric = (typeof PERFORMANCE_METRICS)[number];
 /** Shares written as 0..1 (ortGoruntulenenYuzde too: 1 = 100 %, above 1 on loops). */
@@ -204,10 +207,13 @@ export interface VideoPerformanceRecord {
   readonly videoId: string;
   readonly baslik?: string;
   readonly sureSn: number;
-  /** When the numbers were read and how long after publishing (48s = 48 hours, 7g = 7 days). */
+  /**
+   * When the numbers were read and how long after publishing (48s = 48 hours, 7g = 7 days, 28g = 28 days). An API
+   * reading's date is the last day of its window (publish day … publish + moment), so a second pull replaces it.
+   */
   readonly olcumTarihi: string;
   readonly olcumAni: string;
-  /** studio-elle: the owner read YouTube Studio; youtube-analytics-api: a future API reader. */
+  /** studio-elle: the owner read YouTube Studio; youtube-analytics-api: the daily reader (YoutubeAnalytics.ts). */
   readonly kaynak: "studio-elle" | "youtube-analytics-api";
   readonly yayinZamani?: string;
   readonly siparisId?: string;
@@ -216,7 +222,21 @@ export interface VideoPerformanceRecord {
   readonly metrikler: Readonly<Record<PerformanceMetric, number | null>>;
   readonly ulkeler?: readonly { readonly ulke: string; readonly pay?: number; readonly goruntuleme?: number; readonly ortIzlemeSn?: number }[];
   readonly trafik?: Readonly<Record<string, number>>;
+  /**
+   * The audience retention curve (API only): 100 points, `oran` = elapsed share of the video (the end of its slice),
+   * `izlenme` = audienceWatchRatio (above 1 on rewatches), `goreli` = relativeRetentionPerformance (0..1, 0.5 = the
+   * median of videos of similar length on YouTube).
+   */
+  readonly tutma?: readonly RetentionPoint[];
   readonly not?: string;
+}
+
+export interface RetentionPoint { readonly oran: number; readonly izlenme: number; readonly goreli?: number }
+
+/** A measuring moment's length in hours ("48s" → 48, "7g" → 168); undefined for a free label. */
+export function momentHours(label: string): number | undefined {
+  const m = /^(\d+)(s|g)$/.exec(label.trim());
+  return m ? Number(m[1]) * (m[2] === "g" ? 24 : 1) : undefined;
 }
 
 export type GoalStatus = "OLCULMEDI" | "HEDEF_YOK" | "HEDEF_ALTI" | "HEDEFTE" | "HEDEF_USTU";
@@ -276,9 +296,12 @@ export function nextShortTargets(goals: ChannelGoals, records: readonly VideoPer
 
 const round3 = (x: number) => Math.round(x * 1000) / 1000;
 
-/** The 7-day reading beats the 48-hour one for the same video; otherwise the latest reading wins. */
+/**
+ * The later moment beats the earlier one for the same video (28g over 7g over 48s; a free label ranks last); on the
+ * same moment the latest reading wins.
+ */
 export function latestPerVideo(records: readonly VideoPerformanceRecord[]): VideoPerformanceRecord[] {
-  const rank = (r: VideoPerformanceRecord) => (r.olcumAni === "7g" ? 2 : r.olcumAni === "48s" ? 1 : 0);
+  const rank = (r: VideoPerformanceRecord) => momentHours(r.olcumAni) ?? 0;
   const best = new Map<string, VideoPerformanceRecord>();
   for (const r of records) {
     const prev = best.get(r.videoId);
@@ -291,12 +314,17 @@ export function latestPerVideo(records: readonly VideoPerformanceRecord[]): Vide
  * What a measured video teaches the brains (written to their memory as "ders" lessons, replacing the video's earlier
  * ones). Only measured numbers are named; the production's own facts (its opening check) come from the caller.
  */
-export function performanceLessons(record: VideoPerformanceRecord, evaluation: PerformanceEvaluation, production?: { readonly konu?: string; readonly kanca?: string }): { readonly beyin: "kurgu" | "mizah"; readonly metin: string }[] {
-  if (evaluation.sonuc === "VERI_EKSIK" || evaluation.sonuc === "HEDEF_YOK") return [];
+export function performanceLessons(record: VideoPerformanceRecord, evaluation: PerformanceEvaluation, production?: { readonly konu?: string; readonly kanca?: string }, opts: { readonly kismi?: boolean } = {}): { readonly beyin: "kurgu" | "mizah"; readonly metin: string }[] {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const viewed = evaluation.kontroller.find((c) => c.metrik === "izlemeyiSecenler")!;
   const ratio = evaluation.kontroller.find((c) => c.metrik === "ortIzlenmeOrani")!;
   const subject = `The Short "${record.baslik ?? production?.konu ?? record.videoId}" (${record.sureSn} s)`;
+  // The API has no "chose to view" share (Studio only): with `kismi` the measured view ratio alone still teaches.
+  if (opts.kismi && evaluation.sonuc === "VERI_EKSIK" && viewed.durum === "OLCULMEDI" && ratio.deger !== undefined && ratio.hedef) {
+    const how = ratio.durum === "HEDEF_ALTI" ? "Below target — viewers left before the payoff: tighten the middle beats and show the threat paying off sooner." : "At or above target — keep this kind of pacing.";
+    return [{ beyin: "kurgu", metin: `${subject}: the average view was ${pct(ratio.deger)} of its length (target ${pct(ratio.hedef.min)}–${pct(ratio.hedef.max)}; chose-to-view not measured).${production?.kanca ? ` Its opening: ${production.kanca}.` : ""} ${how}` }];
+  }
+  if (evaluation.sonuc === "VERI_EKSIK" || evaluation.sonuc === "HEDEF_YOK") return [];
   const numbers = `${pct(viewed.deger!)} of the feed chose to view it (target ${pct(viewed.hedef!.min)}–${pct(viewed.hedef!.max)}) and the average view was ${pct(ratio.deger!)} of its length (target ${pct(ratio.hedef!.min)}–${pct(ratio.hedef!.max)})`;
   const opening = production?.kanca ? ` Its opening: ${production.kanca}.` : "";
   if (evaluation.sonuc === "HEDEF_ALTI") {
