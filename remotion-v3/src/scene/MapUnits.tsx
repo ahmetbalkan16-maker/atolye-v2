@@ -7,7 +7,7 @@ import { CAMERA_MOVE_S, cameraAt } from "./mapCamera";
 import { formationOrder, separateTokens, type TokenWay } from "./unitLayout";
 import { yer } from "./LayoutProbe";
 import { armyDotsOf, type Box, labelSpot } from "./hudLayout";
-import { blockDotCount, blockDots, crowdFigures, crowdGrid, dottedKind, facingDir, fitInRing, type Foe, garrisonSteps, marching, menOf, packedDot, packedRadius, thinShare, type UnitKind } from "./unitCrowd";
+import { bandDot, bandRanks, blockDotCount, blockDots, crowdFigures, crowdGrid, curveArc, curvePoint, dottedKind, facingDir, fitInRing, type Foe, garrisonSteps, marching, menOf, packedDot, packedRadius, thinShare, type UnitKind, type WallSide, wallSideOf, wallSides } from "./unitCrowd";
 import type { TiltLayer, Up } from "./tilt";
 
 /**
@@ -403,6 +403,254 @@ function packedOf(map: V3GeoMap, ui: number, side: readonly (PlacedToken | undef
 function dotPitch(kind: UnitKind, n: number, r: number): number {
   const d = blockDots(kind, Math.max(1, n), r * BLOCK_W, r * BLOCK_H, r * DOT_MAX_R, false, 0)[0];
   return (d ? d.r : r * DOT_MAX_R) * 2.4;
+}
+
+/**
+ * How near its wall (km, else token radii at the closest zoom) a defending formation's middle stands to man it — in a
+ * band along its inner side, not a disc or a block across it (owner, 20 Nov 2026: "surlarda taşmadan hizalanmalı"). The
+ * writer's "just inside the wall" lies 0.1–0.7 km in (SiegeMap's fronts, the Constantinople script); a reserve further in
+ * stays a block (or its ring's disc).
+ */
+const WALL_MAN_KM = 0.8;
+const WALL_MAN_R = 6;
+
+const wallSideCache = new WeakMap<V3GeoMap, WallSide[]>();
+/** The map's walls as its soldiers stand by them (unitCrowd.wallSides: inside, holder, smoothed line), once per map. */
+function wallsOf(map: V3GeoMap): WallSide[] {
+  const hit = wallSideCache.get(map);
+  if (hit) return hit;
+  const towns = (map.close?.settlements ?? []).filter((s) => s.kind === "sehir").map((s) => ({ x: s.x, y: s.y }));
+  const out = map.close?.walls.length ? wallSides(map.units ?? [], map.close.walls, towns) : [];
+  wallSideCache.set(map, out);
+  return out;
+}
+
+/** How a step's circles stand by the walls: as placed, packed in a disc in a ring (`ring`), or in a band along a wall. */
+type WallMode = { readonly kind: "none" } | { readonly kind: "disc"; readonly ring: number } | { readonly kind: "band"; readonly wall: number; readonly dir: number; readonly ranks: number };
+const NONE: WallMode = { kind: "none" };
+const sameMode = (a: WallMode, b: WallMode) => a.kind === b.kind && (a.kind !== "disc" || a.ring === (b as { ring: number }).ring) && (a.kind !== "band" || (a.wall === (b as { wall: number }).wall && a.dir === (b as { dir: number }).dir && a.ranks === (b as { ranks: number }).ranks));
+
+const modeCache = new WeakMap<V3GeoMap, WallMode[][]>();
+/**
+ * Each unit's step's WallMode, once per map: a defending front (not a heap, not a rout) whose middle stands within
+ * WALL_MAN_KM of a wall its side holds mans it — a band along the inside over the stretch its front holds (as few ranks
+ * as that takes, at the closest zoom), its first circles at the end its first token's place is; else a garrison standing
+ * in its ring (garrisonSteps) is packed in a disc; else as placed.
+ */
+function wallModesOf(map: V3GeoMap): WallMode[][] {
+  const hit = modeCache.get(map);
+  if (hit) return hit;
+  const walls = wallsOf(map);
+  const rings = garrisonsOf(map);
+  const units = map.units ?? [];
+  const army = armyDotsOf(map);
+  const reach = Math.max(WALL_MAN_R * TOKEN_R, map.kmPerPx ? WALL_MAN_KM / map.kmPerPx : 0);
+  const out = units.map((u, ui) =>
+    u.steps.map((st, si): WallMode => {
+      const c = middleOf(st.points.map((p) => ({ ...p, alpha: 1 })));
+      if (c && !st.heap && !st.rout && dottedKind(u.kind)) {
+        let best: { k: number; d: number; ranks: number } | undefined;
+        const n = army.dots[ui] ?? 0;
+        const blocks = Math.max(1, ...u.steps.map((x) => x.points.length));
+        const pitch = dotPitch(u.kind as UnitKind, blockDotCount(n, blocks, 0), TOKEN_R);
+        walls.forEach((w, k) => {
+          if (w.defender !== u.side) return;
+          const q = wallSideOf(w.line, w.ring, w.inner, c);
+          const arcs = st.points.map((p) => curveArc(w, p));
+          const ranks = bandRanks(n, pitch, Math.max(...arcs) - Math.min(...arcs) + TOKEN_R * BLOCK_W);
+          // The band must fit along the wall, and a unit's middle a little past it still mans it.
+          if (!q.end && q.d > -reach * 0.5 && q.d <= reach && Math.ceil(n / ranks) * pitch <= w.length * 0.9 && (!best || Math.abs(q.d) < best.d)) best = { k, d: Math.abs(q.d), ranks };
+        });
+        if (best) {
+          const w = walls[best.k]!;
+          const last = Math.max(...u.steps.map((x) => x.points.length)) - 1;
+          const a = st.points[placeOf(u.steps, si, 0)];
+          const b = st.points[placeOf(u.steps, si, last)];
+          const dir = a && b ? Math.sign(curveArc(w, b) - curveArc(w, a)) || 1 : 1;
+          return { kind: "band", wall: best.k, dir, ranks: best.ranks };
+        }
+      }
+      const ring = rings[ui]?.[si] ?? -1;
+      return ring >= 0 ? { kind: "disc", ring } : NONE;
+    }),
+  );
+  modeCache.set(map, out);
+  return out;
+}
+
+/** A unit's WallMode at `frame`: the step's before and now, and how far the slide between them is (0..1, eased). */
+function modeAt(map: V3GeoMap, ui: number, frame: number, fps: number, pace: Pace): { prev: WallMode; cur: WallMode; t: number } {
+  const u = map.units![ui]!;
+  const modes = wallModesOf(map)[ui] ?? [];
+  let s = 0;
+  while (s + 1 < u.steps.length && u.steps[s + 1]!.start <= frame) s++;
+  const cur = modes[s] ?? NONE;
+  const prev = s > 0 ? (modes[s - 1] ?? NONE) : cur;
+  const t = s > 0 ? smooth((frame - u.steps[s]!.start) / Math.max(1, slideFrames(u.steps, fps, pace)[s]!)) : 1;
+  return { prev, cur, t };
+}
+
+const crossCache = new WeakMap<V3GeoMap, number[][][]>();
+/**
+ * From which step each token may stand on a wall's far side (Infinity: never), per wall the soldiers know (wallsOf), unit
+ * and token: the step that takes it there — the writer's move on the line of the storm — and, on a wall with a breach,
+ * only through it (the step leads the token through the breach: `via` at it, the token in `through`). Before it, a
+ * besieger stops outside the wall and a defender stays inside (owner, 20 Nov 2026).
+ */
+function crossStepsOf(map: V3GeoMap): number[][][] {
+  const hit = crossCache.get(map);
+  if (hit) return hit;
+  const units = map.units ?? [];
+  const out = wallsOf(map).map((w) =>
+    units.map((u) => {
+      const own = u.side === w.defender ? 1 : -1;
+      const tokens = Math.max(1, ...u.steps.map((st) => st.points.length));
+      return Array.from({ length: tokens }, (_, i) => {
+        for (let s = 1; s < u.steps.length; s++) {
+          const st = u.steps[s]!;
+          const p = st.points[placeOf(u.steps, s, i)];
+          if (!p) continue;
+          const q = wallSideOf(w.line, w.ring, w.inner, p);
+          if (q.end || own * q.d >= 0) continue;
+          if (!w.breach) return s;
+          if (st.via && st.through?.includes(i) && Math.hypot(st.via.x - w.breach.x, st.via.y - w.breach.y) < 1) return s;
+        }
+        return Infinity;
+      });
+    }),
+  );
+  crossCache.set(map, out);
+  return out;
+}
+
+const breachFrames = new WeakMap<WallSide, { x: number; y: number; nx: number; ny: number }>();
+/** A wall's breach with the wall's inner normal there (its smoothed line's). */
+function breachFrame(w: WallSide): { x: number; y: number; nx: number; ny: number } | undefined {
+  if (!w.breach) return undefined;
+  const hit = breachFrames.get(w);
+  if (hit) return hit;
+  const p = curvePoint(w, curveArc(w, w.breach));
+  const out = { x: w.breach.x, y: w.breach.y, nx: p.nx, ny: p.ny };
+  breachFrames.set(w, out);
+  return out;
+}
+
+/**
+ * One block's circles kept on their side of every wall (owner, 20 Nov 2026: "askerler surdan dışarı taşıyor"): a
+ * besieger's stop outside it, its front a little off the wall (0.6 of the circle spacing past the stone), a defender's
+ * just inside — the whole block moved off the wall as far as its deepest circle crossed it (its ranks kept), then any
+ * circle still on it moved off on its own. A token the writer's move has taken across (crossStepsOf) stands on the
+ * side its way has reached (through the breach: the gap is on its way); near the gap its block narrows to a column a
+ * few abreast, its head the way it crosses, and only there may a circle stand in the wall's line. `pitch`: the unit's
+ * circle spacing; `r`: the token radius (world px). Pure: a function of the frame.
+ */
+function keepByWalls(map: V3GeoMap, ui: number, ti: number, t: PlacedToken, dots: PlacedDot[], std: { x: number; y: number }, frame: number, pitch: number, r: number): { dots: PlacedDot[]; std: { x: number; y: number } } {
+  const walls = wallsOf(map);
+  if (!walls.length) return { dots, std };
+  const u = map.units![ui]!;
+  const close = map.close!;
+  const wallU = close.wallUnit ?? close.unit;
+  // The stone either side of the line (its towers stand ~0.7 of a wall unit out).
+  const half = wallU * 0.75;
+  let s = 0;
+  while (s + 1 < u.steps.length && u.steps[s + 1]!.start <= frame) s++;
+  const cross = crossStepsOf(map);
+  let out = dots.map((d) => ({ ...d }));
+  let flag = { ...std };
+  walls.forEach((w, k) => {
+    const own0: 1 | -1 = u.side === w.defender ? 1 : -1;
+    const crossStep = cross[k]?.[ui]?.[ti] ?? Infinity;
+    const crossed = crossStep <= s;
+    // A wall with no breach: a token the writer moves across it passes the stone as before (no gap to go through).
+    if (crossed && !w.breach) return;
+    const breach = breachFrame(w);
+    // Its way through this breach now (the way runs through the gap itself; the token's own place, pulled by the fight
+    // and the spacing, crossed the line 20 px beside the gap and the whole block flipped sides, 89 px in a frame).
+    const way = t.way;
+    const through = crossed && breach && way?.via && Math.hypot(way.via.x - breach.x, way.via.y - breach.y) < 1 ? way : undefined;
+    const toVia = through ? Math.hypot(through.via!.x - through.from.x, through.via!.y - through.from.y) : 0;
+    const len = through ? toVia + Math.hypot(through.goal.x - through.via!.x, through.goal.y - through.via!.y) : 0;
+    // How far past the gap it is along its way (negative: still before it).
+    const past = through ? through.t * len - toVia : 0;
+    // A token through: on the near side until its way reaches the gap, then the far one; one across before: where its
+    // place is (the far side), never where the fight pushed it.
+    const placeSide = (p: { x: number; y: number }) => ((q) => (q.end || Math.abs(q.d) < 1e-6 ? own0 : q.d > 0 ? 1 : -1))(wallSideOf(w.line, w.ring, w.inner, p));
+    const own: 1 | -1 = !crossed ? own0 : through ? (past < 0 ? own0 : (-own0 as 1 | -1)) : placeSide(way?.goal ?? t);
+    const clear = (d: { readonly r: number }, side: 1 | -1) => half + d.r + (side < 0 ? 0.6 : 0.15) * pitch;
+    const open = through && frame >= w.breach!.start ? breach : undefined;
+    // The gap in the stone (MapCloseGround masks a disc 1.5 wall units round the breach): circles' middles within `gap`.
+    const gap = Math.max(1.5 * wallU - r * DOT_MAX_R * 0.5, pitch * 0.5);
+    const files = Math.floor((2 * gap) / pitch) + 1;
+    const rows = Math.ceil(out.length / files);
+    const hl = (rows * pitch) / 2;
+    if (open && through) {
+      // Through the breach in a column `files` abreast, its head towards the far side, its middle where the token's way
+      // is (before or past the gap), formed as it sets off (by the time its way reaches the gap) and let go as it
+      // gets further from it than the column is long.
+      const T = { x: -open.ny, y: open.nx };
+      const head = -own0;
+      const formed = toVia > 1 ? smooth((through.t * len) / (toVia * 0.7)) : 1;
+      const w0 = formed * (1 - smooth((Math.abs(past) - hl) / (r * BLOCK_H * 3)));
+      if (w0 > 0)
+        out = out.map((d, j) => {
+          const along = ((j % files) - (files - 1) / 2) * pitch;
+          const deep = head * (past + hl - (Math.floor(j / files) + 0.5) * pitch);
+          const x = open.x + T.x * along + open.nx * deep;
+          const y = open.y + T.y * along + open.ny * deep;
+          return { ...d, x: d.x + (x - d.x) * w0, y: d.y + (y - d.y) * w0 };
+        });
+      // Its standard at the column's tail (left at the block's rear it stood on the stone beside the gap).
+      const tail = { x: open.x + open.nx * head * (past - hl - pitch * 0.5), y: open.y + open.ny * head * (past - hl - pitch * 0.5) };
+      if (w0 > 0) flag = { x: flag.x + (tail.x - flag.x) * w0, y: flag.y + (tail.y - flag.y) * w0 };
+    }
+    // How firmly a circle is kept off the wall: not at all in the gap, fully a circle's spacing past it (a circle let go
+    // at once as it reached the gap leapt 40 px).
+    const held = (d: { x: number; y: number }) => {
+      if (!open) return 1;
+      const along = Math.abs((d.x - open.x) * -open.ny + (d.y - open.y) * open.nx);
+      const deep = Math.abs((d.x - open.x) * open.nx + (d.y - open.y) * open.ny);
+      return Math.max(smooth((along - gap) / pitch), smooth((deep - hl - pitch) / pitch));
+    };
+    // Only circles by the wall: one far on its other hand stands past its end or by another stretch of it (a line's
+    // hand runs on for ever), as the writer placed it.
+    const limit = half + r * BLOCK_H * 1.5 + pitch;
+    const near = (d: { x: number; y: number }) => ((q) => (q.end || own * q.d < -limit ? undefined : q))(wallSideOf(w.line, w.ring, w.inner, d));
+    const hold = out.map(held);
+    const sideOf = out.map((d, j) => (hold[j]! > 0 ? near(d) : undefined));
+    // The whole block off the wall as far as its deepest circle crossed it, along the wall's normal at its middle.
+    let push = 0;
+    let mx = 0;
+    let my = 0;
+    let m = 0;
+    out.forEach((d, j) => {
+      const q = sideOf[j];
+      if (!q) return;
+      push = Math.max(push, (clear(d, own) - own * q.d) * hold[j]!);
+      mx += d.x * hold[j]!;
+      my += d.y * hold[j]!;
+      m += hold[j]!;
+    });
+    if (push > 0 && m > 0) {
+      const q = wallSideOf(w.line, w.ring, w.inner, { x: mx / m, y: my / m });
+      if (!q.end) {
+        const dx = q.nx * own * push;
+        const dy = q.ny * own * push;
+        out = out.map((d, j) => ({ ...d, x: d.x + dx * hold[j]!, y: d.y + dy * hold[j]! }));
+        flag = { x: flag.x + dx, y: flag.y + dy };
+      }
+    }
+    // Any circle still on the wall (round a corner of it) off on its own, and the standard (a circle a little larger).
+    const off = <T extends { x: number; y: number; r: number }>(d: T, h: number): T => {
+      const q = near(d);
+      const need = q ? (clear(d, own) - own * q.d) * h : 0;
+      return !q || need <= 0 ? d : { ...d, x: d.x + q.nx * own * need, y: d.y + q.ny * own * need };
+    };
+    for (let pass = 0; pass < 2; pass++) out = out.map((d, j) => (sideOf[j] ? off(d, hold[j]!) : d));
+    const pole = { ...flag, r: pitch * 0.55 };
+    const ph = held(pole);
+    if (ph > 0) flag = ((q) => ({ x: q.x, y: q.y }))(off(off(pole, ph), ph));
+  });
+  return { dots: out, std: flag };
 }
 
 function rand(seed: number): number {
@@ -1051,7 +1299,14 @@ function dottedRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step
   const rest = fallenRest(map, ui, l, fps, k, end);
   let out: { x: number; y: number; packed: boolean } | undefined = rest ? { ...rest, packed: false } : undefined;
   const u = map.units![ui]!;
-  if (rest && dottedKind(u.kind)) {
+  if (rest && dottedKind(u.kind) && wallsOf(map).length) {
+    // By walls (a band along one, a disc in a ring, a block kept off the stone): where its circles stood as it fell.
+    const at = l.at + FALL_STOP_FRAMES;
+    const placed = placeTokens(map, at, fps, kk, end);
+    const block = unitDotsAt(map, placed, steadyFacingsAt(map, placed, at, fps, kk, end), at, fps, kk, end).dots[ui]?.[l.ti];
+    const mode = modeAt(map, ui, l.at, fps, pace);
+    if (block?.dots.length) out = { x: block.dots.reduce((a, d) => a + d.x, 0) / block.dots.length, y: block.dots.reduce((a, d) => a + d.y, 0) / block.dots.length, packed: (mode.cur.kind !== "none" ? mode.t : 0) + (mode.prev.kind !== "none" ? 1 - mode.t : 0) > 0.5 };
+  } else if (rest && dottedKind(u.kind)) {
     const r = TOKEN_R * kk;
     const blocks = Math.max(1, ...u.steps.map((st) => st.points.length));
     const total = armyDotsOf(map).dots[ui] ?? 0;
@@ -1348,15 +1603,22 @@ export function unitDotsAt(
       return { x: (fit.x - t.x) * w, y: (fit.y - t.y) * w };
     });
   });
+  const walls = wallsOf(map);
   const dots = units.map((u, ui) => {
     if (!dottedKind(u.kind)) return undefined;
     const kind = u.kind as UnitKind;
     const blocks = Math.max(1, ...u.steps.map((st) => st.points.length));
     const total = army.dots[ui] ?? 0;
-    const pack = packedOf(map, ui, placed[ui] ?? [], frame, fps, pace, dotPitch(kind, blockDotCount(total, blocks, 0), r));
+    const pitch = dotPitch(kind, blockDotCount(total, blocks, 0), r);
+    const side = placed[ui] ?? [];
+    // Where the walls put its circles: the step's way before and now (a disc in its ring, a band along its wall), eased.
+    const mode = modeAt(map, ui, frame, fps, pace);
+    const fromMode = wallTarget(map, mode.prev, side, total, pitch);
+    const toMode = sameMode(mode.prev, mode.cur) ? fromMode : wallTarget(map, mode.cur, side, total, pitch);
+    const mt = sameMode(mode.prev, mode.cur) ? 1 : mode.t;
     const heap = heapAt(u, frame, fps, pace);
     let next = 0;
-    return (placed[ui] ?? []).map((t, i): BlockDots | undefined => {
+    return side.map((t, i): BlockDots | undefined => {
       const n = blockDotCount(total, blocks, i);
       const start = next;
       next += n;
@@ -1376,26 +1638,66 @@ export function unitDotsAt(
         const lx = d.x + (q.x - d.x) * heap + (rout > 0 ? (rand(d.seed + 5) - 0.5) * 2.4 * rout * r : 0);
         const ly = d.y + (q.y - d.y) * heap - (rout > 0 ? rand(d.seed + 6) * 1.6 * rout * r : 0);
         const size = d.r + (q.r - d.r) * heap;
-        let x = x0 + lx * cos - ly * sin;
-        let y = t.y + lx * sin + ly * cos;
-        let dr = size;
-        if (pack) {
-          const p = packedDot(start + j, pack.pitch);
-          x += (pack.x + p.x - x) * pack.w;
-          y += (pack.y + p.y - y) * pack.w;
-          dr += (size * pack.scale - size) * pack.w;
-        }
+        const free = { x: x0 + lx * cos - ly * sin, y: t.y + lx * sin + ly * cos, scale: 1 };
+        const a = fromMode?.dot(start + j) ?? free;
+        const b = toMode?.dot(start + j) ?? free;
         // Each falls at its own moment while its block falls (DFT Tarih's tokens fall one by one).
-        return { x, y, r: dr, gone: clamp01((fallen - d.fall * 0.75) / 0.25), seed: d.seed };
+        return { x: a.x + (b.x - a.x) * mt, y: a.y + (b.y - a.y) * mt, r: size * (a.scale + (b.scale - a.scale) * mt), gone: clamp01((fallen - d.fall * 0.75) / 0.25), seed: d.seed };
       });
-      // The standard at the block's rear; packed in the walls, one standard for the garrison, in its middle.
+      // The standard at the block's rear; packed in the walls, one standard for the garrison, in its middle; in a band
+      // behind its own stretch of it.
       const back = (r * BLOCK_H) / 2;
       const rear = { x: x0 - sin * back, y: t.y + cos * back };
-      const std = pack && i === 0 ? { x: rear.x + (pack.x - rear.x) * pack.w, y: rear.y + (pack.y - rear.y) * pack.w } : rear;
-      return { dots: placedDots, std, stdAlpha: (1 - fallen) * (pack && i > 0 ? 1 - pack.w : 1) };
+      const sa = fromMode?.std(i, start, n) ?? { x: rear.x, y: rear.y, alpha: 1 };
+      const sb = toMode?.std(i, start, n) ?? { x: rear.x, y: rear.y, alpha: 1 };
+      const std = { x: sa.x + (sb.x - sa.x) * mt, y: sa.y + (sb.y - sa.y) * mt };
+      const stdAlpha = (1 - fallen) * (sa.alpha + (sb.alpha - sa.alpha) * mt);
+      if (!walls.length) return { dots: placedDots, std, stdAlpha };
+      const kept = keepByWalls(map, ui, i, t, placedDots, std, frame, pitch, r);
+      return { dots: kept.dots, std: kept.std, stdAlpha };
     });
   });
   return { dots, guns };
+}
+
+/**
+ * Where a WallMode puts a unit's circles at this frame (`side`: its tokens as placed then), or none for "as placed": a
+ * ring's disc about the tokens' middle fitted inside it (fitInRing), or the band along a wall about the arc of the
+ * tokens' middle, `off` inside the stone (bandDot). `dot(g)`: circle `g` of the unit's `total`; `std(i, start, n)`: block
+ * `i`'s standard (circles `start`… `n` of them) and how much of it shows.
+ */
+function wallTarget(map: V3GeoMap, mode: WallMode, side: readonly (PlacedToken | undefined)[], total: number, pitch: number):
+  | { dot: (g: number) => { x: number; y: number; scale: number }; std: (i: number, start: number, n: number) => { x: number; y: number; alpha: number } }
+  | undefined {
+  if (mode.kind === "none") return undefined;
+  const c = middleOf(side);
+  if (!c) return undefined;
+  if (mode.kind === "disc") {
+    const ring = map.close?.walls[mode.ring]?.points;
+    if (!ring) return undefined;
+    const R = packedRadius(total, pitch);
+    const fit = fitInRing(c, R, ring);
+    const scale = fit.R / R;
+    return {
+      dot: (g) => ((p) => ({ x: fit.x + p.x, y: fit.y + p.y, scale }))(packedDot(g, pitch * scale)),
+      // One standard for the garrison, in its middle.
+      std: (i) => ({ x: fit.x, y: fit.y, alpha: i === 0 ? 1 : 0 }),
+    };
+  }
+  const w = wallsOf(map)[mode.wall];
+  if (!w) return undefined;
+  const close = map.close!;
+  const off = (close.wallUnit ?? close.unit) * 0.75 + pitch / 2.4 + pitch * 0.15;
+  const mid = curveArc(w, c);
+  const ranks = mode.ranks;
+  return {
+    dot: (g) => ({ ...bandDot(w, g, total, mid, pitch, off, mode.dir, ranks), scale: 1 }),
+    std: (i, start, n) => {
+      const g = start + Math.floor(n / 2);
+      const p = bandDot(w, g - (g % ranks), total, mid, pitch, off + ranks * pitch * 0.87 + pitch * 0.2, mode.dir, ranks);
+      return { ...p, alpha: 1 };
+    },
+  };
 }
 
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */

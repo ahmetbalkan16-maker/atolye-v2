@@ -29,7 +29,7 @@ interface MapUnitsModule {
   lostTokens(u: NonNullable<V3GeoMap["units"]>[number], fps: number): { ti: number; at: number; step: number }[];
   fallenRest(map: V3GeoMap, ui: number, l: { ti: number; at: number; step: number }, fps: number, k: number): { x: number; y: number } | undefined;
   menPerBlock(units: NonNullable<V3GeoMap["units"]>, ui: number): number | undefined;
-  unitDotsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, facings: number[][], frame: number, fps: number, k: number): { dots: (({ dots: { x: number; y: number; r: number; gone: number }[] } | undefined)[] | undefined)[]; guns: ({ x: number; y: number }[] | undefined)[] };
+  unitDotsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, facings: number[][], frame: number, fps: number, k: number): { dots: (({ dots: { x: number; y: number; r: number; gone: number }[]; std: { x: number; y: number }; stdAlpha: number } | undefined)[] | undefined)[]; guns: ({ x: number; y: number }[] | undefined)[] };
 }
 const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 // MapCloseGround.tsx imports "remotion" too: loaded at run time like MapUnits.
@@ -974,6 +974,100 @@ async function main() {
     // Switched back to blocks (ATOLYE_V3_BIRLIK_STILI=blok at plan time): no circles.
     const blocks = { ...siege, unitStyle: "blok" } as V3GeoMap;
     assert.ok(unitDotsAt(blocks, placeTokens(blocks, 60, 30, 1), [], 60, 30, 1).dots.every((u) => u === undefined));
+  });
+
+  await scenario("Y2 soldiers line up on the walls and cross only through the breach (owner, 20 Nov 2026, Constantinople Short: \"yakın çekim savaşta askerler surdan dışarı taşıyor; … surlarda taşmadan hizalanmalı\"): defenders in a thin band along the inner side, besiegers stopped off the wall until the line of the storm, then a narrow column through the gap", async () => {
+    const { placeTokens, steadyFacingsAt, unitDotsAt } = (await import(MAP_UNITS)) as MapUnitsModule;
+    // An open land wall (y = 500, x 400–1600, a corner every 100 px), its town to the south, the breach at x 1000.
+    const wallY = 500;
+    const wallU = 9;
+    const line = Array.from({ length: 13 }, (_, i) => ({ x: 400 + i * 100, y: wallY }));
+    const breach = { x: 1000, y: wallY, start: 200 };
+    const row = (y: number, x0 = 880) => [0, 1, 2, 3].map((i) => ({ x: x0 + i * 69, y }));
+    const map = {
+      unitStyle: "nokta",
+      close: { unit: 23, wallUnit: wallU, ground: [], roads: [], walls: [{ points: line, towers: [], gates: [], breach }], settlements: [{ kind: "sehir", x: 1000, y: 800, start: 0, items: [] }], buildings: [] },
+      units: [
+        // The writer's defenders 15 px inside the wall (blocks 46 px deep: they stood across it); the besiegers 30 px out.
+        { side: "Byzantines", color: "#8e44ad", emblem: "hac", kind: "kilicli" as const, label: "20,000 defenders", steps: [{ start: 9, points: row(wallY + 15), alive: 4 }] },
+        {
+          side: "Ottomans", color: "#3fae3a", emblem: "hilal", kind: "kilicli" as const, label: "12,000 Janissaries",
+          steps: [
+            { start: 9, points: row(wallY - 30), alive: 4 },
+            // At the wall's foot as the breach opens (the fight pulls them on to the defenders, over the stone).
+            { start: 150, points: row(wallY - 20), alive: 4 },
+            // The line of the storm: through the breach into the town (MapBuilder.throughBreach sets the way).
+            { start: 300, points: row(wallY + 160, 900), alive: 4, via: { x: breach.x, y: breach.y }, through: [0, 1, 2, 3] },
+          ],
+        },
+      ],
+      fights: [{ start: 150, durationS: 4 }],
+    } as unknown as V3GeoMap;
+    const half = wallU * 0.75;
+    const gap = 1.5 * wallU;
+    let worst = 0;
+    let prev: Map<string, { x: number; y: number }> | undefined;
+    let column = Infinity;
+    let inside = 0;
+    let band: { x: number; y: number; r: number }[] = [];
+    const at = (f: number) => {
+      const placed = placeTokens(map, f, 30, 1);
+      return unitDotsAt(map, placed, steadyFacingsAt(map, placed, f, 30, 1), f, 30, 1).dots;
+    };
+    for (let f = 0; f < 560; f++) {
+      const dots = at(f);
+      const now = new Map<string, { x: number; y: number }>();
+      dots.forEach((u, ui) => u?.forEach((b, bi) => b?.dots.forEach((d, j) => {
+        if (d.gone >= 1) return;
+        now.set(`${ui}|${bi}|${j}`, d);
+        const p = prev?.get(`${ui}|${bi}|${j}`);
+        if (p) worst = Math.max(worst, Math.hypot(d.x - p.x, d.y - p.y));
+        const off = wallY - d.y; // outside: positive
+        if (ui === 0) {
+          // The defenders never stand on the stone or past it.
+          assert.ok(-off >= half + d.r - 1e-6, `frame ${f}: a defender at ${d.x.toFixed(0)},${d.y.toFixed(0)} on or past the wall`);
+        } else if (f < 300) {
+          // Before the line of the storm the besiegers stop outside, off the wall.
+          assert.ok(off >= half + d.r - 1e-6, `frame ${f}: a besieger at ${d.x.toFixed(0)},${d.y.toFixed(0)} on or past the wall before the storm`);
+        } else if (Math.abs(off) < half + d.r) {
+          // After it, on the wall's line only in the gap.
+          assert.ok(Math.abs(d.x - breach.x) <= gap + 1e-6, `frame ${f}: a besieger on the wall at ${d.x.toFixed(0)},${d.y.toFixed(0)}, not in the breach`);
+        }
+      })));
+      prev = now;
+      // Nor a standard (it stood on the stone beside the gap at the block's rear).
+      dots.forEach((u, ui) => u?.forEach((b) => {
+        if (!b || b.stdAlpha <= 0.05) return;
+        const off = wallY - b.std.y;
+        const r = b.dots[0]?.r ?? 7;
+        if (ui === 0 || f < 300) assert.ok((ui === 0 ? -off : off) >= half + r, `frame ${f}: a standard at ${b.std.x.toFixed(0)},${b.std.y.toFixed(0)} on the wall`);
+        else if (Math.abs(off) < half + r) assert.ok(Math.abs(b.std.x - breach.x) <= gap + 1e-6, `frame ${f}: a standard on the wall at ${b.std.x.toFixed(0)},${b.std.y.toFixed(0)}`);
+      }));
+      if (f === 120) band = (dots[0] ?? []).flatMap((b) => b?.dots ?? []);
+      // A block in the gap: its circles by the wall (within 20 px) stand in a narrow column.
+      for (const b of dots[1] ?? []) {
+        const by = (b?.dots ?? []).filter((d) => d.gone < 1 && Math.abs(d.y - wallY) < 20);
+        if (f > 300 && by.some((d) => Math.abs(d.y - wallY) < half)) column = Math.max(column === Infinity ? 0 : column, Math.max(...by.map((d) => d.x)) - Math.min(...by.map((d) => d.x)));
+      }
+      if (f === 559) inside = (dots[1] ?? []).flatMap((b) => b?.dots ?? []).filter((d) => d.gone < 1 && d.y > wallY + half).length;
+    }
+    // A thin band along the wall's inner side, not a disc or blocks across it.
+    const spread = (k: "x" | "y") => Math.max(...band.map((d) => d[k])) - Math.min(...band.map((d) => d[k]));
+    const pitch = band[0]!.r * 2.4;
+    assert.ok(band.length === 20 && band.every((d) => d.y - wallY <= half + d.r + pitch * 2.9), `the defenders stand within ${(half + pitch * 3).toFixed(0)} px of the wall: ${band.map((d) => (d.y - wallY).toFixed(0)).join(",")}`);
+    assert.ok(spread("x") > spread("y") * 4, `a band along the wall: ${spread("x").toFixed(0)} × ${spread("y").toFixed(0)}`);
+    // Through the breach a narrow column, and they do get in.
+    assert.ok(column <= 2 * gap + pitch, `the storm by the wall ${column.toFixed(0)} px wide, the gap ${2 * gap} px`);
+    assert.equal(inside, 12, "every besieger got through");
+    assert.ok(worst < 16, `a circle moved ${worst.toFixed(1)} px in one frame`);
+    // Pure functions of the frame: asked out of order, the same circles.
+    assert.deepEqual(JSON.stringify(at(340)), (at(20), at(500), JSON.stringify(at(340))), "a frame's circles do not depend on the frames asked before");
+    // The Theodosian land wall as OpenStreetMap traces it (a shallow arc jogging at every tower) has no inside: its
+    // defenders were packed in a disc in the sliver between it and the line joining its ends, across the wall.
+    const arc = Array.from({ length: 60 }, (_, i) => ({ x: 1300 + Math.sin(i / 59 * Math.PI) * 120 + (i % 2 ? 9 : -9), y: 470 + i * 16 }));
+    assert.ok(!wallIsRing(arc), "a jogging shallow land wall is no ring");
+    assert.ok(wallIsRing(Array.from({ length: 21 }, (_, i) => ({ x: 1000 + Math.cos((i / 20) * Math.PI) * 300, y: 500 + Math.sin((i / 20) * Math.PI) * 300 }))), "a half circle on a river bank still is");
+    assert.deepEqual(garrisonSteps([{ side: "B", steps: [{ points: [{ x: 1320, y: 700 }, { x: 1325, y: 800 }] }] }], [{ points: arc }]), [[-1]], "no garrison disc by a land wall");
   });
 
   await scenario("Z a close map's place names stay whole in the frame (Constantinople Short, 20 Nov 2026: \"OTTOMAN CAMP\" cut 18 px by the left edge at 27–28 s)", async () => {

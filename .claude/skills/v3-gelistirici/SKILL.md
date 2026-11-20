@@ -44,6 +44,15 @@ writer's data alone, so improve these files rather than adding a second path:
   (motion untouched) and packs a garrison (`garrisonSteps`: the side standing deepest in a closed wall ring) in a disc
   inside its walls (`fitInRing`); the legend is `hudLayout.dotLegend` (top left, in `hudBoxes`). Proof: smoke-v3-motion Y,
   smoke-v3-episode-director "army of dots".
+- Walls and soldiers (owner, 20 Nov 2026: "askerler surdan dışarı taşıyor … surlarda taşmadan hizalanmalı"): on a dotted
+  map no circle stands on or across a wall line except in an open breach. `unitCrowd.wallSides` knows each wall's inside
+  (a ring's; an open line's by its town, else away from the guns) and its holder; `MapUnits.wallModesOf` puts a defending
+  front within `WALL_MAN_KM` of its wall in a thin band along the inside (`bandDot`; a reserve or heap keeps its block or
+  ring disc); `keepByWalls` keeps every block on its side (whole block moved, then each circle) until the writer's step
+  takes the token through the breach (`crossStepsOf`: `via` at the breach, token in `through`), the side then following
+  the token's way (never its fight-pulled place) and the block narrowing to a column in the gap. Any new rule here must
+  stay continuous (a released clamp is a jump). `wallIsRing` also asks a bulge (a jogging shallow land wall is no ring).
+  Proof: smoke-v3-motion Y2.
 - Ground: `scripts/v3/terrain_close.py` bakes the painted relief once per place (bump `Relief.CLOSE_RELIEF_VERSION`
   after a change); `MapCloseGround.tsx` + `mapNature.ts` draw woods, fields, hills, rivers' banks and cloud shadows.
 - Anything that moves is a pure function of the frame (Remotion renders frames in any order, in parallel); no per-frame

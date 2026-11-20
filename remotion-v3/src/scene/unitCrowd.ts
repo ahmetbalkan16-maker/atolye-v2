@@ -490,3 +490,237 @@ export function garrisonSteps(units: readonly { readonly side: string; readonly 
   }
   return out;
 }
+
+/**
+ * A wall line as the soldiers stand by it (owner, 20 Nov 2026, of the Constantinople Short's close siege: "yakın çekim
+ * savaşta askerler surdan dışarı taşıyor; … surlarda taşmadan hizalanmalı"): which hand of the line is in, which side
+ * holds it, its line smoothed for a band of defenders to follow (an OpenStreetMap trace jogs at every tower), and its
+ * breach. Any wall anywhere: a ring's inside is its inside; an open line's inside is where its town stands, else away
+ * from the besiegers' guns, else where the storm through its breach goes.
+ */
+export interface WallSide {
+  /** Index in the map's walls. */
+  readonly wi: number;
+  /** The line as drawn (a ring with its ends joined). */
+  readonly line: readonly XY[];
+  readonly ring: boolean;
+  /** Which hand of the line (walking its points) is in: the inner normal of a segment is `inner` × (−dy, dx). */
+  readonly inner: 1 | -1;
+  /** The side that holds it (its units stand deepest in it on their first formations). */
+  readonly defender: string;
+  /** The line smoothed and resampled (for a band along it), its arc lengths and its length. */
+  readonly curve: readonly XY[];
+  readonly cum: readonly number[];
+  readonly length: number;
+  readonly breach?: { readonly x: number; readonly y: number; readonly start: number };
+}
+
+/** A unit as the walls see it: its side, its kind, and its formations (each with the breach it is led through). */
+export interface WallUnit {
+  readonly side: string;
+  readonly kind?: string;
+  readonly steps: readonly { readonly points: readonly XY[]; readonly via?: XY; readonly through?: readonly number[]; readonly rout?: boolean; readonly heap?: boolean }[];
+}
+
+const centreOf = (pts: readonly XY[]): XY | undefined => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
+
+/** The line resampled every `step` px and averaged over `radius` px either way (a ring round its joint; a line's ends kept). */
+function smoothLine(line: readonly XY[], ring: boolean, step: number, radius: number): XY[] {
+  const cum = [0];
+  for (let i = 1; i < line.length; i++) cum.push(cum[i - 1]! + Math.hypot(line[i]!.x - line[i - 1]!.x, line[i]!.y - line[i - 1]!.y));
+  const L = cum[cum.length - 1]!;
+  if (L <= 0) return line.slice(0, 1).map((p) => ({ x: p.x, y: p.y }));
+  const n = Math.max(2, Math.ceil(L / step) + 1);
+  const at = (s: number): XY => {
+    const v = ring ? ((s % L) + L) % L : Math.max(0, Math.min(L, s));
+    let j = 1;
+    while (j < cum.length - 1 && cum[j]! < v) j++;
+    const seg = cum[j]! - cum[j - 1]! || 1;
+    const t = (v - cum[j - 1]!) / seg;
+    return { x: line[j - 1]!.x + (line[j]!.x - line[j - 1]!.x) * t, y: line[j - 1]!.y + (line[j]!.y - line[j - 1]!.y) * t };
+  };
+  const pts = Array.from({ length: n }, (_, i) => at((L * i) / (n - 1)));
+  const k = Math.max(0, Math.round(radius / (L / (n - 1))));
+  if (!k) return pts;
+  return pts.map((p, i) => {
+    if (!ring && (i === 0 || i === n - 1)) return p;
+    let sx = 0;
+    let sy = 0;
+    let c = 0;
+    for (let j = -k; j <= k; j++) {
+      // A line's ends: the window shrinks so the ends stay where they are.
+      const w = ring ? j : Math.max(-i, Math.min(n - 1 - i, j));
+      const q = pts[ring ? (((i + w) % (n - 1)) + (n - 1)) % (n - 1) : i + w]!;
+      sx += q.x;
+      sy += q.y;
+      c++;
+    }
+    return { x: sx / c, y: sy / c };
+  });
+}
+
+/**
+ * Where a point stands by a wall line: its signed distance (positive on the `inner` hand), the inner normal at the
+ * nearest point (at a corner the mean of its two segments', so the side never flips across a jog), the nearest point,
+ * and whether that point is an open line's end (past its ends a line has no sides).
+ */
+export function wallSideOf(line: readonly XY[], ring: boolean, inner: 1 | -1, p: XY): { d: number; nx: number; ny: number; x: number; y: number; end: boolean } {
+  let best = { dist: Infinity, i: 1, t: 0, x: line[0]?.x ?? 0, y: line[0]?.y ?? 0 };
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+    const x = a.x + dx * t;
+    const y = a.y + dy * t;
+    const dist = Math.hypot(p.x - x, p.y - y);
+    if (dist < best.dist) best = { dist, i, t, x, y };
+  }
+  const last = line.length - 1;
+  const normal = (i: number) => {
+    const j = ring ? ((((i - 1) % last) + last) % last) + 1 : i;
+    const a = line[j - 1]!;
+    const b = line[j]!;
+    const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return { x: (-(b.y - a.y) / l) * inner, y: ((b.x - a.x) / l) * inner };
+  };
+  let nrm = normal(best.i);
+  let end = false;
+  if (best.t <= 1e-9 || best.t >= 1 - 1e-9) {
+    const other = best.t <= 1e-9 ? best.i - 1 : best.i + 1;
+    if (!ring && (other < 1 || other > last)) end = true;
+    else {
+      const m = normal(other);
+      const sx = nrm.x + m.x;
+      const sy = nrm.y + m.y;
+      const l = Math.hypot(sx, sy);
+      if (l > 1e-9) nrm = { x: sx / l, y: sy / l };
+    }
+  }
+  const side = (p.x - best.x) * nrm.x + (p.y - best.y) * nrm.y;
+  return { d: (side >= 0 ? 1 : -1) * best.dist, nx: nrm.x, ny: nrm.y, x: best.x, y: best.y, end };
+}
+
+/** Where a point falls along a wall's smoothed line (its arc length). */
+export function curveArc(w: WallSide, p: XY): number {
+  let best = { s: 0, dist: Infinity };
+  for (let i = 1; i < w.curve.length; i++) {
+    const a = w.curve[i - 1]!;
+    const b = w.curve[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+    const dist = Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t);
+    if (dist < best.dist) best = { s: w.cum[i - 1]! + (w.cum[i]! - w.cum[i - 1]!) * t, dist };
+  }
+  return best.s;
+}
+
+/** The point at arc length `s` on a wall's smoothed line and its inner normal there (a ring's arc wraps round). */
+export function curvePoint(w: WallSide, s: number): { x: number; y: number; nx: number; ny: number } {
+  const L = w.length;
+  const v = w.ring ? ((s % L) + L) % L : Math.max(0, Math.min(L, s));
+  const last = w.curve.length - 1;
+  let j = 1;
+  while (j < last && w.cum[j]! < v) j++;
+  const a = w.curve[j - 1]!;
+  const b = w.curve[j]!;
+  const t = (v - w.cum[j - 1]!) / (w.cum[j]! - w.cum[j - 1]! || 1);
+  // The normal blended from the segments either side, so a band bends round a corner instead of jumping at it.
+  const nAt = (k: number) => {
+    const kk = w.ring ? ((((k - 1) % last) + last) % last) + 1 : Math.max(1, Math.min(last, k));
+    const p = w.curve[kk - 1]!;
+    const q = w.curve[kk]!;
+    const l = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+    return { x: (-(q.y - p.y) / l) * w.inner, y: ((q.x - p.x) / l) * w.inner };
+  };
+  const n0 = nAt(t < 0.5 ? j - 1 : j);
+  const n1 = nAt(t < 0.5 ? j : j + 1);
+  const f = t < 0.5 ? t + 0.5 : t - 0.5;
+  const nx = n0.x + (n1.x - n0.x) * f;
+  const ny = n0.y + (n1.y - n0.y) * f;
+  const l = Math.hypot(nx, ny) || 1;
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, nx: nx / l, ny: ny / l };
+}
+
+/**
+ * Each wall's sides for the soldiers (WallSide): a ring (wallIsRing) is held by the side whose units stand deepest in it
+ * on their first formations (as garrisonSteps), within GARRISON_REACH of its size; an open line's inner hand is where
+ * the nearest of its towns stands (`towns`, a city's middle), else away from the guns (`topcu` units stand outside),
+ * else where the tokens led through its breach go, and it is held by the side standing furthest in on that hand. A wall
+ * nothing tells the inside of, or nobody holds, has no sides (its soldiers stand as placed, as before).
+ */
+export function wallSides(units: readonly WallUnit[], walls: readonly { readonly points: readonly XY[]; readonly breach?: { readonly x: number; readonly y: number; readonly start: number } }[], towns: readonly XY[] = []): WallSide[] {
+  const out: WallSide[] = [];
+  walls.forEach((w, wi) => {
+    if (w.points.length < 2) return;
+    const ring = closedRing(w.points);
+    const line = ring ? asRing(w.points) : w.points;
+    let inner: 1 | -1;
+    let size = 1;
+    if (ring) {
+      let area = 0;
+      for (let i = 1; i < line.length; i++) area += line[i - 1]!.x * line[i]!.y - line[i]!.x * line[i - 1]!.y;
+      if (Math.abs(area) <= 1e-9) return;
+      inner = area > 0 ? 1 : -1;
+      size = Math.sqrt(Math.abs(area) / 2 / Math.PI);
+    } else {
+      const handOf = (p: XY) => {
+        const q = wallSideOf(line, false, 1, p);
+        return q.end || Math.abs(q.d) < 1e-6 ? 0 : Math.sign(q.d);
+      };
+      const town = [...towns].sort((a, b) => Math.abs(wallSideOf(line, false, 1, a).d) - Math.abs(wallSideOf(line, false, 1, b).d)).map(handOf).find((h) => h !== 0);
+      const guns = units.filter((u) => u.kind === "topcu").flatMap((u) => ((c) => (c ? [handOf(c)] : []))(centreOf(u.steps[0]?.points ?? []))).reduce((a, h) => a + h, 0);
+      const breach = w.breach;
+      const storm = breach ? units.flatMap((u) => u.steps.flatMap((st) => (st.via && st.through && Math.hypot(st.via.x - breach.x, st.via.y - breach.y) < 1 ? st.through.flatMap((i) => (st.points[i] ? [handOf(st.points[i]!)] : [])) : []))).reduce((a, h) => a + h, 0) : 0;
+      const hand = town ?? (guns ? -Math.sign(guns) : Math.sign(storm));
+      if (!hand) return;
+      inner = hand > 0 ? 1 : -1;
+    }
+    // The side standing deepest in on its first formations holds it (only formations by the line: none past its ends).
+    const sides = [...new Set(units.map((u) => u.side))];
+    const depth = (side: string) => {
+      const ds = units.flatMap((u) => {
+        const c = u.side === side ? centreOf(u.steps[0]?.points ?? []) : undefined;
+        const q = c ? wallSideOf(line, ring, inner, c) : undefined;
+        return q && !q.end ? [q.d / size] : [];
+      });
+      return ds.length ? ds.reduce((a, d) => a + d, 0) / ds.length : -Infinity;
+    };
+    const holder = sides.map((s) => ({ s, d: depth(s) })).sort((a, b) => b.d - a.d)[0];
+    if (!holder || (ring ? holder.d < -GARRISON_REACH : holder.d <= 0)) return;
+    let length = 0;
+    for (let i = 1; i < line.length; i++) length += Math.hypot(line[i]!.x - line[i - 1]!.x, line[i]!.y - line[i - 1]!.y);
+    const curve = smoothLine(line, ring, Math.max(4, length / 400), Math.min(40, length / 12));
+    const cum = [0];
+    for (let i = 1; i < curve.length; i++) cum.push(cum[i - 1]! + Math.hypot(curve[i]!.x - curve[i - 1]!.x, curve[i]!.y - curve[i - 1]!.y));
+    out.push({ wi, line, ring, inner, defender: holder.s, curve, cum, length: cum[cum.length - 1]!, ...(w.breach ? { breach: w.breach } : {}) });
+  });
+  return out;
+}
+
+/**
+ * How many ranks deep a unit of `n` circles `pitch` apart mans a wall: as few as spread it along the stretch its front
+ * holds (`span`, px along the wall) — a front the writer ran along the whole wall is one long line — at most three.
+ */
+export const bandRanks = (n: number, pitch: number, span: number) => Math.max(1, Math.min(3, Math.ceil((n * pitch) / Math.max(pitch, span))));
+
+/**
+ * Circle `g` of `n` of a unit manning a wall, in the band along its inner side: columns along the wall `pitch` apart
+ * (every other rank half a pitch over), `ranks` deep from `off` inside the wall line, the band's middle at arc `mid`
+ * (kept on the wall: an open line's band stays between its ends), its first circles towards `dir` (±1 along the arc).
+ */
+export function bandDot(w: WallSide, g: number, n: number, mid: number, pitch: number, off: number, dir: number, ranks: number): { x: number; y: number } {
+  const cols = Math.ceil(n / ranks);
+  const half = ((cols - 1) * pitch) / 2 + pitch * 0.5;
+  const m = w.ring ? mid : w.length <= half * 2 ? w.length / 2 : Math.max(half, Math.min(w.length - half, mid));
+  const c = Math.floor(g / ranks);
+  const q = g % ranks;
+  const s = m + dir * ((c - (cols - 1) / 2) * pitch + (q % 2 ? pitch * 0.5 : 0) - (ranks > 1 ? pitch * 0.25 : 0));
+  const p = curvePoint(w, s);
+  const d = off + q * pitch * 0.87;
+  return { x: p.x + p.nx * d, y: p.y + p.ny * d };
+}

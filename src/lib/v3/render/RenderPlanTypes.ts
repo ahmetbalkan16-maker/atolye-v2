@@ -290,15 +290,24 @@ export function transitionFrames(shot: { readonly transitionIn: V3Transition; re
  * more, its ends no further apart than WALL_RING_GAP of its own length — closed, a writer's outline that does not repeat
  * its first corner (a square: 1/3), an OpenStreetMap wall with a gate or a river side missing (a half circle on a river
  * bank: 0.64) — while a wall across a neck of land runs nearly straight from end to end (an L of two equal sides: 0.71).
+ * An open ring also bulges away from the line between its ends by WALL_RING_BULGE of that gap or more (a half circle:
+ * 0.5; any clean arc short enough for WALL_RING_GAP: 0.41): the Theodosian land wall of Constantinople, traced by
+ * OpenStreetMap with every tower's jog (gap 0.56 of its length, bulge 0.135), counted as a ring, and the city's defenders
+ * were packed in a disc in the sliver between the wall and that line, across the wall (Short of 20 Nov 2026).
  */
 export const WALL_RING_GAP = 0.7;
+export const WALL_RING_BULGE = 0.3;
 export function wallIsRing(points: readonly { readonly x: number; readonly y: number }[]): boolean {
   if (points.length < 3) return false;
   let length = 0;
   for (let i = 1; i < points.length; i++) length += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
-  const gap = Math.hypot(points[0]!.x - points[points.length - 1]!.x, points[0]!.y - points[points.length - 1]!.y);
+  const [a, b] = [points[0]!, points[points.length - 1]!];
+  const gap = Math.hypot(a.x - b.x, a.y - b.y);
   const corners = gap <= 1e-9 ? points.length - 1 : points.length;
-  return corners >= 3 && length > 0 && gap <= length * WALL_RING_GAP;
+  if (corners < 3 || length <= 0 || gap > length * WALL_RING_GAP) return false;
+  if (gap <= 1e-9) return true;
+  const bulge = Math.max(...points.map((p) => Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / gap));
+  return bulge >= gap * WALL_RING_BULGE;
 }
 
 /** A ring's points with its first point repeated at the end when its ends do not meet (wallIsRing), else as they are. */
