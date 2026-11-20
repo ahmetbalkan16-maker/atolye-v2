@@ -308,6 +308,7 @@ export function CloseGround({
   up,
   layer,
   room,
+  keepIn,
 }: {
   close: Close;
   frame: number;
@@ -330,6 +331,12 @@ export function CloseGround({
    * offset stays on the screen as on the flat map, so a name keeps to its mark up the foreshortened ground.
    */
   room?: (x: number, y: number) => { fx: number; fy: number };
+  /**
+   * Where a name centred at `cx`,`cy` (world px) stands so the frame's edge does not cut it (MapView's keepNameInside, as
+   * for the states' names); undefined: where it is. The Constantinople Short (20 Nov 2026, 27 s): the camera moved on to
+   * the guns and "OTTOMAN CAMP" was cut 18 px by the left edge — a name half out only faded (nameShown).
+   */
+  keepIn?: (text: string, size: number, cx: number, cy: number) => { x: number; y: number } | undefined;
 }) {
   const u = close.unit;
   const gradId = gid ?? "close";
@@ -343,14 +350,20 @@ export function CloseGround({
     const p = xy(spot, x, y);
     return `translate(${p.x} ${p.y})`;
   };
-  const shown = (text: string, size: number, spot: Spot, x: number, y: number) => {
-    const p = xy(spot, x, y);
-    return nameShown ? nameShown(text, size, p.x, p.y) : 1;
-  };
   // Names go last, over the ground's shapes and the cloud shadows (a shadow must never dim a name).
   const names: React.ReactNode[] = [];
-  // A place's name upright at its spot on a tilted map (a road's name stays painted along its road).
-  const U = (spot: Spot, x: number, y: number, node: React.ReactNode) => (up ? up(xy(spot, x, y).x, xy(spot, x, y).y, node) : node);
+  // A place's name at its spot, slid in off the frame's edge (keepIn), upright there on a tilted map (a road's name stays
+  // painted along its road); it gives way to a speaking badge and fades as the edge cuts in where it was not slid.
+  const placeName = (key: string, text: string, size: number, spot: Spot, x: number, y: number, alpha = 1) => {
+    const own = xy(spot, x, y);
+    const p = keepIn?.(text, size, own.x, own.y) ?? own;
+    const node = (
+      <g key={key} transform={`translate(${p.x} ${p.y})`} opacity={alpha * (nameShown ? nameShown(text, size, p.x, p.y) : 1)}>
+        {label(text, size)}
+      </g>
+    );
+    names.push(up ? up(p.x, p.y, node) : node);
+  };
   // A road's name is painted along its road: on the tilted ground, not with the upright names.
   (layer === "upright" ? [] : (close.roadNames ?? [])).forEach((rn, i) => {
     const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
@@ -392,7 +405,7 @@ export function CloseGround({
       {close.settlements.map((s, si) => {
         const a = interpolate(frame, [s.start, s.start + Math.round(fps * 0.8)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
-        if (s.label) names.push(U(s.labelSpot, s.x, s.y, <g key={`sn${si}`} transform={at(s.labelSpot, s.x, s.y)} opacity={a * shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g>));
+        if (s.label) placeName(`sn${si}`, s.label, 30, s.labelSpot, s.x, s.y, a);
         return (
           <g key={`s${si}`} opacity={a}>
             {s.items.map((it) => (s.kind === "ordugah" ? <Tent key={it.seed} {...it} u={u} /> : <House key={it.seed} {...it} u={u} />))}
@@ -410,16 +423,7 @@ export function CloseGround({
         const id = `wall-breach-${wi}`;
         if (w.label) {
           const near = wallLabelAt(w, close.settlements, u);
-          names.push(
-            U(
-              w.labelSpot,
-              near.x,
-              near.y,
-              <g key={`wn${wi}`} transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${near.x} ${near.y})`} opacity={shown(w.label, 26, w.labelSpot, near.x, near.y)}>
-                {label(w.label, 26)}
-              </g>,
-            ),
-          );
+          placeName(`wn${wi}`, w.label, 26, w.labelSpot, near.x, near.y);
         }
         return (
           <g key={`w${wi}`}>
@@ -465,7 +469,7 @@ export function CloseGround({
       {close.buildings.map((b, i) => {
         const a = interpolate(frame, [b.start, b.start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
-        if (b.label) names.push(U(b.labelSpot, b.x, b.y + u * 1.1, <g key={`bn${i}`} transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={a * shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g>));
+        if (b.label) placeName(`bn${i}`, b.label, 24, b.labelSpot, b.x, b.y + u * 1.1, a);
         return (
           <g key={`b${i}`} opacity={a}>
             <ellipse cx={b.x + u * 0.3} cy={b.y + u * 0.15} rx={u * 2} ry={u * 0.45} fill="#1c140c" opacity={0.3} />

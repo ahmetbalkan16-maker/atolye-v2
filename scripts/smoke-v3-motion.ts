@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DrawnSetBack, DrawnSetFront, flameBox, lightSpots, type SetCover, torchSpots } from "../remotion-v3/src/scene/DrawnSet";
+import { CloseGround } from "../remotion-v3/src/scene/MapCloseGround";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
@@ -970,6 +971,33 @@ async function main() {
     // Switched back to blocks (ATOLYE_V3_BIRLIK_STILI=blok at plan time): no circles.
     const blocks = { ...siege, unitStyle: "blok" } as V3GeoMap;
     assert.ok(unitDotsAt(blocks, placeTokens(blocks, 60, 30, 1), [], 60, 30, 1).dots.every((u) => u === undefined));
+  });
+
+  await scenario("Z close map's place names slide in off frame's edge (Constantinople Short, 20 Nov 2026, 27 s: camera moved on to guns, \"OTTOMAN CAMP\" cut 18 px by left edge): camp, wall and building names drawn where keepIn puts them, as before without it", () => {
+    const close: NonNullable<V3GeoMap["close"]> = {
+      unit: 10,
+      ground: [],
+      roads: [],
+      walls: [{ label: "Land Walls", points: [{ x: 500, y: 200 }, { x: 500, y: 600 }], towers: [], gates: [] }],
+      settlements: [{ kind: "ordugah", label: "Ottoman camp", x: 20, y: 300, start: 0, items: [] }],
+      buildings: [{ kind: "cami", label: "Hagia Sophia", x: 900, y: 400, start: 0 }],
+    };
+    const label = (t: string) => createElement("text", null, t);
+    const draw = (keepIn?: (text: string, size: number, cx: number, cy: number) => { x: number; y: number } | undefined) =>
+      renderToStaticMarkup(createElement("svg", null, createElement(CloseGround, { close, frame: 60, fps: 30, era: "orta", label, k: 1, nameShown: (_t: string, _s: number, cx: number) => (cx < 60 ? 0.5 : 1), keepIn })));
+    const place = (svg: string, name: string) => new RegExp(`<g transform="translate\\(([-\\d.]+) ([-\\d.]+)\\)" opacity="([\\d.]+)"><text>${name}</text>`).exec(svg)?.slice(1).map(Number);
+    const before = draw();
+    assert.deepEqual(place(before, "Ottoman camp"), [20, 300, 0.5], "without keepIn the camp's name stays at its place, faded by the edge");
+    const calls: string[] = [];
+    const after = draw((t, s, cx, cy) => {
+      calls.push(`${t}|${s}`);
+      // The frame's left edge at 0: a name centred less than 100 px in slides to 100 (MapView's keepNameInside).
+      return cx < 100 ? { x: 100, y: cy } : t === "Hagia Sophia" ? undefined : { x: cx, y: cy };
+    });
+    assert.deepEqual(place(after, "Ottoman camp"), [100, 300, 1], "the camp's name slid in whole, no longer faded");
+    assert.deepEqual(place(after, "Land Walls")?.slice(0, 2), place(before, "Land Walls")?.slice(0, 2), "a wall's name inside the frame stays");
+    assert.deepEqual(place(after, "Hagia Sophia"), place(before, "Hagia Sophia"), "a name keepIn cannot place stays where it was");
+    assert.deepEqual(calls.sort(), ["Hagia Sophia|24", "Land Walls|26", "Ottoman camp|30"], "every place name asked at its own size");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

@@ -766,7 +766,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
           )
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keepIn={(t, s, x, y) => keepNameInside(t, x, y, s)} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} /> : null}
         {map.cities.map((c, i) =>
           relief || upright ? null : (
             <g key={`c${i}`}>
