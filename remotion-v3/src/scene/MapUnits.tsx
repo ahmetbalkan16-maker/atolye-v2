@@ -1768,8 +1768,16 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
   // Each side's middle and its enemies' middle (standing tokens): blocks face the enemy, a label stands behind the side.
   const middle = (pts: readonly { x: number; y: number }[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
   const standing = placed.map((side) => side.filter((t): t is NonNullable<typeof t> => t !== undefined && t.lostAt === undefined));
-  const centres = standing.map(middle);
-  const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s)));
+  const tokenCentres = standing.map(middle);
+  // On a walled dotted map the circles may stand away from their tokens (a defending front drawn as a band along the
+  // wall's inner side, attackers kept off the stone): a unit's labels go to the middle of its circles, not of its tokens
+  // (the Constantinople s3 preview, 21 Nov 2026: "Defenders" stood ~300 px inside the city from its band on the wall).
+  // The upright layer (a tilted map's labels) asks for the circles only on such a map.
+  const walledDots = labels && map.unitStyle === "nokta" && (map.close?.walls.length ?? 0) > 0;
+  const labelDots = walledDots ? (layer === "upright" ? unitDotsAt(map, placed, steadyFacingsAt(map, placed, frame, fps, k, end), frame, fps, k, end, shakeOf).dots : dotsNow) : [];
+  const dotPts = tokenCentres.map((_, ui) => (labelDots[ui] ?? []).flatMap((b, ti) => (b && placed[ui]?.[ti] && placed[ui]![ti]!.lostAt === undefined ? b.dots : [])));
+  const centres = tokenCentres.map((c, ui) => (dotPts[ui]!.length ? middle(dotPts[ui]!) : c));
+  const enemyOf =(ui: number) => middle(standing.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s)));
   const s = r / TOKEN_R;
   const U = (x: number, y: number, node: React.ReactNode) => (up ? up(x, y, node) : node);
   // The labels of this frame settle in turn — the unit the narrator names first, then each side's strength — each kept
@@ -1815,8 +1823,18 @@ export function UnitTokens({ map, frame, fps, k, view, avoid, up, layer, room, v
     const slides = slideFrames(u.steps, fps, { ...(map.camera ? { camera: map.camera } : {}), end });
     const settled = (i: number) => Math.min(u.steps[i + 1] ? u.steps[i + 1]!.start - 1 : Infinity, u.steps[i]!.start + slides[i]! + Math.round(0.6 * fps));
     const offset = (i: number) => labelOffset(map, ui, settled(i), fps, k, w, s, end);
-    const now = offset(si);
-    const blend = si > 0 ? Easing.inOut(Easing.cubic)(clamp01((frame - u.steps[si]!.start) / (fps * LABEL_GLIDE_S))) : 1;
+    // Circles drawn away from their tokens: just behind them, away from the enemy, measured on the circles.
+    const circles = dotPts[ui]!;
+    const foeAt = enemyOf(ui);
+    const behind = circles.length && foeAt ? (() => {
+      const ax = own.x - foeAt.x;
+      const ay = own.y - foeAt.y;
+      const len = Math.hypot(ax, ay) || 1;
+      const reach = Math.max(0, ...circles.map((p) => ((p.x - own.x) * ax + (p.y - own.y) * ay) / len)) + r * 2.4;
+      return { x: (ax / len) * reach, y: (ay / len) * reach };
+    })() : undefined;
+    const now = behind ?? offset(si);
+    const blend = behind ? 1 : si > 0 ? Easing.inOut(Easing.cubic)(clamp01((frame - u.steps[si]!.start) / (fps * LABEL_GLIDE_S))) : 1;
     const before = blend < 1 ? offset(si - 1) : now;
     const first = u.steps[0]!.start;
     const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
