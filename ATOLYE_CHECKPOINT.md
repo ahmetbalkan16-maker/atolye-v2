@@ -1,3 +1,30 @@
+## 20 Kasım 2026 — gece Shorts denemesi: Konstantinopolis teslim (zayıf), yakın savaş haritası gerçekçiliği YARIM
+
+Owner 19 Kas gece: "03:00'te otomatik başlat, sırayla 2 Shorts, izle/düzelt/canlıya al". Görev Zamanlayıcı "Atolye Gece
+Shorts" (tek seferlik, 20.11 03:00) → `D:\URETIM\private\gece\gece.ps1` (1. sipariş + `claude -p` izleme, talimat gorev.md).
+- Sipariş 20261120T000016-the-fall-of-constantinople-29-may-1453-m UYARIYLA teslim (tur 1, $0,98, 85,7 sn, 03:00–05:38).
+- İzleme oturumu 22 sn'de çıktı (git pull / gelistirici.ts onay istedi, `bypassPermissions` gecede etkisiz kaldı;
+  claude-gece.log) → kimse izlemedi, 2. video (Thermopylae) VERİLMEDİ. `.claude/settings.local.json` gece kuralları duruyor.
+- 78a07007 (push'lu, canlı DEĞİL): (1) ScriptEngine FAR_SHORT_SHARE — bandın %75'inin altındaki senaryo harita sorunu
+  artsa da uzun turu alır (3 uzunluk turu "5 → 7" ile atılmış, 162/389 kelime kalmıştı); (2) CloseSite.snapMapToRealWall —
+  yazarın OSM'ye uymayan sur çizgisi en yakın gerçek sura taşınır+döndürülür. script 56, director 81 PASS, s5 önizleme iyi.
+  RİSK: s7'de en yakın hat Marmara deniz suru olabilir (aşağı bak) — 78a07007'nin snap'i ile s7 henüz çizilip bakılmadı.
+- YARIM (commit'siz, yama `D:\URETIM\private\gece\wip-sur-yakalama.patch`): surun tamamı (4,5 km erişim, 0,5 km birleştirme),
+  deniz surları ek sur, sur içi "Constantinople" şehri, harita genişletme. s7 önizlemesi BOZUK: kara suru Yedikule'de deniz
+  surlarına birleşip L oldu, evler surun dışına taştı. Doğru yol: OSM sur adlarını SiteData'ya taşı (SITE_VERSION artır) ya da
+  düz uzatma + fitWall ile yalnız kara surunu al; şehir tarafını isimden/kıyıdan bul.
+Owner'ın video incelemesi (20 Kas sabah): "çok sıkıntılı yerler var; yakın çekim savaş sahneleri çok kötü; kale tarihteki
+yerinde ve gerçeğe benzer olmalı, internetten bakılsın; askerlerin hareketleri, taktikler, gemi yürütme yok, gerçekçilik yok;
+fotoğraflar konuya uygun mu". Benim bulduklarım: yakın haritalarda 6 yeniçeri + 3 savunan jetonu, hareket/taktik yok,
+sur kısa gri çizgi yanlış yerde (OSM'de 6 km gerçek sur var, yazar 1,7 km doğuda doğu-batı çizmiş), şehir/ordugâh/top/donanma
+yok, Haliç zinciri ve gemilerin karadan yürütülmesi (22 Nisan) hiç yok; s8 haritasında hiçbir şey olmuyor; dönem görselleri
+çoğunlukla uygun (Le Tavernier 1455 kuşatma minyatürü, Buondelmonti 1430 haritası, Sinan Bey Mehmed portresi) ama
+"Enluminure … Charles" (Fransız kuşatması) ve Rus "Facial Chronicle" 1568 başka olaylar — konuya uygun değil; Giustiniani
+çizimi kadın gibi (benzerlik 6/10); s6 "I peed my pants again" espri seviyesi düşük; s9 sabah sahnesi Ayasofya yerine çayır.
+SIRADAKİ: (1) sur yakalamayı bitir; (2) kuşatma tarifi: yazara/onarıma tam kara suru boyunca kuşatma hattı, ordugâh, toplar,
+Lykos/St. Romanos kapısı gediği, Haliç'te donanma ve kara yolu gemi taşıma sahnesi istensin (Tactics/MapVehicles verisi);
+(3) dönem görseli seçicisi başka olayların kuşatma resimlerini elesin; (4) Konstantinopolis'i yeniden üret, sonra Thermopylae.
+
 ## 19 Kasım 2026 (4) — owner onaylı tasarım işleri, kanal incelemesi, 5 dk otomatik onay, Shorts hazırlığı
 
 Owner 19 Kas: "onay bekleyenleri onaylıyorum, tasarım gerekenlerde yap; kanaldaki videoları incele, nerede kişi
