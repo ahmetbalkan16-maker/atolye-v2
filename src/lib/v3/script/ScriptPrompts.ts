@@ -545,6 +545,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // "tut" (hold); "kayip" on the fight lines, "bozgun": true where a unit breaks and runs. "etiket" (the side's
         // strength, "11 legions – 47,000 men") on its merkez unit only; a front "hatlar": 2–3 lines deep (Caesar's
         // triplex acies); "vurgu": [line indexes] — while the narrator speaks of the unit it is framed in light.
+        // Land armies stand on LAND: never a formation in a lake or the sea (ships are "araclar"). Only a step the
+        // sources tell as the unit driven or fleeing into the water and drowning lies on it, marked "suya": true
+        // (the Romans pushed into Lake Trasimene: {"satir": 6, "kume": [a point just off the shore], "suya": true, "kayip": 3}).
     "oklar": [… {"noktalar": [[lon, lat], …], "stil": "plan", "renk": "#3fae3a", "etiket": "Cavalry", "satir": 2, "bitis_satir": 3}]
         // a battle plan's dashed arrow BEFORE the move it announces (the cavalry's sweep round the flank), gone when it starts
     "kusatma_hatlari": [{"ad": "Caesar's siege line", "noktalar": [[lon, lat], …], "satir": 1, "sure_sn": 6}]
@@ -612,6 +615,10 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
     "yollar": [{"ad": "Road to Edirne", "noktalar": [[lon, lat], …]}]   // the roads to the gates, named along their way
     "arazi": [{"tur": "tepe" | "orman" | "tarla", "konum": [lon, lat], "km": 1}]   // a hill, a wood or fields of the story
     "cizgiler": [… {"ad": "The chain", "noktalar": [[lon, lat], [lon, lat]], "stil": "zincir", "satir": 2}]   // a boom chain
+    "sis": {"satir": 0, "bitis_satir": 4, "alan": [[lon, lat], … the low ground it lies on]}
+        // fog ONLY where the sources tell fog or mist (Trasimene's morning fog, Lützen's, Tewkesbury's): soft banks over
+        // "alan" (the valley, the lake shore; absent: the whole view) from "satir", lifting from "bitis_satir"; say it
+        // in a narrator line too. Never fog for mood alone.
   with "birlikler" (both sides), "araclar" (guns before the gate firing at it, ships, a haul over land) and "savaslar"
   (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps — told
   step by step like the battle documentaries: the two orders of battle in blocks by kind with their strength (infantry
@@ -648,6 +655,18 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
     men in "etiket" ("50,000 men": the blocks are drawn as dense regiments by it), and the field as it was — "arazi"
     woods, fields and hills at their places, the river by its course. Losses fall on their narrator line and need the
     seconds after it: put at least one more line after a fight's losses, never the losses on a scene's last line.
+  AN AMBUSH'S CLOSE MAP (Lake Trasimene, the Teutoburg Forest, Roncevaux Pass, Myriokephalon): ONE close
+  map held through the ambush, read at a glance like the battle documentaries' — "yollar": the road the victims march
+  on, by its real course between the obstacle and the high ground; the ambushers as their NAMED units ("ad", "tur") hidden
+  on the high ground beside the road, each a "cephe" along the slope above it ("arazi" "tepe"/"orman" there); "sis" only
+  if the sources tell fog; the victims as ONE LONG THIN COLUMN strung along the road ("cephe" with 3–6 points following
+  "yollar" from the column's head to its rear, or its vanguard, main body and rear one after another on it). Then the
+  moves, each on its own narrator line: the column marches in ("ilerle" or a "cephe" further along the road); its HEAD
+  BLOCKED by a unit across the road at the far end; the ATTACK DOWN THE SLOPE along the whole length (every ambushing unit
+  "hucum" with "hedef" the part of the column below it, "kayip" on the victims); the REAR CLOSED (cavalry across the road
+  behind the column); the victims PUSHED AGAINST the water or the obstacle (their next "cephe" or "kume" on the shore,
+  more "kayip"; those driven into the water a step with "suya": true); the losses on the strength bar ("guc", a later
+  entry with what was left).
 
 CROWDS — a group the narrator tells is SEEN as a group (owner): a scene whose lines tell of soldiers, troops, an army,
   pirates, guards, sailors, rebels or a mob carries a "kalabalik" of them — several figures, never one character standing

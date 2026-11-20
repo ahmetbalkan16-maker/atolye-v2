@@ -242,6 +242,35 @@ async function main() {
     assert.equal(b2.ledger.map((e) => e.step).join(","), "senaryo,dogrulama,dogrulama-tekrar");
   });
 
+  await scenario("G1 a land unit standing in the water is asked off it in the repair round when the land test is given (owner, 20 Nov 2026, the Lake Trasimene Short), and the writer is taught fog, \"suya\" and the ambush's map", async () => {
+    const wet = episode() as unknown as { sahneler: Record<string, unknown>[] };
+    wet.sahneler[0] = {
+      ...wet.sahneler[0],
+      mekan: "Close map: the Bosphorus shore",
+      harita: {
+        merkez: [29.05, 41.08],
+        genislik_km: 16,
+        birlikler: [
+          { taraf: "Ottomans", ad: "Janissaries", tur: "piyade", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, kume: [29.05, 41.1] }, { satir: 1, kume: [29.05, 40.9] }] },
+          { taraf: "Byzantines", ad: "Garrison", tur: "piyade", renk: "#6a3d8f", amblem: "kartal", sayi: 3, yerler: [{ satir: 0, kume: [29.07, 41.1] }] },
+        ],
+      },
+    };
+    const draft = JSON.stringify(wet);
+    // North of 41°N is land, south of it the sea.
+    const onLand = (p: readonly [number, number]) => p[1] > 41;
+    const run = async (land?: typeof onLand) => {
+      const openai = new FakeProvider([draft, draft, JSON.stringify({ iddialar: [] })]);
+      await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 1, ...(land ? { onLand: land } : {}) });
+      return openai.calls.map((c) => c.prompt);
+    };
+    const asked = await run(onLand);
+    assert.ok(asked[1]?.includes('"Janissaries" stands in the water on line 1') && asked[1].includes('"suya": true'), asked[1]?.slice(0, 400));
+    assert.ok(!(await run()).some((p) => p.includes("stands in the water")), "no land test: not asked");
+    const prompt = writingPrompt({ konu: "Lake Trasimene", donem: "MÖ 217", hedefSureSn: 150, ton: "mizahi", dil: "en" }, CATALOG);
+    for (const want of ["AN AMBUSH'S CLOSE MAP", "ONE LONG THIN COLUMN", "BLOCKED by a unit across the road", '"sis": {"satir"', '"suya": true', "Never fog for mood alone"]) assert.ok(prompt.includes(want), want);
+  });
+
   await scenario("G2 an unchecked script still has the order compared fact by fact (the history gate is not skipped)", async () => {
     const order = "Rumeli Hisarı (1452): II. Mehmed Boğazkesen'i dört ayda yaptırır; Çandarlı Halil Paşa savaşa karşı çıkar, Zağanos Paşa savaşı ister; hisar Ağustos 1452'de biter ve Bizans'ın Karadeniz yolu kesilir.";
     const swapped = JSON.parse(validJson());

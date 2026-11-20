@@ -577,6 +577,12 @@ export interface V3GeoMap {
   readonly fires?: readonly { readonly x: number; readonly y: number; readonly start: number; readonly end?: number; readonly size: number }[];
   readonly glows?: readonly { readonly start: number; readonly end: number; readonly territory?: number; readonly x?: number; readonly y?: number; readonly r?: number }[];
   readonly dates?: readonly { readonly start: number; readonly text: string }[];
+  /**
+   * Fog over the close map (SceneMap.sis; owner, 20 Nov 2026, the Lake Trasimene Short): soft banks (world px, long low
+   * ellipses, `seed` 0..1 for each one's drift) coming in from `start` and thinning out bank by bank from `end`; drawn on
+   * the ground under the armies, the badges and the names (remotion-v3 scene/MapFog).
+   */
+  readonly fog?: { readonly start: number; readonly end?: number; readonly banks: readonly { readonly x: number; readonly y: number; readonly rx: number; readonly ry: number; readonly seed: number }[] };
 }
 
 export interface V3Shot {

@@ -1,5 +1,6 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
+import type { LandTest } from "../maps/LandUnits";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
@@ -518,6 +519,12 @@ export interface ScriptEngineInput {
   readonly maxRepairs?: number;
   /** Progress lines (a long episode reports its plan and every chapter). */
   readonly log?: (s: string) => void;
+  /**
+   * The map's land test on [lon, lat] (owner, 20 Nov 2026, for the Lake Trasimene Short: nothing stopped a unit from
+   * standing in a lake or the sea): Natural Earth's land and lakes (MapBuilder.naturalLand); with it a close map's land
+   * units standing in the water are asked off it in the repair rounds (MapRules). Absent: not asked.
+   */
+  readonly onLand?: LandTest;
 }
 
 /**
@@ -527,7 +534,7 @@ export interface ScriptEngineInput {
 async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome> {
   // A chapter is asked what a single video's script is: no source sentence copied (12 Nov 2026), and where its words
   // are missing scene by scene.
-  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, readableCheck: (text) => readFactCheck(text) !== undefined, chapterAsks: (chapter) => copiedFromSources(chapter, input.brief.kaynakBankasi), shortfalls: sceneShortfalls, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
+  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, readableCheck: (text) => readFactCheck(text) !== undefined, ...(input.onLand ? { onLand: input.onLand } : {}), chapterAsks: (chapter) => copiedFromSources(chapter, input.brief.kaynakBankasi), shortfalls: sceneShortfalls, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
   const written = withBankSources(draft.episode, input.brief.kaynakBankasi);
   const validation = validateEpisode(written);
   if (!validation.ok) throw new ScriptError("V3_SCRIPT_INVALID", `birleşen bölümler: ${validation.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);
@@ -567,6 +574,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const writerUsed = first.used;
   // A Short of half a minute or more is asked its own shares (map ~70%); a shorter one is not asked any.
   const shortShares = isShorts(brief.hedefSureSn) && brief.hedefSureSn >= SHORT_SHARES_FROM_S;
+  const rules = input.onLand ? { onLand: input.onLand } : {};
   // `problems` make a script unusable; `quality` (the map rules) is asked for in the same repair rounds, but a script
   // that is valid is never lost over it.
   const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[]; quality: string[] } => {
@@ -579,7 +587,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
     // A Short's line after the hook is asked with its shares (19 Nov 2026, the channel's retention curves: HookFollow).
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value, rules), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -636,7 +644,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
+    const before = mapProblems(written, rules).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
     if (revised.quality.length > before) {
       // A script far under its band is no video yet: the Constantinople Short (20 Nov 2026) had all three expansions
       // dropped for "5 → 7" map issues and went out at 162 of 389 words, 85 s of the 144–180 s asked. Length wins there.

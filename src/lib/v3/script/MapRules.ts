@@ -5,6 +5,24 @@ import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
 import { isSiegeMap, shipLacks, siegeMapLacks, siegePlaceKey } from "../maps/SiegeMap";
+import { ambushMapLacks, fogLacks } from "../maps/AmbushMap";
+import { type LandTest, unitsOnWater } from "../maps/LandUnits";
+
+/**
+ * What the map rules may look at besides the episode: `onLand` — the map's land test on [lon, lat] (Natural Earth's land
+ * and lakes at script time; ScriptEngineInput.onLand). Without it no unit is asked off the water.
+ */
+export interface MapRuleContext {
+  readonly onLand?: LandTest;
+}
+
+/**
+ * How far from Natural Earth's land a unit must stand to count as in the water (km): its 1:50m coast is a kilometre or
+ * two off at a close map's scale, so a front on the real shore is never asked off it.
+ */
+export function waterToleranceKm(widthKm: number): number {
+  return Math.max(1.5, widthKm * 0.05);
+}
 
 /** Lines telling a siege or walls (English and Turkish stems). */
 const SIEGE = /\b(?:siege|besieg\w*|walls?|ramparts?|breach\w*|fortress|castle|citadel|gates?)\b|kuşat|sur(?:lar|u|ları)?\b|kale|hisar|gedik/iu;
@@ -25,7 +43,7 @@ function formationAt(y: UnitFormation): [number, number] | undefined {
  * (SiegeMap.siegeMapLacks; `first`: the first map of its place, which shows the siege line), and a close map whose lines
  * tell a fleet or ships hauled over land gets them on the map (SiegeMap.shipLacks).
  */
-function closeMapProblems(s: Episode["sahneler"][number], first = true): string[] {
+function closeMapProblems(s: Episode["sahneler"][number], first = true, ctx: MapRuleContext = {}, episodeText = ""): string[] {
   const h = s.harita!;
   const out: string[] = [];
   const sides = h.birlikler ?? [];
@@ -54,6 +72,15 @@ function closeMapProblems(s: Episode["sahneler"][number], first = true): string[
   out.push(...tacticsProblems(s, siege));
   const lacks = [...siegeMapLacks(s, first), ...shipLacks(s)];
   if (lacks.length) out.push(`close map "${s.id}"${isSiegeMap(h) ? " is a siege but" : ""} lacks ${lacks.join("; ")} — SIEGE CLOSE MAP`);
+  // An ambush's map (owner, 20 Nov 2026, the Lake Trasimene Short): the road, the column on it, the named ambushers.
+  const ambush = ambushMapLacks(s);
+  if (ambush.length) out.push(`close map "${s.id}" is an ambush but lacks ${ambush.join("; ")} — AMBUSH CLOSE MAP`);
+  const fog = fogLacks(s, episodeText);
+  if (fog.length) out.push(`close map "${s.id}" lacks ${fog.join("; ")} — FOG`);
+  // Land armies on land: a unit in a lake or the sea is a slip, unless that step drives it into the water.
+  if (ctx.onLand)
+    for (const w of unitsOnWater(h, ctx.onLand, waterToleranceKm(h.genislik_km!)))
+      out.push(`close map "${s.id}": "${w.name}" stands in the water on line ${w.satir} (near [${w.at.map((n) => Math.round(n * 1000) / 1000).join(", ")}]): put that formation on the land beside it (the shore, the road) — or, only where the sources tell them driven or fleeing into the water and drowning, mark that step "suya": true — UNITS AND VEHICLES`);
   return out;
 }
 
@@ -645,9 +672,10 @@ const ACTION = /\b(?:charg(?:e|es|ed)|attack(?:s|ed)?|storm(?:s|ed)?|fl(?:ee|ees
  * on which nothing happens; a story that sails, marches or invades between places without any map showing the route
  * (the Mongol fleet's crossing was told only on a beach).
  */
-export function mapProblems(episode: unknown): string[] {
+export function mapProblems(episode: unknown, ctx: MapRuleContext = {}): string[] {
   if (!episode || typeof episode !== "object" || !Array.isArray((episode as Episode).sahneler)) return [];
   const scenes = (episode as Episode).sahneler;
+  const episodeText = scenes.flatMap((s) => [s.mekan ?? "", ...(Array.isArray(s.satirlar) ? s.satirlar.map((l) => l.metin) : [])]).join(" ");
   const out: string[] = [];
   const places = new Set<string>();
   for (const s of scenes) {
@@ -657,7 +685,7 @@ export function mapProblems(episode: unknown): string[] {
       if (!mapLives(h)) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
       if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) {
         const place = siegePlaceKey(h);
-        out.push(...closeMapProblems(s, !places.has(place)));
+        out.push(...closeMapProblems(s, !places.has(place), ctx, episodeText));
         if (isSiegeMap(h)) places.add(place);
       }
     }

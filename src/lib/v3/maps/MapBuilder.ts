@@ -9,6 +9,7 @@ import { narrateMoves, type StepSource } from "./NarratedMoves";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
 import type { SideBadge } from "./MapSpeakers";
+import { landOf, landUnit, nearestLand } from "./LandUnits";
 
 /**
  * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
@@ -752,6 +753,8 @@ type GeoMapOptions = {
    * given here carries the director's own camera stops too): the map is drawn on that world, so its relief lies under it.
    */
   readonly ground?: { readonly world: MapWorld; readonly tilt: number | undefined };
+  /** What the plan put right on the writer's map (a land unit's tokens pulled out of the water), for the log. */
+  readonly note?: (s: string) => void;
 };
 
 /**
@@ -882,6 +885,65 @@ function pointsAlong(line: readonly XY[], gap: number): XY[] {
   }
   out.push(line[line.length - 1]!);
   return out;
+}
+
+/**
+ * A formation's tokens ([lon, lat]) on dry land: each one on water moves to the nearest land within `maxKm` (one further
+ * out stays). `pulled`: how many moved.
+ */
+export function pullAshore(points: readonly (readonly [number, number])[], onLand: (p: readonly [number, number]) => boolean, maxKm: number): { points: [number, number][]; pulled: number } {
+  let pulled = 0;
+  const out = points.map((p): [number, number] => {
+    if (onLand(p)) return [p[0], p[1]];
+    const q = nearestLand(p, onLand, maxKm);
+    if (!q) return [p[0], p[1]];
+    pulled++;
+    return q;
+  });
+  return { points: out, pulled };
+}
+
+/** The share of a [lon, lat] line off the land (nine points along it, its ends included). */
+export function wetShare(line: readonly (readonly [number, number])[], onLand: (p: readonly [number, number]) => boolean): number {
+  if (!line.length) return 0;
+  const pts = Array.from({ length: 9 }, (_, k) => alongLonLat(line, k / 8));
+  return pts.filter((p) => !onLand(p)).length / pts.length;
+}
+
+/** At most this many fog banks on a map (each a soft gradient ellipse; fewer are enlarged to cover). */
+const FOG_MAX_BANKS = 64;
+
+/**
+ * The close map's fog (SceneMap.sis) as soft banks in world pixels: long low ellipses laid in staggered rows over its
+ * outline (the whole world when it gives none), each with a seed for its own drift (remotion-v3 MapFog). A bank about a
+ * sixth of the map across, a third as tall; on a narrow outline smaller, so the fog keeps to it. Deterministic.
+ */
+export function fogPlan(sis: NonNullable<SceneMap["sis"]>, v: MapView, toPx: (p: readonly [number, number]) => XY, pxPerKm: number, widthKm: number, lineStart: (index: number | undefined, order: number) => number): NonNullable<V3GeoMap["fog"]> {
+  const area = sis.alan && sis.alan.length >= 3 ? sis.alan.map((p) => toPx(p)) : [{ x: 0, y: 0 }, { x: v.width, y: 0 }, { x: v.width, y: v.height }, { x: 0, y: v.height }];
+  const [x0, x1] = [Math.min(...area.map((p) => p.x)), Math.max(...area.map((p) => p.x))];
+  const [y0, y1] = [Math.min(...area.map((p) => p.y)), Math.max(...area.map((p) => p.y))];
+  let rx = Math.min(widthKm * 0.16 * pxPerKm, (x1 - x0) / 2.5);
+  let ry = Math.min(rx * 0.38, (y1 - y0) / 2);
+  const lay = () => {
+    const out: { x: number; y: number; rx: number; ry: number; seed: number }[] = [];
+    const [gx, gy] = [rx * 1.05, ry * 1.25];
+    for (let row = 0, y = y0 + ry * 0.4; y <= y1 - ry * 0.2; row++, y += gy)
+      for (let x = x0 + (row % 2 ? gx / 2 : 0) + rx * 0.3; x <= x1 - rx * 0.2; x += gx) {
+        const seed = Math.round(hash01(out.length + row * 31 + 1) * 1000) / 1000;
+        const p = { x: r1(x + (hash01(seed * 97) - 0.5) * gx * 0.35), y: r1(y + (hash01(seed * 53) - 0.5) * gy * 0.3) };
+        if (inPolygonXY(p, area)) out.push({ ...p, rx: r1(rx * (0.8 + hash01(seed * 13) * 0.45)), ry: r1(ry * (0.8 + hash01(seed * 7) * 0.4)), seed });
+      }
+    return out;
+  };
+  let banks = lay();
+  for (let k = 0; banks.length > FOG_MAX_BANKS && k < 6; k++) {
+    rx *= 1.25;
+    ry *= 1.25;
+    banks = lay();
+  }
+  // An outline too thin for a row: one bank at its middle.
+  if (!banks.length) banks = [{ x: r1((x0 + x1) / 2), y: r1((y0 + y1) / 2), rx: r1(Math.max(rx, (x1 - x0) / 2)), ry: r1(Math.max(ry, (y1 - y0) / 2)), seed: 0.5 }];
+  return { start: sis.satir !== undefined ? lineStart(sis.satir, 0) : 0, ...(sis.bitis_satir !== undefined ? { end: lineStart(sis.bitis_satir, 0) } : {}), banks };
 }
 
 /**
@@ -1994,6 +2056,13 @@ function projectGeoMap(
   };
   // A front's lines lie this far apart, and a routed side scatters about as far: a share of the map.
   const gapKm = (map.genislik_km ?? 1000) * 0.035;
+  // The close map's lakes and sea (its own coast and lakes when the plan has them; rivers are crossed, not stood off):
+  // a land unit's token on them is pulled to the nearest shore unless the step drives it into the water.
+  const dryLand = closeMap ? landOf(data.land, data.lakes) : undefined;
+  // A front written along one of the map's roads (every point within ~3% of the map of it) is a column on the march.
+  const roadLines = (map.yollar ?? []).filter((r) => r.noktalar.length >= 2).map((r) => r.noktalar.map((p) => toPx(p)));
+  const roadReachPx = Math.max(0.3, (map.genislik_km ?? 0) * 0.03) * pxPerKm;
+  const alongRoad = (line: readonly (readonly [number, number])[]) => line.length >= 2 && roadLines.some((r) => line.every((p) => nearestOnLine(r, toPx(p)).d <= roadReachPx));
   // What each step came from (its line, whether the unit holds there) and the lines its name is shown on, for the
   // narrated order of the moves below (NarratedMoves).
   const stepSources: StepSource[][] = [];
@@ -2008,12 +2077,20 @@ function projectGeoMap(
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
         // A front written end-on to the enemy turns to face it (faceEnemy; a flanking sweep keeps its own route).
         const enemy = enemyAt(i, y.satir);
-        const facing = "cephe" in y && enemy && !y.uzerinden ? { ...y, cephe: faceEnemy(y.cephe, enemy, enemyFrontAt(i, y.satir)) } : y;
-        const placed = formationPoints(facing, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined, { gapKm, ...(enemy ? { enemy } : {}) });
+        // Not a column on the march along a road (an ambush's victims: Trasimene's Romans strung along the shore road), nor
+        // a front the turn would carry into a lake or the sea (the beaten side pushed against the shore, enemies all round).
+        const turned = "cephe" in y && enemy && !y.uzerinden && !alongRoad(y.cephe) ? faceEnemy(y.cephe, enemy, enemyFrontAt(i, y.satir)) : undefined;
+        const wetter = turned && "cephe" in y && dryLand && landUnit(u) && !y.suya && wetShare(turned, dryLand) > wetShare(y.cephe, dryLand);
+        const facing = turned && !wetter ? { ...y, cephe: turned } : y;
+        // Driven into the water ("suya"): a cluster takes its water places first, as it takes its land ones otherwise.
+        const placed = formationPoints(facing, count, y.suya ? (p) => !onLand(p) : onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined, { gapKm, ...(enemy ? { enemy } : {}) });
+        const spread = y.bozgun ? routScatter(placed, gapKm * 1.3, i * 100 + si) : placed;
+        const ashore = dryLand && !y.suya && landUnit(u) ? pullAshore(spread, dryLand, Math.max(1, map.genislik_km! * 0.25)) : { points: spread, pulled: 0 };
+        if (ashore.pulled) opts.note?.(`"${u.ad ?? u.taraf}" ${y.satir}. satırda suda duruyordu: ${ashore.pulled} birliği en yakın kıyıya alındı (suya sürülüyorsa o adıma "suya": true)`);
         // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
         return {
           start: lineStart(y.satir, i),
-          points: (y.bozgun ? routScatter(placed, gapKm * 1.3, i * 100 + si) : placed).map((p) => toPx(p)),
+          points: ashore.points.map((p) => toPx(p)),
           alive,
           ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}),
           ...(y.bozgun ? { rout: true } : {}),
@@ -2201,6 +2278,7 @@ function projectGeoMap(
     return g.konum ? [{ start, end, ...toPx(g.konum), r: r1(((g.km ?? Math.max(1, (map.genislik_km ?? 0) * 0.05)) * pxPerKm) / 2) }] : [];
   });
   const dates = (map.tarih ?? []).map((d, i) => ({ start: lineStart(d.satir, i), text: d.metin })).sort((a, b) => a.start - b.start);
+  const fog = closeMap && map.sis ? fogPlan(map.sis, v, toPx, pxPerKm, map.genislik_km!, lineStart) : undefined;
   const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
@@ -2236,6 +2314,7 @@ function projectGeoMap(
     ...(fires.length ? { fires } : {}),
     ...(glows.length ? { glows } : {}),
     ...(dates.length ? { dates } : {}),
+    ...(fog?.banks.length ? { fog } : {}),
   };
   return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings, tilt !== undefined ? TILT_BADGE_TALL : 1);
 }

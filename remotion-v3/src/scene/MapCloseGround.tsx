@@ -309,6 +309,7 @@ export function CloseGround({
   layer,
   room,
   keep,
+  veil,
 }: {
   close: Close;
   frame: number;
@@ -336,6 +337,8 @@ export function CloseGround({
    * mark it names, `mx`,`my`, leaves the view); `x`,`y` its centre at its spot. Absent: at its spot, as placed.
    */
   keep?: (text: string, size: number, x: number, y: number, mx: number, my: number) => { x: number; y: number; alpha: number };
+  /** What lies over the ground and under its names (MapView's fog, MapFog): the ground's own drawing only. */
+  veil?: React.ReactNode;
 }) {
   const u = close.unit;
   const gradId = gid ?? "close";
@@ -480,6 +483,7 @@ export function CloseGround({
         );
       })}
       {clouds ? <CloudShadows frame={frame} fps={fps} world={clouds} u={u} gid={gradId} /> : null}
+      {veil}
       {names}
     </g>
   );

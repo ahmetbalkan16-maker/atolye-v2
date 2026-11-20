@@ -141,6 +141,7 @@ async function main() {
     endCard: false,
     // The old vertical window only in its own layout; a "dondur" Short is the 16:9 picture turned afterwards (below).
     ...(vertical && shortsLayout() === "dikey" ? { output: SHORTS_SIZE } : {}),
+    log: (s) => console.log(s.trim()),
   });
   // A "dondur" Short as production makes it: the finished 16:9 file turned a quarter clockwise (Format.rotatedShortArgs).
   const turn = async (file: string, still: boolean) => {

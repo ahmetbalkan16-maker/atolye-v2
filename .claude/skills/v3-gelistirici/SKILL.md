@@ -64,6 +64,13 @@ writer's data alone, so improve these files rather than adding a second path:
   bigger box must drop stray coast pieces (CloseCoast `assembleLand`, `COAST_VERSION`); a flat map keeps its library coast.
   Proof: `smoke-v3-motion` T–U, `smoke-v3-episode-director` (tilt and coast scenarios), stills flat vs tilted measured
   with token boxes, and `--dikey` once (a Short is the 16:9 turned 90°).
+- Fog, water and ambushes (20 Nov 2026, for the Lake Trasimene Short): `SceneMap.sis` → `MapBuilder.fogPlan` →
+  `V3GeoMap.fog` → `remotion-v3/src/scene/MapFog.tsx` (drawn as CloseGround's `veil`: over the ground, under the names
+  and tokens). Land units stay off lakes and the sea: `maps/LandUnits.ts` — at script time `MapRules` asks it with
+  `ScriptEngineInput.onLand` (Natural Earth, a 1.5 km tolerance), at plan time `pullAshore` moves stray tokens (noted
+  through `GeoMapOptions.note` → Director `log`); a step `suya: true` is a unit driven into the water. An ambush map's
+  asks are `maps/AmbushMap.ts`. OSM lakes mapped as relations come from `CloseCoast.riversFromOverpass`
+  (`RIVER_VERSION` 2). Proof: smoke-v3-episode-director O13c, smoke-v3-motion Z2, smoke-v3-script G1.
 - Period photos move only as one flat picture (Ken Burns); the depth warp is off (`ATOLYE_V3_DERINLIK=1` to try).
 
 ## House style (match the file you are in)
