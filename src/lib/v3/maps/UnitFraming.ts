@@ -336,7 +336,7 @@ export function besideAction(marks: readonly ActionMark[], x: number, width: num
 /**
  * How much of a map a lone character standing at stage share `x` spoils over a shot of `duration` frames, as
  * MapFramingCheck reads it: at each action frame what acts outside the window round them (loneWindowCentre), cut at its
- * edge or behind them; at each camera stop what stands behind them (standingAt). The Taranto Short's s3 (11 Nov 2026):
+ * edge or behind them; at each camera stop — one on an action frame too — what stands behind them (standingAt). The Taranto Short's s3 (11 Nov 2026):
  * de Pignati was placed for the wide view of his own line, and the camera's close-in on the six ships at 0.3 s set them
  * behind him. Also each name they would cover at the shot's first view and at each camera stop (mapNameBoxes: cities,
  * armies, state and arrow names — what mapStageX keeps them off), so a character moved clear of the action does not
@@ -346,16 +346,21 @@ export function besideAction(marks: readonly ActionMark[], x: number, width: num
 export function loneMisses(m: V3GeoMap, x: number, duration: number, width: number, height: number, win: FrameWindow = fullStage(width, height)): number {
   const winW = win.width * width;
   let misses = 0;
-  const acts = actionFrames(m).filter((f) => f < duration);
-  for (const frame of acts) {
+  // Action frames already spoilt: a camera stop there is not counted again (as MapFramingCheck reports it once). A stop on
+  // an action frame where nothing acting is spoilt still counts what stands behind them — the Constantinople Short's s4
+  // (20 Nov 2026): the camera closed in on the six galleys as Mehmed's badge came on, and Halil stood in front of them.
+  const spoilt = new Set<number>();
+  for (const frame of actionFrames(m).filter((f) => f < duration)) {
     const marks = actionAt(m, frame, width, height);
     if (!marks.length) continue;
     const mid = (Math.min(...marks.map((k) => k.x)) + Math.max(...marks.map((k) => k.x))) / 2;
     const x0 = Math.min(width - winW, Math.max(0, loneWindowCentre(x, mid / width, win) * width - winW / 2));
-    misses += marks.filter((k) => k.x - k.reach < x0 || k.x + k.reach > x0 + winW || k.y - k.reach < 0 || k.y + k.reach > height || behindFigure(k, x, width, height)).length;
+    const here = marks.filter((k) => k.x - k.reach < x0 || k.x + k.reach > x0 + winW || k.y - k.reach < 0 || k.y + k.reach > height || behindFigure(k, x, width, height)).length;
+    if (here) spoilt.add(frame);
+    misses += here;
   }
   for (const key of m.camera ?? []) {
-    if (key.frame <= 0 || key.frame >= duration || acts.includes(key.frame)) continue;
+    if (key.frame <= 0 || key.frame >= duration || spoilt.has(key.frame)) continue;
     misses += standingAt(m, key.frame, width, height).filter((k) => k.x + k.reach > 0 && k.x - k.reach < width && behindFigure(k, x, width, height)).length;
   }
   const views = [0, ...(m.camera ?? []).map((k) => k.frame).filter((f) => f > 0 && f < duration)];

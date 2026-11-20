@@ -2980,6 +2980,27 @@ async function main() {
     const named = { cities: [{ label: "Taranto", x: 680, y: 700 }], armies: [], territories: [], arrows: [], vehicles: [{ kind: "gemi", color: "#b3263a", count: 3, start: 9, path: [{ x: 500, y: 600 }] }] } as unknown as NonNullable<typeof shot.geoMap>;
     assert.ok(loneMisses(named, 0.36, 300, 1920, 1080) > 0 && loneMisses(named, 0.16, 300, 1920, 1080) === 0, "the name counts");
     assert.equal(clearAtEveryStop(named, 0.27, 300, 1920, 1080), 0.16);
+
+    // The Constantinople Short's s4 at 36.2 s (20 Nov 2026, the plan's own numbers, laid out on the whole frame): the map's
+    // camera closed in on the six galleys on the frame Mehmed's badge came on. The placer skipped every camera stop on an
+    // action frame, so Halil (0.74) was "clear" and stood in front of the galleys; the check saw them behind him.
+    const chain = {
+      world: { width: 5431, height: 3055 },
+      cities: [],
+      armies: [],
+      territories: [],
+      arrows: [],
+      camera: [{ frame: 0, x: 2715.5, y: 1527.5, zoom: 0.583 }, { frame: 181, x: 2715.5, y: 1527.5, zoom: 1 }],
+      badges: [{ castId: "mehmed", label: "Mehmed II", start: 181, path: [{ x: 2485.1, y: 1985.5 }] }],
+      vehicles: [{ kind: "kadirga", color: "#3fae3a", count: 6, start: 9, path: [{ x: 2945.9, y: 1374.8 }] }],
+    } as unknown as NonNullable<typeof shot.geoMap>;
+    const chainPlan = (x: number) => ({ fps: 30, width: 1920, height: 1080, shots: [{ id: "s4-chain-golden-horn", start: 0, duration: 473, performers: [{ x, moves: [] }], geoMap: chain }] });
+    assert.deepEqual(mapFramingFaults(chainPlan(0.74) as never), [{ at: 6, shot: "s4-chain-golden-horn", ayrinti: "kamera hareketiyle kadirga ×6 karakterin arkasında" }]);
+    assert.equal(loneMisses(chain, 0.74, 473, 1920, 1080), 1, "a camera stop on an action frame counts what stands behind him");
+    // He moves just beside the galleys (right of them, nearest his spot), where nothing is behind him at any stop.
+    const moved = clearAtEveryStop(chain, 0.74, 473, 1920, 1080);
+    assert.equal(moved, 0.76);
+    assert.deepEqual(mapFramingFaults(chainPlan(moved) as never), []);
   });
 
   await scenario("X1 smoother transitions (owner, 12 Nov 2026: \"daha akıcı geçişler\"): the last shot stays under the next one's transition, a dissolve within one place, the map camera never jumps, drifts and pictures ease", () => {
