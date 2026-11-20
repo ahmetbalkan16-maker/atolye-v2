@@ -37,7 +37,7 @@ import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/Siege
 import { directBattleMaps, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
-import { assembleLand, chainWays, closeCoastFor, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
+import { assembleLand, chainWays, closeCoastFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { applyAtlasErrata, ATLAS_ERRATA, atlasYear, clipToConvex, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -3586,6 +3586,47 @@ async function main() {
       assert.deepEqual(await closeCoastFor({ workRoot: root }, world, everywhere, () => {}, true), old, "flat: the library's coast as it was");
       assert.equal(await closeCoastFor({ workRoot: root }, world, everywhere, () => {}, false), undefined, "tilted: built anew (inland: no coast)");
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  await scenario("Overpass down for a world camera stops widened: the coast of a library box that holds the whole box stands in, never one covering only part (Constantinople remake s3, 20 Nov 2026)", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kiyi-"));
+    const prevFetch = globalThis.fetch;
+    try {
+      const paths = { workRoot: root };
+      const wide = coastBox({ bounds: { west: 28.80, east: 29.10, south: 40.95, north: 41.10 } });
+      const part = coastBox({ bounds: { west: 28.95, east: 29.20, south: 40.95, north: 41.10 } });
+      const huge = coastBox({ bounds: { west: 27.0, east: 31.0, south: 40.0, north: 42.0 } });
+      const write = async (v: number, box: typeof wide, land: unknown) => {
+        mkdirSync(path.dirname(coastFile(paths, v, box)), { recursive: true });
+        writeFileSync(coastFile(paths, v, box), JSON.stringify({ land, water: [] }));
+        await keepCoastBox(paths, v, box);
+      };
+      await write(2, wide, [[[[28.8, 41.0], [29.1, 41.0], [29.1, 41.1], [28.8, 41.0]]]]);
+      await write(2, part, [[[[29.0, 41.0], [29.2, 41.0], [29.2, 41.1], [29.0, 41.0]]]]);
+      await write(2, huge, [[[[27, 40], [31, 40], [31, 42], [27, 40]]]]);
+      await keepCoastBox(paths, 2, wide);
+      assert.equal((await coastBoxes(paths)).length, 3, "each box once in the index");
+      // The widened world of a close map (inside the wide box, past the part box's west edge).
+      const world = { bounds: { west: 28.88, east: 29.02, south: 41.0, north: 41.06 } };
+      assert.deepEqual(coveringCoastBox(coastBox(world), await coastBoxes(paths))?.box, wide, "the smallest box holding it, not the part one nor the wider one");
+      assert.equal(coveringCoastBox(coastBox({ bounds: { west: 30.9, east: 31.3, south: 41.0, north: 41.06 } }), await coastBoxes(paths)), undefined, "only part covered: none");
+      // Overpass down (every mirror refuses): the wide box's coast is used; the world's own box is not invented in the index.
+      globalThis.fetch = (async () => {
+        throw new Error("offline");
+      }) as typeof fetch;
+      const notes: string[] = [];
+      const sea = [[[[0, 0], [1, 0], [1, 1], [0, 0]]]] as never;
+      const got = await closeCoastFor(paths, world, sea, (s) => notes.push(s), false);
+      assert.deepEqual(got?.land, [[[[28.8, 41.0], [29.1, 41.0], [29.1, 41.1], [28.8, 41.0]]]]);
+      assert.ok(notes.some((n) => n.includes("kaplayan daha geniş kutunun kıyısı")), notes.join(" | "));
+      assert.equal((await coastBoxes(paths)).length, 3);
+      // The library's own box of the world is read first and recorded in the index.
+      await write(2, coastBox(world), [[[[28.9, 41.0], [29.0, 41.0], [29.0, 41.05], [28.9, 41.0]]]]);
+      assert.deepEqual((await closeCoastFor(paths, world, sea, () => {}, false))?.land, [[[[28.9, 41.0], [29.0, 41.0], [29.0, 41.05], [28.9, 41.0]]]]);
+    } finally {
+      globalThis.fetch = prevFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });

@@ -331,17 +331,19 @@ export function assembleLand(ways: readonly (readonly Pt[])[], box: Box, centreI
  * coast the library holds from an older assembly is used as it is when there is none of this one (a flat map's).
  */
 export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pick<MapWorld, "bounds">, fallbackLand: readonly Polygon[], log: (s: string) => void = () => {}, legacy = false): Promise<CloseCoast | undefined> {
-  // A little past the world on every side: where the land is closed along the box's edge, that edge (no coast) is
-  // never in sight (a straight "shore" ran along the top of the first Constantinople map).
-  const b = world.bounds;
-  const mx = (b.east - b.west) * 0.05;
-  const my = (b.north - b.south) * 0.05;
-  const box: Box = { west: round(b.west - mx), east: round(b.east + mx), south: round(b.south - my), north: round(b.north + my) };
-  const libOf = (v: number) => path.join(paths.workRoot, "_kutuphane", "osm-kiyi", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+  const box = coastBox(world);
+  const libOf = (v: number) => coastFile(paths, v, box);
   const lib = libOf(COAST_VERSION);
-  if (existsSync(lib)) return JSON.parse(await fs.readFile(lib, "utf8")) as CloseCoast;
+  if (existsSync(lib)) {
+    await keepCoastBox(paths, COAST_VERSION, box);
+    return JSON.parse(await fs.readFile(lib, "utf8")) as CloseCoast;
+  }
   const older = async () => {
-    for (let v = COAST_VERSION - 1; v >= 1; v--) if (existsSync(libOf(v))) return JSON.parse(await fs.readFile(libOf(v), "utf8")) as CloseCoast;
+    for (let v = COAST_VERSION - 1; v >= 1; v--)
+      if (existsSync(libOf(v))) {
+        await keepCoastBox(paths, v, box);
+        return JSON.parse(await fs.readFile(libOf(v), "utf8")) as CloseCoast;
+      }
     return undefined;
   };
   if (legacy) {
@@ -359,12 +361,94 @@ export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pic
     // Append-only library: a box's coast is never replaced.
     await fs.mkdir(path.dirname(lib), { recursive: true });
     if (!existsSync(lib)) await fs.writeFile(lib, JSON.stringify(coast));
+    await keepCoastBox(paths, COAST_VERSION, box);
     return coast;
   } catch (e) {
-    // Offline: the box's coast from an older assembly, when the library has one, is still far finer than Natural Earth's.
+    // Offline: the box's coast from an older assembly, when the library has one, is still far finer than Natural Earth's;
+    // else the coast of a library box that holds this whole box (a map whose camera stops widened its world past the box
+    // its own production fetched: the Constantinople remake, 20 Nov 2026, drew Natural Earth's straight coast with the
+    // walls standing in the sea, while a preview's wider box of the same place was in the library).
     const old = await older();
-    log(`⚠ yakın harita kıyısı alınamadı (${(e as Error).message.slice(0, 120)}); ${old ? "kütüphanedeki eski kıyı" : "Natural Earth kıyısı"} kullanılır`);
-    return old;
+    const wider = old ? undefined : await coveringCoast(paths, box);
+    log(`⚠ yakın harita kıyısı alınamadı (${(e as Error).message.slice(0, 120)}); ${old ? "kütüphanedeki eski kıyı" : wider ? "kütüphanede bu dünyayı kaplayan daha geniş kutunun kıyısı" : "Natural Earth kıyısı"} kullanılır`);
+    return old ?? wider;
+  }
+}
+
+/**
+ * The box a world's coast is fetched and kept under: a little past the world on every side, so where the land is closed
+ * along the box's edge, that edge (no coast) is never in sight (a straight "shore" ran along the top of the first
+ * Constantinople map).
+ */
+export function coastBox(world: Pick<MapWorld, "bounds">): Box {
+  const b = world.bounds;
+  const mx = (b.east - b.west) * 0.05;
+  const my = (b.north - b.south) * 0.05;
+  return { west: round(b.west - mx), east: round(b.east + mx), south: round(b.south - my), north: round(b.north + my) };
+}
+
+/** The library file of a box's coast built by assembly version `v`. */
+export function coastFile(paths: Pick<V3Paths, "workRoot">, v: number, box: Box): string {
+  return path.join(paths.workRoot, "_kutuphane", "osm-kiyi", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+}
+
+/** A coast the library holds, by its box (`osm-kiyi/kutular.jsonl`; the files are named by a hash of it). */
+export interface CoastBoxEntry {
+  readonly v: number;
+  readonly box: Box;
+}
+
+const coastIndex = (paths: Pick<V3Paths, "workRoot">) => path.join(paths.workRoot, "_kutuphane", "osm-kiyi", "kutular.jsonl");
+
+/** The library's coast boxes whose files are still there. */
+export async function coastBoxes(paths: Pick<V3Paths, "workRoot">): Promise<CoastBoxEntry[]> {
+  const index = coastIndex(paths);
+  if (!existsSync(index)) return [];
+  return (await fs.readFile(index, "utf8")).split(/\r?\n/).flatMap((line) => {
+    try {
+      const e = JSON.parse(line) as CoastBoxEntry;
+      return typeof e?.v === "number" && e.box && existsSync(coastFile(paths, e.v, e.box)) ? [e] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Records a coast's box in the library's index once (append-only, one JSON a line). */
+export async function keepCoastBox(paths: Pick<V3Paths, "workRoot">, v: number, box: Box): Promise<void> {
+  try {
+    if ((await coastBoxes(paths)).some((e) => e.v === v && sameBox(e.box, box))) return;
+    await fs.mkdir(path.dirname(coastIndex(paths)), { recursive: true });
+    await fs.appendFile(coastIndex(paths), `${JSON.stringify({ v, box })}\n`);
+  } catch {
+    // The index only helps an offline run; a coast is never lost for it.
+  }
+}
+
+const sameBox = (a: Box, b: Box) => [a.west - b.west, a.east - b.east, a.south - b.south, a.north - b.north].every((d) => Math.abs(d) < 1e-9);
+const boxArea = (b: Box) => Math.max(0, b.east - b.west) * Math.max(0, b.north - b.south);
+
+/**
+ * The library box whose coast can stand in for `box`'s when Overpass does not answer: one holding the whole box (its
+ * land is closed along its own edges, outside this world, so no straight shore comes into sight); the newer assembly
+ * first, then the smallest. Every library box is a close map's (≤ 120 km, its coast simplified to the same ~13 m, at
+ * most a few hundred kB), so a wider one costs the frame little. Undefined when none does — a box covering only part
+ * would leave sea, or a straight seam in the stroked coast, where its edge crosses the land.
+ */
+export function coveringCoastBox(box: Box, entries: readonly CoastBoxEntry[]): CoastBoxEntry | undefined {
+  if (!(box.east > box.west && box.north > box.south)) return undefined;
+  return entries
+    .filter((e) => e.box.west <= box.west && e.box.east >= box.east && e.box.south <= box.south && e.box.north >= box.north)
+    .sort((a, b) => b.v - a.v || boxArea(a.box) - boxArea(b.box))[0];
+}
+
+/** The coast of the library box coveringCoastBox picks; undefined when there is none or it cannot be read. */
+async function coveringCoast(paths: Pick<V3Paths, "workRoot">, box: Box): Promise<CloseCoast | undefined> {
+  try {
+    const best = coveringCoastBox(box, await coastBoxes(paths));
+    return best ? (JSON.parse(await fs.readFile(coastFile(paths, best.v, best.box), "utf8")) as CloseCoast) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
