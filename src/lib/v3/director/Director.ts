@@ -431,6 +431,11 @@ const TOLD_ACTS: readonly [RegExp, Omit<LineAct, "karakter">][] = [
   [/(?<!\b(?:never|not|hardly)\s)(?<!n't\s)\blos(?:e|es|t|ing)\b(?:\s+[\p{L}'-]+){0,3}?\s+(?:battles?|war|siege|city|cities|throne|crown|kingdom|empire|capital|army|armies|fleet|navy|men|troops|soldiers|sons?|daughters?|wife|husband|brothers?|sisters?|father|mother|heir|friends?|ally|allies|vizier|general|commander|life|lives|eye|leg|arm)\b|(?<!\p{L})(?:savaş|muharebe|şehr|taht|tac|ordu|filo|oğl|eşi|kardeş|baba|sadrazam|vezir|komutan|başkent|hayat|can)\p{L}*\s+(?:kaybet|yitir)/iu, { jest: "yuz_avucla", duygu: "uzgun" }],
   [/\bsiege|\bbesieg|\bbombard|\bpound(?:ed|ing)\b|\bstorm(?:s|ed|ing)? (?:the|its|their|his|her)\b|\bbreach(?:es|ed|ing)?\b|\bkuşat|\bgedik/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
   [/\b(?:[Mm]arching|march(?:es|ed))\b|\bmarch (?:on|to|into|from|against|across|north|south|east|west|through|towards?|upon|out|off|back)\b|\bsets? out (?:for|from|against|to)\b|\byürüd|\byürüyor|\bsefere çık/, { jest: "isaret_et", duygu: "kararli" }],
+  // The Fall of Constantinople Short (20 Nov 2026, story 3/10 on "Constantine XI throws off his regalia and charges",
+  // "Mehmed II enters Hagia Sophia"): a charge, a fight, a defence and an entry. Kept narrow: "charged with treason",
+  // "in charge", "free of charge", "held the throne", "a fighter" and "entered into an alliance" act nothing.
+  [/(?<!\b(?:in|of) )\bcharg(?:e|es|ed|ing)\b(?! (?:with|of|for)\b)|\bfight(?:s|ing)\b|\bfought\b|\bfight (?:on|back|off|to)\b|\bdefend|\b(?:hold(?:s|ing)?|held) (?:the |their |his |her |its )?(?:line|walls?|breach|gates?|pass|bridge|fort|out|firm|fast)\b|\bsavaşt[ıi]|\bsavaşıyor|\bsavun|\bhücum/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
+  [/\benter(?:s|ed)\b(?! into\b)|\b(?:rides?|rode) into\b|(?<!\p{L})gir(?:di|er|iyor)(?!\p{L})/iu, { jest: "isaret_et", duygu: "kararli" }],
 ];
 /** Words of a name too common to stand for it ("grand kiosks" is not the Grand Vizier). */
 const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin", "al", "grand", "great"]);

@@ -2329,6 +2329,25 @@ async function main() {
     }
   });
 
+  await scenario("O34c Fall of Constantinople Short (story 3/10): a charge, a fight, a defence and an entry are acted by the named; \"charged with treason\", \"in charge\", \"held the throne\", \"entered into an alliance\" are not", () => {
+    const cast = [{ id: "constantine-xi", ad: "Constantine XI" }, { id: "mehmed-ii", ad: "Mehmed II" }, { id: "giustiniani", ad: "Giovanni Giustiniani" }];
+    const acts = (text: string) => toldActs(text, cast).map((a) => [a.karakter, a.jest, a.duygu]);
+    // The measured lines.
+    assert.deepEqual(acts("Constantine XI throws off his regalia and charges."), [["constantine-xi", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Mehmed II enters Hagia Sophia. The city falls. The Byzantine Empire is no more."), [["mehmed-ii", "isaret_et", "kararli"]]);
+    assert.deepEqual(acts("Giustiniani and Constantine XI hold the breach with 8,000 men."), [["constantine-xi", "yumruk_kaldir", "kararli"], ["giustiniani", "yumruk_kaldir", "kararli"]]);
+    // Other forms, English and Turkish.
+    for (const [text, jest] of [["Constantine fights on.", "yumruk_kaldir"], ["Constantine fought to the last.", "yumruk_kaldir"], ["Giustiniani holds the walls.", "yumruk_kaldir"], ["Giustiniani defended the gate.", "yumruk_kaldir"], ["Mehmed rode into the city.", "isaret_et"], ["Mehmed entered Constantinople.", "isaret_et"],
+      ["Konstantin surları savundu.", "yumruk_kaldir"], ["Konstantin son ana kadar savaştı.", "yumruk_kaldir"], ["Mehmed Ayasofya'ya girdi.", "isaret_et"]] as const) {
+      const turkish = [{ id: "constantine-xi", ad: "Konstantin" }, { id: "mehmed-ii", ad: "Mehmed II" }, { id: "giustiniani", ad: "Giustiniani" }, { id: "constantine-en", ad: "Constantine" }];
+      assert.deepEqual(toldActs(text, turkish).map((a) => a.jest), [jest], text);
+    }
+    // Charges of law, being in charge, a reign and a pact act nothing.
+    for (const text of ["Giustiniani was charged with treason.", "Mehmed is in charge.", "Mehmed served them free of charge.", "Constantine took charge of the city.", "Mehmed held the throne for thirty years.", "Mehmed entered into an alliance with Venice.", "Constantine was no fighter.", "Mehmed loved a good fight."]) {
+      assert.deepEqual(acts(text), [], text);
+    }
+  });
+
   await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
     const fps = 30;
     const turns = [{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }, { castId: "b", start: 200, end: 230 }, { castId: "a", start: 400, end: 450 }];
