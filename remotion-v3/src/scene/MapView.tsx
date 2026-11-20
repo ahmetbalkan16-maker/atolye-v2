@@ -10,7 +10,7 @@ import { CAMERA_MOVE_S, cameraAt } from "./mapCamera";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
-import { badgeEdgeFits, badgeExtent, type HudCards, hudBoxes, labelSpot } from "./hudLayout";
+import { badgeEdgeFits, badgeExtent, type HudCards, hudBoxes, labelSpot, nameInFrame } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { MapNight } from "./MapNight";
 import { isNightMap } from "./mapEffects";
@@ -511,8 +511,9 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
   // The screen marks (in world px, from the picture's) and the badges on the map now: no unit's or battle's label is
   // printed over them (labelSpot). A speaking badge's words float just over its ring (ShotView's SpeechBubble at
   // MAP_BUBBLE size): room for two lines there too (Waterloo: "74,326 men" pushed off the date stamp met "Stay off the grass.").
+  const screenMarks = overlays.map((o) => ({ x0: cam.x + (o.x0 - W / 2) / cam.zoom, x1: cam.x + (o.x1 - W / 2) / cam.zoom, y0: cam.y + (o.y0 - H / 2) / cam.zoom, y1: cam.y + (o.y1 - H / 2) / cam.zoom }));
   const labelAvoid = [
-    ...overlays.map((o) => ({ x0: cam.x + (o.x0 - W / 2) / cam.zoom, x1: cam.x + (o.x1 - W / 2) / cam.zoom, y0: cam.y + (o.y0 - H / 2) / cam.zoom, y1: cam.y + (o.y1 - H / 2) / cam.zoom })),
+    ...screenMarks,
     ...badgePlaces
       .filter((p) => p.alpha > 0.05)
       .flatMap((p) => {
@@ -561,6 +562,15 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
       if (area > 0 && (ox * oy) / area > 0.1) give = Math.max(give, p.alpha);
     }
     return edge * (1 - give);
+  };
+  // A close map's place name or a line's name the frame's edge would cut slides back inside it, off the screen marks,
+  // while what it names is in view (Constantinople Short, 20 Nov 2026: "OTTOMAN CAMP" was cut 18 px by the left edge);
+  // one already whole inside is left where placeCloseLabels put it. Sized as nameShown measures it.
+  const keepName = (text: string, size: number, x: number, y: number, mx: number, my: number) => {
+    const lines = labelLines(text.toLocaleUpperCase("en-US"));
+    const f = room(x, y);
+    const half = { x: ((Math.max(...lines.map((l) => l.length)) * (relief ? 0.58 : 0.78) * size * k) / 2) * f.fx, y: ((lines.length * size * (relief ? 0.98 : 1.1) * k) / 2) * f.fy };
+    return nameInFrame({ x, y }, half, { x: mx, y: my }, viewAt(y), screenMarks, { margin: m, fade: 60 * k });
   };
   // A sweeping conquest gets its border (and its colour to the coast) once the sweep has covered the land.
   const borderAlpha = (t: V3GeoMap["territories"][number]) =>
@@ -766,7 +776,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
           )
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keep={keepName} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} /> : null}
         {map.cities.map((c, i) =>
           relief || upright ? null : (
             <g key={`c${i}`}>
@@ -823,7 +833,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
                   const p = along(part, (j + 0.5) / Math.max(2, Math.round(links / 6)));
                   return <rect key={`f${j}`} x={p.x - 5 * k} y={p.y - 3.5 * k + Math.sin(frame * 0.12 + j) * 1.2 * k} width={10 * k} height={7 * k} rx={2 * k} fill="#8a5a2b" stroke="#2b1d10" strokeWidth={1.5 * k} />;
                 })}
-                {grow > 0.6 ? U(mid.x, mid.y, <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 30, Math.min(1, (grow - 0.6) / 0.3))}</g>) : null}
+                {grow > 0.6 ? ((n) => (n.alpha > 0 ? U(n.x, n.y, <g transform={`translate(${n.x} ${n.y})`}>{markLabel(ln.label, 30, Math.min(1, (grow - 0.6) / 0.3) * n.alpha)}</g>) : null))(keepName(ln.label, 30, mid.x, mid.y, ln.labelSpot?.x ?? c.x, ln.labelSpot?.y ?? c.y)) : null}
               </g>
             );
           }
@@ -832,7 +842,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
               {G(<path d={d} fill="none" stroke={ln.color} strokeOpacity={0.35 * pulse} strokeWidth={26 * k} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `blur(${6 * k}px)` }} />)}
               {G(<path d={d} fill="none" stroke={ln.color} strokeWidth={7 * k} strokeLinecap="round" strokeLinejoin="round" />)}
               {G(<path d={d} fill="none" stroke="#fffbe6" strokeWidth={2.5 * k} strokeLinecap="round" strokeLinejoin="round" />)}
-              {grow > 0.6 ? U(mid.x, mid.y, <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 34, Math.min(1, (grow - 0.6) / 0.3))}</g>) : null}
+              {grow > 0.6 ? ((n) => (n.alpha > 0 ? U(n.x, n.y, <g transform={`translate(${n.x} ${n.y})`}>{markLabel(ln.label, 34, Math.min(1, (grow - 0.6) / 0.3) * n.alpha)}</g>) : null))(keepName(ln.label, 34, mid.x, mid.y, ln.labelSpot?.x ?? c.x, ln.labelSpot?.y ?? c.y)) : null}
             </g>
           );
         })}

@@ -235,3 +235,27 @@ export function labelSpot(
   }
   return best ? { ...best, alpha } : { ...start, alpha: 0 };
 }
+
+/**
+ * Where a place's name on the close map stands so the frame never cuts it (Constantinople Short, 20 Nov 2026: "OTTOMAN
+ * CAMP" stood 18 px past the left edge at 27–28 s while the camera held the land wall): a name wholly inside the view,
+ * `margin` from its edges, stays exactly where placeCloseLabels put it; one the edge cuts slides in (labelSpot, off the
+ * screen marks in `avoid`, faded where no free place is near) and fades as what it names (`anchor`) leaves the view —
+ * from where the name's own distance from its mark no longer keeps it in (so it never jumps), gone `fade` further out.
+ * World px, like labelSpot.
+ */
+export function nameInFrame(
+  at: { x: number; y: number },
+  half: { x: number; y: number },
+  anchor: { x: number; y: number },
+  view: Box,
+  avoid: readonly Box[],
+  o: { readonly margin: number; readonly fade: number },
+): { x: number; y: number; alpha: number } {
+  const m = o.margin;
+  if (at.x - half.x >= view.x0 + m && at.x + half.x <= view.x1 - m && at.y - half.y >= view.y0 + m && at.y + half.y <= view.y1 - m) return { x: at.x, y: at.y, alpha: 1 };
+  const spot = labelSpot(at, half, at, view, avoid, { margin: m, fade: Number.MAX_VALUE, reach: half.y * 6 });
+  const outside = Math.max(view.x0 - anchor.x, anchor.x - view.x1, view.y0 - anchor.y, anchor.y - view.y1, 0);
+  const leaving = Math.max(0, outside - Math.hypot(at.x - anchor.x, at.y - anchor.y));
+  return { x: spot.x, y: spot.y, alpha: spot.alpha * Math.max(0, Math.min(1, 1 - leaving / Math.max(1e-6, o.fade))) };
+}

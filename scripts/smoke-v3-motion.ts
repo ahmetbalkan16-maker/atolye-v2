@@ -14,6 +14,7 @@ import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubb
 import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
+import { nameInFrame } from "../remotion-v3/src/scene/hudLayout";
 import { applyMatrix, atlasCornerSeen, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
 import { type V3CameraKey, type V3DrawnSet, type V3GeoMap, type V3Performer, type V3Shot, type V3Viseme, wallIsRing } from "../src/lib/v3/render/RenderPlanTypes";
 
@@ -31,6 +32,9 @@ interface MapUnitsModule {
   unitDotsAt(map: V3GeoMap, placed: ReturnType<MapUnitsModule["placeTokens"]>, facings: number[][], frame: number, fps: number, k: number): { dots: (({ dots: { x: number; y: number; r: number; gone: number }[] } | undefined)[] | undefined)[]; guns: ({ x: number; y: number }[] | undefined)[] };
 }
 const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
+// MapCloseGround.tsx imports "remotion" too: loaded at run time like MapUnits.
+type CloseGroundProps = { close: NonNullable<V3GeoMap["close"]>; frame: number; fps: number; era: V3GeoMap["era"]; label: (text: string, size: number) => unknown; k: number; up?: (x: number, y: number, node: unknown) => unknown; layer?: "ground" | "upright"; keep?: (text: string, size: number, x: number, y: number, mx: number, my: number) => { x: number; y: number; alpha: number } };
+const MAP_CLOSE_GROUND: string = "../remotion-v3/src/scene/MapCloseGround";
 
 const FPS = 30;
 const FRAMES = 420;
@@ -970,6 +974,58 @@ async function main() {
     // Switched back to blocks (ATOLYE_V3_BIRLIK_STILI=blok at plan time): no circles.
     const blocks = { ...siege, unitStyle: "blok" } as V3GeoMap;
     assert.ok(unitDotsAt(blocks, placeTokens(blocks, 60, 30, 1), [], 60, 30, 1).dots.every((u) => u === undefined));
+  });
+
+  await scenario("Z a close map's place names stay whole in the frame (Constantinople Short, 20 Nov 2026: \"OTTOMAN CAMP\" cut 18 px by the left edge at 27–28 s)", async () => {
+    const { CloseGround } = (await import(MAP_CLOSE_GROUND)) as { CloseGround: (p: CloseGroundProps) => unknown };
+    const view = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
+    const margin = 14;
+    const fade = 60;
+    // The order's own layout record: the camp's name 206×32 at x = −18 while its camp's edge (the spot's anchor) is in view.
+    const half = { x: 103, y: 16 };
+    const cut = { x: -18 + 103, y: 359 };
+    const kept = nameInFrame(cut, half, { x: 205, y: 359 }, view, [], { margin, fade });
+    assert.deepEqual(kept, { x: margin + half.x, y: 359, alpha: 1 }, "slid in to the margin, whole");
+    // A name already whole inside stays exactly where placeCloseLabels put it, even under a screen mark.
+    const stamp = { x0: 40, y0: 30, x1: 600, y1: 120 };
+    assert.deepEqual(nameInFrame({ x: 400, y: 80 }, half, { x: 400, y: 80 }, view, [stamp], { margin, fade }), { x: 400, y: 80, alpha: 1 });
+    // Slid in under a screen mark (the date stamp in the top left): moved off it.
+    const under = nameInFrame({ x: 60, y: 80 }, half, { x: 80, y: 80 }, view, [stamp], { margin, fade });
+    assert.ok(under.alpha === 1 && (under.y - half.y >= stamp.y1 || under.x - half.x >= stamp.x1), JSON.stringify(under));
+    // What it names leaving the view: the name fades with it (never pinned to the edge naming nothing), without a jump —
+    // still whole while the name's own distance from its mark keeps it in, gone `fade` further out.
+    const at = (mx: number) => nameInFrame({ x: mx - 120, y: 359 }, half, { x: mx, y: 359 }, view, [], { margin, fade }).alpha;
+    assert.equal(at(-100), 1);
+    assert.ok(at(-150) > 0.4 && at(-150) < 1 && at(-230) === 0, JSON.stringify([at(-150), at(-230)]));
+    // Rendered: CloseGround draws the camp's name where `keep` puts it — on the upright layer of a tilted map too.
+    const close = {
+      unit: 10,
+      ground: [],
+      roads: [],
+      walls: [{ label: "Theodosian Walls", labelSpot: { x: 900, y: 500, dx: 0, dy: 0 }, points: [{ x: 900, y: 300 }, { x: 900, y: 700 }], towers: [], gates: [] }],
+      settlements: [{ kind: "ordugah" as const, label: "Ottoman camp", labelSpot: { x: 205, y: 359, dx: -120, dy: 0 }, x: 260, y: 359, start: 0, items: [{ x: 260, y: 359, angle: 0, seed: 1 }] }],
+      buildings: [],
+    };
+    const label = (t: string) => createElement("text", { "data-name": t }, t);
+    const keep = (text: string, size: number, x: number, y: number, mx: number, my: number) => nameInFrame({ x, y }, { x: (text.length * 0.58 * size) / 2, y: (size * 0.98) / 2 }, { x: mx, y: my }, view, [], { margin, fade });
+    const html = (o: Partial<CloseGroundProps>) => renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close, frame: 30, fps: 30, era: "orta", label, k: 1, ...o })));
+    const nameAt = (markup: string, name: string) => {
+      const m = new RegExp(`<g transform="translate\\(([-\\d.]+) ([-\\d.]+)\\)"[^>]*><text data-name="${name}"`).exec(markup);
+      assert.ok(m, `${name} not drawn: ${markup.slice(0, 300)}`);
+      return { x: Number(m[1]), y: Number(m[2]) };
+    };
+    const w = (12 * 0.58 * 30) / 2;
+    assert.equal(nameAt(html({}), "Ottoman camp").x, 85, "without keep: at its spot, cut by the edge as before");
+    assert.equal(nameAt(html({ keep }), "Ottoman camp").x, margin + w, "kept: slid in whole");
+    // The wall's name, whole inside, is drawn exactly as without keep (no change for names already inside).
+    const wall = (markup: string) => /<g transform="translate\(900 500\)"[^>]*><text data-name="Theodosian Walls"/.exec(markup)?.[0];
+    assert.ok(wall(html({})) && wall(html({ keep })) === wall(html({})));
+    const ups: { x: number; y: number }[] = [];
+    html({ keep, layer: "upright", up: (x, y, node) => (ups.push({ x, y }), node) });
+    assert.deepEqual(ups.map((p) => Math.round(p.x)), [Math.round(margin + w), 900], "a tilted map's upright name stands at the kept place");
+    // Its camp gone far past the edge: no name at all.
+    const gone = { ...close, settlements: [{ ...close.settlements[0]!, labelSpot: { x: -400, y: 359, dx: -120, dy: 0 }, x: -350 }] };
+    assert.doesNotMatch(renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close: gone, frame: 30, fps: 30, era: "orta", label, k: 1, keep }))), /Ottoman camp/);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);
