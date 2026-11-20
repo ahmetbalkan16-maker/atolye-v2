@@ -6,8 +6,9 @@ import { CLOSE_MAP_MAX_KM, type Episode, type MapWall, type SceneMap } from "../
 import type { V3Paths } from "../V3Paths";
 import { castleStyleFor, fitWall, joinPieces, kmBetween, lineKm, type Pt, roundness, stripCentreline } from "./CastleShapes";
 import { type Box, chainWays, ohmOverpass, type OsmElement, overpass, simplifyLine } from "./CloseCoast";
-import { mapWorld } from "./MapBuilder";
+import { mapTilt, mapWorld } from "./MapBuilder";
 import { fillSiegeMap, isSiegeMap, siegePlaceKey } from "./SiegeMap";
+import { groundOf } from "./UnitFraming";
 
 /**
  * The close battle map's site from open data (owner, 23 Oct 2026: "our helper brains must make these maps for any
@@ -457,12 +458,26 @@ export async function prepareCloseMaps(episode: Episode, lookup: SiteLookup, yea
     };
     // The siege's camp, guns, breach and lines along the real wall (SiegeMap; the hand patch of 20 Nov 2026 as rules).
     const place = siegePlaceKey(placed);
-    const filled = fillSiegeMap(placed, !places.has(place));
+    // A front that would widen the world shortens (a map already widened by the writer's own action is not held to it).
+    const ownWorld = drawnOnOwnWorld(placed);
+    const filled = fillSiegeMap(placed, !places.has(place), (m) => !ownWorld || drawnOnOwnWorld(m));
     if (isSiegeMap(placed)) places.add(place);
     for (const fix of filled.fixes) notes.push({ sahne: s.id, ad: placed.surlar?.[0]?.ad ?? placed.surlar?.[0]?.osm_ad ?? "wall", kaynak: "kusatma", ayrinti: fix });
     sahneler.push({ ...s, harita: filled.map });
   }
   return { episode: { ...episode, sahneler }, notes, sources: [...sources] };
+}
+
+/**
+ * Whether the director draws this map on its own world: no camera stop of its framing (over the whole stage or a
+ * Short's window, groundOf) reaches past it. A world widened past the box loses the box's cached coast and walls.
+ */
+function drawnOnOwnWorld(map: SceneMap): boolean {
+  const ground = groundOf(map, 1920, 1080);
+  if (!ground) return true;
+  const own = mapWorld(map, 1920, 1080, mapTilt(map) !== undefined).bounds;
+  const b = ground.world.bounds;
+  return [b.west - own.west, b.east - own.east, b.south - own.south, b.north - own.north].every((d) => Math.abs(d) < 1e-9);
 }
 
 const sameBox = (a: Box, b: Box) => [a.west - b.west, a.east - b.east, a.south - b.south, a.north - b.north].every((d) => Math.abs(d) < 1e-4);

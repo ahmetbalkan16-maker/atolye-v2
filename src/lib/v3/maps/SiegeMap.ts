@@ -217,8 +217,12 @@ function dense(line: readonly Pt[]): Pt[] {
  * the breach (or the wall nearest them) when the writer gave none; and on the first map of a place, the besiegers' main
  * front along the whole wall in the frame just outside it and the defenders' just inside it, when the writer's front was
  * a stub along it. Only what the writer left out is filled; nothing when the map cannot tell inside from outside.
+ * `fits`: whether the map can still be drawn on its own world (CloseSite: no camera stop of the director's framing reaches
+ * past it). Fronts that would not fit are shortened round the breach (the middle of the wall in view) until they do, or
+ * left as the writer drew them — the Constantinople preview of 20 Nov 2026: a 4.9-km front along the whole land wall made
+ * the Short's framing widen the world past the cached box, and its close map lost its real coast.
  */
-export function fillSiegeMap(map: SceneMap, first: boolean): { map: SceneMap; fixes: string[] } {
+export function fillSiegeMap(map: SceneMap, first: boolean, fits?: (m: SceneMap) => boolean): { map: SceneMap; fixes: string[] } {
   if (!isSiegeMap(map)) return { map, fixes: [] };
   const fixes: string[] = [];
   const P = plane(map.merkez!);
@@ -300,6 +304,31 @@ export function fillSiegeMap(map: SceneMap, first: boolean): { map: SceneMap; fi
   })();
   const runKm = run.slice(1).reduce((a, q, i) => a + Math.hypot(q[0] - run[i]![0], q[1] - run[i]![1]), 0);
   if (run.length < 2 || runKm < 1) return { map: h, fixes };
+  // The run's point nearest the breach (else its middle): a shortened front stays centred there.
+  const centre = breach ? run.reduce((bi, q, i) => (Math.hypot(q[0] - P.to(breach.at)[0], q[1] - P.to(breach.at)[1]) < Math.hypot(run[bi]![0] - P.to(breach.at)[0], run[bi]![1] - P.to(breach.at)[1]) ? i : bi), 0) : Math.floor(run.length / 2);
+  for (const share of fits ? [1, 0.85, 0.7, 0.55] : [1]) {
+    const n = Math.max(2, Math.round(run.length * share));
+    const from = Math.max(0, Math.min(run.length - n, centre - Math.floor(n / 2)));
+    const part = run.slice(from, from + n);
+    const partKm = part.slice(1).reduce((a, q, i) => a + Math.hypot(q[0] - part[i]![0], q[1] - part[i]![1]), 0);
+    if (partKm < 1) break;
+    const tried = stretchFronts(h, part, partKm, runKm, { P, L, inside, units, attackers, defenders, w });
+    if (!tried.fixes.length) return { map: h, fixes };
+    if (!fits || fits(tried.map)) return { map: tried.map, fixes: [...fixes, ...tried.fixes] };
+  }
+  return { map: h, fixes };
+}
+
+/** The main fronts along `run` (plane km): the besiegers just outside the wall, the defenders on it. */
+function stretchFronts(
+  h: SceneMap,
+  run: readonly Xy[],
+  runKm: number,
+  wallRunKm: number,
+  c: { P: ReturnType<typeof plane>; L: Xy[]; inside: (p: Ll) => boolean; units: readonly MapUnits[]; attackers?: string; defenders?: string; w: number },
+): { map: SceneMap; fixes: string[] } {
+  const { P, L, inside, units, attackers, defenders, w } = c;
+  const fixes: string[] = [];
   const reach = Math.max(1.5, w * 0.15);
   // The wall's left-hand normal along the run, walked one way: outside is on the same hand all along a line wall.
   const left = (i: number): Xy => {
@@ -324,11 +353,11 @@ export function fillSiegeMap(map: SceneMap, first: boolean): { map: SceneMap; fi
     const ds = y.cephe.map((p) => nearest(L, P.to(p)).km);
     const isOut = y.cephe.every((p) => !inside(p));
     const isIn = y.cephe.every((p) => inside(p));
-    if (Math.max(...ds) > reach || (role === "out" ? !isOut : !isIn) || lineKm(y.cephe.map((p): Pt => [p[0], p[1]])) >= runKm * 0.5) return u;
+    if (Math.max(...ds) > reach || (role === "out" ? !isOut : !isIn) || lineKm(y.cephe.map((p): Pt => [p[0], p[1]])) >= wallRunKm * 0.5) return u;
     const d = role === "out" ? Math.max(0.3, Math.min(0.8, ds.reduce((a, b) => a + b, 0) / ds.length)) : Math.max(0.1, Math.min(0.3, ds.reduce((a, b) => a + b, 0) / ds.length));
-    fixes.push(`${u.ad ?? u.taraf} ${role === "out" ? "surun dışında bütün sur boyunca kuşatma hattında" : "surun üstünde, bütün sur boyunca"} (${Math.round(runKm * 10) / 10} km)`);
+    const span = runKm < wallRunKm - 0.05 ? "surun kadraja sığan kısmı boyunca" : "bütün sur boyunca";
+    fixes.push(`${u.ad ?? u.taraf} ${role === "out" ? `surun dışında ${span} kuşatma hattında` : `surun üstünde, ${span}`} (${Math.round(runKm * 10) / 10} km)`);
     return { ...u, yerler: u.yerler.map((x) => (x === y ? { ...x, cephe: along(role, d) } : x)) };
   });
-  if (birlikler.some((u, i) => u !== units[i])) h = { ...h, birlikler };
-  return { map: h, fixes };
+  return birlikler.some((u, i) => u !== units[i]) ? { map: { ...h, birlikler }, fixes } : { map: h, fixes };
 }

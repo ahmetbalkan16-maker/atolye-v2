@@ -1068,6 +1068,17 @@ async function main() {
     assert.ok(lineKm(byz.cephe) > 4 && byz.cephe.every((p) => p[0] - wallLonAt(p[1]) > 0.0005 && p[0] - wallLonAt(p[1]) < 0.0045), "the defenders on the wall: " + JSON.stringify(byz.cephe));
     assert.ok(filled.fixes.length >= 5, JSON.stringify(filled.fixes));
     assert.deepEqual(asked([scene("s3", fm)]), [], "the filled map lacks nothing");
+    // A front the director's framing would widen the world for is shortened round the breach until it fits (the
+    // Constantinople preview, 20 Nov 2026: a 4.9-km line along the whole land wall widened the Short's world past the
+    // cached box and the close map lost its real coast); if nothing fits, the writer's fronts stay.
+    const frontKm = (m: typeof fm) => Math.max(...(m.birlikler ?? []).map((u) => lineKm(((u.yerler[0] as unknown as { cephe?: [number, number][] }).cephe ?? []))));
+    const short = fillSiegeMap(siege, true, (m) => frontKm(m) <= 3.6);
+    const sb = short.map.birlikler![1]!.yerler[0]! as unknown as { cephe: [number, number][] };
+    assert.ok(frontKm(short.map) <= 3.6 && lineKm(sb.cephe) > 2, "shortened to fit: " + frontKm(short.map));
+    const mid = sb.cephe[Math.floor(sb.cephe.length / 2)]!;
+    assert.ok(Math.abs(mid[1] - breach[1]) < 0.012, "centred on the breach: " + JSON.stringify([mid, breach]));
+    assert.ok(short.fixes.some((f) => f.includes("kadraja sığan")), JSON.stringify(short.fixes));
+    assert.deepEqual(fillSiegeMap(siege, true, () => false).map.birlikler, fillSiegeMap({ ...siege }, false).map.birlikler, "nothing fits: the writer's fronts stay");
     // The second map of the place keeps its fronts; a camp the writer gave stays alone; with nothing telling inside from
     // outside (no walled town, no guns) no camp and no lines are made.
     assert.deepEqual(fillSiegeMap(siege, false).map.birlikler, siege.birlikler);
