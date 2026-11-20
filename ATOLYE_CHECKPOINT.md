@@ -1,3 +1,23 @@
+## 21 Kasım 2026 (1) — referans kalitesi, sur hizalaması, haritada sis/pusu, Trasimene hazırlığı (VİDEO BAŞLATILMADI)
+
+Owner: cinematic-skill'i beyinlere örnek okut + kaliteyi entegre et; yakın savaşta askerler surdan taşmasın; Hannibal'in
+en ünlü savaşı Short'u (Cannae 9 Kas'ta yüklüydü → owner TRASİMENE seçti); en çok izlenen Trasimene videosunu izle, o
+kalitede olsun; "bütün görevleri bitir canlıya al videoyu başlatma". Üç ajan (worktree'ler gelistirme/claude-*), birleşti:
+- 4b748778 (Sonnet) StoryRules: zaman ileri (soğuk açılış + tek köprü), satır ≤22 kelime onarıma girer, ekrana yazılan
+  anlatımla birebir aynı olmaz; TTS $ % sıra sayısı ondalık kelimeyle. Mixer -14 LUFS/-1.5 dBTP (değişmedi). Shorts'ta
+  32 px altı yazılar (lejant 22, rozet 20–22, şehir 25) yalnız RAPOR — owner kararı bekliyor.
+- def37fb1 (Opus) sur: savunanlar surun iç kenarında ince şerit; saldıranlar gedik satırına kadar dışarıda, sonra yalnız
+  gedikten iki sıra kol; tırtıklı kara suru artık halka sayılmıyor (RenderPlanTypes). d79cde05 (ben) etiket noktalara.
+- ea361b38 (Opus) harita sisi (`sis`, MapFog), `suya:true` boğulma adımı, karadaki birlik suda → onarım + plan
+  zamanı kıyıya çekme, pusu tarifi (AmbushMap), OSM göl ilişkileri (Trasimeno hiç çizilmiyordu; RIVER_VERSION 2 →
+  her yakın harita nehir/göl önbelleğini bir kez yeniden indirir).
+- Beyinlere: cinematic-skill'den 11 ders, Historia Civilis Trasimene (nfdM76p7Dpk, 1,1 M) referans incelemesi + benim
+  kare kare izlemeden 6 ders (pusu tek haritada adım adım, ordu/kayıp kartı, komutanın hatası, kapanan kapan).
+- Yükleme saati önerisi: NY 15:00 = TR 23:00, Salı/Cumartesi (kanalda NY öğleden sonra yüklenen Guadalcanal 2.219/48 sa;
+  NY sabahları ~1.300). Konstantinopolis 15:00 yerine 06:00'da çıkmıştı — yüklemeden önce zamanlamayı kontrol et.
+SIRADAKİ: Trasimene siparişi OWNER İSTEYİNCE (metin hafızada v3-trasimene-short-next); senaryodan hemen sonra yakın
+harita önizlemesi (göl kıyısı, sis, kol yolda, boğulma satırından önce gölde kimse yok).
+
 ## 20 Kasım 2026 (4) — önceki oturumun açıkları kapandı: kıyı kütüphanesi endeksi
 
 - Konstantinopolis kutusu (28.94,41.012, 10 km) `osm-sur/kutular.jsonl`'de ZATEN VARDI — elle ekleme gerekmedi.
