@@ -935,6 +935,13 @@ async function main() {
     const corner: [number, number][] = [[28.93, 40.98], [28.95, 40.982], [28.97, 40.985]];
     const named = snapMapToRealWall(guessed as never, { walls: [real, corner], castles: [], gates: [], namedWalls: [{ name: "Theodosian Wall", line: real }, { name: "Sea Walls", line: corner }] })!;
     assert.deepEqual(named.map.surlar![0]!.noktalar, real, "the named land wall, not the sea wall");
+    // A writer's line that already follows a part of the named wall: nothing moves, the whole wall and the city come in.
+    const partOfIt = { merkez: [28.94, 41.012] as [number, number], genislik_km: 10, surlar: [{ ad: "Theodosian Walls", osm_ad: "Walls of Constantinople", noktalar: [[28.9208, 41.03], [28.921, 41.02], [28.9207, 41.006]] as [number, number][] }], rozetler: [{ karakter: "mehmed", konum: [28.915, 41.02] as [number, number], satir: 0 }] };
+    const whole = snapMapToRealWall(partOfIt as never, { walls: [real, seaWall], castles: [], gates: [], namedWalls: [{ name: "Theodosian Wall", line: real }] })!;
+    assert.deepEqual(whole.map.surlar![0]!.noktalar, real, "the whole named wall");
+    assert.deepEqual(whole.map.rozetler![0]!.konum, [28.915, 41.02], "nothing moved");
+    assert.ok(whole.detail.startsWith("yazarın çizgisi gerçek sura uyuyordu") && (whole.map as { yerlesimler?: unknown[] }).yerlesimler?.length === 1, whole.detail);
+    assert.equal(snapMapToRealWall(partOfIt as never, { walls: [real], castles: [], gates: [] }), undefined, "a fitting line without OSM names stays with placeWall");
     const town = (sm as { yerlesimler?: { ad?: string; konum: [number, number]; sur_ici?: boolean }[] }).yerlesimler![0]!;
     assert.ok(town.sur_ici && town.ad === "Constantinople" && town.konum[0] > 28.94 && town.konum[0] < 28.97, "the walled city between the land and sea walls: " + JSON.stringify(town));
     const badge = (sm as { rozetler?: { konum: [number, number] }[] }).rozetler![0]!.konum;

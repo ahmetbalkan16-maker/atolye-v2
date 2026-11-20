@@ -252,7 +252,11 @@ export function snapMapToRealWall(map: SceneMap, site: SiteData | undefined): { 
   const own = new Set([...words(w.ad), ...words(w.osm_ad)]);
   const namedLines = joinPieces((site.namedWalls ?? []).filter((n) => words(n.name).some((x) => own.has(x) || own.has(x.replace(/s$/, "")) || own.has(`${x}s`))).map((n) => n.line), SNAP_JOIN_KM);
   const lines = (namedLines.some((l) => lineKm(l) >= SNAP_MIN_WALL_KM) ? namedLines : joined).filter((l) => lineKm(l) >= SNAP_MIN_WALL_KM);
-  if (!lines.length || fitWall(script, lines)) return undefined;
+  // A line that already follows the real wall: nothing moves, but a wall OSM names still gets its whole length, the
+  // city's other walls and the city behind it (the Constantinople remake, 20 Nov 2026: a fitting line kept a 3.5 km
+  // stretch and no city).
+  const fits = lines.length > 0 && Boolean(fitWall(script, lines));
+  if (!lines.length || (fits && !namedLines.some((l) => lineKm(l) >= SNAP_MIN_WALL_KM))) return undefined;
   const c: Pt = [script.reduce((a, p) => a + p[0], 0) / script.length, script.reduce((a, p) => a + p[1], 0) / script.length];
   const hit = lines.map((line) => ({ line, ...nearestOnLine(line, c) })).sort((a, b) => a.km - b.km)[0]!;
   if (hit.km > SNAP_MAX_KM) return undefined;
@@ -278,7 +282,8 @@ export function snapMapToRealWall(map: SceneMap, site: SiteData | undefined): { 
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, move(v)]));
     return value;
   };
-  const moved = move(map) as SceneMap;
+  const moved = fits ? map : (move(map) as SceneMap);
+  if (fits) turn = 0;
   // The real trace round the snap point: a stretch of the line, its gates on it.
   let walked = 0;
   const run: Pt[] = [];
@@ -331,7 +336,7 @@ export function snapMapToRealWall(map: SceneMap, site: SiteData | undefined): { 
   const centre: [number, number] = inFrame ? [map.merkez![0], map.merkez![1]] : [r6((Math.max(...lons) + Math.min(...lons)) / 2), r6((Math.max(...lats) + Math.min(...lats)) / 2)];
   return {
     map: { ...moved, merkez: centre, genislik_km, surlar: [wall, ...extraWalls], ...(yerlesimler ? { yerlesimler } : {}) },
-    detail: `yazarın çizgisi gerçek surlara uymuyordu: harita ${Math.round(hit.km * 10) / 10} km taşındı, ${Math.round((turn * 180) / Math.PI)}° döndürüldü; sur izi OpenStreetMap'ten (${noktalar.length} nokta, ${Math.round(lineKm(noktalar) * 10) / 10} km${extras.length ? `, ${extras.length} başka sur` : ""}${city ? `, sur içinde şehir${cityName ? ` "${cityName}"` : ""}` : ""}), harita ${genislik_km} km`,
+    detail: `${fits ? "yazarın çizgisi gerçek sura uyuyordu: surun tamamı alındı;" : `yazarın çizgisi gerçek surlara uymuyordu: harita ${Math.round(hit.km * 10) / 10} km taşındı, ${Math.round((turn * 180) / Math.PI)}° döndürüldü;`} sur izi OpenStreetMap'ten (${noktalar.length} nokta, ${Math.round(lineKm(noktalar) * 10) / 10} km${extras.length ? `, ${extras.length} başka sur` : ""}${city ? `, sur içinde şehir${cityName ? ` "${cityName}"` : ""}` : ""}), harita ${genislik_km} km`,
   };
 }
 
