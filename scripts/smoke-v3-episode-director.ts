@@ -2348,6 +2348,26 @@ async function main() {
     }
   });
 
+  await scenario("O34d Fall of Constantinople Short (story 3/10 at 126 s): \"the last emperor\" is the one whose role alone holds that title; guns pounding the walls are a siege; a shared or missing title and \"in general\" name no one", () => {
+    const cast = [{ id: "constantine-xi", ad: "Constantine XI", rol: "Last Byzantine Emperor" }, { id: "mehmed-ii", ad: "Mehmed II", rol: "Ottoman Sultan" }, { id: "giustiniani", ad: "Giovanni Giustiniani", rol: "Genoese general" }];
+    const acts = (text: string, c: typeof cast = cast) => toldActs(text, c).map((a) => [a.karakter, a.jest, a.duygu]);
+    // The measured line: the emperor is never named.
+    assert.deepEqual(acts("The fall of the city is now inevitable. The last emperor fights on, but history is not on his side."), [["constantine-xi", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(toldActs("The fall of the city is now inevitable. The last emperor fights on.", cast)[0]!.at > 0.5, true, "from the sentence that tells it");
+    assert.deepEqual(acts("The young sultan rode into the city."), [["mehmed-ii", "isaret_et", "kararli"]]);
+    assert.deepEqual(acts("The Genoese general holds the breach."), [["giustiniani", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Mehmed's seventy cannons pound the land walls."), [["mehmed-ii", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Son imparator surları savundu.", [{ id: "constantine-xi", ad: "Konstantin", rol: "Son Bizans İmparatoru" }, cast[1]!, cast[2]!]), [["constantine-xi", "yumruk_kaldir", "kararli"]], "Turkish title, capital İ");
+    // A title two hold, a title no one holds, a bare English title and "in general" name no one.
+    const twoSultans = [{ id: "mehmed-ii", ad: "Mehmed II", rol: "Ottoman Sultan" }, { id: "murad-ii", ad: "Murad II", rol: "Former Sultan" }];
+    for (const [text, c] of [["The sultan charges.", twoSultans], ["The king charges.", cast], ["In general, the defenders fight on.", cast], ["An emperor never fights.", cast]] as const) {
+      assert.deepEqual(acts(text, c as typeof cast), [], text);
+    }
+    // Pounds of weight and money stay nothing; without a role nothing changes (O34b, O34c).
+    assert.deepEqual(acts("Mehmed II weighed 200 pounds."), []);
+    assert.deepEqual(toldActs("The last emperor fights on.", [{ id: "constantine-xi", ad: "Constantine XI" }]), []);
+  });
+
   await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
     const fps = 30;
     const turns = [{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }, { castId: "b", start: 200, end: 230 }, { castId: "a", start: 400, end: 450 }];
