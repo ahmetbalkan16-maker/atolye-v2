@@ -919,11 +919,24 @@ async function main() {
     // The Constantinople Short (20 Nov 2026): the writer's east–west line 1.7 km east of the real north–south wall does
     // not fit; the whole map (centre, units, badge) moves onto the real wall and turns with it, the wall becomes the real trace.
     const guessed = { merkez: [28.94, 41.012] as [number, number], genislik_km: 10, surlar: [{ ad: "Theodosian Walls", noktalar: [[28.93, 41.014], [28.95, 41.01]] as [number, number][], gedik: { konum: [28.94, 41.012] as [number, number], satir: 0 } }], birlikler: [{ taraf: "Ottomans", ad: "Janissaries", tur: "kilicli", kanat: "merkez", renk: "#3fae3a", amblem: "hilal", sayi: 6, etiket: "Janissaries", yerler: [{ satir: 0, cephe: [[28.94, 41.0125], [28.945, 41.0115]] }] }], rozetler: [{ karakter: "mehmed", konum: [28.945, 41.0135], satir: 0 }] };
-    const snapSite = { walls: [real], castles: [], gates: [{ at: [28.921, 41.02] as [number, number], name: "Topkapı" }] };
-    const snapped = await prepareCloseMaps({ ...ep, donem: "1453", sahneler: [{ ...ep.sahneler[0]!, harita: guessed as never }] }, async () => ({ site: snapSite, sources: ["test"] }), 1453);
+    // The real land wall (6.7 km, sea to sea) and a sea wall 5.5 km east of it: the whole land wall is kept, the sea wall
+    // drawn too, the walled city put between them, and the map widened to show the whole wall (owner, 20 Nov 2026).
+    const seaWall: [number, number][] = [[28.985, 41.005], [28.983, 41.015], [28.98, 41.025]];
+    const snapSite = { walls: [real, seaWall], castles: [], gates: [{ at: [28.921, 41.02] as [number, number], name: "Topkapı" }] };
+    const snapped = await prepareCloseMaps({ ...ep, donem: "1453", sahneler: [{ ...ep.sahneler[0]!, harita: { ...guessed, surlar: [{ ...guessed.surlar[0]!, osm_ad: "Walls of Constantinople" }] } as never }] }, async () => ({ site: snapSite, sources: ["test"] }), 1453);
     const sm = snapped.episode.sahneler[0]!.harita!;
-    assert.ok(sm.surlar![0]!.noktalar!.every((p) => p[0] > 28.919 && p[0] < 28.923), "the wall is the real trace: " + JSON.stringify(sm.surlar![0]!.noktalar));
-    assert.ok(sm.merkez![0] > 28.919 && sm.merkez![0] < 28.923, "the map's centre moved onto the wall: " + JSON.stringify(sm.merkez));
+    assert.deepEqual(sm.surlar![0]!.noktalar, real, "the whole real land wall: " + JSON.stringify(sm.surlar![0]!.noktalar));
+    assert.deepEqual(sm.surlar![0]!.kapilar, [[28.921, 41.02]], "with its real gate");
+    assert.equal(sm.surlar!.length, 2, "the sea wall is drawn too");
+    // The real wall stands in the writer's frame: the frame is kept (its coast is in the library; Overpass is often down).
+    assert.deepEqual([sm.merkez, sm.genislik_km], [[28.94, 41.012], 10], "the writer's frame kept");
+    // Named OSM walls: the wall of the writer's name is taken, never the sea wall it meets (Constantinople, 20 Nov 2026:
+    // a chain of every wall made the land wall an L along the Marmara).
+    const corner: [number, number][] = [[28.93, 40.98], [28.95, 40.982], [28.97, 40.985]];
+    const named = snapMapToRealWall(guessed as never, { walls: [real, corner], castles: [], gates: [], namedWalls: [{ name: "Theodosian Wall", line: real }, { name: "Sea Walls", line: corner }] })!;
+    assert.deepEqual(named.map.surlar![0]!.noktalar, real, "the named land wall, not the sea wall");
+    const town = (sm as { yerlesimler?: { ad?: string; konum: [number, number]; sur_ici?: boolean }[] }).yerlesimler![0]!;
+    assert.ok(town.sur_ici && town.ad === "Constantinople" && town.konum[0] > 28.94 && town.konum[0] < 28.97, "the walled city between the land and sea walls: " + JSON.stringify(town));
     const badge = (sm as { rozetler?: { konum: [number, number] }[] }).rozetler![0]!.konum;
     assert.ok(Math.abs(badge[0] - 28.9205) < 0.012 && badge[1] > 40.99, "the badge moved with it: " + JSON.stringify(badge));
     assert.ok(snapped.notes.some((n) => n.kaynak === "osm" && n.ayrinti.includes("gerçek surlara uymuyordu")), JSON.stringify(snapped.notes));
