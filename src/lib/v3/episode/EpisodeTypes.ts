@@ -220,6 +220,21 @@ export interface SceneMap {
    * (MapBuilder.mapViews) — and every video's maps show both views (MapBuilder.withBothViews).
    */
   readonly gorunus?: MapLook;
+  /**
+   * Fog over the close map (owner, 20 Nov 2026: the Lake Trasimene Short at the quality of the most-viewed video on it,
+   * Historia Civilis', where a soft band of fog over the valley hides the army waiting on the hills): soft translucent
+   * banks drifting over `alan` (a rough [lon, lat] outline of the low ground — the valley, the shore; absent: the whole
+   * view), coming in with line `satir` (default 0) and thinning out from `bitis_satir`. Only where the sources tell fog
+   * or mist; drawn on the ground, under the armies and the names.
+   */
+  readonly sis?: MapFog;
+}
+
+/** A close map's fog (SceneMap.sis). */
+export interface MapFog {
+  readonly satir?: number;
+  readonly bitis_satir?: number;
+  readonly alan?: readonly [number, number][];
 }
 
 /** A map's view: straight down, tilted 2.5D, or opening straight down and tilting with the action (SceneMap.gorunus). */
@@ -390,8 +405,11 @@ export interface MapUnits {
    * lines, the rear ones staggered behind it away from the enemy (Caesar's triplex acies: 3). `bozgun`: the side breaks
    * on this line — its tokens turn and scatter towards the formation given, fleeing. `hareket` (+ `hedef`, an enemy
    * unit's `ad` or side) instead of a formation: the studio moves it; `uzerinden`: the way round a flank it took then.
+   * `suya`: on this line the unit is driven or flees INTO the water — a lake, a river, the sea — and drowns there (the
+   * Romans pushed into Lake Trasimene, 217 BC): only then may a land unit's formation lie on water; any other step on
+   * water is a writer's slip (the script's repair round asks for it, the plan pulls it to the nearest shore).
    */
-  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number; readonly hatlar?: number; readonly bozgun?: boolean; readonly etiket?: string; readonly hareket?: UnitMove; readonly hedef?: string; readonly uzerinden?: readonly [number, number] } & UnitFormation)[];
+  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number; readonly hatlar?: number; readonly bozgun?: boolean; readonly etiket?: string; readonly hareket?: UnitMove; readonly hedef?: string; readonly uzerinden?: readonly [number, number]; readonly suya?: boolean } & UnitFormation)[];
 }
 
 /**

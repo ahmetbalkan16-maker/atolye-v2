@@ -6,6 +6,7 @@ import { invitesToSubscribe } from "./ClosingLine";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { addToldStrengths } from "./ToldNumbers";
 import { directBattleMaps, livenStillMaps, mapProblems, markOnePicture, shareProblems } from "./MapRules";
+import type { LandTest } from "../maps/LandUnits";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
 
@@ -258,6 +259,8 @@ export interface LongFormDeps {
    * sentence), asked in the chapter's repair rounds as its map rules are.
    */
   readonly chapterAsks?: (chapter: unknown) => string[];
+  /** The map's land test (ScriptEngineInput.onLand): a chapter's land units are asked off the water. */
+  readonly onLand?: LandTest;
   /** Where a chapter short of its words needs them (ScriptEngine.sceneShortfalls), for its lengthening round. */
   readonly shortfalls?: (chapter: Episode, targetWords: number) => string[];
 }
@@ -378,7 +381,7 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
       // The map rules (ScriptEngine.mapProblems) and the owner's shares are asked for in the same rounds, never worth
       // losing a valid chapter.
       const scenesOf = (value as { sahneler?: Record<string, unknown>[] }).sahneler ?? [];
-      return { value, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode), ...crowdProblems(value), ...chapterProblems(scenesOf, lastChapter), ...(d.chapterAsks?.(value) ?? [])] };
+      return { value, problems, quality: problems.length ? [] : [...mapProblems(value, { ...(d.onLand ? { onLand: d.onLand } : {}) }), ...shareProblems(value as Episode), ...crowdProblems(value), ...chapterProblems(scenesOf, lastChapter), ...(d.chapterAsks?.(value) ?? [])] };
     };
     let text = (await d.budget.generate(`bolum-${i + 1}`, writerUsed, chapterPrompt(d.brief, d.catalog, outline, i, previous), opts)).result.content;
     let state = check(text);

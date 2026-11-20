@@ -431,6 +431,9 @@ export function validateEpisode(input: unknown): EpisodeValidation {
           oneOf(y, "hareket", yp, UNIT_MOVES, true);
           str(y, "hedef", yp, { optional: true, max: 60 });
           if (y.uzerinden !== undefined) lonLat(y.uzerinden, `${yp}.uzerinden`);
+          // Into the water (drowning): a move, never where a unit first stands.
+          if (y.suya !== undefined && typeof y.suya !== "boolean") err("HARITA_BIRLIK", `${yp}.suya`, "true/false bekleniyor");
+          if (y.suya === true && yi === 0) err("HARITA_BIRLIK", `${yp}.suya`, "suya ilk yerleşimde olamaz: önce durdukları kıyı, sonra sürüldükleri su");
           const kinds = ["cephe", "kume", "kusatma"].filter((key) => y[key] !== undefined);
           // A unit placed by its wing or its move got its front in the draft normalizer; without one here its side had no
           // center to stand by.
@@ -464,7 +467,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       });
       // The close battle map's ground: only on a close map, where a wall or a house can be seen.
       const close = typeof h.genislik_km === "number" && h.genislik_km <= CLOSE_MAP_MAX_KM;
-      for (const key of ["surlar", "yapilar", "yerlesimler", "yollar", "arazi"])
+      for (const key of ["surlar", "yapilar", "yerlesimler", "yollar", "arazi", "sis"])
         if (h[key] !== undefined && !close) err("HARITA_YAKIN", `${hp}.${key}`, `yalnızca yakın haritada (genislik_km ≤ ${CLOSE_MAP_MAX_KM})`);
       (arr(h, "surlar", hp, true) ?? []).forEach((w, wi) => {
         const wp = `${hp}.surlar[${wi}]`;
@@ -515,6 +518,21 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         pts.forEach((pt, k) => lonLat(pt, `${hp}.yollar[${yi}].noktalar[${k}]`));
         if (isObj(y)) str(y, "ad", `${hp}.yollar[${yi}]`, { max: 40, optional: true });
       });
+      // Fog over the close map: from a line, thinning out from a later one, over an outline or the whole view.
+      if (h.sis !== undefined) {
+        const fp = `${hp}.sis`;
+        if (!isObj(h.sis)) err("HARITA_SIS", fp, "{satir?, bitis_satir?, alan?} bekleniyor");
+        else {
+          lineIndex(h.sis, "satir", fp);
+          lineIndex(h.sis, "bitis_satir", fp);
+          if (typeof h.sis.bitis_satir === "number" && h.sis.bitis_satir <= (typeof h.sis.satir === "number" ? h.sis.satir : 0)) err("HARITA_SIS", `${fp}.bitis_satir`, "sisin geldiği satırdan sonra olmalı");
+          if (h.sis.alan !== undefined) {
+            const pts = Array.isArray(h.sis.alan) ? h.sis.alan : [];
+            if (pts.length < 3) err("HARITA_SIS", `${fp}.alan`, "en az 3 noktalı [boylam, enlem] çevresi (vadi, kıyı) — ya da hiç (bütün görünüm)");
+            pts.forEach((pt, k) => lonLat(pt, `${fp}.alan[${k}]`));
+          }
+        }
+      }
       (arr(h, "arazi", hp, true) ?? []).forEach((g, gi) => {
         const gp = `${hp}.arazi[${gi}]`;
         if (!isObj(g)) return err("HARITA_ARAZI", gp, "nesne bekleniyor");

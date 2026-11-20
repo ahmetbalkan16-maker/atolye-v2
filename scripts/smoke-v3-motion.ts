@@ -13,6 +13,7 @@ import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type 
 import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
 import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
+import { FOG_IN_S, FOG_LIFT_S, FOG_LIFT_SPREAD_S, fogBanksAt, MapFog } from "../remotion-v3/src/scene/MapFog";
 import { passShare, type TokenWay, waysSwap } from "../remotion-v3/src/scene/unitLayout";
 import { nameInFrame } from "../remotion-v3/src/scene/hudLayout";
 import { applyMatrix, atlasCornerSeen, MAX_TILT_DEG, TILT_SHOT_PUSH, TILT_WORLD_PAST, tiltAt, tiltFit, tiltFor, tiltItems, tiltMatrix, tiltProject, tiltRoom, tiltSeen, tiltUnproject, uprightScale } from "../remotion-v3/src/scene/tilt";
@@ -1120,6 +1121,39 @@ async function main() {
     // Its camp gone far past the edge: no name at all.
     const gone = { ...close, settlements: [{ ...close.settlements[0]!, labelSpot: { x: -400, y: 359, dx: -120, dy: 0 }, x: -350 }] };
     assert.doesNotMatch(renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close: gone, frame: 30, fps: 30, era: "orta", label, k: 1, keep }))), /Ottoman camp/);
+  });
+
+  await scenario("Z2 fog on the close map (owner, 20 Nov 2026, the Lake Trasimene Short after Historia Civilis' video): banks fade in from its line, drift a little as a pure function of the frame, thin away bank by bank from its end; drawn over the ground and under its names", async () => {
+    const fog = { start: 30, end: 300, banks: [{ x: 500, y: 400, rx: 300, ry: 110, seed: 0.1 }, { x: 900, y: 420, rx: 280, ry: 100, seed: 0.9 }] };
+    assert.deepEqual(fogBanksAt(fog, 29, 30), [], "nothing before its line");
+    assert.deepEqual(fogBanksAt(fog, 30, 30), [], "coming in from nothing");
+    const half = fogBanksAt(fog, 30 + 30, 30);
+    const full = fogBanksAt(fog, 30 + 30 * FOG_IN_S, 30);
+    assert.ok(half.length === 2 && full.length === 2 && half.every((b, i) => b.opacity < full[i]!.opacity), "fading in");
+    assert.deepEqual(fogBanksAt(fog, 200, 30), fogBanksAt(fog, 200, 30), "the same frame, the same fog");
+    // Over the scene's frames each bank stays round its place (a sway, never carried off) and moves between frames.
+    for (let f = 31; f < 300; f += 7)
+      for (const [i, b] of fogBanksAt(fog, f, 30).entries()) {
+        const p = fog.banks[i]!;
+        assert.ok(Math.abs(b.x - p.x) <= p.rx * 0.25 && Math.abs(b.y - p.y) <= p.ry * 0.15 && b.opacity <= 1, `frame ${f}: ${JSON.stringify(b)}`);
+      }
+    assert.notEqual(fogBanksAt(fog, 120, 30)[0]!.x, fogBanksAt(fog, 180, 30)[0]!.x, "it drifts");
+    // Lifting: the low-seed bank goes first, the other after it, then none.
+    const lifting = fogBanksAt(fog, 300 + 30 * 1.5, 30);
+    assert.ok(lifting.length === 2 && lifting[0]!.opacity < lifting[1]!.opacity, JSON.stringify(lifting));
+    assert.deepEqual(fogBanksAt(fog, 300 + Math.ceil(30 * (FOG_LIFT_SPREAD_S + FOG_LIFT_S)) + 1, 30), [], "lifted");
+    assert.equal(fogBanksAt({ ...fog, end: undefined }, 3000, 30).length, 2, "no end: it stays");
+    // Rendered: soft gradient ellipses (no blur filter), the veil over the ground's cloud shadows and under its names.
+    const svg = renderToStaticMarkup(createElement("svg", null, createElement(MapFog, { fog, frame: 120, fps: 30, gid: "m" })));
+    assert.ok(/radialGradient id="m-fog"/.test(svg) && (svg.match(/<ellipse/g) ?? []).length === 2 && !/blur/.test(svg), svg.slice(0, 300));
+    const { CloseGround } = (await import(MAP_CLOSE_GROUND)) as { CloseGround: (p: CloseGroundProps & { veil?: unknown }) => unknown };
+    const close = { unit: 10, ground: [], roads: [], walls: [], settlements: [{ kind: "ordugah" as const, label: "Roman camp", labelSpot: { x: 600, y: 300, dx: 0, dy: 0 }, x: 600, y: 300, start: 0, items: [] }], buildings: [] };
+    const label = (t: string) => createElement("text", { "data-name": t }, t);
+    const veil = createElement("g", { "data-veil": "fog" });
+    const drawn = renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close, frame: 30, fps: 30, era: "antik", label, k: 1, veil })));
+    assert.ok(drawn.indexOf('data-veil="fog"') > 0 && drawn.indexOf('data-veil="fog"') < drawn.indexOf('data-name="Roman camp"'), "the fog under the camp's name");
+    const upright = renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close, frame: 30, fps: 30, era: "antik", label, k: 1, veil, layer: "upright", up: (_x: number, _y: number, n: unknown) => n })));
+    assert.ok(!upright.includes("data-veil") && upright.includes("Roman camp"), "the upright layer carries the names only");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

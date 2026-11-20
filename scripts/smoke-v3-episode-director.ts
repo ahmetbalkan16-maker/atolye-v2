@@ -24,7 +24,7 @@ import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, pullAshore, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
 import { badgeRoom, chapterOf, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, mapActionLines, mapLooksUsed, mapTilt, mapViews, MEDIUM_TILT_DEG, MEDIUM_TILT_MAX_KM, TILT_BADGE_TALL, TILT_WORLD_SPAN, tiltDegFor, withBothViews } from "../src/lib/v3/maps/MapBuilder";
@@ -34,10 +34,12 @@ import { mapFramingFaults, mapViewMix } from "../src/lib/v3/council/MapFramingCh
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { closeBox, closeSiteLookup, type LibraryBox, libraryBoxFor, placeWall, prepareCloseMaps, snapMapToRealWall, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/SiegeMap";
+import { ambushMapLacks, isAmbushMap, toldFog } from "../src/lib/v3/maps/AmbushMap";
+import { landOf } from "../src/lib/v3/maps/LandUnits";
 import { directBattleMaps, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
-import { assembleLand, chainWays, closeCoastFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
+import { assembleLand, chainWays, joinRings, riversFromOverpass, closeCoastFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { applyAtlasErrata, ATLAS_ERRATA, atlasYear, clipToConvex, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -1146,6 +1148,124 @@ async function main() {
     assert.deepEqual(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [fall] }).episode.sahneler[0]!.harita!.rozetler!.map((r) => r.x_satir), [6, undefined], "in the director's pass");
     const slain = scene("k", { ...whole, rozetler: [{ karakter: "lazar", konum: [28.925, 41.018], x_satir: 1 }] }, [line("Lazar leads the charge.", "lazar"), line("Lazar is wounded, captured and executed.")]);
     assert.equal(settleFallMarks({ ...ep, oyuncu_kadrosu: cast, sahneler: [slain] }).fixes.length, 0, "an X after his last words on the line of his death stays");
+  });
+
+  await scenario("O13c an ambush's close map (owner, 20 Nov 2026, the Lake Trasimene Short after Historia Civilis' video): fog planned and validated, land units kept out of the lake unless driven into it, the ambush's road, column and named ambushers asked", () => {
+    const ep = sampleEpisode();
+    const line = (metin: string, karakter = "anlatici") => ({ karakter, metin, duygu: "notr" as const });
+    // A lake south of a shore road, hills to the north (a made-up box round Trasimene).
+    const landPoly: Polygon[] = [[[[11.5, 42.8], [12.6, 42.8], [12.6, 43.6], [11.5, 43.6], [11.5, 42.8]]]];
+    const lake: Polygon[] = [[[[12.0, 43.1], [12.2, 43.1], [12.2, 43.175], [12.0, 43.175], [12.0, 43.1]]]];
+    const onLand = landOf(landPoly, lake);
+    assert.equal(onLand([12.09, 43.19]), true);
+    assert.equal(onLand([12.09, 43.15]), false, "the lake is no land");
+    const ROM = { taraf: "Romans", renk: "#c0392b", amblem: "kartal" as const };
+    const CAR = { taraf: "Carthaginians", renk: "#2e6fd1", amblem: "gunes" as const };
+    const road: [number, number][] = [[12.04, 43.185], [12.08, 43.188], [12.12, 43.186], [12.15, 43.184]];
+    const valley: [number, number][] = [[12.02, 43.178], [12.16, 43.178], [12.16, 43.196], [12.02, 43.196]];
+    const column: MapUnits = { ...ROM, ad: "Roman column", tur: "piyade", kanat: "merkez", sayi: 8, yerler: [{ satir: 0, cephe: road }, { satir: 2, cephe: [[12.05, 43.18], [12.14, 43.178]], kayip: 2 }, { satir: 3, kume: [12.09, 43.15], km: 1, suya: true, kayip: 2 }] };
+    const map: SceneMap = {
+      merkez: [12.09, 43.19],
+      genislik_km: 16,
+      yollar: [{ ad: "Road to Rome", noktalar: road }],
+      sis: { satir: 0, bitis_satir: 2, alan: valley },
+      birlikler: [
+        column,
+        { ...CAR, ad: "Libyan infantry", tur: "piyade", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[12.06, 43.21], [12.12, 43.21]] }, { satir: 2, cephe: [[12.06, 43.19], [12.12, 43.19]] }] },
+        { ...CAR, ad: "Numidian cavalry", tur: "suvari", kanat: "sol", sayi: 3, yerler: [{ satir: 0, kume: [12.03, 43.2] }, { satir: 2, kume: [12.035, 43.186] }] },
+      ],
+    };
+    const told = [line("At dawn a thick fog lay over Lake Trasimene."), line("Flaminius marched his column along the shore road."), line("Hannibal sprang the ambush: his men charged down from the hills."), line("Romans fled into the lake and drowned."), line("Fifteen thousand fell.")];
+    const scene = (harita: SceneMap, satirlar = told) => ({ ...ep.sahneler[0]!, id: "t2", mekan: "Close map: the north shore of Lake Trasimene", satirlar, harita });
+    const epOf = (harita: SceneMap, satirlar = told) => ({ ...ep, donem: "MÖ 217", sahneler: [scene(harita, satirlar)] }) as never;
+    // 1) Validation: the fog's lines and outline, only on a close map; "suya" a later step's, true or false.
+    const v = (harita: unknown) => validateEpisode({ ...ep, sahneler: [{ ...scene(map), harita }] } as never);
+    assert.equal(v(map).ok, true, JSON.stringify(v(map).errors.slice(0, 3)));
+    assert.equal(v({ ...map, sis: { satir: 2, bitis_satir: 1 } }).errors.some((e) => e.code === "HARITA_SIS"), true, "the fog lifts after it comes");
+    assert.equal(v({ ...map, sis: { alan: [[12, 43], [12.1, 43]] } }).errors.some((e) => e.code === "HARITA_SIS"), true, "an outline of 3 points or more");
+    assert.equal(v({ ...map, sis: { satir: 9 } }).errors.some((e) => e.code === "HARITA_SATIR"), true, "a line the scene has");
+    assert.equal(v({ ...map, sis: "yes" }).ok, false);
+    assert.equal(v({ ...map, genislik_km: 400 }).errors.some((e) => e.code === "HARITA_YAKIN" && e.path.endsWith(".sis")), true, "fog only on a close map");
+    const firstWet = { ...column, yerler: [{ satir: 0, cephe: road, suya: true }] };
+    assert.equal(v({ ...map, birlikler: [firstWet, ...map.birlikler!.slice(1)] }).errors.some((e) => e.path.endsWith(".suya")), true, "never driven into the water where it first stands");
+    assert.equal(v({ ...map, birlikler: [{ ...column, yerler: [column.yerler[0]!, { ...column.yerler[1]!, suya: "yes" }] }, ...map.birlikler!.slice(1)] }).ok, false);
+    // 2) The repair round: a land unit in the lake is asked off it — not a step driven into it, not a fleet, not a front on
+    // the real shore that Natural Earth's coarse coast puts a little into the water, and not without a land test.
+    const wet = (m: SceneMap) => mapProblems(epOf(m), { onLand }).filter((p) => p.includes("stands in the water"));
+    assert.deepEqual(wet(map), [], "drowning in the lake is told with suya");
+    const dry: SceneMap = { ...map, birlikler: [{ ...column, yerler: [column.yerler[0]!, column.yerler[1]!, { satir: 3, kume: [12.09, 43.15], km: 1, kayip: 2 }] }, ...map.birlikler!.slice(1)] };
+    const asked = wet(dry);
+    assert.equal(asked.length, 1, JSON.stringify(asked));
+    assert.ok(asked[0]!.includes('"Roman column" stands in the water on line 3') && asked[0]!.includes('"suya": true'), asked[0]);
+    assert.deepEqual(mapProblems(epOf(dry)).filter((p) => p.includes("stands in the water")), [], "no land test: not asked");
+    const fleet: SceneMap = { ...dry, birlikler: [{ ...dry.birlikler![0]!, taraf: "Roman fleet", ad: "Roman fleet" }, ...map.birlikler!.slice(1)] };
+    assert.deepEqual(wet(fleet), [], "a fleet's tokens may stand on water");
+    const shore: SceneMap = { ...map, birlikler: [{ ...column, yerler: [column.yerler[0]!, { satir: 2, cephe: [[12.05, 43.17], [12.14, 43.17]], kayip: 2 }] }, ...map.birlikler!.slice(1)] };
+    assert.deepEqual(wet(shore), [], "half a kilometre past Natural Earth's shore is the shore");
+    // 3) Fog as the lines tell it: asked for where a line tells it, and a line asked for where it is drawn.
+    const fog = (m: SceneMap, satirlar = told) => mapProblems(epOf(m, satirlar)).filter((p) => p.includes("— FOG"));
+    assert.deepEqual(fog(map), []);
+    assert.ok(fog({ ...map, sis: undefined })[0]?.includes("the fog its lines tell"), "fog told, none drawn");
+    const noFogLines = [line("At dawn the army stood by Lake Trasimene."), ...told.slice(1)];
+    assert.ok(fog(map, noFogLines)[0]?.includes("a line telling the fog"), "fog drawn, never told");
+    assert.equal(toldFog("The legion's mistake"), false, "a mistake is no mist");
+    assert.equal(toldFog("Pusu kuruldu."), false, "Turkish pusu (ambush) is no pus (haze)");
+    assert.equal(toldFog("Sabah göl puslu ve sisliydi."), true);
+    // 4) The ambush's map: the road, the victims' long column on it, the named ambushers.
+    assert.equal(isAmbushMap(scene(map)), true);
+    assert.deepEqual(ambushMapLacks(scene(map)), [], "the full ambush map lacks nothing");
+    assert.ok(ambushMapLacks(scene({ ...map, yollar: undefined }))[0]!.includes("the road the victims march on"));
+    const lump: SceneMap = { ...map, birlikler: [{ ...column, yerler: [{ satir: 0, kume: [12.09, 43.186] }, ...column.yerler.slice(1)] }, ...map.birlikler!.slice(1)] };
+    assert.ok(ambushMapLacks(scene(lump)).some((l) => l.includes('the victims ("Romans") strung out as one long thin column ON the road')), "a lump is no column");
+    const unnamed = (u: MapUnits): MapUnits => ({ taraf: u.taraf, renk: u.renk, amblem: u.amblem, sayi: u.sayi, yerler: u.yerler, ...(u.tur ? { tur: u.tur } : {}) });
+    const oneAmbusher: SceneMap = { ...map, birlikler: [column, unnamed(map.birlikler![1]!), unnamed(map.birlikler![2]!)] };
+    assert.ok(ambushMapLacks(scene(oneAmbusher)).some((l) => l.startsWith("the ambushers as their named units")));
+    const pitched = [line("At dawn a thick fog lay over the field."), line("The legions advanced."), line("The two lines charged."), line("The Romans fled."), line("Fifteen thousand fell.")];
+    assert.deepEqual(ambushMapLacks(scene({ ...map, yollar: undefined }, pitched)), [], "a pitched battle is no ambush");
+    assert.ok(mapProblems(epOf({ ...map, yollar: undefined })).some((p) => p.includes("is an ambush but lacks") && p.endsWith("AMBUSH CLOSE MAP")), "asked in the repair round");
+    // 5) The plan: the fog's banks over the valley from its line, thinning from bitis_satir; a land unit's tokens on the
+    // lake pulled to the shore (and noted) unless the step drives them into it; no fog on a wide map.
+    const data = { land: landPoly, lakes: lake, rivers: [], countries: new Map() } as never;
+    const notes: string[] = [];
+    const geoOf = (m: SceneMap) => buildGeoMap(m, data, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/yakin.jpg", note: (n) => notes.push(n) });
+    const geo = geoOf(map);
+    const wv = mapWorld(map, 1920, 1080).view;
+    const px = (p: readonly [number, number]) => project(wv, p[0], p[1]);
+    const [vx0, vy1] = px(valley[0]!);
+    const [vx1, vy0] = px(valley[2]!);
+    assert.ok(geo.fog && geo.fog.banks.length >= 4 && geo.fog.banks.length <= 64, JSON.stringify(geo.fog?.banks.length));
+    assert.ok(geo.fog!.banks.every((b) => b.x >= vx0 && b.x <= vx1 && b.y >= vy0 && b.y <= vy1 && b.rx > b.ry), "banks lie in the valley, long and low");
+    assert.equal(geo.fog!.start, 0);
+    assert.equal(geo.fog!.end, 200, "it thins out from its line");
+    const whole = geoOf({ ...map, sis: {} }).fog!;
+    assert.ok(whole.banks.some((b) => b.y < wv.height * 0.25) && whole.banks.some((b) => b.y > wv.height * 0.75), "no outline: over the whole view");
+    assert.equal(geoOf({ ...map, sis: undefined }).fog, undefined);
+    assert.equal(buildGeoMap({ ...map, genislik_km: 500 }, data, 1920, 1080, () => 0).fog, undefined, "no fog on a wide map");
+    const shoreY = px([12.09, 43.175])[1];
+    const drowned = geo.units![0]!.steps[2]!.points;
+    assert.ok(drowned.every((p) => p.y > shoreY + 5), "driven into the lake: the tokens stand in it");
+    assert.equal(notes.join(" | "), "", "nothing to put right");
+    const pulled = geoOf(dry).units![0]!.steps[2]!.points;
+    assert.ok(pulled.every((p) => p.y < shoreY), `pulled ashore: ${JSON.stringify(pulled.map((p) => p.y))} vs shore ${shoreY}`);
+    assert.ok((notes as string[]).length === 1 && notes[0]!.includes('"Roman column" 3. satırda suda duruyordu') && notes[0]!.includes("8 birliği"), JSON.stringify(notes));
+    assert.deepEqual(pullAshore([[12.09, 43.19]], onLand, 4), { points: [[12.09, 43.19]], pulled: 0 }, "a token on land stays");
+    assert.equal(pullAshore([[12.1, 43.13]], onLand, 1).pulled, 0, "beyond reach of the shore: left as written");
+    // A column along its road keeps its line (it is no front to turn to the enemy): its tokens follow the road.
+    const marching = geo.units![0]!.steps[0]!.points;
+    const roadPx = road.map((p) => px(p));
+    const roadYs = roadPx.map((p) => p[1]);
+    assert.ok(marching.every((p) => p.y > Math.min(...roadYs) - 30 && p.y < Math.max(...roadYs) + 30), `on the road: ${JSON.stringify(marching.map((p) => p.y))} vs ${JSON.stringify(roadYs)}`);
+    assert.ok(Math.max(...marching.map((p) => p.x)) - Math.min(...marching.map((p) => p.x)) > 0.8 * (roadPx[3]![0] - roadPx[0]![0]), "strung along it, not turned across");
+    // 6) A lake mapped as a multipolygon relation (Lake Trasimene, with its islands): its outer ways, drawn any way round,
+    // close into the lake (the close map drew no Trasimene before); an island stays water at this scale; no other relation.
+    const way = (pts: [number, number][], role = "outer") => ({ type: "way", role, geometry: pts.map(([lon, lat]) => ({ lon, lat })) });
+    const rel = { type: "relation", tags: { natural: "water", name: "Lago Trasimeno" }, members: [way([[12.0, 43.1], [12.2, 43.1], [12.2, 43.175]]), way([[12.0, 43.1], [12.0, 43.175]]), way([[12.2, 43.175], [12.0, 43.175]]), way([[12.05, 43.15], [12.06, 43.15], [12.06, 43.16], [12.05, 43.15]], "inner")] };
+    const box = { west: 11.9, east: 12.3, south: 43.0, north: 43.3 };
+    const got = riversFromOverpass([rel] as never, box);
+    assert.equal(got.lakes.length, 1, JSON.stringify(got.lakes));
+    assert.ok(landOf(landPoly, got.lakes)([12.09, 43.15]) === false && landOf(landPoly, got.lakes)([12.09, 43.19]), "the relation's lake is water");
+    assert.equal(riversFromOverpass([{ ...rel, tags: { landuse: "forest" } }] as never, box).lakes.length, 0);
+    assert.equal(joinRings([[[0, 0], [1, 0]], [[1, 1], [1, 0]], [[0, 0], [1, 1]]]).length, 1, "three ways, two reversed, one ring");
   });
 
   await scenario("O14 the battle itself on the close map (owner, 23 Oct 2026, after the Belgrade trial): speakers talk from their badges at their side's tokens, the map stays wide, the climax is asked for on the close map", () => {

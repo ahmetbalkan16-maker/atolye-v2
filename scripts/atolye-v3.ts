@@ -35,6 +35,7 @@ import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon, withBothViews } from "../src/lib/v3/maps/MapBuilder";
+import { landOf } from "../src/lib/v3/maps/LandUnits";
 import { type CloseCoast, OHM_CREDIT, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../src/lib/v3/maps/CloseSite";
 import { mapGroundFor } from "../src/lib/v3/maps/MapGround";
@@ -866,7 +867,10 @@ async function main() {
             return "error";
           }
         };
-        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).then(async (o) => {
+        // Natural Earth's land and lakes, so the writer is asked to take land units out of the water (MapRules).
+        const natural = await loadMapData(paths.mapsDir).catch((e: Error) => (log(`  senaryo: Natural Earth yüklenemedi (${e.message.slice(0, 80)}); birliklerin suda durması sorulmaz`), undefined));
+        const onLand = natural ? landOf(natural.land, natural.lakes) : undefined;
+        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log, ...(onLand ? { onLand } : {}) }).then(async (o) => {
           // A person the verified research names (the 1638 siege's Bektash Khan) is real without an article of their own.
           const sourced = bank ? [...bank.olgular.map((x) => x.metin), ...(bank.alintilar ?? []).flatMap((x) => [x.metin, x.alinti])].join("\n") : "";
           const people = await inventedPeople(o.episode, lookup, sourced);
@@ -1150,6 +1154,7 @@ async function main() {
     ...(shorts ? { endCard: false, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}) } : {}),
     // No burned-in subtitles (owner, 20 Oct 2026; for Shorts too, 2 Nov 2026): speech on screen, altyazi.srt for CC.
     showCaptions: process.argv.includes("--altyazi-gom"),
+    log,
   });
   const silent = preview ? "video-onizleme.mp4" : "video-sessiz.mp4";
   if (need("render", silent)) {

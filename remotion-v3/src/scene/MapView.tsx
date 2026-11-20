@@ -13,6 +13,7 @@ import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
 import { badgeEdgeFits, badgeExtent, type HudCards, hudBoxes, labelSpot, nameInFrame } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { MapNight } from "./MapNight";
+import { MapFog } from "./MapFog";
 import { isNightMap } from "./mapEffects";
 import { smoothRiver } from "./mapNature";
 import { yer } from "./LayoutProbe";
@@ -775,8 +776,9 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
             </>,
           )
         )}
-        {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keep={keepName} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} /> : null}
+        {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings —
+            and over them the fog where the story tells it (on the ground, under the names, the armies and the badges). */}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keep={keepName} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} veil={map.fog && !upright ? <MapFog fog={map.fog} frame={frame} fps={fps} gid={id} /> : null} /> : map.fog ? G(<MapFog fog={map.fog} frame={frame} fps={fps} gid={id} />) : null}
         {map.cities.map((c, i) =>
           relief || upright ? null : (
             <g key={`c${i}`}>

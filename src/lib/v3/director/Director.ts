@@ -86,6 +86,8 @@ export interface DirectorInput {
   readonly audio?: string;
   /** The closing subscribe card (default on); off for a single-scene preview (scripts/v3/harita-onizleme.ts). */
   readonly endCard?: boolean;
+  /** What the maps' plan put right on the writer's map (MapBuilder's notes: a unit pulled out of the water), logged. */
+  readonly log?: (s: string) => void;
 }
 
 const WALK_SPEED = 0.26; // stage widths per second
@@ -857,6 +859,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
             return sec === undefined ? undefined : local(sec);
           },
           fps,
+          ...(input.log ? { note: (n: string) => input.log!(`  harita: ${scene.id}: ${n}`) } : {}),
         })
       : undefined;
     // What each badge says: its mouth with the voice, its face with the line's mood.

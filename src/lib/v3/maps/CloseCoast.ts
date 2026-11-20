@@ -71,8 +71,11 @@ export interface CloseRiver {
   readonly name?: string;
 }
 
-/** Bump when the river parsing changes. */
-const RIVER_VERSION = 1;
+/**
+ * Bump when the river parsing changes. 2 (20 Nov 2026): lakes mapped as multipolygon relations too — Lake Trasimene, a
+ * lake with islands, is one, and the close map of its shore drew no lake at all.
+ */
+const RIVER_VERSION = 2;
 /** The smallest lake drawn on the close map (km²). */
 const MIN_LAKE_KM2 = 0.02;
 
@@ -93,13 +96,22 @@ function riverKm(tags: Readonly<Record<string, string>>): number {
   return tags.CEMT || tags.ship === "yes" || tags.boat === "yes" ? 0.35 : 0.12;
 }
 
-/** The rivers, canals and lakes in an Overpass answer, cut to the box (lakes: closed water ways). */
+/**
+ * The rivers, canals and lakes in an Overpass answer, cut to the box (lakes: closed water ways, and a water relation's
+ * outer ways joined into rings — a lake with islands is mapped so; its islands stay water at this scale).
+ */
 export function riversFromOverpass(elements: readonly OsmElement[], box: Box): { rivers: CloseRiver[]; lakes: Polygon[] } {
   const rivers: CloseRiver[] = [];
   const lakes: Polygon[] = [];
   const byName = new Map<string, { lines: Pt[][]; km: number }>();
   for (const e of elements) {
     const t = e.tags ?? {};
+    if (e.type === "relation") {
+      if (t.natural !== "water" && t.waterway !== "riverbank") continue;
+      const outer = (e.members ?? []).filter((m) => m.type === "way" && m.role !== "inner" && (m.geometry?.length ?? 0) >= 2).map((m) => m.geometry!.map((g): Pt => [g.lon, g.lat]));
+      for (const ring of joinRings(outer)) if (ring.length > 3 && same(ring[0]!, ring[ring.length - 1]!)) lakes.push([simplifyLine(ring, SIMPLIFY_DEG)]);
+      continue;
+    }
     const line = (e.geometry ?? []).map((g): Pt => [g.lon, g.lat]);
     if (line.length < 2) continue;
     if (t.natural === "water" || t.waterway === "riverbank") {
@@ -135,18 +147,48 @@ export async function closeRiversFor(paths: Pick<V3Paths, "workRoot">, world: Pi
   if (existsSync(lib)) return big(JSON.parse(await fs.readFile(lib, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
   const bbox = `${box.south},${box.west},${box.north},${box.east}`;
   try {
-    const json = await overpass(`[out:json][timeout:40];(way["waterway"~"^(river|canal)$"](${bbox});way["natural"="water"](${bbox});way["waterway"="riverbank"](${bbox}););out tags geom;`, 45_000);
+    // A relation's members and their geometry come only with "out geom" ("out tags" gives a relation its tags alone).
+    const json = await overpass(`[out:json][timeout:40];(way["waterway"~"^(river|canal)$"](${bbox});way["natural"="water"](${bbox});way["waterway"="riverbank"](${bbox}););out tags geom;relation["natural"="water"](${bbox});out geom;`, 45_000);
     const got = riversFromOverpass(json.elements ?? [], box);
     await fs.mkdir(path.dirname(lib), { recursive: true });
     if (!existsSync(lib)) await fs.writeFile(lib, JSON.stringify(got));
     return big(got);
   } catch (e) {
+    // Offline: the box's rivers as an older parsing kept them (without the relation lakes) beat Natural Earth's lines.
+    for (let v = RIVER_VERSION - 1; v >= 1; v--) {
+      const old = path.join(paths.workRoot, "_kutuphane", "osm-nehir", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+      if (existsSync(old)) {
+        log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); kütüphanedeki eski nehirler kullanılır`);
+        return big(JSON.parse(await fs.readFile(old, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
+      }
+    }
     log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); Natural Earth nehirleri çizilir`);
     return undefined;
   }
 }
 
 const same = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
+
+/** A relation's member ways joined into rings, whichever way each one was drawn (a lake's outer ways are not ordered). */
+export function joinRings(ways: readonly (readonly Pt[])[]): Pt[][] {
+  const chains = ways.filter((w) => w.length >= 2).map((w) => [...w]);
+  const closed = (c: readonly Pt[]) => same(c[0]!, c[c.length - 1]!);
+  for (let joined = true; joined; ) {
+    joined = false;
+    for (let a = 0; a < chains.length && !joined; a++)
+      for (let b = 0; b < chains.length && !joined; b++) {
+        const [A, B] = [chains[a]!, chains[b]!];
+        if (a === b || closed(A) || closed(B)) continue;
+        const [a0, a1, b0, b1] = [A[0]!, A[A.length - 1]!, B[0]!, B[B.length - 1]!];
+        const next = same(a1, b0) ? [...A, ...B.slice(1)] : same(a1, b1) ? [...A, ...[...B].reverse().slice(1)] : same(a0, b1) ? [...B, ...A.slice(1)] : same(a0, b0) ? [...[...B].reverse(), ...A.slice(1)] : undefined;
+        if (!next) continue;
+        chains[a] = next;
+        chains.splice(b, 1);
+        joined = true;
+      }
+  }
+  return chains;
+}
 
 /** Coastline ways joined end to start into the longest chains they make (a closed island comes out closed). */
 export function chainWays(ways: readonly (readonly Pt[])[]): Pt[][] {
