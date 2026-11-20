@@ -1,3 +1,31 @@
+## 20 Kasım 2026 (2) — Konstantinopolis yeniden üretildi: gerçek surlar, şehir, ordugâh, kuşatma; 2:32 teslim
+
+Owner: "yeniden ürettir, hataları gider, gerçekçi yaptır, takip et, müdahale et; gerektiğinde canlıya al" + "her rötuş
+turundan sonra sen de bak, iyi olanı kullandır" + "bu video bitince dur, 2. videoya geçme, her şeyi kaydet, beyinlere aktar".
+Canlıya alınanlar (feature → wip ff, canonical pull; izleyici yeniden başlatma gerekmedi, yapim.ts değişmedi):
+- 39ad24f8 CloseSite: SiteData.namedWalls (OSM'de adlı sur yolları, önbellekteki ham Overpass'tan, yeniden indirme yok);
+  snapMapToRealWall yazarın adındaki suru seçer (deniz suruna L bağlanmaz), surun tamamını alır, diğer surları ana surdan
+  kesip ekler, deniz surları tarafına sur içi şehri koyar, sur çerçevedeyse yazarın kutusunu korur (kıyısı kütüphanede).
+- 3c285ea5 aynı yol çizgi zaten uyuyorsa da çalışır (hiçbir şey kaymaz; surun tamamı + şehir). director 81 PASS.
+Sipariş 20261120T060437-the-fall-of-constantinople-april-29-may- (konu metni olaylarla: Urban topları, St Romanos,
+Haliç zinciri, 22 Nisan karadan gemi taşıma, Giustiniani, üçüncü dalga, Ayasofya): yazar 323 kelime; uzunluk turu 2
+"bandın çok altında" kuralıyla alındı (78a07007 işe yaradı). Elle müdahale (`D:\URETIM\private\gece\yama-konstantinopolis.ts`,
+yedek `yedek-060437/`, vakalar el-20261120T074139-lku1 + el-20261120T095556-t5d7): yakın haritalar kütüphane kutusuna
+(28.94,41.012, 10 km; Overpass kapalıydı), kara suru gerçek izinde, Maltepe ordugâhı, s3 surun dışında kuşatma hattı + toplar
+Lykos gediğine, s7 Yeniçeriler gedikten içeri / savunanlar geri, Konstantin X son satırda (Giustiniani X yok, yaralandı),
+donanma Diplokionion'da, gemi kızağı Dolmabahçe → Pera sırtı → Kasımpaşa; kaynak bankasından 3 anlatıcı satırı (320 gemi,
+70+ büyük top, ~80 kadırga) → 152,6 sn; eski turlar `onceki-deneme-1/`, sipariş `ses`'ten devam. Sonuç: tur 0 teslim
+(UYARIYLA), 2:32, 2 ölçülen kusur (önceki 3), kurul 7/10, $0,75. Tur 1 (AYAS satır rötuşu) berabere; ben de baktım: tur 0
+daha iyi ("go around… over" gemi sahnesini hazırlıyor; tur 1 Ceneviz'e kaynaksız "bribe" ekliyordu). Kalan küçük kusur:
+27–28. sn "OTTOMAN CAMP" yazısı sol kenarda 18 px kesik (yamada ordugâh doğuya alındı, bu turlara yetişmedi). Mehmed 5/10,
+Giustiniani 6/10 benzerlik. YouTube'a YÜKLENMEDİ (owner kararı). 2. video (Thermopylae) owner isteğiyle BAŞLATILMADI.
+DÜZELTME (önceki kayıt): "Cronicque du temps de tres chrestien roy Charles" (Chartier, VII. Charles kroniği) ve "Facial
+Chronicle" minyatürleri 1453 Konstantinopolis kuşatmasını gösteriyor — konuya UYGUN, eleme gerekmiyor.
+Owner onaylı 8 geliştirme kuyrukta (kurgu-79/81/84, ses-78/82, kalite-80/85, kostum-83) — 16:30 akşam döngüsü yapar.
+SIRADAKİ: yakın harita zenginleştirmesini (ordugâh, sur içi şehir, tüm sur boyunca kuşatma hattı, gemi/top yerleri,
+x_satir son satırda) elle değil kodla yap (yazar tarifi + onarım kontrolü); Overpass kapalıyken yeni kutu kıyısı için
+kütüphane kutusuna oturtma; sonra Thermopylae.
+
 ## 20 Kasım 2026 — gece Shorts denemesi: Konstantinopolis teslim (zayıf), yakın savaş haritası gerçekçiliği YARIM
 
 Owner 19 Kas gece: "03:00'te otomatik başlat, sırayla 2 Shorts, izle/düzelt/canlıya al". Görev Zamanlayıcı "Atolye Gece
