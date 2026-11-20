@@ -7,6 +7,7 @@ import type { V3Paths } from "../V3Paths";
 import { castleStyleFor, fitWall, joinPieces, kmBetween, lineKm, type Pt, roundness, stripCentreline } from "./CastleShapes";
 import { type Box, chainWays, ohmOverpass, type OsmElement, overpass, simplifyLine } from "./CloseCoast";
 import { mapWorld } from "./MapBuilder";
+import { fillSiegeMap, isSiegeMap, siegePlaceKey } from "./SiegeMap";
 
 /**
  * The close battle map's site from open data (owner, 23 Oct 2026: "our helper brains must make these maps for any
@@ -35,8 +36,27 @@ export interface SiteData {
   readonly namedWalls?: { readonly name: string; readonly line: Pt[] }[];
 }
 
-/** The site of a box, with the names of its walls and castles to look up; undefined when no source answered. */
-export type SiteLookup = (box: Box, names: readonly string[], year?: number) => Promise<{ site: SiteData; sources: string[] } | undefined>;
+/**
+ * A close map whose box the library holds Overpass's answer for (its walls; the production that drew it fetched its
+ * coast too). Kept so a later map of the same place can stand on the same box when Overpass is down.
+ */
+export interface LibraryBox {
+  readonly merkez: readonly [number, number];
+  readonly genislik_km: number;
+  readonly box: Box;
+}
+
+/** The library's boxes (closeSiteLookup's index): read them, record one. */
+export interface SiteLibrary {
+  boxes(): Promise<LibraryBox[]>;
+  keep(entry: LibraryBox): Promise<void>;
+}
+
+/**
+ * The site of a box, with the names of its walls and castles to look up; undefined when no source answered.
+ * `library`: the boxes it holds, for a map to be set on one when Overpass does not answer for its own.
+ */
+export type SiteLookup = ((box: Box, names: readonly string[], year?: number) => Promise<{ site: SiteData; sources: string[] } | undefined>) & { readonly library?: SiteLibrary };
 
 /** A date tag's year ("1453", "1453-05-29", "-0049", "~1450"); undefined when there is none. */
 export function tagYear(v: string | undefined): number | undefined {
@@ -144,7 +164,7 @@ function insideRing(p: readonly [number, number], ring: readonly Pt[]): boolean 
 export interface WallNote {
   readonly sahne: string;
   readonly ad: string;
-  readonly kaynak: "osm" | "yazar" | "kale";
+  readonly kaynak: "osm" | "yazar" | "kale" | "kutuphane" | "kusatma";
   readonly ayrinti: string;
 }
 
@@ -392,36 +412,73 @@ export async function prepareCloseMaps(episode: Episode, lookup: SiteLookup, yea
   const notes: WallNote[] = [];
   const sources = new Set<string>();
   const sahneler = [];
+  const places = new Set<string>();
   for (const original of episode.sahneler) {
     const close = original.harita?.genislik_km !== undefined && original.harita.genislik_km <= CLOSE_MAP_MAX_KM;
     const implied = close ? impliedCastle(original) : undefined;
     if (implied) notes.push({ sahne: original.id, ad: implied.ad ?? "kale", kaynak: "kale", ayrinti: `yazar suru çizmemişti: kuşatmanın merkezine ${implied.kale!.km} km'lik kale kondu` });
     const s = implied ? { ...original, harita: { ...original.harita!, surlar: [implied] } } : original;
-    const h = s.harita;
-    if (!h?.merkez || !h.genislik_km || !close || !h.surlar?.length) {
+    let h = s.harita;
+    const walls = h?.surlar;
+    if (!h?.merkez || !h.genislik_km || !close || !walls?.length) {
       sahneler.push(s);
       continue;
     }
     // The writer's names, then the names OSM often gives a town's walls ("Walls of Constantinople").
     const towns = (h.sehirler ?? []).map((c) => c.ad).slice(0, 2);
-    const names = [...new Set([...h.surlar.flatMap((w) => [w.osm_ad, w.ad].filter((n): n is string => Boolean(n))), ...towns.flatMap((t) => [`Walls of ${t}`, `${t} city walls`])])].slice(0, 6);
-    const got = await lookup(closeBox(h), names, year).catch(() => undefined);
+    const names = [...new Set([...walls.flatMap((w) => [w.osm_ad, w.ad].filter((n): n is string => Boolean(n))), ...towns.flatMap((t) => [`Walls of ${t}`, `${t} city walls`])])].slice(0, 6);
+    let got = await lookup(closeBox(h), names, year).catch(() => undefined);
+    if (got?.sources.includes("overpass")) await lookup.library?.keep({ merkez: [h.merkez[0], h.merkez[1]], genislik_km: h.genislik_km, box: closeBox(h) }).catch(() => undefined);
+    else if (lookup.library) {
+      // Overpass did not answer for a new box: a box of the same place in the library is taken instead (same centre and
+      // width), so the map gets its real coast and walls rather than Natural Earth's straight coast (the Constantinople
+      // remake, 20 Nov 2026, set its close maps on the first run's box by hand).
+      const lib = libraryBoxFor(h, await lookup.library.boxes().catch(() => []));
+      const onLib = lib ? { ...h, merkez: lib.merkez, genislik_km: lib.genislik_km } : undefined;
+      const again = onLib && sameBox(closeBox(onLib), lib!.box) ? await lookup(lib!.box, names, year).catch(() => undefined) : undefined;
+      if (onLib && again?.sources.includes("overpass")) {
+        notes.push({ sahne: s.id, ad: walls[0]!.ad ?? walls[0]!.osm_ad ?? "wall", kaynak: "kutuphane", ayrinti: `Overpass bu kutu için yanıt vermedi: harita kütüphanedeki kutuya oturtuldu ([${lib!.merkez.join(", ")}], ${lib!.genislik_km} km; gerçek kıyı ve surlar)` });
+        h = onLib;
+        got = again;
+      }
+    }
     for (const src of got?.sources ?? []) sources.add(src);
     // A wall the writer drew where no real one runs: the whole map moves onto the nearest real wall.
     const snapped = snapMapToRealWall(h, got?.site);
-    if (snapped) {
-      notes.push({ sahne: s.id, ad: h.surlar[0]!.ad ?? h.surlar[0]!.osm_ad ?? "wall", kaynak: "osm", ayrinti: snapped.detail });
-      sahneler.push({ ...s, harita: snapped.map });
-      continue;
-    }
-    const surlar = h.surlar.flatMap((w) => {
-      const r = placeWall(w, got?.site, year);
-      notes.push({ sahne: s.id, ...r.note });
-      return [r.wall, ...(r.extra ?? [])];
-    });
-    sahneler.push({ ...s, harita: { ...h, surlar } });
+    if (snapped) notes.push({ sahne: s.id, ad: walls[0]!.ad ?? walls[0]!.osm_ad ?? "wall", kaynak: "osm", ayrinti: snapped.detail });
+    const site = got?.site;
+    const placed: SceneMap = snapped?.map ?? {
+      ...h,
+      surlar: walls.flatMap((w) => {
+        const r = placeWall(w, site, year);
+        notes.push({ sahne: s.id, ...r.note });
+        return [r.wall, ...(r.extra ?? [])];
+      }),
+    };
+    // The siege's camp, guns, breach and lines along the real wall (SiegeMap; the hand patch of 20 Nov 2026 as rules).
+    const place = siegePlaceKey(placed);
+    const filled = fillSiegeMap(placed, !places.has(place));
+    if (isSiegeMap(placed)) places.add(place);
+    for (const fix of filled.fixes) notes.push({ sahne: s.id, ad: placed.surlar?.[0]?.ad ?? placed.surlar?.[0]?.osm_ad ?? "wall", kaynak: "kusatma", ayrinti: fix });
+    sahneler.push({ ...s, harita: filled.map });
   }
   return { episode: { ...episode, sahneler }, notes, sources: [...sources] };
+}
+
+const sameBox = (a: Box, b: Box) => [a.west - b.west, a.east - b.east, a.south - b.south, a.north - b.north].every((d) => Math.abs(d) < 1e-4);
+
+/**
+ * The library box a new close map can stand on: one whose frame holds the map's centre, of a width between half and
+ * twice its own, the nearest such. Undefined when none is near.
+ */
+export function libraryBoxFor(map: SceneMap, boxes: readonly LibraryBox[]): LibraryBox | undefined {
+  if (!map.merkez || !map.genislik_km) return undefined;
+  const c = map.merkez;
+  const kx = 111.32 * Math.cos((c[1] * Math.PI) / 180);
+  return boxes
+    .filter((b) => b.genislik_km >= map.genislik_km! / 2 && b.genislik_km <= map.genislik_km! * 2)
+    .filter((b) => Math.abs(b.merkez[0] - c[0]) * kx <= b.genislik_km / 2 && Math.abs(b.merkez[1] - c[1]) * 110.57 <= (b.genislik_km * 9) / 32)
+    .sort((a, b) => kmBetween(a.merkez, c) - kmBetween(b.merkez, c))[0];
 }
 
 /**
@@ -443,7 +500,28 @@ export function closeSiteLookup(paths: Pick<V3Paths, "workRoot">, log: (s: strin
   const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
   // Overpass down once in a run is not asked again for the next scene (each try waits on four servers).
   let overpassDown = false;
-  return async (box, names, year) => {
+  // The boxes Overpass answered for, one JSON a line (append-only, like the answers themselves).
+  const index = path.join(dir, "kutular.jsonl");
+  const library: SiteLibrary = {
+    async boxes() {
+      if (!existsSync(index)) return [];
+      return (await fs.readFile(index, "utf8")).split(/\r?\n/).flatMap((line) => {
+        try {
+          const b = JSON.parse(line) as LibraryBox;
+          return Array.isArray(b?.merkez) && typeof b.genislik_km === "number" && b.box ? [b] : [];
+        } catch {
+          return [];
+        }
+      });
+    },
+    async keep(entry) {
+      const box = { west: r4(entry.box.west), east: r4(entry.box.east), south: r4(entry.box.south), north: r4(entry.box.north) };
+      if ((await library.boxes()).some((b) => b.merkez[0] === entry.merkez[0] && b.merkez[1] === entry.merkez[1] && b.genislik_km === entry.genislik_km)) return;
+      await fs.mkdir(dir, { recursive: true });
+      await fs.appendFile(index, `${JSON.stringify({ merkez: entry.merkez, genislik_km: entry.genislik_km, box })}\n`);
+    },
+  };
+  const lookup = async (box: Box, names: readonly string[], year?: number) => {
     const b = { west: r4(box.west), east: r4(box.east), south: r4(box.south), north: r4(box.north) };
     const bbox = `${b.south},${b.west},${b.north},${b.east}`;
     let site: SiteData = { walls: [], castles: [], gates: [] };
@@ -492,5 +570,6 @@ export function closeSiteLookup(paths: Pick<V3Paths, "workRoot">, log: (s: strin
     }
     return sources.length ? { site, sources } : undefined;
   };
+  return Object.assign(lookup, { library });
 }
 

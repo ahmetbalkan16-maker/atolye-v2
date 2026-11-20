@@ -114,7 +114,7 @@ export function lineKm(line: readonly Pt[]): number {
 }
 
 /** A line resampled to `n` points evenly by length. */
-function resample(line: readonly Pt[], n: number): Pt[] {
+export function resample(line: readonly Pt[], n: number): Pt[] {
   const total = lineKm(line);
   if (!total || line.length < 2) return Array.from({ length: n }, () => [...line[0]!] as Pt);
   const out: Pt[] = [];
