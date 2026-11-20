@@ -1,3 +1,14 @@
+## 20 Kasım 2026 (4) — önceki oturumun açıkları kapandı: kıyı kütüphanesi endeksi
+
+- Konstantinopolis kutusu (28.94,41.012, 10 km) `osm-sur/kutular.jsonl`'de ZATEN VARDI — elle ekleme gerekmedi.
+- f07484f3 (push'lu, CANLI DEĞİL): kamera duraklarıyla genişleyen yakın harita dünyası, Overpass kapalıyken artık
+  kütüphanede onu tamamen kaplayan en küçük kutunun kıyısını alır (CloseCoast `kutular.jsonl` endeksi,
+  `coveringCoastBox`; kısmen kaplayan kutu hiç kullanılmaz). Mevcut 40 kıyı kutusu endekse bir kez dolduruldu (14 kıyı
+  dosyasının kutusu bulunamadı — eski/silinmiş bölümlerden). Kanıt: director 83, script 56 PASS, tsc 0, lint 0/0;
+  gerçek kütüphanede fetch kapalıyken s7-final-assault 0 → 47 kara halkası. Önizleme karesi ÇİZİLMEDİ (Overpass'ı
+  önizlemede kapatmanın yolu yok); bir sonraki yakın haritalı üretimde log satırına bakılmalı.
+- SIRADAKİ: toplu canlıya alma (owner isterse; bekleyenler: d9b6fbbe, e7a26271, c319ae7e, f07484f3); Thermopylae.
+
 ## 20 Kasım 2026 (3) — kuşatma yakın haritası koda alındı, kenar etiketleri, YouTube 0 izlenme teşhisi, Gelişim Merkezi kontrolü
 
 Owner: "bekleyenleri hallet; videoyu yükledim, hiç izlenmedi, nedenini bul; görev paylaşımı yaptır" + "Gelişim Merkezi
