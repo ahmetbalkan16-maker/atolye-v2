@@ -32,7 +32,7 @@ import { TILT_GLIDE_S, TILT_WORLD_PAST, tiltAt, tiltProject, tiltSeen, tiltShare
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults, mapViewMix } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
-import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
+import { placeWall, prepareCloseMaps, snapMapToRealWall, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
@@ -916,6 +916,20 @@ async function main() {
     assert.deepEqual(asked[0], ["Belgrade Fortress", "Walls of Belgrade", "Belgrade city walls"]);
     assert.ok(prepared.episode.sahneler[0]!.harita!.surlar![0]!.noktalar!.length >= 6 && prepared.sources[0] === "test");
     assert.equal((await prepareCloseMaps(ep, async () => { throw new Error("no map scene asks"); }, 1456)).notes.length, 0);
+    // The Constantinople Short (20 Nov 2026): the writer's east–west line 1.7 km east of the real north–south wall does
+    // not fit; the whole map (centre, units, badge) moves onto the real wall and turns with it, the wall becomes the real trace.
+    const guessed = { merkez: [28.94, 41.012] as [number, number], genislik_km: 10, surlar: [{ ad: "Theodosian Walls", noktalar: [[28.93, 41.014], [28.95, 41.01]] as [number, number][], gedik: { konum: [28.94, 41.012] as [number, number], satir: 0 } }], birlikler: [{ taraf: "Ottomans", ad: "Janissaries", tur: "kilicli", kanat: "merkez", renk: "#3fae3a", amblem: "hilal", sayi: 6, etiket: "Janissaries", yerler: [{ satir: 0, cephe: [[28.94, 41.0125], [28.945, 41.0115]] }] }], rozetler: [{ karakter: "mehmed", konum: [28.945, 41.0135], satir: 0 }] };
+    const snapSite = { walls: [real], castles: [], gates: [{ at: [28.921, 41.02] as [number, number], name: "Topkapı" }] };
+    const snapped = await prepareCloseMaps({ ...ep, donem: "1453", sahneler: [{ ...ep.sahneler[0]!, harita: guessed as never }] }, async () => ({ site: snapSite, sources: ["test"] }), 1453);
+    const sm = snapped.episode.sahneler[0]!.harita!;
+    assert.ok(sm.surlar![0]!.noktalar!.every((p) => p[0] > 28.919 && p[0] < 28.923), "the wall is the real trace: " + JSON.stringify(sm.surlar![0]!.noktalar));
+    assert.ok(sm.merkez![0] > 28.919 && sm.merkez![0] < 28.923, "the map's centre moved onto the wall: " + JSON.stringify(sm.merkez));
+    const badge = (sm as { rozetler?: { konum: [number, number] }[] }).rozetler![0]!.konum;
+    assert.ok(Math.abs(badge[0] - 28.9205) < 0.012 && badge[1] > 40.99, "the badge moved with it: " + JSON.stringify(badge));
+    assert.ok(snapped.notes.some((n) => n.kaynak === "osm" && n.ayrinti.includes("gerçek surlara uymuyordu")), JSON.stringify(snapped.notes));
+    // A wall that fits stays put; with no real wall within reach nothing moves.
+    assert.equal(snapMapToRealWall({ merkez: [28.92, 41.02], genislik_km: 6, surlar: [{ noktalar: [[28.918, 41.035], [28.918, 41.005]] }] } as never, snapSite), undefined, "a fitting line is not moved");
+    assert.equal(snapMapToRealWall({ merkez: [29.5, 41.0], genislik_km: 6, surlar: [{ noktalar: [[29.49, 41.01], [29.51, 41.0]] }] } as never, snapSite), undefined, "no real wall within reach");
     // A walled town fills its walls only; a castle with no points is drawn round its centre.
     const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
     const walled = buildGeoMap(

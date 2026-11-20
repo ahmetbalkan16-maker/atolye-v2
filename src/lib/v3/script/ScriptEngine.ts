@@ -156,6 +156,11 @@ export const MIN_DIALOGUE_SCENES = 0.3;
 export const MIN_VISIBLE_CAST = 3;
 /** Revision attempts; one that does not get closer is dropped and the best version is tried again. */
 const MAX_REVISIONS = 3;
+/**
+ * Below this share of the band's floor a script is "far short": a longer revision is taken even when it adds map issues
+ * (the map rules are soft and later steps repair them; a Short at half its length fails the length check outright).
+ */
+const FAR_SHORT_SHARE = 0.75;
 
 const visibleCast = (episode: Episode) => episode.oyuncu_kadrosu.filter((c) => c.gorunur).length;
 
@@ -633,8 +638,13 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
     const before = mapProblems(written).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
     if (revised.quality.length > before) {
-      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
-      continue;
+      // A script far under its band is no video yet: the Constantinople Short (20 Nov 2026) had all three expansions
+      // dropped for "5 → 7" map issues and went out at 162 of 389 words, 85 s of the 144–180 s asked. Length wins there.
+      if (spokenWords(written) >= targetWords * band[0] * FAR_SHORT_SHARE) {
+        input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
+        continue;
+      }
+      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} alındı — senaryo bandın çok altında (${spokenWords(written)}/${targetWords} kelime); harita sorunları ${before} → ${revised.quality.length}, sonraki adımlar ele alır`);
     }
     written = revised.value as Episode;
   }

@@ -548,15 +548,23 @@ async function main() {
     assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 83. Expand"));
     assert.equal(out.spokenWords, 21 + 6 * 9);
     assert.equal(out.targetWords, 83);
-    // A longer version that loses what the map rules won is not taken (they are not asked again after these rounds).
+    // A longer version that loses what the map rules won is not taken when the script is near its band (they are not
+    // asked again after these rounds): 66 of 83 words is within reach of the 75-word floor.
     const lostMap = JSON.parse(JSON.stringify(longer));
     lostMap.sahneler[1].mekan = "Map of the Bosphorus";
-    const again = new FakeProvider([validJson(), JSON.stringify(lostMap), JSON.stringify({ iddialar: [] })]);
+    const nearBase = JSON.parse(validJson());
+    for (let i = 0; i < 5; i++) nearBase.sahneler[1].satirlar.push({ karakter: "halil", metin: "Sultanım, bu iş hiç de kolay olmayacak gibi görünüyor.", duygu: "korkmus", kurgu: true });
+    const again = new FakeProvider([JSON.stringify(nearBase), JSON.stringify(lostMap), JSON.stringify({ iddialar: [] })]);
     const logs: string[] = [];
     const kept = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: again } }), log: (m) => logs.push(m), maxRepairs: 0 });
-    assert.equal(kept.spokenWords, 21, "the shorter script with its map kept");
+    assert.equal(kept.spokenWords, 21 + 5 * 9, "the near-band script with its map kept");
     // Since 19 Nov 2026 the count holds the fixture's line after the hook too ("Hisar 1452 …" opens on a date): 1 → 2 became 2 → 3.
     assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (2 → 3)")), logs.join("\n"));
+    // Far under the band (21 of 83 words; the Constantinople Short, 20 Nov 2026: 162 of 389 after three dropped rounds) length wins.
+    const farLogs: string[] = [];
+    const far = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: new FakeProvider([validJson(), JSON.stringify(lostMap), JSON.stringify({ iddialar: [] })]) } }), log: (m) => farLogs.push(m), maxRepairs: 0 });
+    assert.equal(far.spokenWords, 21 + 6 * 9, "the longer script is taken although it adds a map issue");
+    assert.ok(farLogs.some((m) => m.includes("uzunluk turu 1 alındı — senaryo bandın çok altında (21/83 kelime)")), farLogs.join("\n"));
   });
 
   await scenario("P a group the narrator tells is seen as a crowd: asked in the repair round, added as a last resort", async () => {

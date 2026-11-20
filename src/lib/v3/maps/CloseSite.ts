@@ -188,6 +188,88 @@ export function placeWall(w: MapWall, site: SiteData | undefined, year: number |
   return { wall: { ...w, noktalar, ...(kapilar ? { kapilar } : {}) }, note: { ad, kaynak: "osm", ayrinti: `sur izi OpenStreetMap'ten (${noktalar.length} nokta${onWall.length && kapilar !== w.kapilar ? `, ${Math.min(8, onWall.length)} gerçek kapı` : ""})` } };
 }
 
+/** A guessed wall is moved onto a real one at most this far away (km). */
+const SNAP_MAX_KM = 2.5;
+/** Only a real wall at least this long (km) is worth moving a battle onto. */
+const SNAP_MIN_WALL_KM = 0.8;
+/** The stretch of the real wall kept round the snap point (km each way). */
+const SNAP_REACH_KM = 1.5;
+
+/** Where on a line the point `p` is closest: the point, the distance (km), the line's direction there (radians, km space) and the distance along the line. */
+function nearestOnLine(line: readonly Pt[], p: Pt): { at: Pt; km: number; angle: number; along: number } {
+  const k = { x: 111.32 * Math.cos((p[1] * Math.PI) / 180), y: 110.57 };
+  let best = { at: line[0]!, km: Infinity, angle: 0, along: 0 };
+  let walked = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1]!, line[i]!];
+    const [ax, ay, bx, by] = [(a[0] - p[0]) * k.x, (a[1] - p[1]) * k.y, (b[0] - p[0]) * k.x, (b[1] - p[1]) * k.y];
+    const [dx, dy] = [bx - ax, by - ay];
+    const len = Math.hypot(dx, dy);
+    const u = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1e-12)));
+    const km = Math.hypot(ax + dx * u, ay + dy * u);
+    if (km < best.km) best = { at: [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], km, angle: Math.atan2(dy, dx), along: walked + len * u };
+    walked += len;
+  }
+  return best;
+}
+
+/**
+ * A close map whose writer drew its wall where no real wall runs, moved onto the nearest real one. The Constantinople
+ * Short (20 Nov 2026, owner: "the close battle scenes are very bad"): the writer guessed the Theodosian Walls as a
+ * 1.5 km east–west line inside the old city, OpenStreetMap has them 1.7 km west running north–south, `fitWall` rightly
+ * refused, and the writer's line stayed — armies on empty hills, the walls a short grey stroke. The whole map content
+ * (every longitude/latitude pair: centre, units, badges, the breach) is moved and turned as one body about the writer's
+ * wall, so the sides keep their places along it, and the wall becomes the real trace round that point. Undefined when
+ * the map has not exactly one wall with points, the site has no real wall of length near, or the line already fits.
+ */
+export function snapMapToRealWall(map: SceneMap, site: SiteData | undefined): { map: SceneMap; detail: string } | undefined {
+  const w = map.surlar?.length === 1 ? map.surlar[0]! : undefined;
+  const script = (w?.noktalar ?? []).map((p): Pt => [p[0], p[1]]);
+  if (!w || w.kale || script.length < 2 || !site) return undefined;
+  const lines = joinPieces(site.walls, JOIN_GAP_KM).filter((l) => lineKm(l) >= SNAP_MIN_WALL_KM);
+  if (!lines.length || fitWall(script, lines)) return undefined;
+  const c: Pt = [script.reduce((a, p) => a + p[0], 0) / script.length, script.reduce((a, p) => a + p[1], 0) / script.length];
+  const hit = lines.map((line) => ({ line, ...nearestOnLine(line, c) })).sort((a, b) => a.km - b.km)[0]!;
+  if (hit.km > SNAP_MAX_KM) return undefined;
+  const k = { x: 111.32 * Math.cos((c[1] * Math.PI) / 180), y: 110.57 };
+  const first = script[0]!;
+  const last = script[script.length - 1]!;
+  const writerAngle = Math.atan2((last[1] - first[1]) * k.y, (last[0] - first[0]) * k.x);
+  // Lines have no direction: the smaller turn (at most a quarter) keeps the sides as drawn.
+  let turn = hit.angle - writerAngle;
+  while (turn > Math.PI / 2) turn -= Math.PI;
+  while (turn <= -Math.PI / 2) turn += Math.PI;
+  const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
+  const near = (v: number, from: number) => Math.abs(v - from) < 1;
+  const move = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      if (value.length === 2 && typeof value[0] === "number" && typeof value[1] === "number" && near(value[0], c[0]) && near(value[1], c[1])) {
+        const [x, y] = [(value[0] - c[0]) * k.x, (value[1] - c[1]) * k.y];
+        const [rx, ry] = [x * cos - y * sin, x * sin + y * cos];
+        return [Math.round((hit.at[0] + rx / k.x) * 1e6) / 1e6, Math.round((hit.at[1] + ry / k.y) * 1e6) / 1e6];
+      }
+      return value.map(move);
+    }
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, move(v)]));
+    return value;
+  };
+  const moved = move(map) as SceneMap;
+  // The real trace round the snap point: a stretch of the line, its gates on it.
+  let walked = 0;
+  const run: Pt[] = [];
+  for (let i = 0; i < hit.line.length; i++) {
+    if (i > 0) walked += kmBetween(hit.line[i - 1]!, hit.line[i]!);
+    if (Math.abs(walked - hit.along) <= SNAP_REACH_KM) run.push(hit.line[i]!);
+  }
+  const noktalar = (run.length >= 2 ? simplifyLine(run, WALL_SIMPLIFY_DEG) : hit.line).map((p): Pt => [r6(p[0]), r6(p[1])]);
+  const gates = site.gates.filter((g) => noktalar.some((p, i) => i > 0 && segmentKm(noktalar[i - 1]!, p, g.at) <= 0.06)).slice(0, 8).map((g) => g.at);
+  const wall = { ...moved.surlar![0]!, noktalar, ...(gates.length ? { kapilar: gates } : {}) };
+  return {
+    map: { ...moved, surlar: [wall] },
+    detail: `yazarın çizgisi gerçek surlara uymuyordu: harita ${Math.round(hit.km * 10) / 10} km taşındı, ${Math.round((turn * 180) / Math.PI)}° döndürüldü; sur izi OpenStreetMap'ten (${noktalar.length} nokta)`,
+  };
+}
+
 /** Distance (km) from `p` to the segment a–b. */
 function segmentKm(a: Pt, b: Pt, p: Pt): number {
   const k = { x: 111.32 * Math.cos((p[1] * Math.PI) / 180), y: 110.57 };
@@ -255,6 +337,13 @@ export async function prepareCloseMaps(episode: Episode, lookup: SiteLookup, yea
     const names = [...new Set([...h.surlar.flatMap((w) => [w.osm_ad, w.ad].filter((n): n is string => Boolean(n))), ...towns.flatMap((t) => [`Walls of ${t}`, `${t} city walls`])])].slice(0, 6);
     const got = await lookup(closeBox(h), names, year).catch(() => undefined);
     for (const src of got?.sources ?? []) sources.add(src);
+    // A wall the writer drew where no real one runs: the whole map moves onto the nearest real wall.
+    const snapped = snapMapToRealWall(h, got?.site);
+    if (snapped) {
+      notes.push({ sahne: s.id, ad: h.surlar[0]!.ad ?? h.surlar[0]!.osm_ad ?? "wall", kaynak: "osm", ayrinti: snapped.detail });
+      sahneler.push({ ...s, harita: snapped.map });
+      continue;
+    }
     const surlar = h.surlar.flatMap((w) => {
       const r = placeWall(w, got?.site, year);
       notes.push({ sahne: s.id, ...r.note });
