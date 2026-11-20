@@ -191,7 +191,7 @@ ANLATIM KURALLARI
 1. Kanca: ilk 10 saniyede bir soru, çatışma ya da şaşırtıcı bilgi; ilk 30 saniyede "bu videoda ne öğreneceksin" vaadi.
 ${isShortBrief(b) ? "" : RETENTION_BEATS.tr}2. Anlatıcı ile karakter diyaloğu karışık; sahnelerin en az %30'unda en az iki satır görünür karakterlere aittir.
 3. Her 20–40 saniyede bir espri ya da ters köşe. Mizah zekice ve saygılı; argo, küfür ve hakaret yok.
-4. Kısa cümleler: satır başına ortalama en fazla 14 kelime, hiçbir satır 22 kelimeyi geçmez; konuşma dili.
+4. Kısa cümleler: satır başına ortalama en fazla 14 kelime, hiçbir satır 22 kelimeyi geçmez (satır başına tek fikir); konuşma dili. Hikâye zamanı, açılış kancası ve tek bir köprü satırından ("Dört yıl önce…") sonra yalnız ileri akar; kartta yazan metin aynen konuşulmaz.
 5. Tarihsel doğruluk: anlatıcının her olgusal iddiası "kaynak" alanıyla kaynaklar listesine bağlanır. Tartışmalı bilgi
    "rivayet": true alır ve metinde "rivayete göre", "anlatılır" gibi bir ifade geçer. Karakterlerin uydurma diyalogları
    "kurgu": true alır. Uydurma kaynak, uydurma sayfa numarası ya da uydurma alıntı YOK: emin olmadığın künyeyi yazma.
@@ -219,7 +219,7 @@ ${isShortBrief(b) ? "" : RETENTION_BEATS.en}2. Mix narrator and character dialog
    petty, overconfident, bickering), absurd comparisons, understatement, running gags and callbacks — a punchline every
    10–15 seconds, and the facts still exact. Clever and respectful; no slurs, no profanity, no insults.
    Keep it moving: scenes of 8–15 seconds, a new place, framing or visual gag every few seconds.
-4. Short sentences: at most 14 words per line on average, never more than 22; conversational.
+4. Short sentences: at most 14 words per line on average, never more than 22 (one idea per line); conversational. Story time only moves forward after the opening hook and one bridge line ("Four years earlier, …"); text typed on a card or map is never also said word for word.
 5. Accuracy: every factual narrator claim links to the source list through "kaynak". Disputed accounts get "rivayet": true
    and the line says so ("legend has it", "according to some sources"). Invented character dialogue gets "kurgu": true.
    NO invented sources, page numbers or quotations: leave out any citation you are not sure exists.

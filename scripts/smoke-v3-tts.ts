@@ -12,6 +12,7 @@ import path from "node:path";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { ticks } from "../src/lib/v3/mix/AudioQuality";
 import { LEGACY_TRIM_FILTER, lineKeys, type LineKeyParts, postProcessFilter, postProcessLine, STUCK_MAX_S, stuckSeconds, TRIM_FADE_IN_MIN_S, TRIM_PAD_END_S, TRIM_PAD_START_S, TRIM_SPEC, trimVoice, TTS_RATE, type VoiceProfile } from "../src/lib/v3/tts/Tts";
+import { normalizeEnglishForSpeech } from "../src/lib/v3/tts/EnglishText";
 import { voxcpmDescription } from "../src/lib/v3/tts/Voxcpm";
 import { runChecked } from "../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths } from "../src/lib/v3/V3Paths";
@@ -115,6 +116,16 @@ async function main() {
     assert.ok(Math.abs(t.samples.length - expected) <= 2, `length ${t.samples.length}`);
     assert.deepEqual(ticks(t.samples, rate), [], "assert.deepEqual(ticks(t.samples, rate), [])");
     assert.ok(ticks(x, rate).length >= 2, "the hard take itself has both edges");
+  });
+
+  await scenario("English speech text: digits, dollars, percents, ordinals, decimals, times and units are spoken as words (20 Nov 2026, the reference skill's 'digits in the spoken text')", () => {
+    const say = normalizeEnglishForSpeech;
+    assert.equal(say("In 216 BC, 50,000 men met in 1453."), "In two hundred sixteen BC, fifty thousand men met in fourteen fifty-three.");
+    assert.equal(say("The 3rd legion lost 20% for $50."), "The third legion lost twenty percent for fifty dollars.");
+    assert.equal(say("He paid $1.5 million for the 21st and 100th."), "He paid one point five million dollars for the twenty-first and one hundredth.");
+    assert.equal(say("At 1:25 a.m. and 5:30, 25km, 4kg."), "At one twenty-five a.m. and five thirty, twenty-five kilometers, four kilograms.");
+    assert.equal(say("Mehmed II took Constantinople. Version 2."), "Mehmed the Second took Constantinople. Version two.");
+    assert.ok(!/\d/.test(say("The 12th, 2nd, 30th of $3,000, 1.5%, 11:05")), "no digit is left for the voice to guess");
   });
 
   await scenario("a take with no sound is kept whole", () => {

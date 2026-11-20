@@ -36,6 +36,14 @@ export function englishYear(y: number): string {
   return `${below100(hi)} ${lo < 10 ? `oh-${ONES[lo]}` : below100(lo)}`;
 }
 
+const IRREGULAR_ORDINALS: Readonly<Record<string, string>> = { one: "first", two: "second", three: "third", five: "fifth", eight: "eighth", nine: "ninth", twelve: "twelfth" };
+
+/** "twenty-one" → "twenty-first", "hundred" → "hundredth": the last word of a spoken number turned into its ordinal. */
+export function englishOrdinal(n: number): string {
+  const words = englishNumber(n);
+  return words.replace(/[a-z]+$/, (last) => IRREGULAR_ORDINALS[last] ?? (last.endsWith("y") ? `${last.slice(0, -1)}ieth` : `${last}th`));
+}
+
 const ROMAN_ORDINALS: Readonly<Record<string, string>> = {
   I: "First", II: "Second", III: "Third", IV: "Fourth", V: "Fifth", VI: "Sixth", VII: "Seventh", VIII: "Eighth",
   IX: "Ninth", X: "Tenth", XI: "Eleventh", XII: "Twelfth", XIII: "Thirteenth", XIV: "Fourteenth", XV: "Fifteenth",
@@ -45,6 +53,15 @@ export function normalizeEnglishForSpeech(text: string): string {
   return text
     // Regnal numbers: "Mehmed II" → "Mehmed the Second" (but "World War II" stays a war).
     .replace(/\b([A-Z][a-z]+) (XV|XIV|XIII|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\b/g, (m, name: string, roman: string) => (name === "War" ? m : `${name} the ${ROMAN_ORDINALS[roman]}`))
+    // Signs and shapes a TTS reads wrong or not at all (20 Nov 2026, the reference skill's "digits in the spoken text"):
+    // "$50" → "50 dollars", "20%" → "20 percent", "3rd" → "third", "1.5" → "1 point 5", "5:30" → "5 30", "25km".
+    .replace(/\$(\d[\d,]*(?:\.\d+)?)(\s+(?:thousand|million|billion))?/g, (_m, n: string, unit?: string) => `${n}${unit ?? ""} dollars`)
+    .replace(/(\d)\s?%/g, "$1 percent")
+    .replace(/\b(\d+)(?:st|nd|rd|th)\b/g, (m, n: string) => (Number(n) < 1e9 ? englishOrdinal(Number(n)) : m))
+    .replace(/\b(\d+)\.(\d+)\b/g, (_m, a: string, b: string) => `${a} point ${b.split("").join(" ")}`)
+    .replace(/\b(\d{1,2}):(\d{2})\b/g, (_m, h: string, mm: string) => (mm === "00" ? h : `${h} ${mm.startsWith("0") ? "oh " : ""}${Number(mm)}`))
+    .replace(/(\d)\s?km\b/g, "$1 kilometers")
+    .replace(/(\d)\s?kg\b/g, "$1 kilograms")
     .replace(/\b(\d{1,3}(?:,\d{3})+)\b/g, (m) => englishNumber(Number(m.replace(/,/g, ""))))
     .replace(/\b\d+\b/g, (m) => {
       const n = Number(m);

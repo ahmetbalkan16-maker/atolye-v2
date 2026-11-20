@@ -27,6 +27,7 @@ import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/C
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems } from "../src/lib/v3/script/HookFollow";
+import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -487,6 +488,56 @@ async function main() {
     const short = new FakeProvider([longer("Hisar 1452 yazında tamamlandı."), JSON.stringify({ iddialar: [] })]);
     await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 25, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: short } }), maxRepairs: 1 });
     assert.ok(!short.calls.some((c) => c.prompt.includes("HOOK FOLLOW-UP")));
+  });
+
+  await scenario("I4 the reference skill's measurable rules (20 Nov 2026): story time only forward after the cold open and one bridge, one idea per line (22 words), a phrase typed OR said — asked in the repair round, in the prompt", async () => {
+    type Sc = { id: string; yazi_karti?: unknown[]; harita?: unknown; satirlar: { karakter: string; metin: string }[] };
+    const say = (...texts: string[]) => texts.map((metin) => ({ karakter: "anlatici", metin }));
+    const eps = (sahneler: Sc[]) => ({ sahneler }) as unknown as Episode;
+    const stamp = (metin: string, satir = 0) => ({ metin, stil: "yer_tarih", satir });
+    // Years as the viewer meets them: a stamp, a map date, or a line that opens on a year; a past reference is not one.
+    const flow = eps([
+      { id: "a", yazi_karti: [stamp("Constantinople, 1453")], satirlar: say("The walls hold.") },
+      { id: "b", satirlar: say("Four years earlier, in 1449, a boy became a sultan.") },
+      { id: "c", harita: { tarih: [{ satir: 0, metin: "June 1451" }] }, satirlar: say("The fortress rises.", "In 1452 it was done.") },
+      { id: "d", satirlar: say("Hannibal, born in 247 BC, laughs.", "300 Spartans held the pass.") },
+    ]);
+    assert.deepEqual(datedMoments(flow).map((m) => m.year), [1453, 1449, 1451, 1452]);
+    assert.deepEqual(storyTimeProblems(flow), [], "the cold open and one bridge step back: fine; a reference to a birth is not a date");
+    // A second step back is asked for, naming the years and the scene.
+    const back = eps([...(flow.sahneler as unknown as Sc[]), { id: "e", satirlar: say("Then, in 1450, a rumour spread.") }]);
+    assert.match(storyTimeProblems(back)[0]!, /^scene "e" line 1 steps back in story time \(1452 → 1450[^]*STORY TIME$/);
+    // No cold open: the second dated moment may step back (it is the bridge), the third may not.
+    assert.deepEqual(storyTimeProblems(eps([{ id: "a", satirlar: say("In 1449 a boy became a sultan.") }, { id: "b", satirlar: say("In 1451 the fortress rose.") }])), []);
+    assert.equal(storyTimeProblems(eps([{ id: "a", satirlar: say("In 1449 a boy became a sultan.") }, { id: "b", satirlar: say("In 1451 the fortress rose.") }, { id: "c", satirlar: say("In 1450 it was hated.") }])).length, 1);
+    // BC counts backwards; a range carries its era; the same year twice is one moment.
+    assert.equal(storyYear("Years earlier, in 247 BC"), -247);
+    assert.equal(storyYear("From 218 to 202 BC"), -218);
+    assert.equal(storyYear("MÖ 216'da Roma"), -216);
+    assert.equal(storyYear("AD 476"), 476);
+    assert.equal(storyYear("108,589 men marched"), undefined);
+    assert.deepEqual(storyTimeProblems(eps([{ id: "a", yazi_karti: [stamp("Cannae, 216 BC")], satirlar: say("On August 2nd, 216 BC, Rome fields its army.") }, { id: "b", satirlar: say("Years earlier, in 247 BC, a boy swore an oath.") }, { id: "c", satirlar: say("In 218 BC he crossed the Alps.") }, { id: "d", satirlar: say("In 216 BC he won.") }])), []);
+    assert.equal(storyTimeProblems(eps([{ id: "a", satirlar: say("In 216 BC Rome fields its army.") }, { id: "b", satirlar: say("Years earlier, in 247 BC, a boy swore an oath.") }, { id: "c", satirlar: say("In 202 BC he lost.") }, { id: "d", satirlar: say("In 210 BC he hid.") }])).length, 1);
+    // One idea per line: 22 words may stay (stage directions do not count), 23 are asked.
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
+    assert.deepEqual(longLineProblems(eps([{ id: "a", satirlar: say(`(grinning) ${words(22)}`) }])), []);
+    assert.match(longLineProblems(eps([{ id: "a", satirlar: say("Short one.", words(23)) }]))[0]!, /^scene "a" line 2 has 23 words \(at most 22\): one idea per line[^]*LINE LENGTH$/);
+    // A phrase typed and said word for word (three words or more); one word over black and a different line are fine.
+    const typed = eps([{ id: "t", yazi_karti: [{ metin: "Hannibal crosses the Alps", stil: "bilgi", satir: 0 }, { metin: "CRISIS", stil: "kelime", satir: 1 }, stamp("Cannae, 216 BC")], satirlar: say("So Hannibal crosses the Alps, with elephants.", "The crisis deepens.") }]);
+    assert.match(typedAndSpokenProblems(typed)[0]!, /^scene "t": the text "Hannibal crosses the Alps" is typed on the screen and also said word for word in line 1[^]*TYPED AND SPOKEN$/);
+    assert.equal(typedAndSpokenProblems(typed).length, 1, "the one-word card and the place-and-date stamp are fine");
+    assert.deepEqual(typedAndSpokenProblems(eps([{ id: "t", harita: { oklar: [{ etiket: "Hannibal's route", noktalar: [] }] }, satirlar: say("He marched for months.") }])), []);
+    assert.equal(typedAndSpokenProblems(eps([{ id: "t", harita: { tarih: [{ satir: 0, metin: "five months later" }] }, satirlar: say("Five months later, Rome wept.") }])).length, 1, "a map date stamp said as written");
+    // Through the writer: a 25 s script with a 26-word line gets it asked in the repair round and keeps the fixed line.
+    const wordy = JSON.parse(validJson());
+    wordy.sahneler[1].satirlar[2].metin = words(26);
+    const openai = new FakeProvider([JSON.stringify(wordy), validJson(), JSON.stringify({ iddialar: [] })]);
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 25, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 1 });
+    assert.ok(openai.calls[1]!.prompt.includes("has 26 words (at most 22)") && openai.calls[1]!.prompt.includes("LINE LENGTH"), openai.calls[1]!.prompt.split("JSON:")[0]);
+    assert.equal(out.episode.sahneler[1]!.satirlar[2]!.metin, "Kule ustaları kırk gün çalıştı.");
+    // The prompt says it in both languages.
+    assert.ok(writingPrompt({ konu: "Cannae", donem: "216 BC", hedefSureSn: 600, ton: "mizahi", dil: "en" }, CATALOG).includes("Story time only moves forward after the opening hook and one bridge line"));
+    assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 600, ton: "mizahi", dil: "tr" }, CATALOG).includes("Hikâye zamanı, açılış kancası ve tek bir köprü satırından"));
   });
 
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {

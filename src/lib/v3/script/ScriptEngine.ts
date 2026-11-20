@@ -5,6 +5,7 @@ import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { hookFollowProblems } from "./HookFollow";
+import { storyRuleProblems } from "./StoryRules";
 import { addToldStrengths } from "./ToldNumbers";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, markMapPictures, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
@@ -579,7 +580,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
     // A Short's line after the hook is asked with its shares (19 Nov 2026, the channel's retention curves: HookFollow).
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...copiedFromSources(value, brief.kaynakBankasi)] };
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...storyRuleProblems(value), ...copiedFromSources(value, brief.kaynakBankasi)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -636,7 +637,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + copiedFromSources(written, brief.kaynakBankasi).length;
+    const before = mapProblems(written).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + storyRuleProblems(written).length + copiedFromSources(written, brief.kaynakBankasi).length;
     if (revised.quality.length > before) {
       // A script far under its band is no video yet: the Constantinople Short (20 Nov 2026) had all three expansions
       // dropped for "5 → 7" map issues and went out at 162 of 389 words, 85 s of the 144–180 s asked. Length wins there.
