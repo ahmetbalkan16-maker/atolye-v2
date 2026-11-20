@@ -686,3 +686,16 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   ile 0.6 sn arayla 4 vuruşluk yürüyüş ritmine dizer (`repeatFilter`, `SoundRequest.repeat`; kütüphane anahtarının
   parçası, eski seslerin anahtarı değişmez). O da düşerse kütüphane davulu kalır.
 - Doğrulama: `smoke-v3-mix` (besteci ve efektçi senaryoları genişletildi); `tsc` ve lint 0/0.
+
+### Kurgu: kalabalık anlatıcı satırı bölünmesi istenir (20 Kasım 2026, Kurgu beyninin önerisi)
+
+- Konstantinopolis Short'unda anlatıcı tek satırda üç olay anlattı ("Ottomans pour through the breach. Constantine XI
+  dies fighting. The city is lost.") ve ekran durdu; video 86 sn çıktı. Senaryo isteminin "hiçbir satır 22 kelimeyi
+  geçmez" kuralı hiç ölçülmüyordu. `ScriptEngine.denseNarratorLines` artık anlatıcının 22 kelimeyi aşan
+  (`MAX_NARRATOR_LINE_WORDS`) ya da 3+ cümlelik (`DENSE_LINE_SENTENCES`) satırlarını bulur ve zaten çalışan uzunluk
+  turuna "her olaya bir satır, olay ekranda olurken; haritanın satir numaralarını kaydır" isteği olarak ekler; senaryo
+  bandın altındaysa her parçaya kaynaklardan bir ayrıntı da istenir (kısa senaryo böyle uzar). Ayrı, ücretli bir tur
+  eklenmez; turlardan sonra kalan satırlar günlüğe yazılır. Karakter satırları sayılmaz.
+- Uzunluk açığının kendisi zaten 78a07007 ile çözülmüştü (bandın çok altındaki senaryoda uzunluk kazanır).
+- Doğrulama: `smoke-v3-script` P1 senaryosu (saf istekler + writeScript'in uzunluk turu istemi ve günlük); `tsc` ve
+  lint 0/0. Smoke çalıştırması bu oturumda onay istedi, stüdyonun kontrollerine kaldı.
