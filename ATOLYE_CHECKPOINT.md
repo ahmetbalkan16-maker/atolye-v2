@@ -1,3 +1,33 @@
+## 20 Kasım 2026 (3) — kuşatma yakın haritası koda alındı, kenar etiketleri, YouTube 0 izlenme teşhisi, Gelişim Merkezi kontrolü
+
+Owner: "bekleyenleri hallet; videoyu yükledim, hiç izlenmedi, nedenini bul; görev paylaşımı yaptır" + "Gelişim Merkezi
+çalışıyor mu, onayladıklarım yapıldı mı, öneri geliyor mu". İki ajan ayrı worktree'lerde (gelistirme/claude-*), sonra
+feature/cop-adam-v3'e birleşti (push'lu, CANLI DEĞİL — toplu canlıya alma bekliyor):
+- d9b6fbbe kenar etiketleri: yakın haritadaki yer/sur/yapı adları ve hat adları çerçeve kenarında kesilecekse içeri
+  kayar (remotion hudLayout.nameInFrame, MapCloseGround keep, MapView keepName); motion smoke Z, 27 PASS. Önizlemede
+  "OTTOMAN CAMP" artık kenarda kesik değil.
+- e7a26271 kuşatma yakın haritası (el yaması kurala döndü): SiegeMap.siegeMapLacks/shipLacks yazar onarım turunda
+  ordugâh, iki taraf, sur boyu kuşatma hattı, gediğe nişanlı toplar, surdaki gedik, donanma/karadan gemi yolu ister;
+  fillSiegeMap gediği sura, topları gediğe, ordugâhı karşısına koyar, ilk haritada cepheleri sur boyunca uzatır;
+  MapRules.settleFallMarks X'i kişinin son satırına alır (yaralanana X yok); ScriptPrompts kuşatma tarifi;
+  CloseSite Overpass yanıt verdiği kutuları `_kutuphane/osm-sur/kutular.jsonl`'e yazar, Overpass kapalıyken yeni kutu
+  aynı yerin kütüphane kutusuna oturur. director 82, script 56 PASS.
+- c319ae7e (benim, önizlemede bulundu): e7a26271'in 4,9 km'lik sur boyu cephesi Short penceresinde groundOf'a kamera
+  durağı ekletiyor, dünya önbellek kutusunu aşıyor, Overpass kapalıyken s3 kıyısı düz Natural Earth oluyordu (surlar
+  denizde). fillSiegeMap artık `fits` ile cepheyi gedik çevresinde kısaltıyor (3,3 km); önizlemede gerçek kıyı geri geldi.
+- RİSK/AÇIK: kutular.jsonl boş başlıyor (eski kutular Overpass yeniden yanıt verince girer; Konstantinopolis kutusu
+  28.94,41.012,10 km elle eklenmedi). Kamera duraklı haritalarda kütüphane kutusuna oturtma yapılmıyor.
+YouTube (YFaKo_Tc11Q, Konstantinopolis Short, 20 Kas 14:04 yüklendi): 2,5 saatte 0 izlenme. API + sayfa: herkese açık,
+işlenmiş, 1080x1920 2:33, Short sayılıyor, 249 ülke, yaş sınırı yok, çocuklara özel değil — teknik engel yok. Kanalın
+Short'ları gecikmeli açılıyor (Bağdat 111 → 3 → 1.262/gün). Analytics 2–3 gün geriden gelir. Planlanan saat (NY 15:00)
+yerine NY 06:00'da yayınlandı. 2 günde hâlâ 0 ise Studio'da telif/kısıtlama bildirimi bakılmalı (API göstermiyor).
+Gelişim Merkezi: izleyici + V3 yapım izleyicisi çalışıyor. 5 dk otomatik onay çalışıyor: kalite-85 (98ddcd0c) 16:47'de
+kendi onaylandı, 16:52'de commit+push. Akşam döngüsü kurgu-84'ü yapıyor; 6 iş kuyrukta. AYAS keşif bugün 50 tur, 0 aday
+(55/55 bilişsel test geçiyor, mekanik taramalar tükenmiş) — bozukluk değil. Güncelleme Radarı: TypeScript 7.0.2 denemesi
+4. kez FAILED (AyasPatchDetectors ts.isIdentifier/forEachChild TS7'de yok; autonomy klasörü kod hattına kapalı) →
+owner'a: 5.9'da kal ya da ayrı paketle uyarlama (onay gerekir).
+SIRADAKİ: toplu canlıya alma (owner isterse); kutular.jsonl'e Konstantinopolis kutusu; Thermopylae.
+
 ## 20 Kasım 2026 (2) — Konstantinopolis yeniden üretildi: gerçek surlar, şehir, ordugâh, kuşatma; 2:32 teslim
 
 Owner: "yeniden ürettir, hataları gider, gerçekçi yaptır, takip et, müdahale et; gerektiğinde canlıya al" + "her rötuş
