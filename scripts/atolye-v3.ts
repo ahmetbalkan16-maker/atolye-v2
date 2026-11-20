@@ -1639,10 +1639,9 @@ async function main() {
       if (best.tur !== rotusTuru) {
         await restoreRound(work, final, best.tur);
         await fs.writeFile(f("QC.md"), finalDelivery(await fs.readFile(f("QC.md"), "utf8"), best));
-        if (upload) {
-          await fs.rm(f(upload), { force: true });
-          await fs.link(f(final), f(upload)).catch(() => fs.copyFile(f(final), f(upload)));
-        }
+        // The upload file is made again from the restored cut: a Short is turned a quarter into 1080×1920 (a plain link
+        // left the Constantinople Shorts of 20 Nov 2026 horizontal whenever an earlier round won).
+        if (upload) await writeUploadFile(f(final), f(upload));
       }
       const section = `\n## Rötuş turları\n\n${rounds.map((r) => `- ${roundLine(r)}${r.tur === best.tur ? " — **teslim edilen**" : ""}`).join("\n")}\n- Teslim: tur ${best.tur} (${roundVideo(final, best.tur)})${best.tur !== rotusTuru ? `; son tur ${rotusTuru} daha iyi puan almadı` : ""}\n`;
       await fs.appendFile(f("QC.md"), section);
