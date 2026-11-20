@@ -100,6 +100,21 @@ export function pieceProblems(s: PieceStats, wantS: number): string[] {
   return out;
 }
 
+/** A pause inside a piece is shortened to this much (a breath, not a gap in the bed). */
+export const PIECE_PAUSE_KEEP_S = 0.5;
+
+/**
+ * The FFmpeg filter a raw piece goes through before its check: the silent head and tail are cut (the first Rubicon test
+ * piece opened on 3.8 s of silence), and every pause inside it longer than a second is shortened to a breath — the
+ * Constantinople historical bed (20 Nov 2026) was refused for "3.0 sn sessizlik" in its middle and the bed kept its
+ * library track. The mixer loops the piece, so it never has a gap.
+ */
+export function pieceShapeFilter(): string {
+  const edge = "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1";
+  const pauses = `silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-50dB:stop_silence=${PIECE_PAUSE_KEEP_S}`;
+  return `${edge},${pauses},areverse,${edge},areverse`;
+}
+
 /** Length, loudness and the longest silence of an audio file, measured with FFmpeg. */
 export async function measurePiece(paths: V3Paths, file: string): Promise<PieceStats> {
   const r = await runChecked(paths.ffmpeg, ["-hide_banner", "-nostats", "-i", file, "-af", "volumedetect,silencedetect=noise=-50dB:d=0.5", "-f", "null", "-"]);
@@ -175,12 +190,10 @@ export class MusicComposer {
       return { problems: [why] };
     }
     this.failures = 0;
-    // The composer may open or close on silence (the first Rubicon test piece had 3.8 s of it): head and tail are cut,
-    // so only a silence inside the piece counts and the mixer's loop has no gap.
+    // Silent head and tail cut, long pauses inside shortened (pieceShapeFilter): the mixer's loop has no gap.
     const raw = `${tmp}.ham.wav`;
     await fs.rename(tmp, raw);
-    const edge = "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1";
-    await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${edge},areverse,${edge},areverse`, tmp]);
+    await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", pieceShapeFilter(), tmp]);
     const stats = await measurePiece(this.paths, tmp);
     const problems = pieceProblems(stats, req.seconds);
     if (problems.length) {

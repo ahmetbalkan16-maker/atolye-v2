@@ -94,6 +94,46 @@ export function periodSfxPrompt(id: SfxId, era: Era): string | undefined {
   return text ? `${text}. Clean single sound effect, no music, no speech.` : undefined;
 }
 
+/** How a pattern is built from one blow: that many blows, one every so many seconds. */
+export interface SoundRepeat {
+  readonly times: number;
+  readonly everyS: number;
+}
+
+/**
+ * Effects MOSS cannot make as a pattern, asked for as one blow that FFmpeg repeats (Kosovo, Waterloo, Cannae, Rubicon and
+ * Constantinople, Oct–Nov 2026: every seed of "four deep hits on a war drum" came out a hitless drone, 0.0–4.7 dB, and
+ * the drum stayed the library's synthesis). The blow is checked as one blow before it is repeated.
+ */
+const PERIOD_HIT: Readonly<Partial<Record<SfxId, { readonly prompt: Readonly<Record<Era, string>> } & SoundRepeat>>> = {
+  davul: {
+    prompt: {
+      antik: "one single deep hit on a large ancient war drum",
+      orta: "one single deep hit on a large medieval war drum",
+      "erken-modern": "one single deep hit on a military bass drum",
+      modern: "one single hit on a military bass drum",
+    },
+    times: 4,
+    everyS: 0.6,
+  },
+};
+
+/** Seconds asked for a single blow (the designer's window is at least 4 s; the blow's tail is faded). */
+export const HIT_SECONDS = 1.5;
+
+/** The one-blow fallback of a period effect, or undefined when it has none. */
+export function periodHitRequest(id: SfxId, era: Era): { readonly prompt: string; readonly repeat: SoundRepeat } | undefined {
+  const hit = PERIOD_HIT[id];
+  return hit ? { prompt: `${hit.prompt[era]}, then silence. Clean single sound effect, no music, no speech.`, repeat: { times: hit.times, everyS: hit.everyS } } : undefined;
+}
+
+/** FFmpeg filter_complex that lays one blow (input 0) down `times` times, `everyS` apart, at the effects' level. */
+export function repeatFilter(r: SoundRepeat): string {
+  const n = Math.max(1, Math.round(r.times));
+  const taps = Array.from({ length: n }, (_, i) => `[h${i}]adelay=${Math.round(i * r.everyS * 1000)}[d${i}]`);
+  return `[0:a]asplit=${n}${taps.map((_, i) => `[h${i}]`).join("")};${taps.join(";")};${taps.map((_, i) => `[d${i}]`).join("")}amix=inputs=${n}:normalize=0:duration=longest,loudnorm=I=-20:TP=-2:LRA=11`;
+}
+
 /** What a living set sounds like (owner, 22 Oct 2026: no meaningless sound — the place's own sound, the hour's). */
 const TIME_SOUND: Readonly<Record<SceneSetting["zaman"], string>> = { gun: "daytime, birdsong", aksam: "dusk, a few evening birds", gece: "night, crickets chirping, a distant owl", safak: "dawn, first birds" };
 const PLACE_SOUND: Readonly<Record<SceneSetting["manzara"], string>> = {
@@ -159,6 +199,8 @@ export interface SoundRequest {
   readonly percussive?: true;
   /** One blow: loudest at once, then dying away (see impactProblems). Not part of the library key. */
   readonly impact?: true;
+  /** The take is one blow, checked as such and kept repeated into this pattern (PERIOD_HIT). Part of the key. */
+  readonly repeat?: SoundRepeat;
 }
 
 /**
@@ -293,7 +335,8 @@ export class SfxDesigner {
       // modern desk bell (a 3 s held 441 Hz tone, Guadalcanal and Çanakkale) is refused here and its next seed is tried.
       await fs.mkdir(this.paths.asciiTemp, { recursive: true });
       const pcm = await this.samples8k(file);
-      const problems = [...(req.impact ? impactProblems(pcm, 8000) : []), ...hornProblems(pcm, 8000)];
+      // A repeated blow is kept as its pattern: only its single take was one blow.
+      const problems = [...(req.impact && !req.repeat ? impactProblems(pcm, 8000) : []), ...hornProblems(pcm, 8000)];
       if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`), take: true };
       return { file, cached: true };
     }
@@ -356,8 +399,14 @@ export class SfxDesigner {
       await fs.writeFile(refused, `${JSON.stringify({ model: MOSS_SFX_MODEL_ID, ...req, problems, stats, created: new Date().toISOString() }, null, 2)}\n`);
       return { problems, take: true };
     }
-    if (!existsSync(file)) await fs.copyFile(tmp, file);
+    let made = tmp;
+    if (req.repeat) {
+      made = tmp.replace(/\.wav$/, "-takt.wav");
+      await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", tmp, "-filter_complex", repeatFilter(req.repeat), "-ar", "48000", "-ac", "1", made]);
+    }
+    if (!existsSync(file)) await fs.copyFile(made, file);
     await fs.rm(tmp, { force: true });
+    if (made !== tmp) await fs.rm(made, { force: true });
     await fs.writeFile(file.replace(/\.wav$/, ".json"), `${JSON.stringify({ model: MOSS_SFX_MODEL_ID, ...req, stats, seconds_taken: r.seconds, created: new Date().toISOString(), license: "Apache-2.0 (MOSS-SoundEffect v2); the sound is Atölye's own local generation", paidCalls: 0 }, null, 2)}\n`);
     this.log(`  ses üretildi (${r.seconds} sn, ${req.kind}): ${req.prompt.slice(0, 60)}`);
     return { file, cached: false };
@@ -398,17 +447,30 @@ export async function designSounds(
     const prompt = periodSfxPrompt(id, era);
     if (!prompt) continue;
     const refused: string[] = [];
-    for (let k = 0; k < SFX_SEED_TRIES; k++) {
-      // The first seed is the one every earlier run used: a sound it made is still found in the library.
-      const seed = seedOf(k ? `${id}#${era}#${k}` : `${id}#${era}`);
-      const got: SoundOutcome = await designer.make({ prompt, seconds: 3, seed, kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}), ...(IMPACT.has(id) ? { impact: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+    // The first seed is the one every earlier run used: a sound it made is still found in the library. An effect with a
+    // one-blow fallback (PERIOD_HIT) tries it only after every seed of its pattern was refused.
+    const hit = periodHitRequest(id, era);
+    const tries: { req: SoundRequest; label: string }[] = [
+      ...Array.from({ length: SFX_SEED_TRIES }, (_, k) => ({
+        req: { prompt, seconds: 3, seed: seedOf(k ? `${id}#${era}#${k}` : `${id}#${era}`), kind: "efekt" as const, ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}), ...(IMPACT.has(id) ? { impact: true as const } : {}) },
+        label: k ? ` (${k + 1}. tohum)` : "",
+      })),
+      ...(hit
+        ? Array.from({ length: SFX_SEED_TRIES }, (_, k) => ({
+            req: { prompt: hit.prompt, seconds: HIT_SECONDS, seed: seedOf(`${id}#${era}#vurus#${k}`), kind: "efekt" as const, percussive: true as const, impact: true as const, repeat: hit.repeat },
+            label: ` (tek vuruştan ${hit.repeat.times} vuruş${k ? `, ${k + 1}. tohum` : ""})`,
+          }))
+        : []),
+    ];
+    for (const [k, { req, label }] of tries.entries()) {
+      const got: SoundOutcome = await designer.make(req).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
       if ("file" in got) {
         effects.set(id, got.file);
-        report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}${k ? ` (${k + 1}. tohum)` : ""}`);
+        report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}${label}`);
         break;
       }
       refused.push(got.problems.join("; "));
-      if (!got.take || k === SFX_SEED_TRIES - 1) {
+      if (!got.take || k === tries.length - 1) {
         report.push(`efekt ${id}: kütüphane kaydı kaldı — ${refused.length > 1 ? `${refused.length} tohum: ${refused.join(" | ")}` : refused[0]}`);
         break;
       }
