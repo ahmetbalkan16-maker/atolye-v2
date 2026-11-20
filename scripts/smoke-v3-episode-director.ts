@@ -32,8 +32,9 @@ import { TILT_GLIDE_S, TILT_WORLD_PAST, tiltAt, tiltProject, tiltSeen, tiltShare
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults, mapViewMix } from "../src/lib/v3/council/MapFramingCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
-import { placeWall, prepareCloseMaps, snapMapToRealWall, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
-import { directBattleMaps, mapProblems, markMapPictures, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
+import { closeBox, closeSiteLookup, type LibraryBox, libraryBoxFor, placeWall, prepareCloseMaps, snapMapToRealWall, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
+import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/SiegeMap";
+import { directBattleMaps, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, closeCoastFor, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -985,7 +986,8 @@ async function main() {
       { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.923, 41.03], [28.923, 41.01]] }] },
     ] }, "The besiegers storm the walls and are thrown back."));
     assert.ok(!rout(41.02).some((p) => p.includes("loses tokens")), "losses as they flee from the walls");
-    const fine = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], birlikler: [
+    // (Since 20 Nov 2026 a siege's map has its besiegers' camp too: SiegeMap, scenario O13b.)
+    const fine = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], yerlesimler: [{ tur: "ordugah", konum: [28.9, 41.02] }], birlikler: [
       { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.917, 41.04], [28.917, 41.0]] }] },
       { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.923, 41.04], [28.923, 41.0]], kayip: 1 }] },
     ] }));
@@ -996,6 +998,143 @@ async function main() {
     assert.equal(v({ surlar: [{ ad: "X" }] }).ok, false, "a wall needs a line or a castle");
     assert.equal(v({ surlar: [{ kale: { merkez: [20.45, 44.82], km: 0.8, bicim: "piramit" } }] }).ok, false);
     assert.equal(v({ yerlesimler: [{ tur: "sehir", konum: [20.45, 44.82], sur_ici: "evet" }] }).ok, false);
+  });
+
+  await scenario("O13b a siege's close map is the real siege (owner, 20 Nov 2026, the Constantinople Short: 'no camp, no troop moves, no ships hauled, no realism'): the writer is asked for the camp, the siege line, the guns on the breach, the ships; the real wall fills them in; a new box stands on the library's box when Overpass is down; the X falls on the line of the fall", async () => {
+    const ep = sampleEpisode();
+    // The Theodosian land wall (north–south, 6.7 km) and the walled city east of it.
+    const real: [number, number][] = [[28.9205, 41.04], [28.921, 41.02], [28.9205, 41.0], [28.93, 40.98]];
+    const wallLonAt = (lat: number) => {
+      for (let i = 1; i < real.length; i++) if ((lat - real[i - 1]![1]) * (lat - real[i]![1]) <= 0) return real[i - 1]![0] + ((real[i]![0] - real[i - 1]![0]) * (lat - real[i - 1]![1])) / (real[i]![1] - real[i - 1]![1]);
+      return NaN;
+    };
+    const OTT = { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal" as const };
+    const BYZ = { taraf: "Byzantines", renk: "#6a3d8f", amblem: "kartal" as const };
+    const siege: SceneMap = {
+      merkez: [28.94, 41.012],
+      genislik_km: 10,
+      surlar: [{ ad: "Theodosian Walls", noktalar: real, gedik: { konum: [28.916, 41.0175], satir: 1 } }],
+      yerlesimler: [{ tur: "sehir", ad: "Constantinople", konum: [28.955, 41.015], km: 5, sur_ici: true }],
+      araclar: [{ tur: "top", renk: "#3fae3a", sayi: 3, konum: [28.912, 41.018], satir: 0 }],
+      birlikler: [
+        { ...OTT, ad: "Ottoman army", tur: "kilicli", kanat: "merkez", sayi: 8, yerler: [{ satir: 0, cephe: [[28.915, 41.022], [28.915, 41.016]] }, { satir: 1, cephe: [[28.919, 41.019], [28.919, 41.016]], kayip: 2 }] },
+        { ...BYZ, ad: "Defenders", tur: "kilicli", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[28.9235, 41.021], [28.9235, 41.017]] }] },
+      ],
+    };
+    const line = (metin: string, karakter = "anlatici") => ({ karakter, metin, duygu: "notr" as const });
+    const scene = (id: string, harita: SceneMap, satirlar = [line("Mehmed's cannons pound the land walls."), line("The wall cracks.")]) => ({ ...ep.sahneler[0]!, id, mekan: "Close map: the land walls", satirlar, harita });
+    // The writer's map, as the repair round sees it: one line naming what the siege lacks.
+    const asked = (sahneler: ReturnType<typeof scene>[]) => mapProblems({ ...ep, sahneler }).filter((p) => p.includes("SIEGE CLOSE MAP"));
+    const first = asked([scene("s3", siege)]);
+    assert.equal(first.length, 1, JSON.stringify(first));
+    for (const want of ["besiegers' camp", "the siege line", "the guns' target"]) assert.ok(first[0]!.includes(want), `${want}: ${first[0]}`);
+    assert.ok(!first[0]!.includes("defenders on the wall"), "the defenders stand just inside the wall");
+    const deep = { ...siege, birlikler: [siege.birlikler![0]!, { ...siege.birlikler![1]!, yerler: [{ satir: 0, kume: [28.955, 41.015] as [number, number] }] }] };
+    assert.ok(siegeMapLacks(scene("s3", deep), true).some((l) => l.includes("defenders on the wall")), "defenders 3 km inside the city are not on the wall");
+    // The assault, a second map of the same place: no siege line asked; a breach the lines tell is.
+    const assault = scene("s7", { ...siege, surlar: [{ ad: "Theodosian Walls", noktalar: real }] }, [line("Before dawn, Janissaries pour in through the breach."), line("The defenders break.")]);
+    const both = asked([scene("s3", siege), assault]);
+    assert.ok(both[1]!.includes('"s7"') && both[1]!.includes("the breach the lines tell") && !both[1]!.includes("the siege line"), JSON.stringify(both));
+    // A whole siege map: nothing asked.
+    const whole: SceneMap = {
+      ...siege,
+      yerlesimler: [...siege.yerlesimler!, { tur: "ordugah", ad: "Ottoman camp", konum: [28.905, 41.02], km: 1.4 }],
+      araclar: [{ ...siege.araclar![0]!, hedef: [28.921, 41.0175] }],
+      surlar: [{ ad: "Theodosian Walls", noktalar: real, gedik: { konum: [28.921, 41.0175], satir: 1 } }],
+      birlikler: [{ ...siege.birlikler![0]!, yerler: [{ satir: 0, cephe: [[28.915, 41.035], [28.915, 41.0], [28.922, 40.985]] }] }, siege.birlikler![1]!],
+    };
+    assert.deepEqual(asked([scene("s3", whole)]), [], "camp, siege line, guns on the breach, defenders on the wall");
+    assert.ok(asked([scene("s3", { ...whole, araclar: [{ ...whole.araclar![0]!, hedef: [28.95, 41.03] }] })])[0]!.includes("aimed at the breach"), "guns firing into the city, not at the breach");
+    // Ships the lines tell: the fleet on the map, a haul over land as a route.
+    const harbour: SceneMap = { merkez: [28.975, 41.03], genislik_km: 10, araclar: [{ tur: "gemi", renk: "#3fae3a", sayi: 4, konum: [28.997, 41.036], satir: 0 }] };
+    const hauled = scene("s5", harbour, [line("On April 22, Mehmed has his ships dragged over greased logs into the Golden Horn."), line("Take that, chain!", "mehmed")]);
+    assert.ok(shipLacks(hauled)[0]!.includes("hauled over land"), JSON.stringify(shipLacks(hauled)));
+    assert.deepEqual(shipLacks({ ...hauled, harita: { ...harbour, araclar: [{ ...harbour.araclar![0]!, yol: [[28.997, 41.036], [28.979, 41.039], [28.963, 41.031]], yol_satir: 0 }] } }), [], "the haul drawn as a route");
+    assert.ok(shipLacks(scene("s4", { merkez: [28.975, 41.03], genislik_km: 10, kamera: [{ satir: 1, merkez: [28.97, 41.03], genislik_km: 6 }] }, [line("The Byzantines block the harbor; the Ottoman fleet waits behind the chain.")]))[0]!.includes("the fleet the lines tell"));
+    assert.ok(asked([hauled])[0]!.startsWith('close map "s5" lacks the ships hauled'), "asked in the repair round too");
+
+    // The fill on the real wall (CloseSite has the trace): breach on the wall, guns on the breach, the camp, the lines.
+    const filled = fillSiegeMap(siege, true);
+    const fm = filled.map;
+    const breach = fm.surlar![0]!.gedik!.konum;
+    assert.ok(Math.abs(breach[0] - wallLonAt(breach[1])) < 0.0002, "the breach on the wall: " + JSON.stringify(breach));
+    assert.deepEqual(fm.araclar![0]!.hedef, breach, "the guns aim at the breach");
+    const camp = fm.yerlesimler!.find((y) => y.tur === "ordugah")!;
+    assert.ok(camp && camp.ad === "Ottoman camp" && camp.konum![0] < wallLonAt(camp.konum![1]) - 0.008 && Math.abs(camp.konum![0] - 28.94) < 0.048, "the camp behind the Ottoman lines, in the frame: " + JSON.stringify(camp));
+    const ott = fm.birlikler![0]!.yerler[0]! as unknown as { cephe: [number, number][] };
+    assert.ok(ott.cephe.length === 6 && lineKm(ott.cephe) > 4 && ott.cephe.every((p) => p[0] < wallLonAt(p[1]) - 0.003), "the siege line outside the whole wall: " + JSON.stringify(ott.cephe));
+    assert.deepEqual(fm.birlikler![0]!.yerler[1], siege.birlikler![0]!.yerler[1], "the assault's own front stays");
+    const byz = fm.birlikler![1]!.yerler[0]! as unknown as { cephe: [number, number][] };
+    assert.ok(lineKm(byz.cephe) > 4 && byz.cephe.every((p) => p[0] - wallLonAt(p[1]) > 0.0005 && p[0] - wallLonAt(p[1]) < 0.0045), "the defenders on the wall: " + JSON.stringify(byz.cephe));
+    assert.ok(filled.fixes.length >= 5, JSON.stringify(filled.fixes));
+    assert.deepEqual(asked([scene("s3", fm)]), [], "the filled map lacks nothing");
+    // The second map of the place keeps its fronts; a camp the writer gave stays alone; with nothing telling inside from
+    // outside (no walled town, no guns) no camp and no lines are made.
+    assert.deepEqual(fillSiegeMap(siege, false).map.birlikler, siege.birlikler);
+    assert.equal(fillSiegeMap(whole, true).map.yerlesimler!.filter((y) => y.tur === "ordugah").length, 1);
+    const blind = fillSiegeMap({ ...siege, yerlesimler: undefined, araclar: undefined }, true).map;
+    assert.ok(!blind.yerlesimler && blind.birlikler === siege.birlikler, "nothing derived without an inside");
+    // A town and guns on the same side of the wall contradict each other (a town left behind by a moved wall): nothing.
+    const muddled = fillSiegeMap({ ...siege, yerlesimler: [{ tur: "sehir", konum: [28.9, 41.015], km: 3, sur_ici: true }] }, true).map;
+    assert.ok(!muddled.yerlesimler!.some((y) => y.tur === "ordugah") && muddled.birlikler === siege.birlikler, "a contradicting inside derives nothing");
+    // Guns before the walls and no armies yet (the bombardment map): a siege map — its camp behind the guns, both sides
+    // asked; guns aimed at the writer's breach follow it onto the wall.
+    const guns: SceneMap = { ...siege, birlikler: undefined, araclar: [{ ...siege.araclar![0]!, hedef: [28.916, 41.0175] }] };
+    assert.ok(siegeMapLacks(scene("s3", guns), true).some((l) => l.startsWith("both sides'")));
+    const gunMap = fillSiegeMap(guns, true).map;
+    const gunCamp = gunMap.yerlesimler!.find((y) => y.tur === "ordugah")!;
+    assert.ok(gunCamp.ad === "Siege camp" && gunCamp.konum![0] < wallLonAt(gunCamp.konum![1]), JSON.stringify(gunCamp));
+    assert.deepEqual(gunMap.araclar![0]!.hedef, gunMap.surlar![0]!.gedik!.konum, "the guns follow the breach onto the wall");
+    assert.deepEqual(fillSiegeMap(harbour, true), { map: harbour, fixes: [] }, "no walls, no siege");
+
+    // A new box when Overpass is down: the library's box of the same place is taken (its real coast and walls).
+    const libMap: SceneMap = { merkez: [28.94, 41.012], genislik_km: 10 };
+    const lib: LibraryBox = { merkez: [28.94, 41.012], genislik_km: 10, box: closeBox(libMap) };
+    assert.deepEqual(libraryBoxFor({ merkez: [28.95, 41.02], genislik_km: 8 }, [lib]), lib);
+    assert.equal(libraryBoxFor({ merkez: [29.2, 41.0], genislik_km: 8 }, [lib]), undefined, "another place");
+    assert.equal(libraryBoxFor({ merkez: [28.95, 41.02], genislik_km: 30 }, [lib]), undefined, "another scale");
+    const same = (a: { west: number; east: number; south: number; north: number }, b: typeof a) => Math.abs(a.west - b.west) + Math.abs(a.east - b.east) + Math.abs(a.south - b.south) + Math.abs(a.north - b.north) < 1e-4;
+    const kept: LibraryBox[] = [];
+    const lookup = Object.assign(async (box: { west: number; east: number; south: number; north: number }) => (same(box, lib.box) ? { site: { walls: [real], castles: [], gates: [] }, sources: ["overpass"] } : { site: { walls: [], castles: [], gates: [] }, sources: ["nominatim"] }), {
+      library: { boxes: async () => [lib], keep: async (e: LibraryBox) => void kept.push(e) },
+    });
+    const writer = { ...ep, donem: "1453", sahneler: [scene("s3", { merkez: [28.945, 41.015], genislik_km: 9, surlar: [{ ad: "Theodosian Walls", noktalar: [[28.9208, 41.03], [28.921, 41.02], [28.9207, 41.006]] }] })] };
+    const onLib = await prepareCloseMaps(writer, lookup, 1453);
+    const lm = onLib.episode.sahneler[0]!.harita!;
+    assert.deepEqual([lm.merkez, lm.genislik_km], [[28.94, 41.012], 10], "set on the library's box");
+    assert.ok(onLib.notes.some((n) => n.kaynak === "kutuphane") && onLib.notes.some((n) => n.kaynak === "osm"), JSON.stringify(onLib.notes));
+    assert.equal(kept.length, 0, "nothing new to keep");
+    await prepareCloseMaps({ ...writer, sahneler: [scene("s3", { ...libMap, surlar: [{ ad: "Theodosian Walls", noktalar: real }] })] }, lookup, 1453);
+    assert.deepEqual(kept.map((k) => k.merkez), [[28.94, 41.012]], "a box Overpass answered for is kept");
+    const far = await prepareCloseMaps({ ...writer, sahneler: [scene("s3", { merkez: [29.3, 41.0], genislik_km: 9, surlar: [{ noktalar: [[29.3, 41.01], [29.3, 40.99]] }] })] }, lookup, 1453);
+    assert.deepEqual(far.episode.sahneler[0]!.harita!.merkez, [29.3, 41.0], "no library box near: the writer's frame stays");
+    // The real index: one line a box, kept once.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kutu-"));
+    try {
+      const real6 = closeSiteLookup({ workRoot: root });
+      await real6.library!.keep(lib);
+      await real6.library!.keep(lib);
+      assert.deepEqual((await real6.library!.boxes()).map((b) => [b.merkez, b.genislik_km]), [[[28.94, 41.012], 10]]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+
+    // The fallen's X: Constantine speaks to the end and falls on the last line; Giustiniani is only wounded.
+    const cast: Episode["oyuncu_kadrosu"] = [...ep.oyuncu_kadrosu, { ...ep.oyuncu_kadrosu[1]!, id: "constantine", ad: "Constantine XI" }, { ...ep.oyuncu_kadrosu[1]!, id: "giustiniani", ad: "Giovanni Giustiniani" }, { ...ep.oyuncu_kadrosu[1]!, id: "lazar", ad: "Prince Lazar" }];
+    const fall = scene("s7", { ...whole, rozetler: [{ karakter: "constantine", konum: [28.925, 41.018], satir: 0, x_satir: 2 }, { karakter: "giustiniani", konum: [28.925, 41.019], satir: 0, x_satir: 1 }] }, [
+      line("Before dawn, Janissaries storm the breach. Giustiniani is badly wounded and leaves the wall."),
+      line("I am now 80% bandage.", "giustiniani"),
+      line("Giovanni, tell Genoa I want my deposit back.", "constantine"),
+      line("I'll send a strongly worded letter.", "giustiniani"),
+      line("With Giustiniani gone, the defenders panic. Constantine XI charges."),
+      line("For Rome!", "constantine"),
+      line("The fall of the city is now inevitable."),
+    ]);
+    const settled = settleFallMarks({ ...ep, oyuncu_kadrosu: cast, sahneler: [fall] });
+    assert.deepEqual(settled.episode.sahneler[0]!.harita!.rozetler!.map((r) => [r.karakter, r.x_satir]), [["constantine", 6], ["giustiniani", undefined]], JSON.stringify(settled.fixes));
+    assert.deepEqual(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [fall] }).episode.sahneler[0]!.harita!.rozetler!.map((r) => r.x_satir), [6, undefined], "in the director's pass");
+    const slain = scene("k", { ...whole, rozetler: [{ karakter: "lazar", konum: [28.925, 41.018], x_satir: 1 }] }, [line("Lazar leads the charge.", "lazar"), line("Lazar is wounded, captured and executed.")]);
+    assert.equal(settleFallMarks({ ...ep, oyuncu_kadrosu: cast, sahneler: [slain] }).fixes.length, 0, "an X after his last words on the line of his death stays");
   });
 
   await scenario("O14 the battle itself on the close map (owner, 23 Oct 2026, after the Belgrade trial): speakers talk from their badges at their side's tokens, the map stays wide, the climax is asked for on the close map", () => {

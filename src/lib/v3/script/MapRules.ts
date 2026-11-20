@@ -4,6 +4,7 @@ import { isShorts } from "../render/Format";
 import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
+import { isSiegeMap, shipLacks, siegeMapLacks, siegePlaceKey } from "../maps/SiegeMap";
 
 /** Lines telling a siege or walls (English and Turkish stems). */
 const SIEGE = /\b(?:siege|besieg\w*|walls?|ramparts?|breach\w*|fortress|castle|citadel|gates?)\b|kuşat|sur(?:lar|u|ları)?\b|kale|hisar|gedik/iu;
@@ -19,9 +20,12 @@ function formationAt(y: UnitFormation): [number, number] | undefined {
 /**
  * The close battle map's own rules (owner, 23 Oct 2026, after the 1453 benchmark): the armies are on it; on a line with
  * losses both sides stand close enough to meet (the defenders fell at the walls while the attackers waited 1.5 km off);
- * a story of a siege has its walls or castle.
+ * a story of a siege has its walls or castle. A siege's map is the real siege (owner, 20 Nov 2026, after the Constantinople
+ * Short: "no camp, no troop moves or tactics, no ships hauled, no realism"): what it lacks of it is asked in one line
+ * (SiegeMap.siegeMapLacks; `first`: the first map of its place, which shows the siege line), and a close map whose lines
+ * tell a fleet or ships hauled over land gets them on the map (SiegeMap.shipLacks).
  */
-function closeMapProblems(s: Episode["sahneler"][number]): string[] {
+function closeMapProblems(s: Episode["sahneler"][number], first = true): string[] {
   const h = s.harita!;
   const out: string[] = [];
   const sides = h.birlikler ?? [];
@@ -48,6 +52,8 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
   const siege = SIEGE.test(s.mekan ?? "") || s.satirlar.some((l) => SIEGE.test(l.metin)) || (h.yapilar ?? []).some((b) => b.tur === "kale");
   if (!(h.surlar?.length) && siege) out.push(`close map "${s.id}" tells a siege or walls but draws none: give the walls ("surlar" with "noktalar" and "osm_ad") or the castle ("kale": {"merkez", "km"}), its gates and the breach on its line — CLOSE BATTLE MAP`);
   out.push(...tacticsProblems(s, siege));
+  const lacks = [...siegeMapLacks(s, first), ...shipLacks(s)];
+  if (lacks.length) out.push(`close map "${s.id}"${isSiegeMap(h) ? " is a siege but" : ""} lacks ${lacks.join("; ")} — SIEGE CLOSE MAP`);
   return out;
 }
 
@@ -475,10 +481,52 @@ export function openOpeningMap(episode: Episode): { episode: Episode; fixes: str
  */
 export function directBattleMaps(episode: Episode): { episode: Episode; fixes: string[] } {
   const battle = directBattleMapsOnly(episode);
-  const told = vehiclesOnToldLine(battle.episode);
+  const settled = settleFallMarks(battle.episode);
+  const told = vehiclesOnToldLine(settled.episode);
   const aimed = aimPlanesAtShips(told.episode);
   const opened = openOpeningMap(aimed.episode);
-  return { episode: opened.episode, fixes: [...battle.fixes, ...told.fixes, ...aimed.fixes, ...opened.fixes] };
+  return { episode: opened.episode, fixes: [...battle.fixes, ...settled.fixes, ...told.fixes, ...aimed.fixes, ...opened.fixes] };
+}
+
+/** A wound told: wounded, injured, carried off (English and Turkish stems). */
+const WOUNDED = /\b(?:wounded|injured|carried (?:off|away)|struck down)\b|yaralan/iu;
+
+/**
+ * A badge's red X on the line of the fall, not before (the Constantinople Short, 20 Nov 2026: the writer struck
+ * Constantine XI's X on his first quip, three lines before his last words and his last stand, and Giustiniani's on the
+ * line after the one telling him wounded — he was carried off the wall and died days later on Chios; the owner: "no
+ * realism"): an X before the character's own last line in the scene moves to the line after it (or the scene's last
+ * line), and the X of one the scene tells wounded but never killed or captured is taken off. Logged as a fix.
+ */
+export function settleFallMarks(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  // Every name word counts ("Giovanni Giustiniani" is told as "Giustiniani").
+  const cast = new Map(episode.oyuncu_kadrosu.map((c) => [c.id, c.ad.split(/[^\p{L}]+/u).filter((w) => w.length >= 3 && nameWord(w) === w)] as const));
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    if (!h?.rozetler?.some((r) => r.x_satir !== undefined)) return s;
+    const last = s.satirlar.length - 1;
+    let changed = false;
+    const rozetler = h.rozetler.map((r) => {
+      if (r.x_satir === undefined) return r;
+      const told = (re: RegExp) => s.satirlar.some((l) => l.karakter !== r.karakter && (cast.get(r.karakter) ?? []).some((w) => mentions(l.metin, w)) && re.test(l.metin));
+      if (told(WOUNDED) && !told(FALL)) {
+        changed = true;
+        fixes.push(`${s.id}: ${r.karakter} yalnız yaralanıyor — rozetindeki X kaldırıldı`);
+        const rest = { ...r };
+        delete rest.x_satir;
+        return rest;
+      }
+      const own = s.satirlar.reduce((a, l, i) => (l.karakter === r.karakter ? i : a), -1);
+      const x = Math.min(last, own + 1);
+      if (own < r.x_satir || x === r.x_satir) return r;
+      changed = true;
+      fixes.push(`${s.id}: ${r.karakter} ${own}. satırda hâlâ konuşuyor — X ${r.x_satir}. satırdan ${x}. satıra`);
+      return { ...r, x_satir: x };
+    });
+    return changed ? { ...s, harita: { ...h, rozetler } } : s;
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
 /** directBattleMaps' battle-map pass: badges with the line naming them, the fallen's X, routs, charge arrows. */
@@ -601,12 +649,17 @@ export function mapProblems(episode: unknown): string[] {
   if (!episode || typeof episode !== "object" || !Array.isArray((episode as Episode).sahneler)) return [];
   const scenes = (episode as Episode).sahneler;
   const out: string[] = [];
+  const places = new Set<string>();
   for (const s of scenes) {
     const h = s.harita;
-    if (!h?.merkez && /\b(map|harita)\b/i.test(s.mekan ?? "")) out.push(`scene "${s.id}" is set on a map ("mekan": "${s.mekan}") but has no "harita": give it one (merkez, genislik_km, and what moves on it — MAP NARRATION)`);
+    if (!h?.merkez &&/\b(map|harita)\b/i.test(s.mekan ?? "")) out.push(`scene "${s.id}" is set on a map ("mekan": "${s.mekan}") but has no "harita": give it one (merkez, genislik_km, and what moves on it — MAP NARRATION)`);
     if (h?.merkez) {
       if (!mapLives(h)) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
-      if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) out.push(...closeMapProblems(s));
+      if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) {
+        const place = siegePlaceKey(h);
+        out.push(...closeMapProblems(s, !places.has(place)));
+        if (isSiegeMap(h)) places.add(place);
+      }
     }
   }
   // Every character scene lives in its drawn set (owner, 22 Oct 2026: "the viewer must live the moment"); a scene that

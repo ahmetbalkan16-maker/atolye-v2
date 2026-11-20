@@ -575,6 +575,13 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   walls), every line of the fight moving the tokens; (5) character scene: the leaders' reaction; then the wide map for
   what it changed. Each fight of the story (a fleet battle, the assault on the walls, a sortie) is its own close-map
   scene or lines. The storming of the walls, the breach and the rout are never told only in a character scene.
+  A SIEGE'S CLOSE MAP IS THE REAL SIEGE, as the sources tell it: the besiegers' camp ("yerlesimler" "ordugah") where it
+  really stood, behind their lines opposite the main gate or the breach; on the first close map of the place the
+  besiegers' main unit's "cephe" just outside the wall along its whole length (the siege line, 3–6 points) and the
+  defenders' just inside it, on the wall; the guns before the wall with "hedef" on the breach; the breach ("gedik") ON the
+  named wall where it really broke, and the assault's tokens through it; the fleet where it really lay and, when the
+  sources tell ships hauled over land, their "yol" over that land; a leader's "x_satir" on the line that tells his death
+  or capture, after his own last words — never for one only wounded.
   The assault scene, in short:
     {"id": "s6-assault", "mekan": "Close map: the walls of <city>", "harita": {"merkez": [lon, lat], "genislik_km": 10,
       "surlar": [{"ad": "<the walls' name>", "noktalar": [[lon, lat], …], "gedik": {"konum": [lon, lat], "satir": 1}}],
