@@ -9,11 +9,11 @@ import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { hookFollowProblems } from "./HookFollow";
 import { storyRuleProblems } from "./StoryRules";
 import { addToldStrengths } from "./ToldNumbers";
-import { normalizeDraft } from "./DraftNormalizer";
+import { fixFieldLimits, normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, markMapPictures, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, orderFidelityPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, supportCheckPrompt, wordBudget, writingPrompt } from "./ScriptPrompts";
-import type { V3Budget, V3ModelChoice } from "./V3Budget";
+import { type V3Budget, V3BudgetError, type V3ModelChoice } from "./V3Budget";
 
 /**
  * V3 script writer: write → extract JSON → validate (up to two repair rounds) → a separate fact-check pass whose
@@ -277,6 +277,12 @@ export function rewriteMaxTokens(brief: ScriptBrief, scriptJson: string): number
 }
 const REWRITE_CHARS_PER_TOKEN = 2;
 const REWRITE_GROWTH = 1.35;
+/** Dropped length rounds after which no more are paid (writeScript). */
+export const MAX_LENGTH_DROPS = 2;
+/** A draft's faults for comparing two rounds: an error that makes it unusable outweighs any number of map asks. */
+function scriptFaults(s: { readonly problems: readonly string[]; readonly quality: readonly string[] }): number {
+  return s.problems.length * 1000 + s.quality.length;
+}
 
 const FACT_CHECK_MAX_TOKENS = 3_000;
 /**
@@ -614,7 +620,11 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   // The writer never falls back to the free local model at the cap (V3Budget.generate noFallback): it stops there.
   const opts = { maxTokens: writerMaxTokens(brief), noFallback: true, ...(input.jsonSchema ? { jsonSchema: input.jsonSchema } : {}) };
   const rewriteOpts = (json: string) => ({ ...opts, maxTokens: rewriteMaxTokens(brief, json) });
-  const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);
+  const prompt = writingPrompt(brief, input.catalog);
+  // A pass that cannot end in a script is not begun (owner, 21 Nov 2026): the draft and one whole rewrite must fit.
+  const need = budget.ceilingUsd(input.writer, prompt, opts.maxTokens) + budget.ceilingUsd(input.writer, prompt, Math.min(16_000, Math.ceil(opts.maxTokens * REWRITE_GROWTH)));
+  if (budget.spentUsd + need > budget.capUsd) throw new V3BudgetError("V3_BUDGET_EXCEEDED", `senaryo: bir senaryo geçişi (taslak + bir yeniden yazım ≈ $${need.toFixed(3)}) kalan bütçeye ($${(budget.capUsd - budget.spentUsd).toFixed(3)}) sığmıyor; çağrı yapılmadı`);
+  const first = await budget.generate("senaryo", input.writer, prompt, opts);
   if (first.result.refused) throw new ScriptError("V3_SCRIPT_REFUSED", "model senaryoyu yazmayı reddetti");
   const writerUsed = first.used;
   // A Short of half a minute or more is asked its own shares (map ~70%); a shorter one is not asked any.
@@ -627,7 +637,13 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (!parsed.ok) return { problems: [parsed.error], quality: [] };
     // Mechanical slips (visible narrator, English garment names, made-up items) are fixed here, not by a model round.
     const value = normalizeDraft(parsed.value, input.catalog).value;
-    const validation = validateEpisode(value);
+    let validation = validateEpisode(value);
+    // Field-room slips are fixed by rule, never by a paid round (owner, 21 Nov 2026: "boşu boşuna harcanan birşey istemiyorum").
+    const limited = validation.errors.length ? fixFieldLimits(value, validation.errors) : [];
+    if (limited.length) {
+      input.log?.(`  senaryo: alan sınırı kuralla düzeltildi (${limited.length}): ${limited.slice(0, 4).join(" · ").slice(0, 240)}`);
+      validation = validateEpisode(value);
+    }
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
@@ -644,6 +660,12 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const checked = check(next.result.content);
     // A round for the map that broke a valid script: the valid one stays.
     if (!state.problems.length && checked.problems.length) break;
+    // A round that fixed nothing is not paid for again (owner, 21 Nov 2026): the Lake Trasimene drafts got the same
+    // single slip back three rounds running. The better (or the earlier) script stays.
+    if (scriptFaults(checked) >= scriptFaults(state)) {
+      input.log?.(`  senaryo: onarım turu ${repairs} ilerlemedi (${state.problems.length}+${state.quality.length} → ${checked.problems.length}+${checked.quality.length} sorun) — başka onarım turu ödenmedi`);
+      break;
+    }
     raw = next.result.content;
     state = checked;
   }
@@ -660,6 +682,16 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const band = lengthBand(brief);
   const short = isShorts(brief.hedefSureSn);
   let lengthRounds = 0;
+  // A dropped round is tried once more, told why it was dropped; a second drop ends the rounds (owner, 21 Nov 2026: no
+  // paid round repeated blind — the first Lake Trasimene order paid three length rounds and kept none).
+  let lastDrop: string | undefined;
+  let drops = 0;
+  const drop = (why: string): boolean => {
+    lastDrop = why;
+    drops++;
+    if (drops >= MAX_LENGTH_DROPS) input.log?.(`  senaryo: ${drops} uzunluk turu kullanılmadı — başka uzunluk turu ödenmedi`);
+    return drops >= MAX_LENGTH_DROPS;
+  };
   // Revision attempts for length, dialogue and cast; one is kept only if it is valid and closer to the targets,
   // otherwise the best version so far is tried again.
   while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords, band, short) > 0) {
@@ -680,16 +712,19 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (words < targetWords * band[0]) extra.push(...sceneShortfalls(written, targetWords));
     // A round that runs anyway also splits the narrator's crowded lines (no round of its own: nothing paid is added).
     extra.push(...denseNarratorLines(written, { grow: words < targetWords * band[0] }));
+    if (lastDrop) extra.push(`your previous revision was not used because ${lastDrop}`);
     const current = JSON.stringify(written);
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(current, spokenWords(written), targetWords, extra), rewriteOpts(current));
     const revised = check(next.result.content);
     // A dropped round says why in the log (the Rubicon's three were dropped silently; the cause had to be replayed).
     if (revised.problems.length) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} kullanılmadı — ${revised.problems.length} sorun: ${revised.problems.slice(0, 3).join("; ").slice(0, 240)}`);
+      if (drop(`it had ${revised.problems.length} errors: ${revised.problems.slice(0, 3).join("; ").slice(0, 300)}`)) break;
       continue;
     }
     if (revisionGap(revised.value as Episode, targetWords, band, short) >= revisionGap(written, targetWords, band, short)) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} hedefe yaklaşmadı (${spokenWords(revised.value as Episode)}/${targetWords} kelime)`);
+      if (drop(`it came back with ${spokenWords(revised.value as Episode)} spoken words; ${targetWords} are needed — write longer lines and more lines per scene`)) break;
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
@@ -699,6 +734,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       // dropped for "5 → 7" map issues and went out at 162 of 389 words, 85 s of the 144–180 s asked. Length wins there.
       if (spokenWords(written) >= targetWords * band[0] * FAR_SHORT_SHARE) {
         input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
+        if (drop(`it broke the map rules: ${revised.quality.slice(0, 3).join(" | ").slice(0, 300)}`)) break;
         continue;
       }
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} alındı — senaryo bandın çok altında (${spokenWords(written)}/${targetWords} kelime); harita sorunları ${before} → ${revised.quality.length}, sonraki adımlar ele alır`);

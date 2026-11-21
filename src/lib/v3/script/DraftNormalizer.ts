@@ -195,6 +195,60 @@ export function clipSummary(text: string, max: number): string {
 /** The validator's room for the summaries clipSummary cuts (EpisodeValidator: `konu`, `konusma_tarzi`). */
 const SUMMARY_MAX = 300;
 
+/**
+ * Text fields a rule may shorten: names, labels and summaries shown or read, never a spoken line (`metin`, `balon`),
+ * a source (`kunye`) or a lookup key (`wiki`, `osm_ad`, `donem`) — cutting those would change what is said or found.
+ */
+const CLIPPABLE_TEXT = new Set(["ad", "baslik", "etiket", "mekan", "rol", "serit", "taraf", "sayi", "konu", "konusma_tarzi", "muzik_ruh_hali", "hedef"]);
+/** Numbers never clamped: a line index or a date moved to its bound would put a thing on the wrong line or year. */
+const UNCLAMPED_NUMBERS = new Set(["satir", "bitis_satir", "yil", "tarih", "baslangic_satir"]);
+
+function pathSteps(p: string): (string | number)[] | undefined {
+  if (!p.startsWith("$")) return undefined;
+  const steps: (string | number)[] = [];
+  for (const m of p.slice(1).matchAll(/\.([^.[\]]+)|\[(\d+)\]/g)) steps.push(m[1] !== undefined ? m[1] : Number(m[2]));
+  return steps.length ? steps : undefined;
+}
+
+/**
+ * The validator's field-room errors fixed by rule instead of a paid repair round (owner, 21 Nov 2026: "bir daha boşu
+ * boşuna harcanan birşey istemiyorum bunu kesin olarak çöz"): an over-long name, label or summary (ALAN_UZUN, "en fazla
+ * N karakter") is cut (shortStrengthLabel for a strength side, clipSummary otherwise), an out-of-range number (ALAN_SAYI,
+ * "A..B arası") is moved to its bound. Two Lake Trasimene drafts and a length round were lost to exactly these: the
+ * writer wrote the same slip back three rounds running. Returns the fixes made; `value` is changed in place.
+ */
+export function fixFieldLimits(value: unknown, errors: readonly { readonly code: string; readonly path: string; readonly message: string }[]): string[] {
+  const fixes: string[] = [];
+  for (const e of errors) {
+    if (e.code !== "ALAN_UZUN" && e.code !== "ALAN_SAYI") continue;
+    const steps = pathSteps(e.path);
+    if (!steps) continue;
+    const key = steps[steps.length - 1];
+    if (typeof key !== "string") continue;
+    let holder: unknown = value;
+    for (const s of steps.slice(0, -1)) holder = isObj(holder) || Array.isArray(holder) ? (holder as Record<string | number, unknown>)[s] : undefined;
+    if (!isObj(holder)) continue;
+    const v = holder[key];
+    if (e.code === "ALAN_UZUN") {
+      const max = Number(/en fazla (\d+)/.exec(e.message)?.[1]);
+      if (!CLIPPABLE_TEXT.has(key) || typeof v !== "string" || !Number.isFinite(max) || v.length <= max) continue;
+      const cut = key === "sayi" ? shortStrengthLabel(v, max) : clipSummary(v, max);
+      if (!cut || cut.length > max) continue;
+      holder[key] = cut;
+      fixes.push(`${e.path.slice(2)} ${v.length} karakter → "${cut}"`);
+    } else {
+      const range = /(-?[\d.]+)\.\.(-?[\d.]+) arası/.exec(e.message);
+      if (!range || UNCLAMPED_NUMBERS.has(key) || typeof v !== "number" || !Number.isFinite(v)) continue;
+      const [lo, hi] = [Number(range[1]), Number(range[2])];
+      const to = Math.min(hi, Math.max(lo, v));
+      if (to === v) continue;
+      holder[key] = to;
+      fixes.push(`${e.path.slice(2)} ${v} → ${to} (${lo}..${hi})`);
+    }
+  }
+  return fixes;
+}
+
 export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[]): NormalizedDraft {
   if (!isObj(raw)) return { value: raw, fixes: [] };
   const draft = JSON.parse(JSON.stringify(raw)) as Obj;

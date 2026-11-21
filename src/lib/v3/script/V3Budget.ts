@@ -146,6 +146,17 @@ export class V3Budget {
   }
 
   /**
+   * The worst case of one call, without making it — for a step that must know it can finish before it pays its first
+   * call (writeScript, owner 21 Nov 2026: "boşu boşuna harcanan birşey istemiyorum"). Free or unpriced models count 0
+   * (an unpriced one is refused by `generate` anyway).
+   */
+  ceilingUsd(choice: V3ModelChoice, prompt: string, maxTokens: number): number {
+    const model = choice.provider === "openai" ? (choice.model ?? "") : choice.provider;
+    const c = estimateTokenCallCeiling({ provider: choice.provider, model, promptChars: Math.ceil(prompt.length * TURKISH_CHAR_FACTOR), maxTokens });
+    return c.status === "unknown" ? 0 : c.costUsd;
+  }
+
+  /**
    * `noFallback`: this call stops at the cap instead of going to the free local model. The script writer asks it: a
    * 12B local model rewriting a whole map-heavy script near the cap wrote no usable draft and only heated the card to
    * the in-call stop four times (Lake Trasimene Short, 21 Nov 2026) — like writerBudget's code writer.

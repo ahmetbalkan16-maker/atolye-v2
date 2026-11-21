@@ -13,11 +13,11 @@ import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/research/Infobox";
 import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
-import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, denseNarratorLines, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, rewriteMaxTokens, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writerMaxTokens, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, denseNarratorLines, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, MAX_LENGTH_DROPS, rewriteMaxTokens, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writerMaxTokens, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
-import { clipSummary, normalizeDraft, shortStrengthLabel } from "../src/lib/v3/script/DraftNormalizer";
+import { clipSummary, fixFieldLimits, normalizeDraft, shortStrengthLabel } from "../src/lib/v3/script/DraftNormalizer";
 import { knownRemedy } from "../src/lib/v3/council/RepairBrain";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
@@ -180,6 +180,43 @@ async function main() {
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
     await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && e.name === "V3BudgetError");
     assert.equal(openai.calls.length, 0);
+  });
+
+  await scenario("C5 no paid script round is spent where it cannot help (owner, 21 Nov 2026: \"bir daha boşu boşuna harcanan birşey istemiyorum\")", async () => {
+    // 1) Field-room slips by rule: a label cut, a number moved to its bound; a spoken line, a lookup key and a line index never.
+    const ep = { a: [{ ad: "x".repeat(50), sayi: "15,000 killed, 6,000 captured", metin: "y".repeat(300), wiki: "w".repeat(200), genislik_km: 1, satir: 99 }] };
+    const fixes = fixFieldLimits(ep, [
+      { code: "ALAN_UZUN", path: "$.a[0].ad", message: "en fazla 40 karakter" },
+      { code: "ALAN_UZUN", path: "$.a[0].sayi", message: "en fazla 24 karakter" },
+      { code: "ALAN_UZUN", path: "$.a[0].metin", message: "en fazla 240 karakter" },
+      { code: "ALAN_UZUN", path: "$.a[0].wiki", message: "en fazla 120 karakter" },
+      { code: "ALAN_SAYI", path: "$.a[0].genislik_km", message: "3..40000 arası sayı bekleniyor" },
+      { code: "ALAN_SAYI", path: "$.a[0].satir", message: "0..5 arası sayı bekleniyor" },
+    ]);
+    assert.equal(fixes.length, 3, fixes.join(" | "));
+    assert.deepEqual([ep.a[0]!.ad.length <= 40, ep.a[0]!.sayi, ep.a[0]!.metin.length, ep.a[0]!.wiki.length, ep.a[0]!.genislik_km, ep.a[0]!.satir], [true, "15,000 killed", 300, 200, 3, 99]);
+    // 2) A repair round that fixed nothing is the last: the same unusable draft is not paid for three times.
+    const broken = JSON.parse(validJson());
+    delete broken.sahneler[0].mekan;
+    const same = new FakeProvider([JSON.stringify(broken), JSON.stringify(broken), JSON.stringify(broken), JSON.stringify(broken)]);
+    const b1 = new V3Budget({ providers: { openai: same } });
+    const logs1: string[] = [];
+    await assert.rejects(writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b1, log: (m) => logs1.push(m) }), (e: unknown) => e instanceof ScriptError && e.code === "V3_SCRIPT_INVALID");
+    assert.equal(b1.ledger.map((e) => e.step).join(","), "senaryo,onarim-1");
+    assert.ok(logs1.some((m) => /onarım turu 1 ilerlemedi .* başka onarım turu ödenmedi/.test(m)), logs1.join("\n"));
+    // 3) A dropped length round is tried once more, told why; a second drop ends the rounds.
+    const flat = new FakeProvider([validJson(), validJson(), validJson(), validJson(), JSON.stringify({ iddialar: [] })]);
+    const b2 = new V3Budget({ providers: { openai: flat } });
+    const logs2: string[] = [];
+    await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b2, log: (m) => logs2.push(m), maxRepairs: 0 });
+    assert.equal(b2.ledger.filter((e) => e.step.startsWith("uzunluk-")).length, MAX_LENGTH_DROPS);
+    assert.ok(flat.calls[2]!.prompt.includes("your previous revision was not used because it came back with 21 spoken words"), "the retry is told why");
+    assert.ok(logs2.some((m) => m.includes("2 uzunluk turu kullanılmadı — başka uzunluk turu ödenmedi")), logs2.join("\n"));
+    // 4) A pass that cannot finish is not begun: no call at all when the draft and one rewrite do not fit what is left.
+    const none = new FakeProvider([validJson()]);
+    const b3 = new V3Budget({ capUsd: 0.12, providers: { openai: none } });
+    await assert.rejects(writeScript({ brief: { konu: "x", donem: "217 BC", hedefSureSn: 180, ton: "mizahi", dil: "en" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b3 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && /senaryo geçişi/.test(e.message));
+    assert.deepEqual([none.calls.length, b3.spentUsd], [0, 0]);
   });
 
   await scenario("C4 an empty OpenAI account stops the topic step as credit, not as a topic Wikipedia lacks (Lake Trasimene Short, 21 Nov 2026)", () => {
