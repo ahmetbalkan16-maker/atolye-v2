@@ -1,3 +1,18 @@
+## 21 Kasım 2026 (4) — owner iki açığı onayladı: CC BY-SA açık, başka kişi/olay adlı tablo kodla eleniyor
+
+Owner: "önceki oturumda benden beklediklerini onaylıyorum" + "sistemde açık kalmasın".
+- CC BY-SA: `ATOLYE_V3_BYSA_IZIN=1` iki .env.v3.local dosyasında (atolye-v2 = üreticinin okuduğu, atolye-v2-v3); her
+  üretim süreci başta okur, izleyici yeniden başlatma gerekmez (loadV3Settings → shareAlikeAllowed true doğrulandı).
+  Açıklamadaki zorunlu atıf satırı değişmedi. LicenseFilter yorumu karar tarihini taşıyor.
+- `BackgroundJudge.namedSubjects`/`namedSubjectCheck` (arşiv modunda namedPlaceCheck'ten sonra): başlıktaki kişi/olay
+  ("Death/Senate/Battle of X", "Morte di X", "X denounces/brings/accused", "X's") sahnede, konuda ve bölümün kadrosunda
+  (`SceneForJudge.kisiler`, atolye-v3.ts sceneForJudge) hiç geçmiyorsa konu 2. Ressam (tire öncesi, "by …", kredi
+  yazarı), arşiv kodları ve "Walker's Ridge" gibi yer adları ad sayılmaz; kök ve 1 harf fark eşleşir; adlardan biri
+  sahneninse geçer (Cannae'de Paulus Aemilius). Geçmiş 25 bölümde gösterilen 62 dönem görselinin hiçbiri elenmiyor;
+  Trasimene s8'in Sezar/Vespasian/Spurius Cassius/Cicero Senato tabloları eleniyor. smoke-v3-backgrounds Z5 (33 PASS),
+  council 18, youtube 9; tsc 0; lint-yerel 0/0.
+AÇIK KALAN: yok (Europeana kişisel anahtarı isteğe bağlı; Trasimene yüklemesi owner'ın kararı).
+
 ## 21 Kasım 2026 (3) — Trasimene Short TESLİM (tur 2, elle), geniş görsel araması, 6 düzeltme daha
 
 Sipariş 20261121T051126 (owner onayıyla tek başlatma): yükleme dosyası lake-trasimene-217-bc-animated-history.mp4

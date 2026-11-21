@@ -27,6 +27,8 @@ export interface SceneForJudge {
   readonly anlatim: string;
   /** The drawn set as described by the script (set mode). */
   readonly tasarim?: string;
+  /** The episode's cast names, so a picture of a person the episode tells about is not refused (namedSubjectCheck). */
+  readonly kisiler?: string;
 }
 
 /** What the judge needs to know about a candidate besides its pixels. */
@@ -35,6 +37,8 @@ export interface JudgeCandidate {
   readonly description?: string;
   readonly source?: string;
   readonly year?: number;
+  /** The artist, so a name in the title that is only the artist's is not taken for the picture's subject. */
+  readonly credit?: { readonly author?: string };
 }
 
 export interface CandidateVerdict {
@@ -364,6 +368,85 @@ export function namedPlaceCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, 
   return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}eserdeki yer sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
 }
 
+/** A word list as a regex group that ignores the case of the words only (a name slot must still start upper case). */
+function anyCase(words: string): string {
+  // Letters only in the lists: each letter becomes [xX].
+  return `(?:${words.split("|").map((w) => [...w].map((ch) => `[${ch.toLowerCase()}${ch.toUpperCase()}]`).join("")).join("|")})`;
+}
+/** A name slot: one to three words starting upper case. */
+const NAME_SLOT = String.raw`((?:[A-ZÀ-Þ][\p{L}'’-]+\s*){1,3})`;
+/** Nouns whose "of <Name>" names the person or event a picture is about ("Death of Julius Caesar", "Morte di Flaminio", "Battle of Zama"). */
+const OF_NAME = new RegExp(String.raw`\b${anyCase("death|murder|assassination|suicide|funeral|burial|triumph|coronation|abdication|execution|trial|arrest|capture|surrender|clemency|continence|apotheosis|oath|wedding|marriage|birth|vision|dream|return|flight|farewell|speech|senate|court|tent|head|body|portrait|bust|statue|battle|siege|sack|fall|morte|mort|trionfo|giuramento|battaglia|assedio|tod|schlacht|belagerung|muerte|batalla|triomphe|serment|bataille|siège")}\s+(?:of|di|de|du|des|del|della|dello|von|der|d['’])\s*(?:the\s+|il\s+|la\s+|le\s+)?${NAME_SLOT}`, "gu");
+/** "<Name> denounces …": a person a picture shows doing something ("Cicero Denounces Catiline", "Vespasian brings Senate money"). */
+const NAME_DOES = new RegExp(String.raw`((?:[A-ZÀ-Þ][\p{L}'’-]+\s+){1,3})${anyCase("denounces|denouncing|accused|accuses|accusing|brings|bringing|addresses|addressing|harangues|haranguing|receives|receiving|meets|meeting|crosses|crossing|enters|entering|leaves|leaving|refuses|refusing|visits|visiting|kills|killing|killed|slain|crowned|mourns|mourning|swears|swearing|condemned|banished|returns|returning|leads|leading|orders|ordering")}\b`, "gu");
+/** "<Name>'s …": "Caesar's Last Senate". */
+// Not a place named after someone ("Walker's Ridge", Çanakkale video, 10 Nov 2026).
+const NAME_OWNS = /\b([A-ZÀ-Þ][\p{L}-]+)['’]s\b(?!\s+(?:Ridge|Hill|Hills|Point|Bay|Creek|Cove|Gate|Wall|Tower|Bridge|Island|Isle|Farm|Wood|Woods|Field|Ford|Gap|Pass|Post|Crossing|Landing|Station|Fort|Mill|Hole|Head|Rock|Plateau)\b)/gu;
+/** A name word: upper case first, then lower case (not an archive code like "BnF MS Fr 9087"). */
+const NAME_WORD = /^\p{Lu}[\p{Ll}'’-]{2,}$/u;
+/** Words in a name slot that name no one in particular (kind of place, rank, people). */
+const GENERIC_NAME_WORD = /^(?:the|lake|lago|lac|loch|mount|mont|monte|river|rio|bay|gulf|isle|island|cape|consul|consuls|king|queen|emperor|empress|general|lord|sir|saint|st|san|santa|pope|prince|princess|duke|count|tribune|dictator|senator|senate|roman|romans|romani|greek|greeks|great|elder|younger|old|young|last|first|army|city|camp|battle|death|people|son|daughter|wife|father|mother)$/i;
+
+/** Letters to change, add or drop to turn one word into the other. */
+function editDistance(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) next.push(Math.min(row[j]! + 1, next[j - 1]! + 1, row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    row = next;
+  }
+  return row[b.length]!;
+}
+
+/** Text folded for name comparison: lower case, no accents ("Flaminiò" = "flaminio"). Never used on a path. */
+function foldName(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("en-US");
+}
+
+/**
+ * The people and events a picture title names in a clear slot (after "Death of", "Senate of", "Battle of"; before
+ * "denounces", "brings"; a possessive), each as its name words without rank or kind ("Julius Caesar", "Vespasian").
+ * The artist is not a subject: a leading "Lodovico Pogliaghi - ", a trailing "by Cesare Maccari" and the credit's author
+ * are dropped first.
+ */
+export function namedSubjects(title: string, author = ""): string[] {
+  let t = title.replace(/^(File|Europeana):\s*/, "").replace(/\.(jpe?g|png|tiff?|webm|ogv)$/i, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+  t = t.replace(/^(?:[A-ZÀ-Þ][\p{L}.'’-]*\s+){1,3}[A-ZÀ-Þ][\p{L}.'’-]*\s+[-–—]\s+/u, "").replace(/\s+by\s+[A-ZÀ-Þ][^,()]*$/u, "");
+  const artist = new Set(foldName(author).split(/[^\p{L}]+/u).filter((w) => w.length >= 3));
+  const names: string[] = [];
+  for (const re of [OF_NAME, NAME_DOES, NAME_OWNS]) {
+    for (const m of t.matchAll(re)) {
+      const words = m[1]!.trim().split(/\s+/).map((w) => w.replace(/['’]s$/, "")).filter((w) => NAME_WORD.test(w) && !GENERIC_NAME_WORD.test(w) && !artist.has(foldName(w)));
+      if (words.length) names.push(words.join(" "));
+    }
+  }
+  return [...new Set(names)];
+}
+
+/**
+ * A picture of another person or event is not this scene's picture (owner, 21 Nov 2026, after the Lake Trasimene Short:
+ * the panicking Senate of 217 BC got "The Last Senate of Julius Caesar" at subject 9/10 — the judge even described it as
+ * "after Hannibal's defeat" — with Vespasian's, Spurius Cassius's and Cicero's Senate paintings behind it, all of other
+ * events). A name is the scene's when the scene, the topic or the episode's cast says any of its words (a shared stem:
+ * "Morte di Flaminio" for Flaminius; one letter off: "Konstantinople"). One name of the scene's is enough: "The Death of
+ * Paulus Aemilius at the Battle of Cannae" is the Cannae scene's picture though the consul is never named. Subject score
+ * 2, like namedPlaceCheck.
+ */
+export function namedSubjectCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, "anlatim" | "tr" | "en" | "mekan" | "konu" | "kisiler">, author = ""): CandidateVerdict {
+  if (v.okunamadi || v.puan <= 3) return v;
+  const said = foldName(`${scene.anlatim} ${scene.tr} ${scene.en} ${scene.mekan} ${scene.konu} ${scene.kisiler ?? ""}`).split(/[^\p{L}]+/u).filter((w) => w.length >= 3);
+  const known = (word: string) => {
+    const w = foldName(word);
+    const stem = w.slice(0, Math.max(4, w.length - 3));
+    // A spelling of another language is the same name ("Konstantinople" for Constantinople): one letter off in six.
+    return said.some((s) => (s.length >= 4 && w.startsWith(s)) || s.startsWith(stem) || (w.length >= 6 && Math.abs(s.length - w.length) <= 2 && editDistance(w, s) <= (w.length >= 10 ? 2 : 1)));
+  };
+  const names = namedSubjects(v.title, author);
+  const missing = names.filter((name) => !name.split(" ").some(known));
+  if (!missing.length || missing.length < names.length) return v;
+  return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}eserdeki kişi/olay sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
+}
+
 /**
  * One plain question about later-era buildings and symbols, for a drawn set of an early period (undefined when the
  * period needs none). The scoring answer misses small things: the Rubicon's Corfinium set (49 BC) had a cross on a
@@ -445,7 +528,7 @@ export async function pickBackground<T extends JudgeCandidate>(
         return parseVerdict(typeof out === "string" ? out : out.content);
       };
       const parsed = (await ask(VERDICT_TOKENS)) ?? (await ask(VERDICT_RETRY_TOKENS));
-      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : (opts.mode ?? "arsiv") === "arsiv" ? namedPlaceCheck(namedShipCheck({ title: c.title, ...parsed }, scene), scene) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
+      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : (opts.mode ?? "arsiv") === "arsiv" ? namedSubjectCheck(namedPlaceCheck(namedShipCheck({ title: c.title, ...parsed }, scene), scene), scene, c.credit?.author) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
       if (!parsed) {
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);

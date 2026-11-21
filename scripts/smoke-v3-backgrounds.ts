@@ -11,7 +11,7 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, looksEnglish, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, looksEnglish, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, namedSubjectCheck, namedSubjects, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -685,6 +685,29 @@ async function main() {
     const pick = await pickBackground([{ title: "Lake George, Free Study" }], { ...hook, donem: "217 BC" }, judge, async () => Buffer.from("x"));
     assert.equal(pick.chosen, undefined);
     assert.match(pick.verdicts[0]!.sorun, /eserdeki yer sahnede yok: George/);
+  });
+
+  await scenario("Z5 a painting of another person or event is not its picture (Caesar's Senate over Trasimene's, 21 Nov 2026)", async () => {
+    assert.deepEqual(namedSubjects("The Last Senate of Julius Caesar"), ["Julius Caesar"]);
+    assert.deepEqual(namedSubjects("File:Lodovico_Pogliaghi_-_Vespasian_brings_Senate_money.jpg"), ["Vespasian"], "the artist before the dash is no subject");
+    assert.deepEqual(namedSubjects("Cicero Denounces Catiline in Roman Senate by Cesare Maccari"), ["Cicero"], "nor the one after 'by'");
+    assert.deepEqual(namedSubjects("Spurius Cassius accused by father", "Lodovico Pogliaghi"), ["Spurius Cassius"]);
+    assert.deepEqual(namedSubjects("Alfred Rethel Hannibalszug", "Alfred Rethel"), [], "no slot, no claim");
+    assert.deepEqual(namedSubjects("In the Firing Line, Anzac - Chunuk Bahr and Walker's Ridge"), [], "a place named after someone is no person");
+    assert.deepEqual(namedSubjects("Siege of Constantinople BnF MS Fr 9087"), ["Constantinople"], "archive codes are no names");
+    const senate = { konu: "Lake Trasimene (21 June 217 BC)", mekan: "Rome, the Senate house", tr: "", en: "Roman Senate in panic", anlatim: "In Rome, the praetor told the crowd: we have been defeated in a great battle.", kisiler: "Hannibal, Flaminius, Maharbal" };
+    const v = { title: "The Last Senate of Julius Caesar", puan: 9, donem: 8, gosterilen: "the Senate after Hannibal's defeat", sorun: "" };
+    for (const title of [v.title, "Lodovico Pogliaghi - Vespasian brings Senate money", "Cicero Denounces Catiline in Roman Senate by Cesare Maccari", "Morte di Giulio Cesare"]) assert.equal(namedSubjectCheck({ ...v, title }, senate).puan, 2, title);
+    assert.equal(namedSubjectCheck({ ...v, title: "The Roman Senate" }, senate).puan, 9, "no name, no claim");
+    // The episode's cast and a stem count as the scene's; one name of the scene's is enough.
+    assert.equal(namedSubjectCheck({ ...v, title: "File:Morte di Flaminio.jpg" }, senate).puan, 9);
+    assert.equal(namedSubjectCheck({ ...v, title: "The Fall of Konstantinople" }, { ...senate, anlatim: "Constantinople fell." }).puan, 9, "one letter off");
+    assert.equal(namedSubjectCheck({ ...v, title: "The Death of Paulus Aemilius at the Battle of Cannae" }, { ...senate, konu: "The Battle of Cannae (216 BC)" }).puan, 9);
+    // Through pickBackground (archive mode), with the artist from the credit.
+    const judge = { generate: async () => ({ content: JSON.stringify({ puan: 9, donem: 8, gosterilen: "the Senate", sorun: "", modern: false, tur: "eser" }), finishReason: "stop" as const, refused: false, complete: true, truncated: false }) };
+    const pick = await pickBackground([{ title: "The Last Senate of Julius Caesar", credit: { author: "Raffaele Giannetti" } }, { title: "Roman Senate session", credit: { author: "Cesare Maccari" } }], { ...senate, donem: "217 BC" }, judge, async () => Buffer.from("x"));
+    assert.equal(pick.chosen?.title, "Roman Senate session");
+    assert.match(pick.verdicts[0]!.sorun, /eserdeki kişi\/olay sahnede yok: Julius Caesar/);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

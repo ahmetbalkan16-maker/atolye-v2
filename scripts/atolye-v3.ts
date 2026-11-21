@@ -237,7 +237,7 @@ async function localPreview(paths: V3Paths, file: string): Promise<Buffer> {
 function sceneForJudge(episode: Episode, si: number): SceneForJudge {
   const scene = episode.sahneler[si]!;
   const q = scene.arka_plan_sorgusu;
-  return { konu: episode.konu, donem: episode.donem, mekan: scene.mekan, tr: q.tr, en: q.en, anlatim: scene.satirlar.slice(0, 3).map((l) => l.metin).join(" "), ...(q.tasarim ? { tasarim: q.tasarim } : {}) };
+  return { konu: episode.konu, donem: episode.donem, mekan: scene.mekan, tr: q.tr, en: q.en, anlatim: scene.satirlar.slice(0, 3).map((l) => l.metin).join(" "), kisiler: episode.oyuncu_kadrosu.map((c) => c.ad).join(", "), ...(q.tasarim ? { tasarim: q.tasarim } : {}) };
 }
 
 /**

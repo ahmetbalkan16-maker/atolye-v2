@@ -30,7 +30,11 @@ export function judgeLicense(shortName: string | undefined, usageTerms?: string)
   return { ok: false, reason: "UNKNOWN" };
 }
 
-/** CC BY-SA in a shown picture only with the owner's yes: `ATOLYE_V3_BYSA_IZIN=1` (`.env.v3.local`, read by loadV3Settings). */
+/**
+ * CC BY-SA in a shown picture only with the owner's yes: `ATOLYE_V3_BYSA_IZIN=1` (`.env.v3.local`, read by loadV3Settings).
+ * The owner said yes on 21 Nov 2026 (the Palazzo della Corgna Trasimene frescoes); the credit line in the description
+ * stays required for every such picture (`attributionRequired`).
+ */
 export function shareAlikeAllowed(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return env.ATOLYE_V3_BYSA_IZIN === "1";
 }
