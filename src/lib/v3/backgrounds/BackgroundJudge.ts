@@ -309,6 +309,27 @@ export function namedShipCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, "
   return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}dosyadaki gemi sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
 }
 
+/** A named lake, mountain, river, bay or island in a title: "Lake George, Free Study" → George. */
+const NAMED_PLACE = /\b(?:Lake|Lago|Lac|Loch|Mount|Mont|Monte|River|Rio|Bay|Gulf|Isle|Island|Cape)\s+(?:of\s+)?([A-Z][\p{L}'’-]+)/gu;
+
+/** The places a file title names by their kind word (their first name word), e.g. ["George"]. */
+export function namedPlaces(title: string): string[] {
+  return [...new Set([...title.replace(/^File:/, "").replace(/_/g, " ").matchAll(NAMED_PLACE)].map((m) => m[1]!))];
+}
+
+/**
+ * A painting of a named place the scene never names is another place's picture (Lake Trasimene Short, 21 Nov 2026:
+ * Kensett's "Lake George, Free Study" (1872, New York) opened the 217 BC video — the judge saw "a misty lake and
+ * mountains" and gave it subject 8/10, never reading the title). Subject score 2, like namedShipCheck.
+ */
+export function namedPlaceCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, "anlatim" | "tr" | "en" | "mekan" | "konu">): CandidateVerdict {
+  if (v.okunamadi || v.puan <= 3) return v;
+  const said = `${scene.anlatim} ${scene.tr} ${scene.en} ${scene.mekan} ${scene.konu}`.toLocaleLowerCase("en-US");
+  const missing = namedPlaces(v.title).filter((s) => !new RegExp(`\\b${s.toLocaleLowerCase("en-US").replace(/[’'-]/g, ".")}`, "u").test(said));
+  if (!missing.length) return v;
+  return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}eserdeki yer sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
+}
+
 /**
  * One plain question about later-era buildings and symbols, for a drawn set of an early period (undefined when the
  * period needs none). The scoring answer misses small things: the Rubicon's Corfinium set (49 BC) had a cross on a
@@ -390,7 +411,7 @@ export async function pickBackground<T extends JudgeCandidate>(
         return parseVerdict(typeof out === "string" ? out : out.content);
       };
       const parsed = (await ask(VERDICT_TOKENS)) ?? (await ask(VERDICT_RETRY_TOKENS));
-      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : (opts.mode ?? "arsiv") === "arsiv" ? namedShipCheck({ title: c.title, ...parsed }, scene) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
+      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : (opts.mode ?? "arsiv") === "arsiv" ? namedPlaceCheck(namedShipCheck({ title: c.title, ...parsed }, scene), scene) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
       if (!parsed) {
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);

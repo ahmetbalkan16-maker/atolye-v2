@@ -11,7 +11,7 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -594,6 +594,23 @@ async function main() {
     assert.equal(passes(namedShipCheck(v, firstNight)), false);
     assert.equal(namedShipCheck({ ...v, title: "USS Atlanta (CL-51) underway at sea" }, firstNight).puan, 9, "the ship the scene names passes");
     assert.equal(namedShipCheck(v, { ...firstNight, anlatim: "The next night Washington catches Kirishima." }).puan, 9);
+  });
+
+  await scenario("Z4 a painting of a named place the scene never names is not its picture (Lake George over Lake Trasimene, 21 Nov 2026)", async () => {
+    assert.deepEqual(namedPlaces("Lake George, Free Study"), ["George"]);
+    assert.deepEqual(namedPlaces("File:Souvenir_of_the_Environs_of_Lake_Nemi.jpg"), ["Nemi"]);
+    assert.deepEqual(namedPlaces("Battle of Lake Trasimene, engraving"), ["Trasimene"]);
+    assert.deepEqual(namedPlaces("A misty lake at dawn"), [], "no named place, no claim");
+    const hook = { konu: "Lake Trasimene (21 June 217 BC)", anlatim: "Hannibal is about to spring history's biggest ambush.", tr: "", en: "Lake Trasimene shore, dawn, thick mist", mekan: "Lake Trasimene shore, dawn, thick mist" };
+    const v = { title: "Lake George, Free Study", puan: 8, donem: 7, gosterilen: "a calm lake and distant mountains", sorun: "" };
+    assert.equal(namedPlaceCheck(v, hook).puan, 2);
+    assert.equal(passes(namedPlaceCheck(v, hook)), false);
+    assert.equal(namedPlaceCheck({ ...v, title: "The Battle of Lake Trasimene" }, hook).puan, 8, "the place the scene names passes");
+    // Through pickBackground (archive mode): the judge's 8/10 for Lake George no longer picks it.
+    const judge = { generate: async () => ({ content: JSON.stringify({ puan: 8, donem: 7, gosterilen: "a calm lake", sorun: "", modern: false, tur: "eser" }), finishReason: "stop" as const, refused: false, complete: true, truncated: false }) };
+    const pick = await pickBackground([{ title: "Lake George, Free Study" }], { ...hook, donem: "217 BC" }, judge, async () => Buffer.from("x"));
+    assert.equal(pick.chosen, undefined);
+    assert.match(pick.verdicts[0]!.sorun, /eserdeki yer sahnede yok: George/);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
