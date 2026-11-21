@@ -1,3 +1,23 @@
+## 21 Kasım 2026 (2) — Trasimene Short siparişi: iki deneme senaryoda durdu, 3 düzeltme; OPENAI KREDİSİ BİTTİ (BEKLİYOR)
+
+Owner 07:39: "sipariş ver, her aşamada bak, kalite + yönetmen sorumlususun, gerekirse düzelt canlıya al"; Shorts 1080×1920.
+- 044040 (0,846 $): senaryo+3 onarım+3 uzunluk turu; uzunluk turları 11.780 token tavanında kesik JSON; tarih kapısı
+  (uydurma Maharbal alayı) yeni taslak istedi → bütçe yok → gemma4:12b → kart 4× 80 °C → durdu.
+  927ba35f: `rewriteMaxTokens` (senaryo JSON/2×1,35, ≤16k), yazar `noFallback` (tavanda yerel modele düşmez),
+  RepairBrain termal kesinti bilinen çözüm.
+- 050320 (0,717 $): iki taslak tek mekanik hatadan (güç etiketi 29>24 karakter; konu 415>300) 3'er onarımda geçersiz;
+  3. taslaktan önce ben durdurdum. 18abf329: `shortStrengthLabel`, `clipSummary` normalizeDraft'ta (iki gerçek taslak
+  artık geçerli).
+- 051126 (0 $): `429 credit_balance_exhausted` — 1 token kontrolü doğruladı (07:39'da 200). Hata "Wikipedia makalesi
+  bulunamadı" diye çıkıyordu → feb9b2cf kredi hatasını yutmaz.
+Hepsi push'lu, canonical'da (feb9b2cf), canlı snapshot DEĞİL (toplu canlıya alma bekliyor; V3 üretici canonical'dan
+okur, izleyici yeniden başlatma gerekmez). Kanıt: smoke-v3-script 62, council 18, episode-director 86, director-council
+12, cirak/commit-lessons/self-improvement PASS; tsc 0; lint 0/0.
+SIRADAKİ: owner OpenAI kredisi yükleyince 051126'yı yeniden kuyruğa al (uret.log/yapim-raporu.json → onceki-deneme-1/,
+durum bekliyor, bitis/ozet/baslangic sil); senaryodan sonra harita önizleme (göl kıyısı, sis, pusu, boğulma öncesi
+gölde birlik yok); tarih kapısı yine düşerse satırı elle düzelt + gardiroptan devam (yeni taslağa bütçe kalmaz).
+Bu videoya şimdiye kadar 1,56 $ gitti (başarısız iki deneme).
+
 ## 21 Kasım 2026 (1) — referans kalitesi, sur hizalaması, haritada sis/pusu, Trasimene hazırlığı (VİDEO BAŞLATILMADI)
 
 Owner: cinematic-skill'i beyinlere örnek okut + kaliteyi entegre et; yakın savaşta askerler surdan taşmasın; Hannibal'in
