@@ -120,11 +120,11 @@ async function main() {
 
   await scenario("English speech text: digits, dollars, percents, ordinals, decimals, times and units are spoken as words (20 Nov 2026, the reference skill's 'digits in the spoken text')", () => {
     const say = normalizeEnglishForSpeech;
-    assert.equal(say("In 216 BC, 50,000 men met in 1453."), "In two hundred sixteen BC, fifty thousand men met in fourteen fifty-three.");
-    assert.equal(say("The 3rd legion lost 20% for $50."), "The third legion lost twenty percent for fifty dollars.");
-    assert.equal(say("He paid $1.5 million for the 21st and 100th."), "He paid one point five million dollars for the twenty-first and one hundredth.");
-    assert.equal(say("At 1:25 a.m. and 5:30, 25km, 4kg."), "At one twenty-five a.m. and five thirty, twenty-five kilometers, four kilograms.");
-    assert.equal(say("Mehmed II took Constantinople. Version 2."), "Mehmed the Second took Constantinople. Version two.");
+    assert.equal(say("In 216 BC, 50,000 men met in 1453."), "In two hundred sixteen BC, fifty thousand men met in fourteen fifty-three.", "assert.equal(say(\"In 216 BC, 50,000 men met in 1453.\"), \"In two hundred sixteen BC, fifty thousand men met in fourteen fifty-three.\")");
+    assert.equal(say("The 3rd legion lost 20% for $50."), "The third legion lost twenty percent for fifty dollars.", "assert.equal(say(\"The 3rd legion lost 20% for $50.\"), \"The third legion lost twenty percent for fifty dollars.\")");
+    assert.equal(say("He paid $1.5 million for the 21st and 100th."), "He paid one point five million dollars for the twenty-first and one hundredth.", "assert.equal(say(\"He paid $1.5 million for the 21st and 100th.\"), \"He paid one point five million dollars for the twenty-first and one hundredth.\")");
+    assert.equal(say("At 1:25 a.m. and 5:30, 25km, 4kg."), "At one twenty-five a.m. and five thirty, twenty-five kilometers, four kilograms.", "assert.equal(say(\"At 1:25 a.m. and 5:30, 25km, 4kg.\"), \"At one twenty-five a.m. and five thirty, twenty-five kilometers, four kilograms.\")");
+    assert.equal(say("Mehmed II took Constantinople. Version 2."), "Mehmed the Second took Constantinople. Version two.", "assert.equal(say(\"Mehmed II took Constantinople. Version 2.\"), \"Mehmed the Second took Constantinople. Version two.\")");
     assert.ok(!/\d/.test(say("The 12th, 2nd, 30th of $3,000, 1.5%, 11:05")), "no digit is left for the voice to guess");
   });
 
