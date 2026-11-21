@@ -475,14 +475,15 @@ export async function findPeriodCandidates(
   // put into English when the picture is chosen (BackgroundJudge.englishTitle).
   const subject = s.wiki && (opts.wide ?? true) ? await wikiSubject(cacheDir, s.wiki).catch((e: Error) => (report.push(`Wikidata: hata (${e.message.slice(0, 80)})`), undefined)) : undefined;
   const otherNames: string[] = [];
+  const own = (run: () => Promise<CommonsCandidate[]>) => async () => (await run()).map((c) => ({ ...c, subject: true }));
   if (subject) {
     const category = s.commonsCategory ?? subject.commonsCategory;
-    if (category) await take(`Commons kategorisi "${category}"`, () => commonsCategoryCandidates(cacheDir, category));
-    await take(`Wikidata eserleri ${subject.qid}`, () => depictionCandidates(cacheDir, subject.qid));
+    if (category) await take(`Commons kategorisi "${category}"`, own(() => commonsCategoryCandidates(cacheDir, category)));
+    await take(`Wikidata eserleri ${subject.qid}`, own(() => depictionCandidates(cacheDir, subject.qid)));
     for (const lang of OTHER_WIKI_LANGS.filter((l) => subject.titles[l]).slice(0, OTHER_WIKIS)) {
       const title = subject.titles[lang]!;
       otherNames.push(title);
-      await take(`Wikipedia ${lang} "${title}"`, () => wikipediaCandidates(cacheDir, title, lang));
+      await take(`Wikipedia ${lang} "${title}"`, own(() => wikipediaCandidates(cacheDir, title, lang)));
     }
   }
   for (const q of [s.query, ...otherNames.slice(0, 2)].filter((q, i, all) => all.findIndex((x) => fold(x) === fold(q)) === i)) await take(`Europeana "${q}"`, () => europeanaCandidates(cacheDir, q, 8, opts.env));
@@ -525,6 +526,27 @@ export async function findPeriodCandidates(
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.c);
   return { candidates, later: ranked.filter((x) => ancient && x.r === 2).map((x) => x.c), report };
+}
+
+/** Judging slots kept for the subject's own pictures (reserveSubjectSlots). */
+export const SUBJECT_SLOTS = 3;
+
+/**
+ * Candidates in judging order with up to `slots` of the subject's own pictures (CommonsCandidate.subject) inside the
+ * first `window`, each in the order it already had. CLIP orders by the scene's words ("North shore of Lake Trasimene,
+ * morning fog"), so misty lake landscapes outranked the battle's own 1597 fresco and the judge never looked at it
+ * (Lake Trasimene Short, 21 Nov 2026).
+ */
+export function reserveSubjectSlots<T extends Pick<CommonsCandidate, "subject">>(ordered: readonly T[], window: number, slots = SUBJECT_SLOTS): T[] {
+  const head = ordered.slice(0, window);
+  const have = head.filter((c) => c.subject).length;
+  if (have >= slots) return [...ordered];
+  const lift = ordered.slice(window).filter((c) => c.subject).slice(0, slots - have);
+  if (!lift.length) return [...ordered];
+  // The last non-subject candidates of the window make room; their order and the rest stay as they were.
+  const drop = new Set(head.filter((c) => !c.subject).slice(-lift.length));
+  const kept = head.filter((c) => !drop.has(c));
+  return [...kept, ...lift, ...ordered.filter((c) => !kept.includes(c) && !lift.includes(c))];
 }
 
 // The period readers live with the episode (the validator needs them too); re-exported for the existing importers.

@@ -42,6 +42,8 @@ export interface CommonsCandidate {
   readonly source?: "wikipedia" | "commons" | "met" | "openverse" | "aic" | "cleveland" | "europeana";
   /** The institution an Openverse result really comes from ("Smithsonian Institution"), for its on-screen caption. */
   readonly provider?: string;
+  /** Found as the subject's own (its Commons category, a Wikidata work depicting it, its article in another language). */
+  readonly subject?: boolean;
   /** Year the image was made, when the metadata says (a 2013 photo of a 1452 fortress is not a period image). */
   readonly year?: number;
   readonly url: string;

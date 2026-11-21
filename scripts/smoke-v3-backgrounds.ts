@@ -15,7 +15,7 @@ import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, jud
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
-import { aliasQueries, europeanaLicense, findPeriodCandidates, insertCaption, keepShareAlike, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
+import { aliasQueries, europeanaLicense, findPeriodCandidates, insertCaption, keepShareAlike, reserveSubjectSlots, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
 import { judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -629,6 +629,14 @@ async function main() {
       for (const t of ["File:Sylvestre Ducar decapite Flaminius.jpg", "File:Vatican map Trasimeno.jpg", "File:Battaglia it.jpg", "Europeana: Battaglia del Trasimeno, incisione"]) assert.ok(titles.includes(t), `${t} in ${titles.join(" | ")}`);
       assert.ok(!titles.includes("File:Fresco Schlacht Trasimeno.jpg"), "CC BY-SA stays off the screen without the owner's yes");
       for (const r of [/Commons kategorisi "Battle of Lake Trasimene": 2/, /Wikidata eserleri Q207250: 1/, /Wikipedia it "Battaglia del lago Trasimeno": 1/, /Europeana "Lake Trasimene battle": 1/]) assert.ok(wide.report.some((x) => r.test(x)), `${r} in ${wide.report.join(" | ")}`);
+      // The subject's own pictures are marked, the searches' are not; they keep three of the judge's eight looks.
+      assert.deepEqual(wide.candidates.filter((c) => c.subject).map((c) => c.title).sort(), ["File:Battaglia it.jpg", "File:Sylvestre Ducar decapite Flaminius.jpg", "File:Vatican map Trasimeno.jpg"]);
+      const misty = Array.from({ length: 10 }, (_, i) => ({ title: `lake ${i}`, subject: false }));
+      const own = [{ title: "fresco", subject: true }, { title: "plate", subject: true }, { title: "painting", subject: true }, { title: "fourth", subject: true }];
+      const order = reserveSubjectSlots([...misty, ...own], 8).map((c) => c.title);
+      assert.deepEqual(order.slice(0, 8), ["lake 0", "lake 1", "lake 2", "lake 3", "lake 4", "fresco", "plate", "painting"], "three of the subject's own inside the first eight, the rest in order");
+      assert.deepEqual(order.slice(8), ["lake 5", "lake 6", "lake 7", "lake 8", "lake 9", "fourth"]);
+      assert.deepEqual(reserveSubjectSlots([own[0]!, ...misty], 8).map((c) => c.title).slice(0, 2), ["fresco", "lake 0"], "already inside: unchanged");
       const eu = wide.candidates.find((c) => c.source === "europeana")!;
       assert.deepEqual([eu.year, eu.credit.license, eu.provider, sourceName(eu)], [1780, "Public domain", "Biblioteca Nazionale", "Biblioteca Nazionale via Europeana"]);
       const narrow = await findPeriodCandidates(cacheDir, { wiki: "Battle of Lake Trasimene", query: "Lake Trasimene battle" }, -217, { env: {}, wide: false });

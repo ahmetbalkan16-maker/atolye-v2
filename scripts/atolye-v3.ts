@@ -25,11 +25,11 @@ import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, momentText, periodRewritePrompt, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
-import { type CandidateVerdict, englishTitle, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, englishTitle, fitScore, MAX_JUDGED, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons, searchCommonsVideos } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cutFilmClip, designedCaption, filmCaption, maxDesignedPictures, pictureRequests } from "../src/lib/v3/backgrounds/MomentPictures";
 import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
-import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
+import { findPeriodCandidates, insertCaption, periodEndYear, reserveSubjectSlots } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord, descriptionImageLines, judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
@@ -292,7 +292,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     }
     const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara?.length ? { alternatives: q.ara } : {}), ...(q.commonsCategory ? { commonsCategory: q.commonsCategory } : {}) }, periodEnd);
     // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
-    const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: episode.sahneler[si]!.mekan }), (c) => commonsPreview(cache, c));
+    // The subject's own pictures (its category, Wikidata, other Wikipedias) keep SUBJECT_SLOTS of the judge's looks.
+    const fresh = reserveSubjectSlots(await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: episode.sahneler[si]!.mekan }), (c) => commonsPreview(cache, c)), MAX_JUDGED);
     log(`${stem}: dönem görseli aranıyor — ${found.report.join(", ")}`);
     const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
     for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
