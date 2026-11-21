@@ -792,7 +792,13 @@ async function main() {
         // placeholder); kept beside the bank so a rerun of this step reads the same answer.
         let topic: TopicResolution | undefined = existsSync(f("konu-cozumu.json")) ? await readJson<TopicResolution>(f("konu-cozumu.json")) : undefined;
         if (!topic && ((!bank && !process.argv.includes("--arastirma-yok")) || periodEndYear(donem) === undefined)) {
-          topic = await resolveTopic({ konu, donem, budget, model: researcher }).catch((e: Error) => (log(`konu çözümü yapılamadı: ${e.message.slice(0, 160)}`), undefined));
+          // An empty OpenAI account is not a topic Wikipedia lacks (Lake Trasimene Short, 21 Nov 2026: swallowed here, it
+          // came out as V3_RESEARCH_NOTHING "no Wikipedia article"); it stops the step so the repair brain says "credit".
+          topic = await resolveTopic({ konu, donem, budget, model: researcher }).catch((e: Error) => {
+            if (/insufficient_quota|credit_balance_exhausted|billing_hard_limit/i.test(e.message)) throw e;
+            log(`konu çözümü yapılamadı: ${e.message.slice(0, 160)}`);
+            return undefined;
+          });
           if (topic) {
             await writeJson(f("konu-cozumu.json"), topic);
             log(`konu çözümü: "${topic.konu}"${topic.donem ? ` (${topic.donem})` : ""}; makaleler: ${topic.wiki.join(" | ") || "—"}`);

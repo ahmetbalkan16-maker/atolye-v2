@@ -18,6 +18,7 @@ import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudge
 import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
 import { clipSummary, normalizeDraft, shortStrengthLabel } from "../src/lib/v3/script/DraftNormalizer";
+import { knownRemedy } from "../src/lib/v3/council/RepairBrain";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
@@ -179,6 +180,13 @@ async function main() {
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
     await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && e.name === "V3BudgetError");
     assert.equal(openai.calls.length, 0);
+  });
+
+  await scenario("C4 an empty OpenAI account stops the topic step as credit, not as a topic Wikipedia lacks (Lake Trasimene Short, 21 Nov 2026)", () => {
+    const producer = readFileSync(path.join(process.cwd(), "scripts", "atolye-v3.ts"), "utf8");
+    const call = producer.slice(producer.indexOf("topic = await resolveTopic("), producer.indexOf("konu çözümü yapılamadı"));
+    assert.match(call, /insufficient_quota\|credit_balance_exhausted\|billing_hard_limit[^\n]*throw e/, "the catch rethrows an empty account");
+    assert.equal(knownRemedy({ step: "senaryo", error: "OpenAI request failed: 429 insufficient_quota credit_balance_exhausted", attempt: 1, optional: false, env: {} })?.neden.includes("kredi"), true);
   });
 
   await scenario("C3 a too-long strength label or summary is cut by the normalizer, never by paid repair rounds (Lake Trasimene Short, 21 Nov 2026: six rounds lost to them)", async () => {
