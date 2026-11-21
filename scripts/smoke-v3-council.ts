@@ -53,6 +53,9 @@ async function main() {
     assert.equal(knownRemedy(ctx("COMMONS_DOWNLOAD_429"))?.tur, "bekle_tekrar");
     assert.equal(knownRemedy(ctx("RuntimeError: CUDA out of memory. Tried to allocate"))?.tur, "gpu_bosalt");
     assert.equal(knownRemedy(ctx("V3_GPU_TOO_HOT: GPU 80 °C"))?.tur, "bekle_tekrar");
+    // The in-call stop is known (Lake Trasimene Short, 21 Nov 2026: the model guessed "85 °C" and an unload): wait, then a person.
+    assert.equal(knownRemedy(ctx("GPU thermal hard stop interrupted this model request.", { attempt: 2 }))?.tur, "bekle_tekrar");
+    assert.equal(knownRemedy(ctx("GPU thermal hard stop interrupted this model request.", { attempt: 3 }))?.tur, "dur");
     const cut = knownRemedy(ctx("V3_SCRIPT_INVALID: 3 onarımdan sonra: V3_SCRIPT_JSON_CUT: JSON yarıda", { step: "senaryo", env: { ATOLYE_V3_WRITER_MAX_TOKENS: "9640" } }));
     assert.deepEqual(cut && cut.tur === "ayar" ? [cut.anahtar, cut.deger] : [], ["ATOLYE_V3_WRITER_MAX_TOKENS", "14460"]);
     assert.equal(knownRemedy(ctx("V3_SCRIPT_JSON_CUT", { env: { ATOLYE_V3_WRITER_MAX_TOKENS: "16000" } }))?.tur, "dur");

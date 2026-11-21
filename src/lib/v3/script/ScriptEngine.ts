@@ -265,6 +265,19 @@ export function writerMaxTokens(brief: ScriptBrief): number {
   return Math.min(16_000, Math.max(5_000, 4_000 + wordBudget(brief) * 20));
 }
 
+/**
+ * Output room for a round that writes a whole existing script again (repair, length): at least the first draft's, and
+ * the script it rewrites with room to grow. Measured on the Lake Trasimene Short (21 Nov 2026): a map-heavy 180 s script
+ * was ~21,000 characters of JSON and ~10,500 output tokens (~2 characters a token); its length rounds had to grow it from
+ * 176 to 389 words inside the first draft's fixed 11,780 tokens, so two of three came back cut mid-JSON and their $0.22
+ * bought nothing.
+ */
+export function rewriteMaxTokens(brief: ScriptBrief, scriptJson: string): number {
+  return Math.min(16_000, Math.max(writerMaxTokens(brief), Math.ceil((scriptJson.length / REWRITE_CHARS_PER_TOKEN) * REWRITE_GROWTH)));
+}
+const REWRITE_CHARS_PER_TOKEN = 2;
+const REWRITE_GROWTH = 1.35;
+
 const FACT_CHECK_MAX_TOKENS = 3_000;
 /**
  * The second look at an unreadable fact check (13 Nov 2026 audit: 3,000 tokens cut a long script's claims mid-JSON and
@@ -598,7 +611,9 @@ async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome
 export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutcome> {
   if (isLongForm(input.brief)) return writeLongEpisode(input);
   const { brief, budget } = input;
-  const opts = { maxTokens: writerMaxTokens(brief), ...(input.jsonSchema ? { jsonSchema: input.jsonSchema } : {}) };
+  // The writer never falls back to the free local model at the cap (V3Budget.generate noFallback): it stops there.
+  const opts = { maxTokens: writerMaxTokens(brief), noFallback: true, ...(input.jsonSchema ? { jsonSchema: input.jsonSchema } : {}) };
+  const rewriteOpts = (json: string) => ({ ...opts, maxTokens: rewriteMaxTokens(brief, json) });
   const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);
   if (first.result.refused) throw new ScriptError("V3_SCRIPT_REFUSED", "model senaryoyu yazmayı reddetti");
   const writerUsed = first.used;
@@ -624,7 +639,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   let repairs = 0;
   while ((state.problems.length || state.quality.length) && repairs < (input.maxRepairs ?? 3)) {
     repairs++;
-    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : raw, [...state.problems, ...state.quality]), opts);
+    const current = state.value !== undefined ? JSON.stringify(state.value) : raw;
+    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(current, [...state.problems, ...state.quality]), rewriteOpts(current));
     const checked = check(next.result.content);
     // A round for the map that broke a valid script: the valid one stays.
     if (!state.problems.length && checked.problems.length) break;
@@ -664,7 +680,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (words < targetWords * band[0]) extra.push(...sceneShortfalls(written, targetWords));
     // A round that runs anyway also splits the narrator's crowded lines (no round of its own: nothing paid is added).
     extra.push(...denseNarratorLines(written, { grow: words < targetWords * band[0] }));
-    const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
+    const current = JSON.stringify(written);
+    const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(current, spokenWords(written), targetWords, extra), rewriteOpts(current));
     const revised = check(next.result.content);
     // A dropped round says why in the log (the Rubicon's three were dropped silently; the cause had to be replayed).
     if (revised.problems.length) {

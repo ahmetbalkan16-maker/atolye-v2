@@ -145,14 +145,20 @@ export class V3Budget {
     return this.entries;
   }
 
-  async generate(step: string, choice: V3ModelChoice, prompt: string, opts: AIProviderGenerateOptions & { readonly maxTokens: number }): Promise<{ result: AIProviderResult; used: V3ModelChoice }> {
+  /**
+   * `noFallback`: this call stops at the cap instead of going to the free local model. The script writer asks it: a
+   * 12B local model rewriting a whole map-heavy script near the cap wrote no usable draft and only heated the card to
+   * the in-call stop four times (Lake Trasimene Short, 21 Nov 2026) — like writerBudget's code writer.
+   */
+  async generate(step: string, choice: V3ModelChoice, prompt: string, options: AIProviderGenerateOptions & { readonly maxTokens: number; readonly noFallback?: boolean }): Promise<{ result: AIProviderResult; used: V3ModelChoice }> {
+    const { noFallback, ...opts } = options;
     const model = choice.provider === "openai" ? (choice.model ?? "") : choice.provider;
     const ceiling = estimateTokenCallCeiling({ provider: choice.provider, model, promptChars: Math.ceil(prompt.length * TURKISH_CHAR_FACTOR), maxTokens: opts.maxTokens });
     if (ceiling.status === "unknown") throw new V3BudgetError("V3_BUDGET_UNKNOWN_PRICE", `${choice.provider}/${model} fiyat tablosunda yok; çağrı yapılmadı`);
     const decision = checkpoint(this.spentUsd, ceiling.costUsd, this.capUsd);
     if (decision.decision === "BLOCK") throw new V3BudgetError("V3_BUDGET_INPUT", `${step}: ${decision.reason}`);
     if (decision.decision === "PAUSE_BEFORE_BILLABLE_CALL") {
-      const fb = this.options.fallback;
+      const fb = noFallback ? undefined : this.options.fallback;
       if (!fb || fb.provider === "openai") {
         throw new V3BudgetError("V3_BUDGET_EXCEEDED", `${step}: tahmini toplam $${decision.projectedUsd.toFixed(4)} > tavan $${this.capUsd.toFixed(2)}; çağrı yapılmadı`);
       }

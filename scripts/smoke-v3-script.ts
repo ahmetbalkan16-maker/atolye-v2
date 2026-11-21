@@ -13,7 +13,7 @@ import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/research/Infobox";
 import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
-import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, denseNarratorLines, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, denseNarratorLines, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, rewriteMaxTokens, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writerMaxTokens, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
@@ -179,6 +179,30 @@ async function main() {
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
     await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && e.name === "V3BudgetError");
     assert.equal(openai.calls.length, 0);
+  });
+
+  await scenario("C2 the writer stops at the cap instead of writing on the local model, and a round rewriting a big script gets room for it (Lake Trasimene Short, 21 Nov 2026)", async () => {
+    // noFallback: the same over-cap call that B sends to the free model stops here.
+    const openai = new FakeProvider(["pahalı"]);
+    const ollama = new FakeProvider(["yerel"]);
+    const budget = new V3Budget({ capUsd: 0.01, providers: { openai, ollama }, fallback: { provider: "ollama" } });
+    await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000, noFallback: true }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED");
+    assert.deepEqual([openai.calls.length, ollama.calls.length], [0, 0]);
+    // writeScript asks it for its own calls; the flag never reaches the provider's request.
+    const tight = new V3Budget({ capUsd: 0.01, providers: { openai: new FakeProvider([]), ollama: new FakeProvider([validJson()]) }, fallback: { provider: "ollama" } });
+    await assert.rejects(writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: tight }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED");
+    // Room: never below the first draft's, the rewritten script's ~2 characters a token × 1.35, at most 16,000.
+    const brief = { konu: "x", donem: "217 BC", hedefSureSn: 180, ton: "mizahi", dil: "en" } as const;
+    assert.equal(rewriteMaxTokens(brief, "{}"), writerMaxTokens(brief));
+    assert.equal(rewriteMaxTokens(brief, "x".repeat(20_000)), 13_500, "the Trasimene script's 21,000 characters no longer fit 11,780");
+    assert.equal(rewriteMaxTokens(brief, "x".repeat(60_000)), 16_000);
+    // A repair round of a long cut draft is asked with that room; the first draft keeps its own.
+    const writer = new FakeProvider([`{"id":"${"a".repeat(30_000)}`, validJson(), JSON.stringify({ iddialar: [] })]);
+    const b3 = new V3Budget({ providers: { openai: writer } });
+    await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b3 });
+    assert.equal(b3.ledger.map((e) => e.step).join(","), "senaryo,onarim-1,dogrulama");
+    assert.deepEqual(writer.calls.slice(0, 2).map((c) => c.options?.maxTokens), [5_000, 16_000]);
+    assert.ok(writer.calls.every((c) => !("noFallback" in (c.options ?? {}))));
   });
 
   await scenario("D a model missing from the price table is never called", async () => {

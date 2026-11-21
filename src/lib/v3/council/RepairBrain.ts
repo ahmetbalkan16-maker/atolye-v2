@@ -42,6 +42,10 @@ export function knownRemedy(c: RepairContext): RepairAction | undefined {
   const e = c.error;
   if (/ENOSPC|no space left/i.test(e)) return { tur: "dur", neden: "disk dolu" };
   if (/V3_GPU_TOO_HOT/.test(e)) return { tur: "bekle_tekrar", saniye: 180, neden: "ekran kartı sıcak; soğuması bekleniyor" };
+  // The in-call stop (OllamaThermalHardStopError) after coolGpuProvider's own second try: a known stop, not a model
+  // question — on the Lake Trasimene Short (21 Nov 2026) the model guessed "85 °C" and an "unload" three times; twice
+  // more is enough, then a person looks at what keeps the card that hot.
+  if (/GPU thermal hard stop|MACHINE_HEALTH_GPU_THERMAL_HARD_STOP/.test(e)) return c.attempt <= 2 ? { tur: "bekle_tekrar", saniye: 180, neden: "yerel model çağrısı ekran kartının sıcaklık sınırında durdu; kart soğuyunca yeniden" } : { tur: "dur", neden: "yerel model çağrısı her denemede ekran kartının sıcaklık sınırına ulaşıyor" };
   if (/CUDA out of memory|OutOfMemoryError|CUBLAS_STATUS_ALLOC|out of memory/i.test(e)) return { tur: "gpu_bosalt", neden: "ekran kartı belleği dolu" };
   // An empty OpenAI account answers 429 too, and no wait refills it (3 Nov 2026: the Caesar Short's cover waited 5 min
   // on "credit_balance_exhausted" and the round died); an optional step goes on without it.
