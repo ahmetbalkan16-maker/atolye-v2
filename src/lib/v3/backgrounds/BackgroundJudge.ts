@@ -324,19 +324,24 @@ export function looksEnglish(title: string): boolean {
  */
 export async function englishTitle(model: Pick<AIProvider, "generate">, title: string, description = ""): Promise<string | undefined> {
   const clean = title.replace(/^(File|Europeana):\s*/, "").replace(/\.(jpe?g|png|tiff?)$/i, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim();
-  if (!clean || looksEnglish(clean)) return undefined;
+  // Only a title that reads as English and has an English function word is left alone: a German compound ("Alfred
+  // Rethel Hannibalszug 6", Lake Trasimene Short 21 Nov 2026) has no foreign function word and no accent either.
+  if (!clean || (looksEnglish(clean) && ENGLISH_WORD.test(clean))) return undefined;
   const prompt = `Translate this artwork or picture-file title into short, natural English for an on-screen picture credit in a history video. Keep the names of people, places and buildings, in the form English readers know (Trasimeno or Trasimène → Trasimene). Drop file numbers and archive codes. Answer only JSON: {"en": "..."}.
 TITLE: ${clean}${description ? `\nDESCRIPTION: ${description.slice(0, 300)}` : ""}`;
   const out = await model.generate(prompt, { jsonSchema: TITLE_SCHEMA, maxTokens: 80 }).catch(() => undefined);
   const text = out === undefined ? "" : typeof out === "string" ? out : out.content;
   try {
     const en = (JSON.parse(/\{[\s\S]*\}/.exec(text)?.[0] ?? "{}") as { en?: unknown }).en;
-    return typeof en === "string" && en.trim() && en.trim().length <= 90 ? en.trim() : undefined;
+    // The same words back mean it already was English (or the model could not do better).
+    return typeof en === "string" && en.trim() && en.trim().length <= 90 && en.trim().toLowerCase() !== clean.toLowerCase() ? en.trim() : undefined;
   } catch {
     return undefined;
   }
 }
 const TITLE_SCHEMA = { type: "object", properties: { en: { type: "string" } }, required: ["en"] } as const;
+/** English function words: a title with one of them (and nothing foreign) is taken as English already. */
+const ENGLISH_WORD = /\b(the|of|and|in|at|by|with|from|on|to|after|before|near)\b/i;
 
 /** A named lake, mountain, river, bay or island in a title: "Lake George, Free Study" → George. */
 const NAMED_PLACE = /\b(?:Lake|Lago|Lac|Loch|Mount|Mont|Monte|River|Rio|Bay|Gulf|Isle|Island|Cape)\s+(?:of\s+)?([A-Z][\p{L}'’-]+)/gu;

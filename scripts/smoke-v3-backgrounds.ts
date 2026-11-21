@@ -650,10 +650,22 @@ async function main() {
     assert.equal(looksEnglish("Battaglia del lago Trasimeno (Galleria delle carte geografiche)"), false);
     assert.equal(looksEnglish("Lake George, Free Study"), true);
     let asked = 0;
-    const model = { generate: async () => (asked++, { content: '{"en": "The Battle of Lake Trasimene (Gallery of Maps)"}', finishReason: "stop" as const, refused: false, complete: true, truncated: false }) };
+    const known: Record<string, string> = { "Battaglia del lago Trasimeno (Galleria delle carte geografiche)": "The Battle of Lake Trasimene (Gallery of Maps)", "Alfred Rethel Hannibalszug 6": "Hannibal's March, Alfred Rethel" };
+    const model = {
+      generate: async (prompt: string) => {
+        asked++;
+        const title = /TITLE: (.*)/.exec(prompt)?.[1] ?? "";
+        return { content: JSON.stringify({ en: known[title] ?? title }), finishReason: "stop" as const, refused: false, complete: true, truncated: false };
+      },
+    };
     assert.equal(await englishTitle(model, "File:Battaglia del lago Trasimeno (Galleria delle carte geografiche).jpg"), "The Battle of Lake Trasimene (Gallery of Maps)");
+    // A German compound has no foreign function word and no accent (the final round's s2 plate stayed "Hannibalszug").
+    assert.equal(await englishTitle(model, "File:Alfred Rethel Hannibalszug 6.jpg"), "Hannibal's March, Alfred Rethel");
+    // An English title comes back the same and is not used; one with an English function word is not even asked.
     assert.equal(await englishTitle(model, "Lake George, Free Study"), undefined);
-    assert.equal(asked, 1);
+    assert.equal(asked, 3);
+    assert.equal(await englishTitle(model, "The Plains Where Flaminius Was Defeated by Hannibal"), undefined);
+    assert.equal(asked, 3);
     const c = { title: "File:Battaglia.jpg", source: "commons" as const, url: "u", downloadUrl: "u", previewUrl: "u", description: "", width: 1, height: 1, mime: "image/jpeg", descriptionUrl: "https://commons.wikimedia.org/wiki/File:Battaglia.jpg", credit: { title: "Battaglia del lago Trasimeno", author: "Ignazio Danti", license: "Public domain", sourceUrl: "x", attributionRequired: false } };
     assert.equal(insertCaption(c, "en", "The Battle of Lake Trasimene (Gallery of Maps)"), "The Battle of Lake Trasimene (Gallery of Maps), Ignazio Danti · Source: Wikimedia Commons");
   });
