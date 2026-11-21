@@ -431,23 +431,56 @@ const TOLD_ACTS: readonly [RegExp, Omit<LineAct, "karakter">][] = [
   // battle" act nothing.
   [/\bimpatien|\bnot (?:a |the )?(?:very |most )?patient\b|\b(?:los(?:e|es|t|ing)|out of) (?:(?:his|her|their|all|what little) )?patience|\bsabırsız|\bsabr[ıi]\S* (?:kalmad|tüken|taş)/i, { jest: "elleri_belde", duygu: "kizgin" }],
   [/(?<!\b(?:never|not|hardly)\s)(?<!n't\s)\blos(?:e|es|t|ing)\b(?:\s+[\p{L}'-]+){0,3}?\s+(?:battles?|war|siege|city|cities|throne|crown|kingdom|empire|capital|army|armies|fleet|navy|men|troops|soldiers|sons?|daughters?|wife|husband|brothers?|sisters?|father|mother|heir|friends?|ally|allies|vizier|general|commander|life|lives|eye|leg|arm)\b|(?<!\p{L})(?:savaş|muharebe|şehr|taht|tac|ordu|filo|oğl|eşi|kardeş|baba|sadrazam|vezir|komutan|başkent|hayat|can)\p{L}*\s+(?:kaybet|yitir)/iu, { jest: "yuz_avucla", duygu: "uzgun" }],
-  [/\bsiege|\bbesieg|\bbombard|\bpound(?:ed|ing)\b|\bstorm(?:s|ed|ing)? (?:the|its|their|his|her)\b|\bbreach(?:es|ed|ing)?\b|\bkuşat|\bgedik/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
+  [/\bsiege|\bbesieg|\bbombard|\bpound(?:ed|ing)\b|\bpounds? (?:the|its|their|his|her)\b|\bstorm(?:s|ed|ing)? (?:the|its|their|his|her)\b|\bbreach(?:es|ed|ing)?\b|\bkuşat|\bgedik/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
   [/\b(?:[Mm]arching|march(?:es|ed))\b|\bmarch (?:on|to|into|from|against|across|north|south|east|west|through|towards?|upon|out|off|back)\b|\bsets? out (?:for|from|against|to)\b|\byürüd|\byürüyor|\bsefere çık/, { jest: "isaret_et", duygu: "kararli" }],
+  // The Fall of Constantinople Short (20 Nov 2026, story 3/10 on "Constantine XI throws off his regalia and charges",
+  // "Mehmed II enters Hagia Sophia"): a charge, a fight, a defence and an entry. Kept narrow: "charged with treason",
+  // "in charge", "free of charge", "held the throne", "a fighter" and "entered into an alliance" act nothing.
+  [/(?<!\b(?:in|of) )\bcharg(?:e|es|ed|ing)\b(?! (?:with|of|for)\b)|\bfight(?:s|ing)\b|\bfought\b|\bfight (?:on|back|off|to)\b|\bdefend|\b(?:hold(?:s|ing)?|held) (?:the |their |his |her |its )?(?:line|walls?|breach|gates?|pass|bridge|fort|out|firm|fast)\b|\bsavaşt[ıi]|\bsavaşıyor|\bsavun|\bhücum/i, { jest: "yumruk_kaldir", duygu: "kararli" }],
+  [/\benter(?:s|ed)\b(?! into\b)|\b(?:rides?|rode) into\b|(?<!\p{L})gir(?:di|er|iyor)(?!\p{L})/iu, { jest: "isaret_et", duygu: "kararli" }],
 ];
 /** Words of a name too common to stand for it ("grand kiosks" is not the Grand Vizier). */
 const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin", "al", "grand", "great"]);
 
+/** A cast member as the narration may name them: `rol` gives the title they are also called by. */
+type Named = Pick<CastEntry, "id" | "ad"> & Partial<Pick<CastEntry, "rol">>;
+
+/**
+ * Titles of a role the narration calls someone by: English after "the" ("the last emperor"), Turkish bare and by its
+ * stem — so not şah, çar, dük, papa, han, which begin other words (şahit, çarşı, dükkân, papağan, hanım).
+ */
+const TITLES_EN = new Set("emperor empress sultan king queen pope caliph khan shah tsar czar kaiser pharaoh consul dictator general admiral vizier pasha duke prince princess captain commander chieftain doge regent".split(" "));
+const TITLES_TR = new Set("imparator imparatoriçe padişah sultan kral kraliçe halife firavun konsül general amiral vezir sadrazam paşa prens prenses kaptan komutan".split(" "));
+/** Lower case that keeps a Turkish capital İ a plain i ("İmparator" is "imparator", not a dotted twin). */
+const lowered = (s: string) => s.replace(/İ/g, "I").toLocaleLowerCase("en-US");
+/** The titles in a name or role; a Turkish one with its suffix ("İmparatoru" is "imparator"). */
+const titlesIn = (text: string) =>
+  lowered(text)
+    .split(/[^\p{L}]+/u)
+    .flatMap((w) => (TITLES_EN.has(w) ? [w] : [...TITLES_TR].filter((t) => w.startsWith(t)).sort((a, b) => b.length - a.length).slice(0, 1)));
+
+/**
+ * The titles each cast member alone holds (a word of their role no one else's name or role has): the Fall of
+ * Constantinople Short (20 Nov 2026, story 3/10 at 126 s) told "The last emperor fights on" over a still Constantine XI —
+ * his name was never said. Two sultans on the stage leave "the sultan" to no one.
+ */
+function soleTitles(cast: readonly Named[]): Map<string, string[]> {
+  const held = (c: Named) => new Set([...titlesIn(c.ad), ...titlesIn(c.rol ?? "")]);
+  return new Map(cast.map((c) => [c.id, [...new Set(titlesIn(c.rol ?? ""))].filter((t) => !cast.some((o) => o.id !== c.id && held(o).has(t)))]));
+}
+
 /**
  * The narration's acts on the stage, sentence by sentence: the first verb a sentence tells, acted by the characters it
- * names (a word of the name, or its plural: "the pirates" for the Pirate Captain). `at`: where the sentence starts in
- * the line (0..1). Used when the writer gave no "oyun".
+ * names (a word of the name, or its plural: "the pirates" for the Pirate Captain; or a title of their role only they
+ * hold: "the last emperor"). `at`: where the sentence starts in the line (0..1). Used when the writer gave no "oyun".
  */
-export function toldActs(text: string, cast: readonly Pick<CastEntry, "id" | "ad">[]): (LineAct & { readonly at: number })[] {
+export function toldActs(text: string, cast: readonly Named[]): (LineAct & { readonly at: number })[] {
   const out: (LineAct & { at: number })[] = [];
+  const titles = soleTitles(cast);
   for (const { sentence, at } of sentencesOf(text)) {
     const act = TOLD_ACTS.find(([re]) => re.test(sentence))?.[1];
     if (!act) continue;
-    for (const c of cast) if (namedAt(sentence, c.ad) >= 0) out.push({ karakter: c.id, ...act, at });
+    for (const c of cast) if (namedAt(sentence, c.ad, titles.get(c.id)) >= 0) out.push({ karakter: c.id, ...act, at });
   }
   return out;
 }
@@ -462,11 +495,18 @@ function sentencesOf(text: string): { sentence: string; at: number }[] {
   });
 }
 
-/** Where a sentence first names a character (a word of the name, or its plural), or -1. */
-function namedAt(sentence: string, name: string): number {
+/** Where a sentence first names a character (a word of the name, or its plural; or one of `titles`), or -1. */
+function namedAt(sentence: string, name: string, titles: readonly string[] = []): number {
   const said = sentence.toLocaleLowerCase("en-US");
   const words = name.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).filter((w) => w.length >= 3 && !NAME_STOP.has(w));
   const at = words.map((w) => said.search(new RegExp(`(^|[^\\p{L}])${w}`, "u"))).filter((i) => i >= 0);
+  const plain = lowered(sentence);
+  for (const t of titles) {
+    const i = TITLES_EN.has(t) ? plain.search(new RegExp(`\\bthe(?:\\s+[\\p{L}'-]+){0,2}?\\s+${t}(?![\\p{L}])`, "u")) : -1;
+    // A word of both tongues ("general", "sultan") is the English one: "in general" names no one.
+    const j = TITLES_TR.has(t) && !TITLES_EN.has(t) ? plain.search(new RegExp(`(?:^|[^\\p{L}])${t}`, "u")) : -1;
+    at.push(...[i, j].filter((x) => x >= 0));
+  }
   return at.length ? Math.min(...at) : -1;
 }
 
@@ -476,10 +516,11 @@ const CHASE = /\bchase|\bhunt|\bpursu|\bran after|\bkovala|\bpeşine/i;
  * The chases a narration tells, sentence by sentence: the character a chase sentence names first runs after the others
  * it names ("Caesar chased down the pirates": Caesar after the Pirate Captain; "Sezar korsanları kovaladı" alike).
  */
-export function toldChases(text: string, cast: readonly Pick<CastEntry, "id" | "ad">[]): { chaser: string; chased: string[]; at: number }[] {
+export function toldChases(text: string, cast: readonly Named[]): { chaser: string; chased: string[]; at: number }[] {
+  const titles = soleTitles(cast);
   return sentencesOf(text).flatMap(({ sentence, at }) => {
     if (!CHASE.test(sentence)) return [];
-    const named = cast.map((c) => ({ id: c.id, i: namedAt(sentence, c.ad) })).filter((x) => x.i >= 0).sort((a, b) => a.i - b.i);
+    const named = cast.map((c) => ({ id: c.id, i: namedAt(sentence, c.ad, titles.get(c.id)) })).filter((x) => x.i >= 0).sort((a, b) => a.i - b.i);
     return named.length >= 2 ? [{ chaser: named[0]!.id, chased: named.slice(1).map((x) => x.id), at }] : [];
   });
 }
@@ -497,7 +538,7 @@ const CHASE_FLEE = 0.2;
  * verbs) who are not on the stage come on beside the others, at most two per scene. Only for a Short — it tells one
  * moment in one place, while a long episode's narration may name someone far away. Returns who came on.
  */
-export function toldOnStage(scene: Pick<EpisodeScene, "satirlar">, slots: Map<string, Slot>, cast: readonly Pick<CastEntry, "id" | "ad">[]): string[] {
+export function toldOnStage(scene: Pick<EpisodeScene, "satirlar">, slots: Map<string, Slot>, cast: readonly Named[]): string[] {
   const drawn = new Set(cast.map((c) => c.id));
   const added: string[] = [];
   for (const line of scene.satirlar) {

@@ -674,3 +674,28 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
 - Kapak yalnız setlerden çizilir; setin kredisi (`backgrounds`) jeneriğe ve açıklamaya zaten girer. Müzik "lisans
   bilinmiyor" ile kullanılabiliyor (`Mixer.ts`) — açık konu.
 - Doğrulama: `smoke-v3-backgrounds` 26, `smoke-v3-youtube-yukleme` 12, `smoke-v3-youtube` 6 senaryo PASS; `tsc` ve lint 0/0.
+
+### Ses: özgün yatakta sessizlik kalmaz, dönem davulu tek vuruştan kurulur (20 Kasım 2026, Ses beyninin önerisi)
+
+- Konstantinopolis Short'unda "historical" yatağın ortasında 3.0 sn sessizlik vardı, parça reddedildi ve kütüphane
+  parçası kaldı. Besteci artık parçanın içindeki 1 sn'den uzun her duraklamayı 0.5 sn'lik bir nefese indirir
+  (`MusicComposer.pieceShapeFilter`, `PIECE_PAUSE_KEEP_S`); baş/son kırpması aynı, 3 sn kontrolü güvence olarak duruyor.
+- MOSS dört vuruşlu savaş davulunu hiçbir üretimde yapamadı (Kosova, Waterloo, Cannae, Rubicon, Konstantinopolis: her
+  tohum vuruşsuz uğultu, 0.0–4.7 dB). Kalıbın 3 tohumu reddedilince Efektçi tek bir derin vuruş ister
+  (`PERIOD_HIT`, `periodHitRequest`, `HIT_SECONDS`), onu tek vuruş olarak denetler (çarpma + vuruş kontrastı) ve FFmpeg
+  ile 0.6 sn arayla 4 vuruşluk yürüyüş ritmine dizer (`repeatFilter`, `SoundRequest.repeat`; kütüphane anahtarının
+  parçası, eski seslerin anahtarı değişmez). O da düşerse kütüphane davulu kalır.
+- Doğrulama: `smoke-v3-mix` (besteci ve efektçi senaryoları genişletildi); `tsc` ve lint 0/0.
+
+### Kurgu: kalabalık anlatıcı satırı bölünmesi istenir (20 Kasım 2026, Kurgu beyninin önerisi)
+
+- Konstantinopolis Short'unda anlatıcı tek satırda üç olay anlattı ("Ottomans pour through the breach. Constantine XI
+  dies fighting. The city is lost.") ve ekran durdu; video 86 sn çıktı. Senaryo isteminin "hiçbir satır 22 kelimeyi
+  geçmez" kuralı hiç ölçülmüyordu. `ScriptEngine.denseNarratorLines` artık anlatıcının 22 kelimeyi aşan
+  (`MAX_NARRATOR_LINE_WORDS`) ya da 3+ cümlelik (`DENSE_LINE_SENTENCES`) satırlarını bulur ve zaten çalışan uzunluk
+  turuna "her olaya bir satır, olay ekranda olurken; haritanın satir numaralarını kaydır" isteği olarak ekler; senaryo
+  bandın altındaysa her parçaya kaynaklardan bir ayrıntı da istenir (kısa senaryo böyle uzar). Ayrı, ücretli bir tur
+  eklenmez; turlardan sonra kalan satırlar günlüğe yazılır. Karakter satırları sayılmaz.
+- Uzunluk açığının kendisi zaten 78a07007 ile çözülmüştü (bandın çok altındaki senaryoda uzunluk kazanır).
+- Doğrulama: `smoke-v3-script` P1 senaryosu (saf istekler + writeScript'in uzunluk turu istemi ve günlük); `tsc` ve
+  lint 0/0. Smoke çalıştırması bu oturumda onay istedi, stüdyonun kontrollerine kaldı.

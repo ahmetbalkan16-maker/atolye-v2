@@ -13,7 +13,7 @@ import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { infoboxFacts, parseInfobox, wikitextToPlain } from "../src/lib/v3/research/Infobox";
 import { articleExcerpt, articleSource, castCandidates, castExcerpt, copiesWikipedia, factPrompt, fetchInfoboxFacts, normalizeForMatch, readTopic, researchDepth, researchTopic, resolveTopic, sourceId, topicPhrase, topicPrompt, verifyFacts, webSkipReason, wikidataFacts, wikidataItemIds, wikidataSource, wikidataTime } from "../src/lib/v3/research/SourceResearch";
 import { cleanUrl, htmlToText, privateAddress, readSearchAnswer, reputableScore, robotsAllows, safePageFetch, webQueries, webRefusal, webSearchCostUsd, webSourceId } from "../src/lib/v3/research/WebResearch";
-import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WORDS, copiedFromSources, correctionSupported, denseNarratorLines, dialogueSceneRatio, extractJson, FACT_CHECK_RETRY_MAX_TOKENS, knownNames, ScriptError, sceneShortfalls, unresolvedErrors, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
@@ -1261,6 +1261,35 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.ok(asks.length >= 1 && asks.length <= 5);
     assert.match(asks[0]!, /^scene "[a-z0-9-]+" has \d+ spoken words and needs about \d+: add \d+ words there/);
     assert.deepEqual(sceneShortfalls(ep, 1), [], "hedefe ulaşmış senaryoya istek yok");
+  });
+
+  await scenario("P1 a narrator line telling several events (or over 22 words) is asked to be split in the length round, one event per line (Constantinople Short, 20 Nov 2026)", async () => {
+    const ep = episode();
+    assert.deepEqual(denseNarratorLines(ep), [], "kısa ve tek cümlelik anlatıcı satırına istek yok");
+    const set = (scene: number, line: number, l: Episode["sahneler"][number]["satirlar"][number]) => ((ep.sahneler[scene]!.satirlar as (typeof l)[])[line] = l);
+    // The measured line: three events over one still picture.
+    set(1, 2, { karakter: "anlatici", metin: "Ottomans pour through the breach. Constantine XI dies fighting. The city is lost.", duygu: "notr" });
+    // A character's long line is the scene's talk, not the narrator's: not asked.
+    set(1, 1, { karakter: "halil", metin: "Sultanım, Bizans buna kızar. Ceneviz kızar. Papa kızar. Herkes kızar ve bir de Venedik de kızar, biliyorsunuz.", duygu: "korkmus", kurgu: true });
+    set(0, 1, { karakter: "anlatici", metin: "[calmly] Two sentences with a long tail of words here are fine. This one just runs on and on and on.", duygu: "notr" });
+    const asks = denseNarratorLines(ep, { grow: true });
+    assert.equal(asks.length, 1, asks.join("\n"));
+    assert.match(asks[0]!, /^scene "s2-divan" satirlar\[2\], the narrator's "Ottomans pour through the breach\.[^"]*", has 3 sentences in 13 words: split it into one narrator line per event/);
+    assert.ok(asks[0]!.includes("with one more detail from the facts") && asks[0]!.includes('renumber this scene\'s map "satir" indexes'));
+    assert.ok(!denseNarratorLines(ep)[0]!.includes("one more detail"), "uzun senaryodan ek ayrıntı istenmez");
+    set(0, 1, { karakter: "anlatici", metin: Array.from({ length: 24 }, (_, i) => `kelime${i}`).join(" "), duygu: "notr" });
+    assert.ok(denseNarratorLines(ep)[0]!.startsWith('scene "s1-kanca" satirlar[1]') && denseNarratorLines(ep)[0]!.includes("has 24 words (at most 22)"));
+    // In writeScript: the length round that runs anyway carries the ask; a line still crowded is logged.
+    set(0, 1, { karakter: "anlatici", metin: "Hisar 1452 yazında tamamlandı.", duygu: "notr", kaynak: ["avunduk-2008"] });
+    // 42 of 83 words; the revision brings 78 (inside the Short's band) but leaves the crowded line as it was.
+    const revised = JSON.parse(JSON.stringify(ep)) as Episode;
+    for (let i = 0; i < 4; i++) (revised.sahneler[1]!.satirlar as Episode["sahneler"][number]["satirlar"][number][]).push({ karakter: "halil", metin: "Sultanım, bu iş hiç de kolay olmayacak gibi görünüyor.", duygu: "korkmus", kurgu: true });
+    const openai = new FakeProvider([JSON.stringify(ep), JSON.stringify(revised), JSON.stringify({ iddialar: [] })]);
+    const logs: string[] = [];
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), log: (m) => logs.push(m), maxRepairs: 0 });
+    assert.deepEqual([out.lengthRounds, out.spokenWords], [1, 78], logs.join("\n"));
+    assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 42 spoken words") && openai.calls[1]!.prompt.includes('- scene "s2-divan" satirlar[2], the narrator\'s "Ottomans pour') && openai.calls[1]!.prompt.includes("with one more detail from the facts"), openai.calls[1]!.prompt.slice(0, 1200));
+    assert.ok(logs.some((m) => m.includes('senaryo: 1 anlatıcı satırı tek resimde birden çok olay anlatıyor (bölünmedi): scene "s2-divan" satirlar[2]')), logs.join("\n"));
   });
 
   await scenario("L a long episode is planned in chapters and written chapter by chapter; scene ids carry the chapter; $4 cap", async () => {

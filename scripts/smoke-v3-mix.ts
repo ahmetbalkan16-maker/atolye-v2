@@ -15,8 +15,8 @@ import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
-import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, MIN_PIECE_REQUEST_S, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
-import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
+import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, MIN_PIECE_REQUEST_S, periodInstruments, PIECE_PAUSE_KEEP_S, pieceProblems, pieceShapeFilter, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
+import { ambiencePrompt, designSounds, eraOf, HIT_SECONDS, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodHitRequest, periodSfxPrompt, repeatFilter, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { STUCK_MAX_S, stuckSeconds, voiceCredit } from "../src/lib/v3/tts/Tts";
@@ -293,6 +293,11 @@ async function main() {
     assert.ok(pieceProblems({ ...ok, meanDb: -52 }, 31.4)[0]!.startsWith("çok sessiz"));
     assert.ok(pieceProblems({ ...ok, longestSilenceS: 5 }, 31.4)[0]!.includes("sessizlik"));
     assert.ok(pieceProblems({ ...ok, peakDb: 0 }, 31.4)[0]!.startsWith("tepe"));
+    // Constantinople, 20 Nov 2026: the historical bed was refused for "3.0 sn sessizlik" in its middle. Every pause over
+    // a second inside a piece is shortened to a breath before the check (head and tail are still cut).
+    const shape = pieceShapeFilter();
+    assert.equal(shape, `silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1,silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-50dB:stop_silence=${PIECE_PAUSE_KEEP_S},areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1,areverse`);
+    assert.ok(PIECE_PAUSE_KEEP_S < 3 && pieceProblems({ ...ok, longestSilenceS: PIECE_PAUSE_KEEP_S + 0.1 }, 31.4).length === 0, "a shortened pause passes the check");
     const lib = (mood: MusicMood): MusicTrack => track(mood, `lib-${mood}`);
     const segs = [
       { start: 0, end: 30, mood: "historical" as const, track: lib("historical"), scenes: [0, 1] },
@@ -393,10 +398,12 @@ async function main() {
     assert.equal(made.filter((k) => k === "efekt").length, 2, "a designer that could not work is not asked again with another seed");
     // Kosovo, Waterloo, Cannae, Rubicon (Oct–Nov 2026): the drum's one seed made the same hitless drone every run.
     const seeds: number[] = [];
+    const asked: SoundRequest[] = [];
     const drumTake = (pass: number) => ({
       make: async (r: SoundRequest): Promise<SoundOutcome> => {
         if (r.kind === "ortam") return { problems: ["-"] };
         seeds.push(r.seed);
+        asked.push(r);
         return seeds.length === pass ? { file: `D:/efekt/davul-${r.seed}.wav`, cached: false } : { problems: ["vuruş yok, sürekli ses (kontrast 4.5 dB)"], take: true };
       },
     });
@@ -405,11 +412,38 @@ async function main() {
     assert.ok(second.report.includes("efekt davul: antik dönemi sesi (2. tohum)"), second.report.join(" | "));
     const firstSeed = seeds[0]!;
     seeds.length = 0;
+    asked.length = 0;
+    // Constantinople, 20 Nov 2026: all three seeds of the four-hit drum were drones (4.2, 0.0, 0.0 dB) — one blow is
+    // asked for next, checked as one blow, and repeated into the marching beat.
+    const fromHit = await designSounds(ep, tl, ["davul"], drumTake(SFX_SEED_TRIES + 1));
+    const blow = asked[SFX_SEED_TRIES]!;
+    assert.ok(asked.slice(0, SFX_SEED_TRIES).every((r) => !r.repeat && r.prompt === periodSfxPrompt("davul", "antik")), "the pattern's own seeds come first");
+    assert.deepEqual([blow.repeat, blow.impact, blow.percussive, blow.seconds], [{ times: 4, everyS: 0.6 }, true, true, HIT_SECONDS]);
+    assert.match(blow.prompt, /^one single deep hit on a large ancient war drum, then silence\./);
+    assert.equal(blow.prompt, periodHitRequest("davul", "antik")!.prompt);
+    assert.equal(fromHit.effects.get("davul"), `D:/efekt/davul-${blow.seed}.wav`);
+    assert.ok(fromHit.report.includes("efekt davul: antik dönemi sesi (tek vuruştan 4 vuruş)"), fromHit.report.join(" | "));
+    assert.equal(periodHitRequest("zil", "antik"), undefined, "a bell keeps its own pattern prompt");
+    assert.notEqual(soundKey(blow), soundKey({ ...blow, repeat: undefined }), "the repeated pattern is its own library entry");
+    assert.equal(soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt", repeat: undefined }), soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt" }), "older sounds keep their keys");
+    const beat = repeatFilter({ times: 4, everyS: 0.6 });
+    assert.equal(beat, "[0:a]asplit=4[h0][h1][h2][h3];[h0]adelay=0[d0];[h1]adelay=600[d1];[h2]adelay=1200[d2];[h3]adelay=1800[d3];[d0][d1][d2][d3]amix=inputs=4:normalize=0:duration=longest,loudnorm=I=-20:TP=-2:LRA=11");
+    // The beat built from a good blow passes the drum's own check: four hits with air between them.
+    const oneBlow = Float32Array.from({ length: rate * 0.5 }, (_, i) => Math.exp((-12 * i) / rate) * Math.sin((2 * Math.PI * 70 * i) / rate));
+    assert.deepEqual(impactProblems(oneBlow, rate), [], "one blow");
+    const laid = new Float32Array(Math.round(rate * 2.3));
+    for (let h = 0; h < 4; h++) laid.set(oneBlow, Math.round(h * 0.6 * rate));
+    assert.ok(onsetContrastDb(laid, rate) > MIN_ONSET_CONTRAST_DB, `laid beat: ${onsetContrastDb(laid, rate).toFixed(1)} dB`);
+    seeds.length = 0;
     const none = await designSounds(ep, tl, ["davul"], drumTake(0));
-    assert.equal(seeds.length, SFX_SEED_TRIES);
+    assert.equal(seeds.length, 2 * SFX_SEED_TRIES, "three seeds of the pattern, then three of the blow");
     assert.equal(seeds[0], firstSeed, "the first seed is the one earlier runs used: what they made is still found");
-    assert.equal(new Set(seeds).size, SFX_SEED_TRIES, "every try a different take");
-    assert.ok(!none.effects.has("davul") && none.report.some((l) => l.startsWith(`efekt davul: kütüphane kaydı kaldı — ${SFX_SEED_TRIES} tohum: vuruş yok`)), none.report.join(" | "));
+    assert.equal(new Set(seeds).size, 2 * SFX_SEED_TRIES, "every try a different take");
+    assert.ok(!none.effects.has("davul") && none.report.some((l) => l.startsWith(`efekt davul: kütüphane kaydı kaldı — ${2 * SFX_SEED_TRIES} tohum: vuruş yok`)), none.report.join(" | "));
+    // An effect without a blow fallback still stops at its own seeds.
+    seeds.length = 0;
+    await designSounds(ep, tl, ["adim"], drumTake(0));
+    assert.equal(seeds.length, SFX_SEED_TRIES);
     // A refused take is remembered: its seed is skipped at once, no model started.
     const lib = mkdtempSync(path.join(os.tmpdir(), "v3-efekt-"));
     try {

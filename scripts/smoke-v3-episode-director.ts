@@ -2599,6 +2599,45 @@ async function main() {
     }
   });
 
+  await scenario("O34c Fall of Constantinople Short (story 3/10): a charge, a fight, a defence and an entry are acted by the named; \"charged with treason\", \"in charge\", \"held the throne\", \"entered into an alliance\" are not", () => {
+    const cast = [{ id: "constantine-xi", ad: "Constantine XI" }, { id: "mehmed-ii", ad: "Mehmed II" }, { id: "giustiniani", ad: "Giovanni Giustiniani" }];
+    const acts = (text: string) => toldActs(text, cast).map((a) => [a.karakter, a.jest, a.duygu]);
+    // The measured lines.
+    assert.deepEqual(acts("Constantine XI throws off his regalia and charges."), [["constantine-xi", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Mehmed II enters Hagia Sophia. The city falls. The Byzantine Empire is no more."), [["mehmed-ii", "isaret_et", "kararli"]]);
+    assert.deepEqual(acts("Giustiniani and Constantine XI hold the breach with 8,000 men."), [["constantine-xi", "yumruk_kaldir", "kararli"], ["giustiniani", "yumruk_kaldir", "kararli"]]);
+    // Other forms, English and Turkish.
+    for (const [text, jest] of [["Constantine fights on.", "yumruk_kaldir"], ["Constantine fought to the last.", "yumruk_kaldir"], ["Giustiniani holds the walls.", "yumruk_kaldir"], ["Giustiniani defended the gate.", "yumruk_kaldir"], ["Mehmed rode into the city.", "isaret_et"], ["Mehmed entered Constantinople.", "isaret_et"],
+      ["Konstantin surları savundu.", "yumruk_kaldir"], ["Konstantin son ana kadar savaştı.", "yumruk_kaldir"], ["Mehmed Ayasofya'ya girdi.", "isaret_et"]] as const) {
+      const turkish = [{ id: "constantine-xi", ad: "Konstantin" }, { id: "mehmed-ii", ad: "Mehmed II" }, { id: "giustiniani", ad: "Giustiniani" }, { id: "constantine-en", ad: "Constantine" }];
+      assert.deepEqual(toldActs(text, turkish).map((a) => a.jest), [jest], text);
+    }
+    // Charges of law, being in charge, a reign and a pact act nothing.
+    for (const text of ["Giustiniani was charged with treason.", "Mehmed is in charge.", "Mehmed served them free of charge.", "Constantine took charge of the city.", "Mehmed held the throne for thirty years.", "Mehmed entered into an alliance with Venice.", "Constantine was no fighter.", "Mehmed loved a good fight."]) {
+      assert.deepEqual(acts(text), [], text);
+    }
+  });
+
+  await scenario("O34d Fall of Constantinople Short (story 3/10 at 126 s): \"the last emperor\" is the one whose role alone holds that title; guns pounding the walls are a siege; a shared or missing title and \"in general\" name no one", () => {
+    const cast = [{ id: "constantine-xi", ad: "Constantine XI", rol: "Last Byzantine Emperor" }, { id: "mehmed-ii", ad: "Mehmed II", rol: "Ottoman Sultan" }, { id: "giustiniani", ad: "Giovanni Giustiniani", rol: "Genoese general" }];
+    const acts = (text: string, c: typeof cast = cast) => toldActs(text, c).map((a) => [a.karakter, a.jest, a.duygu]);
+    // The measured line: the emperor is never named.
+    assert.deepEqual(acts("The fall of the city is now inevitable. The last emperor fights on, but history is not on his side."), [["constantine-xi", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(toldActs("The fall of the city is now inevitable. The last emperor fights on.", cast)[0]!.at > 0.5, true, "from the sentence that tells it");
+    assert.deepEqual(acts("The young sultan rode into the city."), [["mehmed-ii", "isaret_et", "kararli"]]);
+    assert.deepEqual(acts("The Genoese general holds the breach."), [["giustiniani", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Mehmed's seventy cannons pound the land walls."), [["mehmed-ii", "yumruk_kaldir", "kararli"]]);
+    assert.deepEqual(acts("Son imparator surları savundu.", [{ id: "constantine-xi", ad: "Konstantin", rol: "Son Bizans İmparatoru" }, cast[1]!, cast[2]!]), [["constantine-xi", "yumruk_kaldir", "kararli"]], "Turkish title, capital İ");
+    // A title two hold, a title no one holds, a bare English title and "in general" name no one.
+    const twoSultans = [{ id: "mehmed-ii", ad: "Mehmed II", rol: "Ottoman Sultan" }, { id: "murad-ii", ad: "Murad II", rol: "Former Sultan" }];
+    for (const [text, c] of [["The sultan charges.", twoSultans], ["The king charges.", cast], ["In general, the defenders fight on.", cast], ["An emperor never fights.", cast]] as const) {
+      assert.deepEqual(acts(text, c as typeof cast), [], text);
+    }
+    // Pounds of weight and money stay nothing; without a role nothing changes (O34b, O34c).
+    assert.deepEqual(acts("Mehmed II weighed 200 pounds."), []);
+    assert.deepEqual(toldActs("The last emperor fights on.", [{ id: "constantine-xi", ad: "Constantine XI" }]), []);
+  });
+
   await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
     const fps = 30;
     const turns = [{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }, { castId: "b", start: 200, end: 230 }, { castId: "a", start: 400, end: 450 }];

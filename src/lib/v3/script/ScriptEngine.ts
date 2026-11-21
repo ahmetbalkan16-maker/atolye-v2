@@ -4,6 +4,7 @@ import type { LandTest } from "../maps/LandUnits";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
+import { splitDirections } from "../tts/StageDirections";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { hookFollowProblems } from "./HookFollow";
 import { storyRuleProblems } from "./StoryRules";
@@ -192,6 +193,34 @@ export function sceneShortfalls(episode: Episode, targetWords: number): string[]
     .sort((a, b) => b.want - b.has - (a.want - a.has))
     .slice(0, 5)
     .map((s) => `scene "${s.id}" has ${s.has} spoken words and needs about ${s.want}: add ${s.want - s.has} words there (new lines — a reply, a joke, a narrator detail from the facts)`);
+}
+
+/** A narrator line over this many words breaks the writer's own rule (ScriptPrompts: "never more than 22"). */
+export const MAX_NARRATOR_LINE_WORDS = 22;
+/** A narrator line of this many sentences tells several events over one picture. */
+export const DENSE_LINE_SENTENCES = 3;
+
+/**
+ * Narrator lines too long or too dense for one picture, as "split it" asks for the revision rounds. The Constantinople
+ * Short (20 Nov 2026) told "Ottomans pour through the breach. Constantine XI dies fighting. The city is lost." in one
+ * line while the screen stood still, and went out at 86 of 144–180 s: one event per line gives each its own move on
+ * screen, and a short script grows by a detail for each part. `grow` asks for that detail.
+ */
+export function denseNarratorLines(episode: Episode, opts: { readonly grow?: boolean } = {}): string[] {
+  const narrators = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur === false).map((c) => c.id));
+  const out: string[] = [];
+  for (const s of episode.sahneler) {
+    for (const [i, l] of s.satirlar.entries()) {
+      if (!narrators.has(l.karakter)) continue;
+      const speech = splitDirections(l.metin).speech;
+      const words = countWords(speech);
+      const sentences = speech.split(/(?<=[.!?…])\s+/).filter((x) => /\p{L}/u.test(x)).length;
+      if (words <= MAX_NARRATOR_LINE_WORDS && sentences < DENSE_LINE_SENTENCES) continue;
+      const what = words > MAX_NARRATOR_LINE_WORDS ? `${words} words (at most ${MAX_NARRATOR_LINE_WORDS})` : `${sentences} sentences in ${words} words`;
+      out.push(`scene "${s.id}" satirlar[${i}], the narrator's "${speech.slice(0, 90)}", has ${what}: split it into one narrator line per event, each said while that event happens on screen (a unit's "hareket", a character's act)${opts.grow ? " with one more detail from the facts" : ""}; then renumber this scene's map "satir" indexes — ONE EVENT PER LINE`);
+    }
+  }
+  return out.slice(0, 4);
 }
 
 /** How far a script is from its targets: 0 is on target; length and dialogue both count. */
@@ -633,6 +662,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     // per-scene shortfall is something they do act on.
     const words = spokenWords(written);
     if (words < targetWords * band[0]) extra.push(...sceneShortfalls(written, targetWords));
+    // A round that runs anyway also splits the narrator's crowded lines (no round of its own: nothing paid is added).
+    extra.push(...denseNarratorLines(written, { grow: words < targetWords * band[0] }));
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
     const revised = check(next.result.content);
     // A dropped round says why in the log (the Rubicon's three were dropped silently; the cause had to be replayed).
@@ -657,6 +688,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     }
     written = revised.value as Episode;
   }
+  const dense = denseNarratorLines(written);
+  if (dense.length) input.log?.(`  senaryo: ${dense.length} anlatıcı satırı tek resimde birden çok olay anlatıyor (bölünmedi): ${dense.map((d) => d.slice(0, d.indexOf(","))).join(" · ")}`);
   // A group the narrator tells that no round put on the stage gets its crowd as a last resort.
   const crowded = addToldCrowds(written, isShorts(brief.hedefSureSn));
   for (const fix of crowded.fixes) input.log?.(`  senaryo: ${fix}`);
