@@ -140,11 +140,14 @@ export function riversFromOverpass(elements: readonly OsmElement[], box: Box): {
 export async function closeRiversFor(paths: Pick<V3Paths, "workRoot">, world: Pick<MapWorld, "bounds">, log: (s: string) => void = () => {}): Promise<{ rivers: CloseRiver[]; lakes: Polygon[] } | undefined> {
   const b = world.bounds;
   const box: Box = { west: round(b.west), east: round(b.east), south: round(b.south), north: round(b.north) };
-  const key = createHash("sha256").update(JSON.stringify({ v: RIVER_VERSION, box })).digest("hex").slice(0, 20);
-  const lib = path.join(paths.workRoot, "_kutuphane", "osm-nehir", `${key}.json`);
+  const lib = riverFile(paths, RIVER_VERSION, box);
   // Ponds and pools are specks at this scale (the 1453 map trial): lakes from about 150 m across.
   const big = (got: { rivers: CloseRiver[]; lakes: Polygon[] }) => ({ ...got, lakes: got.lakes.filter((p) => p[0] && ringKm2(p[0]) >= MIN_LAKE_KM2) });
-  if (existsSync(lib)) return big(JSON.parse(await fs.readFile(lib, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
+  if (existsSync(lib)) {
+    // Files kept before the index existed get their entry the first time they are read.
+    await keepRiverBox(paths, RIVER_VERSION, box);
+    return big(JSON.parse(await fs.readFile(lib, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
+  }
   const bbox = `${box.south},${box.west},${box.north},${box.east}`;
   try {
     // A relation's members and their geometry come only with "out geom" ("out tags" gives a relation its tags alone).
@@ -152,18 +155,63 @@ export async function closeRiversFor(paths: Pick<V3Paths, "workRoot">, world: Pi
     const got = riversFromOverpass(json.elements ?? [], box);
     await fs.mkdir(path.dirname(lib), { recursive: true });
     if (!existsSync(lib)) await fs.writeFile(lib, JSON.stringify(got));
+    await keepRiverBox(paths, RIVER_VERSION, box);
     return big(got);
   } catch (e) {
     // Offline: the box's rivers as an older parsing kept them (without the relation lakes) beat Natural Earth's lines.
     for (let v = RIVER_VERSION - 1; v >= 1; v--) {
-      const old = path.join(paths.workRoot, "_kutuphane", "osm-nehir", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+      const old = riverFile(paths, v, box);
       if (existsSync(old)) {
         log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); kütüphanedeki eski nehirler kullanılır`);
         return big(JSON.parse(await fs.readFile(old, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
       }
     }
+    // Then a library box holding this whole one (Lake Trasimene Short, 21 Nov 2026: a hand-moved column widened the
+    // world by a few hundred metres, Overpass was down and the lake the battle is named after vanished from the map).
+    const cover = coveringCoastBox(box, await riverBoxes(paths));
+    if (cover) {
+      try {
+        const got = JSON.parse(await fs.readFile(riverFile(paths, cover.v, cover.box), "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] };
+        log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); kütüphanede onu kaplayan daha geniş kutunun nehir ve gölleri kullanılır`);
+        return big({ rivers: got.rivers.flatMap((r) => clipChain(r.line, box).map((line) => ({ ...r, line }))), lakes: got.lakes });
+      } catch {
+        // An unreadable file: Natural Earth below.
+      }
+    }
     log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); Natural Earth nehirleri çizilir`);
     return undefined;
+  }
+}
+
+/** The library file of a box's rivers and lakes parsed by version `v`. */
+export function riverFile(paths: Pick<V3Paths, "workRoot">, v: number, box: Box): string {
+  return path.join(paths.workRoot, "_kutuphane", "osm-nehir", `${createHash("sha256").update(JSON.stringify({ v, box })).digest("hex").slice(0, 20)}.json`);
+}
+
+const riverIndex = (paths: Pick<V3Paths, "workRoot">) => path.join(paths.workRoot, "_kutuphane", "osm-nehir", "kutular.jsonl");
+
+/** The library's river boxes whose files are still there (`osm-nehir/kutular.jsonl`, like the coasts' index). */
+export async function riverBoxes(paths: Pick<V3Paths, "workRoot">): Promise<CoastBoxEntry[]> {
+  const index = riverIndex(paths);
+  if (!existsSync(index)) return [];
+  return (await fs.readFile(index, "utf8")).split(/\r?\n/).flatMap((line) => {
+    try {
+      const e = JSON.parse(line) as CoastBoxEntry;
+      return typeof e?.v === "number" && e.box && existsSync(riverFile(paths, e.v, e.box)) ? [e] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Records a river box in the library's index once (append-only, one JSON a line). */
+export async function keepRiverBox(paths: Pick<V3Paths, "workRoot">, v: number, box: Box): Promise<void> {
+  try {
+    if ((await riverBoxes(paths)).some((e) => e.v === v && sameBox(e.box, box))) return;
+    await fs.mkdir(path.dirname(riverIndex(paths)), { recursive: true });
+    await fs.appendFile(riverIndex(paths), `${JSON.stringify({ v, box })}\n`);
+  } catch {
+    // The index only helps an offline run; rivers are never lost for it.
   }
 }
 

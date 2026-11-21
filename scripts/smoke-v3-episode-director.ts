@@ -39,7 +39,7 @@ import { landOf } from "../src/lib/v3/maps/LandUnits";
 import { directBattleMaps, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
-import { assembleLand, chainWays, joinRings, riversFromOverpass, closeCoastFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
+import { assembleLand, chainWays, joinRings, riversFromOverpass, closeCoastFor, closeRiversFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, riverBoxes, riverFile, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { applyAtlasErrata, ATLAS_ERRATA, atlasYear, clipToConvex, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, inStateLand, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -3784,6 +3784,35 @@ async function main() {
       // The library's own box of the world is read first and recorded in the index.
       await write(2, coastBox(world), [[[[28.9, 41.0], [29.0, 41.0], [29.0, 41.05], [28.9, 41.0]]]]);
       assert.deepEqual((await closeCoastFor(paths, world, sea, () => {}, false))?.land, [[[[28.9, 41.0], [29.0, 41.0], [29.0, 41.05], [28.9, 41.0]]]]);
+    } finally {
+      globalThis.fetch = prevFetch;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  await scenario("Overpass down for a slightly moved close map: the rivers and lakes of a library box holding it stand in, rivers clipped to it (Lake Trasimene Short, 21 Nov 2026: the lake vanished)", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-nehir-"));
+    const prevFetch = globalThis.fetch;
+    try {
+      const paths = { workRoot: root };
+      const wide = coastBox({ bounds: { west: 11.95, east: 12.25, south: 43.1, north: 43.3 } });
+      const lake = [[[12.0, 43.12], [12.2, 43.12], [12.2, 43.19], [12.0, 43.19], [12.0, 43.12]]] as never;
+      mkdirSync(path.dirname(riverFile(paths, 2, wide)), { recursive: true });
+      writeFileSync(riverFile(paths, 2, wide), JSON.stringify({ rivers: [{ line: [[11.96, 43.2], [12.24, 43.2]], km: 30, name: "Long river" }], lakes: [lake] }));
+      // A file kept before the index: its box enters the index the first time it is read.
+      assert.equal((await riverBoxes(paths)).length, 0);
+      assert.ok(await closeRiversFor(paths, { bounds: wide }));
+      assert.deepEqual((await riverBoxes(paths)).map((e) => e.box), [wide]);
+      globalThis.fetch = (async () => {
+        throw new Error("offline");
+      }) as typeof fetch;
+      const notes: string[] = [];
+      const got = await closeRiversFor(paths, { bounds: { west: 12.0, east: 12.18, south: 43.15, north: 43.25 } }, (s) => notes.push(s));
+      assert.equal(got?.lakes.length, 1, "the lake is drawn");
+      assert.deepEqual(got?.rivers.map((r) => [r.line[0]![0], r.line[r.line.length - 1]![0]]), [[12.0, 12.18]], "the river clipped to the box");
+      assert.ok(notes.some((n) => n.includes("onu kaplayan daha geniş kutunun nehir ve gölleri")), notes.join(" | "));
+      // Not covered: Natural Earth as before.
+      assert.equal(await closeRiversFor(paths, { bounds: { west: 12.2, east: 12.4, south: 43.15, north: 43.25 } }), undefined);
     } finally {
       globalThis.fetch = prevFetch;
       rmSync(root, { recursive: true, force: true });
