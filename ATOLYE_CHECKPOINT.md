@@ -1,3 +1,20 @@
+## 21 Kasım 2026 (3) — Trasimene Short TESLİM (tur 2, elle), geniş görsel araması, 6 düzeltme daha
+
+Sipariş 20261121T051126 (owner onayıyla tek başlatma): yükleme dosyası lake-trasimene-217-bc-animated-history.mp4
+1080×1920, 146,2 sn, −14,4 LUFS; başlık "Hannibal's Foggy Ambush That Shook Rome #Shorts". Bu sipariş 0,909 $
+(ek-tavan +0,30 owner "bu seferlik"), video toplamı 2,47 $ (başarısız iki deneme dahil). YÜKLENMEDİ (owner karar verir).
+Elle yönetmenlik: s3 pusu haritası (sis, kıyı yolunda kolon, doğu çıkışı tepe, batı girişi süvari, boğulma doğru satırda),
+s2 Arretium/Alpler yolu + İspanya kadraj dışı, kaynaklı güç çubukları, s4 "first consul" tarih düzeltmesi, ölü Flaminius
+s5'ten çıktı; tur 1 Hannibal'i sakalsız + HAÇLI yaptı → tur 0 kostümleri geri; elle bulunan dönem eserleri: Smirke 1804
+(s3), Cooper Hewitt ~1812 "Morte di Flaminio" paneli (s4); Sezar/Vespasian Senato tabloları çıkarıldı. Rötuş puanı
+eşitlikte tur 0'ı seçti (bayat benzerlik) → restoreRound(…,2) + rotatedShortArgs ile tur 2 teslim.
+Kod (hepsi canonical'da, canlı snapshot DEĞİL — V3 üretici canonical'dan okur): 3076dca2 boşa harcama kuralları,
+65ed5a1c nehir/göl kaplayan kutu yedeği, e48d9d9b namedPlaceCheck (Lake George), be2a1302 geniş arama (Commons
+kategorisi, Wikidata, diğer Wikipedia'lar, Europeana, İngilizce altyazı), 486fec63 konu kaynağına 3 hakem yeri,
+7358daa8 Almanca bileşik başlık çevirisi. Vakalar: el-…060843-rrwe, …082310-rre5, …082311-qri0, …085900-hlms, …092142-bulm.
+AÇIK: owner'a CC BY-SA görsel kararı (freskler) soruldu, net "evet" yok → kural aynen; Europeana kişisel anahtar
+(isteğe bağlı); başka olay/kişi adlı tablo için kod kuralı yok (yalnız yer adı) — vaka kaydı var.
+
 ## 21 Kasım 2026 (2) — Trasimene Short siparişi: iki deneme senaryoda durdu, 3 düzeltme; OPENAI KREDİSİ BİTTİ (BEKLİYOR)
 
 Owner 07:39: "sipariş ver, her aşamada bak, kalite + yönetmen sorumlususun, gerekirse düzelt canlıya al"; Shorts 1080×1920.
