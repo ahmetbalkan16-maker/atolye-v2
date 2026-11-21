@@ -159,10 +159,55 @@ export interface NormalizedDraft {
   readonly fixes: readonly string[];
 }
 
+/** The validator's room for a strength label (EpisodeValidator HARITA_GUC / BILGI_KARTI `sayi`). */
+export const STRENGTH_LABEL_MAX = 24;
+
+/**
+ * A strength label longer than the bar holds, cut to its first part that still carries a number ("15,000 killed, 6,000
+ * captured" → "15,000 killed"), else at a word, else at the limit. The Lake Trasimene Short (21 Nov 2026) lost its first
+ * draft and three repair rounds ($0.23) to that one label: the writer wrote it back unchanged every round.
+ */
+export function shortStrengthLabel(label: string, max = STRENGTH_LABEL_MAX): string {
+  const t = label.trim();
+  if (t.length <= max) return t;
+  const head = t.split(/\s*[;(/]\s*|,\s+|\s+(?:and|plus|ve|ile)\s+|\s+[–—-]\s+/)[0]!.trim();
+  if (head.length <= max && /\d/.test(head)) return head;
+  const words = t.slice(0, max + 1).split(/\s+/);
+  const cut = words.length > 1 ? words.slice(0, -1).join(" ").replace(/[,;:]+$/, "") : "";
+  return cut && /\d/.test(cut) ? cut : t.slice(0, max).trim();
+}
+
+/**
+ * A summary text over its field's room, cut at its last whole sentence that fits, else at a word. Only for texts no one
+ * hears (the episode's `konu`, a character's `konusma_tarzi`): the Lake Trasimene Short's second draft (21 Nov 2026)
+ * failed on a 300+ character `konu` that three repair rounds wrote back unchanged.
+ */
+export function clipSummary(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const sentence = head.match(/^[\s\S]*[.!?](?=\s|$)/)?.[0];
+  if (sentence && sentence.length >= max / 3) return sentence.trim();
+  const word = head.replace(/\s+\S*$/, "").replace(/[,;:–—-]+$/, "").trim();
+  return word || head.trim();
+}
+
+/** The validator's room for the summaries clipSummary cuts (EpisodeValidator: `konu`, `konusma_tarzi`). */
+const SUMMARY_MAX = 300;
+
 export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[]): NormalizedDraft {
   if (!isObj(raw)) return { value: raw, fixes: [] };
   const draft = JSON.parse(JSON.stringify(raw)) as Obj;
   const fixes: string[] = [];
+  if (typeof draft.konu === "string" && draft.konu.trim().length > SUMMARY_MAX) {
+    fixes.push(`konu ${draft.konu.length} karakter → ${SUMMARY_MAX} içine kısaltıldı`);
+    draft.konu = clipSummary(draft.konu, SUMMARY_MAX);
+  }
+  for (const [i, c] of (Array.isArray(draft.oyuncu_kadrosu) ? (draft.oyuncu_kadrosu as unknown[]) : []).entries())
+    if (isObj(c) && typeof c.konusma_tarzi === "string" && c.konusma_tarzi.trim().length > SUMMARY_MAX) {
+      fixes.push(`oyuncu_kadrosu[${i}].konusma_tarzi ${c.konusma_tarzi.length} karakter → ${SUMMARY_MAX} içine kısaltıldı`);
+      c.konusma_tarzi = clipSummary(c.konusma_tarzi, SUMMARY_MAX);
+    }
   const known = new Set<string>();
   for (const p of catalog) for (const ids of Object.values(p.items)) for (const id of ids ?? []) known.add(`${p.pack}/${id}`);
   const defaultPack = catalog[0]?.pack ?? "";
@@ -300,6 +345,17 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       if (mapped) s.harita.gorunus = mapped;
       else delete s.harita.gorunus;
     }
+    // Strength labels the bar cannot hold, on the map and on a strength card (shortStrengthLabel).
+    const bars: [Obj, string][] = [];
+    if (isObj(s.harita) && Array.isArray(s.harita.guc)) for (const [gi, g] of (s.harita.guc as unknown[]).entries()) if (isObj(g)) bars.push([g, `sahneler[${si}].harita.guc[${gi}]`]);
+    for (const [ci, c] of (Array.isArray(s.bilgi_kartlari) ? (s.bilgi_kartlari as unknown[]) : []).entries()) if (isObj(c) && c.tur === "guc") bars.push([c, `sahneler[${si}].bilgi_kartlari[${ci}]`]);
+    for (const [bar, where] of bars)
+      for (const [ti, t] of (Array.isArray(bar.taraflar) ? (bar.taraflar as unknown[]) : []).entries()) {
+        if (!isObj(t) || typeof t.sayi !== "string" || t.sayi.trim().length <= STRENGTH_LABEL_MAX) continue;
+        const short = shortStrengthLabel(t.sayi);
+        fixes.push(`${where}.taraflar[${ti}].sayi "${t.sayi}" → "${short}"`);
+        t.sayi = short;
+      }
     // A scene aboard a ship the writer set on land (Caesar and the pirates, 2 Nov 2026: "Pirate ship cabin" drawn as a
     // plain with a village). A ship set the writer chose stays.
     const aboard = isObj(s.ortam) && typeof s.mekan === "string" ? shipboardSet(s.mekan) : undefined;

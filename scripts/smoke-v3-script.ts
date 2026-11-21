@@ -17,7 +17,7 @@ import { applyFactCheck, callsByName, changesPerson, confirmSupport, COPY_RUN_WO
 import { bankFactLines, EVIDENCE_CHARS, factCheckPrompt, isShortBrief, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { closingSpeaker, closingText, ensureClosingLine, mainCharacter } from "../src/lib/v3/script/ClosingLine";
 import { bankSourcesOnly, carryShortfall, chapterBrief, chapterCount, chapterProblems, CHAPTER_CARRY_MAX, isLongForm, prefixScenes, readOutline, withChapterCard } from "../src/lib/v3/script/LongForm";
-import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
+import { clipSummary, normalizeDraft, shortStrengthLabel } from "../src/lib/v3/script/DraftNormalizer";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
@@ -179,6 +179,29 @@ async function main() {
     const budget = new V3Budget({ capUsd: 0.01, providers: { openai } });
     await assert.rejects(budget.generate("senaryo", { provider: "openai", model: "gpt-4.1" }, "istem", { maxTokens: 3000 }), (e: unknown) => e instanceof V3BudgetError && e.code === "V3_BUDGET_EXCEEDED" && e.name === "V3BudgetError");
     assert.equal(openai.calls.length, 0);
+  });
+
+  await scenario("C3 a too-long strength label or summary is cut by the normalizer, never by paid repair rounds (Lake Trasimene Short, 21 Nov 2026: six rounds lost to them)", async () => {
+    assert.equal(shortStrengthLabel("15,000 killed, 6,000 captured"), "15,000 killed");
+    assert.equal(shortStrengthLabel("about 50,000 (Livy) or more"), "about 50,000");
+    assert.equal(shortStrengthLabel("1,500 lost"), "1,500 lost");
+    assert.ok(shortStrengthLabel("approximately 25,000 legionaries and allies").length <= 24);
+    assert.equal(clipSummary(`${"A".repeat(200)}. ${"B".repeat(150)}.`, 300), `${"A".repeat(200)}.`);
+    assert.ok(clipSummary("word ".repeat(80), 300).length <= 300);
+    const draft = JSON.parse(validJson()) as Record<string, unknown> & { sahneler: Record<string, unknown>[] };
+    draft.konu = `Hannibal ambushes the consul Flaminius on the north shore of Lake Trasimene. ${"The Romans march into the mist and are trapped between the hills and the lake. ".repeat(4)}`;
+    const norm = normalizeDraft({ ...draft, sahneler: [{ ...draft.sahneler[0], harita: { guc: [{ satir: 0, taraflar: [{ ad: "A", renk: "#111111", sayi: "1,500 lost" }, { ad: "B", renk: "#222222", sayi: "15,000 killed, 6,000 captured" }] }] }, bilgi_kartlari: [{ tur: "guc", satir: 0, taraflar: [{ ad: "A", renk: "#111111", sayi: "50,000 men of Hannibal's army" }, { ad: "B", renk: "#222222", sayi: "25,000" }] }] }] }, CATALOG);
+    const v = norm.value as { konu: string; sahneler: { harita: { guc: { taraflar: { sayi: string }[] }[] }; bilgi_kartlari: { taraflar: { sayi: string }[] }[] }[] };
+    assert.ok(v.konu.length <= 300 && v.konu.endsWith("."), v.konu);
+    assert.equal(v.sahneler[0]!.harita.guc[0]!.taraflar[1]!.sayi, "15,000 killed");
+    assert.equal(v.sahneler[0]!.bilgi_kartlari[0]!.taraflar[0]!.sayi, "50,000 men of Hannibal's");
+    assert.equal(norm.fixes.filter((f) => /sayi|konu/.test(f)).length, 3);
+    // Through writeScript: a draft whose only slip is its summary needs no repair round.
+    const writer = new FakeProvider([JSON.stringify({ ...JSON.parse(validJson()), konu: draft.konu }), JSON.stringify({ iddialar: [] })]);
+    const b = new V3Budget({ providers: { openai: writer } });
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 14, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: b });
+    assert.equal(out.repairs, 0);
+    assert.equal(b.ledger.map((e) => e.step).join(","), "senaryo,dogrulama");
   });
 
   await scenario("C2 the writer stops at the cap instead of writing on the local model, and a round rewriting a big script gets room for it (Lake Trasimene Short, 21 Nov 2026)", async () => {
