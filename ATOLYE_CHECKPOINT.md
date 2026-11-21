@@ -15,6 +15,10 @@ kalitede olsun; "bütün görevleri bitir canlıya al videoyu başlatma". Üç a
   kare kare izlemeden 6 ders (pusu tek haritada adım adım, ordu/kayıp kartı, komutanın hatası, kapanan kapan).
 - Yükleme saati önerisi: NY 15:00 = TR 23:00, Salı/Cumartesi (kanalda NY öğleden sonra yüklenen Guadalcanal 2.219/48 sa;
   NY sabahları ~1.300). Konstantinopolis 15:00 yerine 06:00'da çıkmıştı — yüklemeden önce zamanlamayı kontrol et.
+CANLIYA ALINDI 21 Kas 07:32: ayas-live-bb544899 (dış erişim healthy; geri dönüş ayas-live-0419e94c). Canlı dalın AYAS
+kod hattı commit'leri (90dbb053, a2758c19, 20d5e1ee, 5e7df2d2, a43a85df) birleşti; harita adı kenar düzeltmesi iki kez
+yapılmıştı (d9b6fbbe keep / 20d5e1ee keepIn) → keep tutuldu. İzleyici yeniden başlatma GEREKMEDİ (yapim.ts değişmedi).
+Vakalar boşta döngüde öğrenilmiş (vaka.ts ara ile doğrulandı).
 SIRADAKİ: Trasimene siparişi OWNER İSTEYİNCE (metin hafızada v3-trasimene-short-next); senaryodan hemen sonra yakın
 harita önizlemesi (göl kıyısı, sis, kol yolda, boğulma satırından önce gölde kimse yok).
 
