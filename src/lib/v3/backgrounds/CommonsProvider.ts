@@ -39,7 +39,7 @@ export const EXTMETADATA = "LicenseShortName|UsageTerms|Artist|Credit|Attributio
 export interface CommonsCandidate {
   readonly title: string;
   /** Where it was found: a Wikipedia article about the subject, a Commons search, or a museum collection. */
-  readonly source?: "wikipedia" | "commons" | "met" | "openverse" | "aic" | "cleveland";
+  readonly source?: "wikipedia" | "commons" | "met" | "openverse" | "aic" | "cleveland" | "europeana";
   /** The institution an Openverse result really comes from ("Smithsonian Institution"), for its on-screen caption. */
   readonly provider?: string;
   /** Year the image was made, when the metadata says (a 2013 photo of a 1452 fortress is not a period image). */

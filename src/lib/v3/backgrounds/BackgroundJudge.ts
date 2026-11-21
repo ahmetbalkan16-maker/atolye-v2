@@ -309,6 +309,35 @@ export function namedShipCheck(v: CandidateVerdict, scene: Pick<SceneForJudge, "
   return { ...v, puan: 2, sorun: `${v.sorun ? `${v.sorun}; ` : ""}dosyadaki gemi sahnede yok: ${missing.join(", ")}`.slice(0, 220) };
 }
 
+/** Function and battle words of the languages the wide search reads (Italian, French, German, Spanish, Dutch, Portuguese). */
+const NOT_ENGLISH = /\b(der|die|das|und|schlacht|see|von|zum|zur|le|la|les|des|du|et|au|aux|bataille|il|lo|gli|di|del|della|dei|degli|battaglia|lago|el|los|las|y|batalla|do|da|dos|het|een|van)\b/i;
+
+/** Whether a file or work title already reads as English (no foreign function word, no accented letter). */
+export function looksEnglish(title: string): boolean {
+  return !NOT_ENGLISH.test(title) && !/[àâäçéèêëîïôöùûüñßøåæœ]/i.test(title);
+}
+
+/**
+ * A chosen picture's title in English for its on-screen credit, from the local model (no paid call), or undefined when it
+ * already reads as English or the model gives nothing usable. The wide search (owner, 21 Nov 2026: "ingilizce dışında bile
+ * varsa çeviri yapsın İngilizceye") brings French, Italian and German titles ("Sylvestre Ducar decapite Flaminius").
+ */
+export async function englishTitle(model: Pick<AIProvider, "generate">, title: string, description = ""): Promise<string | undefined> {
+  const clean = title.replace(/^(File|Europeana):\s*/, "").replace(/\.(jpe?g|png|tiff?)$/i, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+  if (!clean || looksEnglish(clean)) return undefined;
+  const prompt = `Translate this artwork or picture-file title into short, natural English for an on-screen picture credit in a history video. Keep the names of people, places and buildings, in the form English readers know (Trasimeno or Trasimène → Trasimene). Drop file numbers and archive codes. Answer only JSON: {"en": "..."}.
+TITLE: ${clean}${description ? `\nDESCRIPTION: ${description.slice(0, 300)}` : ""}`;
+  const out = await model.generate(prompt, { jsonSchema: TITLE_SCHEMA, maxTokens: 80 }).catch(() => undefined);
+  const text = out === undefined ? "" : typeof out === "string" ? out : out.content;
+  try {
+    const en = (JSON.parse(/\{[\s\S]*\}/.exec(text)?.[0] ?? "{}") as { en?: unknown }).en;
+    return typeof en === "string" && en.trim() && en.trim().length <= 90 ? en.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+const TITLE_SCHEMA = { type: "object", properties: { en: { type: "string" } }, required: ["en"] } as const;
+
 /** A named lake, mountain, river, bay or island in a title: "Lake George, Free Study" → George. */
 const NAMED_PLACE = /\b(?:Lake|Lago|Lac|Loch|Mount|Mont|Monte|River|Rio|Bay|Gulf|Isle|Island|Cape)\s+(?:of\s+)?([A-Z][\p{L}'’-]+)/gu;
 

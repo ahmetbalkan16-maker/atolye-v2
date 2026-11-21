@@ -11,11 +11,11 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, earlierShipQuestion, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, looksEnglish, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
-import { aliasQueries, findPeriodCandidates, insertCaption, keepShareAlike, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
+import { aliasQueries, europeanaLicense, findPeriodCandidates, insertCaption, keepShareAlike, periodEndYear, periodRank, sourceName } from "../src/lib/v3/backgrounds/HistorySources";
 import { judgeLicense, shownLicenceProblem } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -594,6 +594,60 @@ async function main() {
     assert.equal(passes(namedShipCheck(v, firstNight)), false);
     assert.equal(namedShipCheck({ ...v, title: "USS Atlanta (CL-51) underway at sea" }, firstNight).puan, 9, "the ship the scene names passes");
     assert.equal(namedShipCheck(v, { ...firstNight, anlatim: "The next night Washington catches Kirishima." }).puan, 9);
+  });
+
+  await scenario("Z5 the wide search: the subject's Commons category, Wikidata's depictions, other Wikipedias and Europeana, titles put into English (owner, 21 Nov 2026: \"bütün ülkelerin resmi kaynaklarına baksın\")", async () => {
+    assert.equal(europeanaLicense("http://creativecommons.org/publicdomain/mark/1.0/"), "Public domain");
+    assert.equal(europeanaLicense("http://creativecommons.org/publicdomain/zero/1.0/"), "CC0");
+    assert.equal(europeanaLicense("http://creativecommons.org/licenses/by-sa/4.0/"), "CC BY-SA 4.0");
+    assert.equal(europeanaLicense("http://rightsstatements.org/vocab/InC/1.0/"), undefined, "in copyright: never");
+    const cacheDir = mkdtempSync(path.join(os.tmpdir(), "v3-genis-"));
+    const img = (name: string, license: string) => ({ title: `File:${name}`, imageinfo: [{ url: `https://upload.wikimedia.org/x/${name}`, descriptionurl: `https://commons.wikimedia.org/wiki/File:${name}`, mime: "image/jpeg", width: 2000, height: 1400, extmetadata: { LicenseShortName: { value: license }, DateTimeOriginal: { value: "1597" } } }] });
+    const files: Record<string, string> = { "Sylvestre Ducar decapite Flaminius.jpg": "Public domain", "Fresco Schlacht Trasimeno.jpg": "CC BY-SA 4.0", "Vatican map Trasimeno.jpg": "Public domain", "Battaglia it.jpg": "Public domain" };
+    const answer = (u: URL): unknown => {
+      const p = u.searchParams;
+      if (u.hostname === "query.wikidata.org") return { results: { bindings: [{ image: { value: "http://commons.wikimedia.org/wiki/Special:FilePath/Vatican%20map%20Trasimeno.jpg" } }] } };
+      if (u.hostname === "www.wikidata.org") return { entities: { Q207250: { claims: { P373: [{ mainsnak: { datavalue: { value: "Battle of Lake Trasimene" } } }] }, sitelinks: { enwiki: { title: "Battle of Lake Trasimene" }, itwiki: { title: "Battaglia del lago Trasimeno" }, commonswiki: { title: "Category:x" } } } } };
+      if (u.hostname === "api.europeana.eu")
+        return {
+          items: [
+            { title: ["Battaglia del Trasimeno, incisione"], year: ["1780"], rights: ["http://creativecommons.org/publicdomain/mark/1.0/"], dataProvider: ["Biblioteca Nazionale"], edmIsShownBy: ["https://example.org/a.jpg"], guid: "https://www.europeana.eu/item/1" },
+            { title: ["Photo"], rights: ["http://rightsstatements.org/vocab/InC/1.0/"], edmIsShownBy: ["https://example.org/b.jpg"] },
+          ],
+        };
+      if (p.get("list") === "categorymembers") return { query: { categorymembers: p.get("cmtype") === "file" ? [{ title: "File:Sylvestre Ducar decapite Flaminius.jpg" }, { title: "File:Fresco Schlacht Trasimeno.jpg" }] : [] } };
+      if (p.get("prop") === "pageprops") return { query: { pages: { "1": { pageprops: { wikibase_item: "Q207250" } } } } };
+      if (p.get("prop") === "images") return { query: { pages: { "1": { images: u.hostname.startsWith("it.") ? [{ title: "File:Battaglia it.jpg" }] : [] } } } };
+      if (p.get("prop") === "imageinfo") return { query: { pages: Object.fromEntries((p.get("titles") ?? "").split("|").filter((t) => files[t.replace(/^File:/, "")]).map((t, i) => [String(i), img(t.replace(/^File:/, ""), files[t.replace(/^File:/, "")]!)])) } };
+      return {};
+    };
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL) => new Response(JSON.stringify(answer(new URL(String(input)))), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    try {
+      const wide = await findPeriodCandidates(cacheDir, { wiki: "Battle of Lake Trasimene", query: "Lake Trasimene battle" }, -217, { env: {} });
+      const titles = wide.candidates.map((c) => c.title);
+      for (const t of ["File:Sylvestre Ducar decapite Flaminius.jpg", "File:Vatican map Trasimeno.jpg", "File:Battaglia it.jpg", "Europeana: Battaglia del Trasimeno, incisione"]) assert.ok(titles.includes(t), `${t} in ${titles.join(" | ")}`);
+      assert.ok(!titles.includes("File:Fresco Schlacht Trasimeno.jpg"), "CC BY-SA stays off the screen without the owner's yes");
+      for (const r of [/Commons kategorisi "Battle of Lake Trasimene": 2/, /Wikidata eserleri Q207250: 1/, /Wikipedia it "Battaglia del lago Trasimeno": 1/, /Europeana "Lake Trasimene battle": 1/]) assert.ok(wide.report.some((x) => r.test(x)), `${r} in ${wide.report.join(" | ")}`);
+      const eu = wide.candidates.find((c) => c.source === "europeana")!;
+      assert.deepEqual([eu.year, eu.credit.license, eu.provider, sourceName(eu)], [1780, "Public domain", "Biblioteca Nazionale", "Biblioteca Nazionale via Europeana"]);
+      const narrow = await findPeriodCandidates(cacheDir, { wiki: "Battle of Lake Trasimene", query: "Lake Trasimene battle" }, -217, { env: {}, wide: false });
+      assert.ok(!narrow.candidates.some((c) => c.title.includes("Sylvestre")), "wide: false asks only the English article and the searches");
+    } finally {
+      globalThis.fetch = real;
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+    // The plate in English: a foreign title is translated by the local model, an English one is not asked.
+    assert.equal(looksEnglish("Sylvestre Ducar decapite Flaminius (Trasimene)"), true, "no function word, no accent: read as English (names only)");
+    assert.equal(looksEnglish("Battaglia del lago Trasimeno (Galleria delle carte geografiche)"), false);
+    assert.equal(looksEnglish("Lake George, Free Study"), true);
+    let asked = 0;
+    const model = { generate: async () => (asked++, { content: '{"en": "The Battle of Lake Trasimene (Gallery of Maps)"}', finishReason: "stop" as const, refused: false, complete: true, truncated: false }) };
+    assert.equal(await englishTitle(model, "File:Battaglia del lago Trasimeno (Galleria delle carte geografiche).jpg"), "The Battle of Lake Trasimene (Gallery of Maps)");
+    assert.equal(await englishTitle(model, "Lake George, Free Study"), undefined);
+    assert.equal(asked, 1);
+    const c = { title: "File:Battaglia.jpg", source: "commons" as const, url: "u", downloadUrl: "u", previewUrl: "u", description: "", width: 1, height: 1, mime: "image/jpeg", descriptionUrl: "https://commons.wikimedia.org/wiki/File:Battaglia.jpg", credit: { title: "Battaglia del lago Trasimeno", author: "Ignazio Danti", license: "Public domain", sourceUrl: "x", attributionRequired: false } };
+    assert.equal(insertCaption(c, "en", "The Battle of Lake Trasimene (Gallery of Maps)"), "The Battle of Lake Trasimene (Gallery of Maps), Ignazio Danti · Source: Wikimedia Commons");
   });
 
   await scenario("Z4 a painting of a named place the scene never names is not its picture (Lake George over Lake Trasimene, 21 Nov 2026)", async () => {

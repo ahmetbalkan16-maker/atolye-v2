@@ -1,4 +1,4 @@
-import { type CommonsCandidate, cachedJson, searchCommons, wikiFilesByTitles } from "./CommonsProvider";
+import { type CommonsCandidate, cachedJson, commonsByTitles, searchCommons, wikiFilesByTitles } from "./CommonsProvider";
 import { type Era, eraOf, periodEndYear } from "../episode/Period";
 import { judgeLicense, shareAlikeAllowed } from "./LicenseFilter";
 
@@ -240,6 +240,146 @@ export async function openverseCandidates(cacheDir: string, query: string, limit
   return out;
 }
 
+const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
+const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
+const WIKIDATA_SPARQL = "https://query.wikidata.org/sparql";
+const EUROPEANA_API = "https://api.europeana.eu/record/v2/search.json";
+
+/**
+ * Wikipedias asked besides the English one, in this order (at most OTHER_WIKIS of those the subject has): where the
+ * history happened often has the article with the pictures (owner, 21 Nov 2026: "bütün ülkelerin resmi kaynaklarına
+ * baksın … ingilizce dışında bile varsa çeviri yapsın").
+ */
+export const OTHER_WIKI_LANGS: readonly string[] = ["it", "fr", "de", "es", "la", "el", "pt", "nl", "pl", "ru", "tr", "ar", "fa", "zh", "ja"];
+const OTHER_WIKIS = 4;
+
+/** A subject's Wikidata item: its id, its Commons category and its article title in every Wikipedia. */
+export interface WikiSubject {
+  readonly qid: string;
+  readonly commonsCategory?: string;
+  readonly titles: Readonly<Record<string, string>>;
+}
+
+/** The Wikidata item of a Wikipedia article (undefined when it has none). */
+export async function wikiSubject(cacheDir: string, article: string, lang = "en"): Promise<WikiSubject | undefined> {
+  const pp = (await cachedJson(cacheDir, `${WIKI_API(lang)}?${new URLSearchParams({ action: "query", format: "json", titles: article, prop: "pageprops", ppprop: "wikibase_item", redirects: "1" })}`)) as { query?: { pages?: Record<string, { pageprops?: { wikibase_item?: string } }> } };
+  const qid = Object.values(pp.query?.pages ?? {})[0]?.pageprops?.wikibase_item;
+  if (!qid || !/^Q\d+$/.test(qid)) return undefined;
+  const ent = (await cachedJson(cacheDir, `${WIKIDATA_API}?${new URLSearchParams({ action: "wbgetentities", format: "json", ids: qid, props: "claims|sitelinks" })}`)) as {
+    entities?: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]>; sitelinks?: Record<string, { title: string }> }>;
+  };
+  const e = ent.entities?.[qid];
+  const cat = e?.claims?.P373?.[0]?.mainsnak?.datavalue?.value;
+  const titles: Record<string, string> = {};
+  for (const [k, v] of Object.entries(e?.sitelinks ?? {})) {
+    const m = /^([a-z]{2,3})wiki$/.exec(k);
+    if (m) titles[m[1]!] = v.title;
+  }
+  return { qid, ...(typeof cat === "string" && cat ? { commonsCategory: cat } : {}), titles };
+}
+
+/**
+ * The files of a Commons category and, while short of `limit`, of its first subcategories. The subject's own category
+ * holds what no English search finds: for Lake Trasimene (21 Nov 2026) Sylvestre's "Ducar décapite Flaminius", the
+ * battle frescoes of Palazzo della Corgna and an 18th-century Polybius plate, all titled in French, Italian or German.
+ */
+export async function categoryFileTitles(cacheDir: string, category: string, limit = 40): Promise<string[]> {
+  const members = async (cmtype: "file" | "subcat", cmtitle: string, n: number): Promise<string[]> => {
+    const json = (await cachedJson(cacheDir, `${COMMONS_API}?${new URLSearchParams({ action: "query", format: "json", list: "categorymembers", cmtitle, cmtype, cmlimit: String(n) })}`)) as { query?: { categorymembers?: { title: string }[] } };
+    return (json.query?.categorymembers ?? []).map((m) => m.title);
+  };
+  const title = `Category:${category.replace(/^Category:/, "")}`;
+  const files = await members("file", title, limit);
+  if (files.length < limit)
+    for (const sub of await members("subcat", title, 6)) {
+      if (files.length >= limit) break;
+      files.push(...(await members("file", sub, 15)));
+    }
+  return [...new Set(files)].filter((t) => !ARTICLE_CHROME.test(t)).slice(0, limit);
+}
+
+/** Free images of a Commons category (see categoryFileTitles). */
+export async function commonsCategoryCandidates(cacheDir: string, category: string, limit = 40): Promise<CommonsCandidate[]> {
+  const titles = await categoryFileTitles(cacheDir, category, limit);
+  const out: CommonsCandidate[] = [];
+  for (let i = 0; i < titles.length; i += 50) out.push(...(await commonsByTitles(cacheDir, titles.slice(i, i + 50))));
+  return out;
+}
+
+/**
+ * Works Wikidata records as depicting the subject or about it (P180 depicts, P921 main subject, P1269 facet of) with
+ * an image: every national museum that publishes to Wikidata is asked at once.
+ */
+export async function depictionCandidates(cacheDir: string, qid: string, limit = 30): Promise<CommonsCandidate[]> {
+  if (!/^Q\d+$/.test(qid)) return [];
+  const query = `SELECT DISTINCT ?image WHERE { ?w wdt:P180|wdt:P921|wdt:P1269 wd:${qid} . ?w wdt:P18 ?image . } LIMIT ${limit}`;
+  const json = (await cachedJson(cacheDir, `${WIKIDATA_SPARQL}?${new URLSearchParams({ format: "json", query })}`)) as { results?: { bindings?: { image?: { value?: string } }[] } };
+  const titles = (json.results?.bindings ?? [])
+    .map((b) => b.image?.value ?? "")
+    .filter(Boolean)
+    .map((u) => `File:${decodeURIComponent(u.split("/").pop() ?? "").replace(/_/g, " ")}`);
+  const out: CommonsCandidate[] = [];
+  for (let i = 0; i < titles.length; i += 50) out.push(...(await commonsByTitles(cacheDir, titles.slice(i, i + 50))));
+  return out;
+}
+
+/** A Europeana rights statement as the licence filter reads it; undefined when it is not open. */
+export function europeanaLicense(rights: string): string | undefined {
+  if (/publicdomain\/mark/.test(rights)) return "Public domain";
+  if (/publicdomain\/zero/.test(rights)) return "CC0";
+  const m = /licenses\/(by(?:-sa)?)\/(\d\.\d)/.exec(rights);
+  return m ? `CC ${m[1]!.toUpperCase()} ${m[2]}` : undefined;
+}
+
+interface EuropeanaItem {
+  readonly title?: readonly string[];
+  readonly year?: readonly string[];
+  readonly rights?: readonly string[];
+  readonly dataProvider?: readonly string[];
+  readonly dcCreator?: readonly string[];
+  readonly edmIsShownBy?: readonly string[];
+  readonly edmPreview?: readonly string[];
+  readonly guid?: string;
+  readonly dcDescription?: readonly string[];
+}
+
+/**
+ * Openly licensed images from Europeana — the joint portal of Europe's national museums, libraries and archives (owner,
+ * 21 Nov 2026: "bütün ülkelerin resmi kaynaklarına baksın"). Key: ATOLYE_V3_EUROPEANA_KEY, else Europeana's public demo key.
+ */
+export async function europeanaCandidates(cacheDir: string, query: string, limit = 8, env: Readonly<Record<string, string | undefined>> = process.env): Promise<CommonsCandidate[]> {
+  const params = new URLSearchParams({ wskey: env.ATOLYE_V3_EUROPEANA_KEY || "api2demo", query, reusability: "open", media: "true", qf: "TYPE:IMAGE", rows: String(limit), profile: "rich" });
+  const json = (await cachedJson(cacheDir, `${EUROPEANA_API}?${params}`)) as { items?: readonly EuropeanaItem[] };
+  const out: CommonsCandidate[] = [];
+  for (const i of json.items ?? []) {
+    const url = i.edmIsShownBy?.[0];
+    const license = europeanaLicense(i.rights?.[0] ?? "");
+    if (!url || !/^https?:\/\//.test(url) || !license) continue;
+    const verdict = judgeLicense(license);
+    if (!verdict.ok) continue;
+    const title = (i.title?.[0] ?? "untitled").replace(/\s+/g, " ").trim();
+    const provider = i.dataProvider?.[0] ?? "Europeana";
+    const year = Number(/-?\d{3,4}/.exec(i.year?.[0] ?? "")?.[0]);
+    const page = i.guid ?? "https://www.europeana.eu";
+    out.push({
+      title: `Europeana: ${title}`.slice(0, 200),
+      source: "europeana",
+      provider,
+      ...(Number.isFinite(year) ? { year } : {}),
+      url,
+      downloadUrl: url,
+      previewUrl: i.edmPreview?.[0] ?? url,
+      description: [title, i.year?.[0], i.dcCreator?.[0], provider, i.dcDescription?.[0]].filter(Boolean).join(" · ").slice(0, 400),
+      width: 0,
+      height: 0,
+      mime: "image/jpeg",
+      descriptionUrl: page,
+      credit: { title, author: `${i.dcCreator?.[0] ?? provider} — ${provider}`, license, licenseUrl: i.rights?.[0] ?? "", sourceUrl: page, attributionRequired: verdict.attributionRequired },
+    });
+  }
+  return out;
+}
+
 export interface PeriodSearch {
   /** English Wikipedia article of the scene's place or subject. */
   readonly wiki?: string;
@@ -311,7 +451,12 @@ export function keepShareAlike(c: CommonsCandidate, use: "screen" | "reference",
  * to period works first. `use` "screen" (the default: the picture is shown in the video) leaves CC BY-SA out unless
  * ATOLYE_V3_BYSA_IZIN=1 — ShareAlike could bind the whole video; "reference" (a costume piece looked at for drawing) keeps it.
  */
-export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, periodEnd?: number, opts: { readonly use?: "screen" | "reference"; readonly env?: Readonly<Record<string, string | undefined>> } = {}): Promise<PeriodCandidates> {
+export async function findPeriodCandidates(
+  cacheDir: string,
+  s: PeriodSearch,
+  periodEnd?: number,
+  opts: { readonly use?: "screen" | "reference"; readonly env?: Readonly<Record<string, string | undefined>>; /** false: only the English article and the searches (tests, offline). */ readonly wide?: boolean } = {},
+): Promise<PeriodCandidates> {
   const report: string[] = [];
   const lists: CommonsCandidate[][] = [];
   const take = async (name: string, run: () => Promise<CommonsCandidate[]>) => {
@@ -325,6 +470,22 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   };
   const commons = (q: string) => searchCommons(cacheDir, q, { minWidth: 900, landscape: false, limit: 12 });
   if (s.wiki) await take(`Wikipedia "${s.wiki}"`, () => wikipediaCandidates(cacheDir, s.wiki!));
+  // The subject everywhere (owner, 21 Nov 2026): its Commons category, the works Wikidata says depict it, its articles in
+  // other languages, and Europe's national collections under its names there — titles in any language; the caption is
+  // put into English when the picture is chosen (BackgroundJudge.englishTitle).
+  const subject = s.wiki && (opts.wide ?? true) ? await wikiSubject(cacheDir, s.wiki).catch((e: Error) => (report.push(`Wikidata: hata (${e.message.slice(0, 80)})`), undefined)) : undefined;
+  const otherNames: string[] = [];
+  if (subject) {
+    const category = s.commonsCategory ?? subject.commonsCategory;
+    if (category) await take(`Commons kategorisi "${category}"`, () => commonsCategoryCandidates(cacheDir, category));
+    await take(`Wikidata eserleri ${subject.qid}`, () => depictionCandidates(cacheDir, subject.qid));
+    for (const lang of OTHER_WIKI_LANGS.filter((l) => subject.titles[l]).slice(0, OTHER_WIKIS)) {
+      const title = subject.titles[lang]!;
+      otherNames.push(title);
+      await take(`Wikipedia ${lang} "${title}"`, () => wikipediaCandidates(cacheDir, title, lang));
+    }
+  }
+  for (const q of [s.query, ...otherNames.slice(0, 2)].filter((q, i, all) => all.findIndex((x) => fold(x) === fold(q)) === i)) await take(`Europeana "${q}"`, () => europeanaCandidates(cacheDir, q, 8, opts.env));
   await take(`The Met "${s.query}"`, () => metCandidates(cacheDir, s.query));
   await take(`Openverse "${s.query}"`, () => openverseCandidates(cacheDir, s.query));
   await take(`Chicago "${s.query}"`, () => aicCandidates(cacheDir, s.query));
@@ -334,7 +495,7 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
     if (!found.length && s.commonsCategory) found = await commons(s.query);
     return found;
   });
-  const extra = [...(s.alternatives ?? []).slice(0, 3)];
+  const extra = [...(s.alternatives ?? []).slice(0, 3), ...otherNames.slice(0, 2)];
   if (s.wiki) {
     try {
       extra.push(...aliasQueries(s.wiki, await wikipediaAliases(cacheDir, s.wiki)));
@@ -342,7 +503,7 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
       report.push(`Wikipedia adları: hata (${(e as Error).message.slice(0, 80)})`);
     }
   }
-  for (const q of [...new Set(extra)].filter((q) => fold(q) !== fold(s.query)).slice(0, 4)) await take(`Commons "${q}"`, () => commons(q));
+  for (const q of [...new Set(extra)].filter((q) => fold(q) !== fold(s.query)).slice(0, 6)) await take(`Commons "${q}"`, () => commons(q));
   const seen = new Set<string>();
   const use = opts.use ?? "screen";
   const shareAlike = lists.flat().filter((c) => !keepShareAlike(c, use, opts.env));
@@ -375,6 +536,7 @@ export function sourceName(c: CommonsCandidate): string {
   if (c.source === "aic") return "Art Institute of Chicago";
   if (c.source === "cleveland") return "Cleveland Museum of Art";
   if (c.source === "openverse") return c.provider ? `${c.provider} via Openverse` : "Openverse";
+  if (c.source === "europeana") return c.provider && c.provider !== "Europeana" ? `${c.provider} via Europeana` : "Europeana";
   // A Wikipedia's own upload, not a Commons file the article shows.
   let host = "";
   try {
@@ -386,13 +548,14 @@ export function sourceName(c: CommonsCandidate): string {
 }
 
 /** Short source plate for a cutaway: title, author/year, where it is from. */
-export function insertCaption(c: CommonsCandidate, language: "tr" | "en"): string {
+export function insertCaption(c: CommonsCandidate, language: "tr" | "en", title?: string): string {
   const where = sourceName(c);
   // A museum's or Openverse's author ends with the institution ("Gentile Bellini — The Metropolitan Museum of Art"): the
   // plate names it as the source, the author keeps the artist alone.
-  const museum = c.source === "met" || c.source === "aic" || c.source === "cleveland" || c.source === "openverse";
+  const museum = c.source === "met" || c.source === "aic" || c.source === "cleveland" || c.source === "openverse" || c.source === "europeana";
   const author = (museum ? c.credit.author.replace(/\s*—\s*[^—]+$/, "") : c.credit.author).replace(/\s+/g, " ").trim();
-  const head = c.credit.title.replace(/^File:/, "").replace(/\.(jpe?g|png)$/i, "").replace(/\s*\(\d{6,}\)\s*$/, "").trim();
+  // `title`: the work's title put into the video's language (a French, Italian or German file name; englishTitle).
+  const head = (title?.trim() || c.credit.title).replace(/^File:/, "").replace(/\.(jpe?g|png)$/i, "").replace(/\s*\(\d{6,}\)\s*$/, "").trim();
   // A title that already names the artist or the year ("Jules-César arrivé au Rubicon, 1854, Musée Picardie, Gustave
   // Boulanger, 1854") does not get them again.
   const named = (s: string) => head.toLowerCase().includes(s.toLowerCase());

@@ -25,7 +25,7 @@ import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, momentText, periodRewritePrompt, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
-import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, englishTitle, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons, searchCommonsVideos } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cutFilmClip, designedCaption, filmCaption, maxDesignedPictures, pictureRequests } from "../src/lib/v3/backgrounds/MomentPictures";
 import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
@@ -307,7 +307,10 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${stem}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
       if (!credit) continue;
       used.add(c.url);
-      return { got: { src: `bg/${path.basename(file)}`, caption: insertCaption(c, dil), credit, secim: v }, note: `döneme ait görsel bulundu (${verdictLine(v)})` };
+      // A title in another language gets its English for the plate (owner, 21 Nov 2026); the credit keeps the original.
+      const en = dil === "en" ? await englishTitle(judge, c.credit.title, c.description) : undefined;
+      if (en) log(`  ${stem}: başlık İngilizceye çevrildi: "${c.credit.title.slice(0, 60)}" → "${en}"`);
+      return { got: { src: `bg/${path.basename(file)}`, caption: insertCaption(c, dil, en), credit, secim: v }, note: `döneme ait görsel bulundu (${verdictLine(v)})` };
     }
     const best = [...pick.verdicts].sort((a, b) => fitScore(b) - fitScore(a))[0];
     return { note: `DÖNEME AİT GÖRSEL BULUNAMADI — ${pick.verdicts.length} aday incelendi${best ? ` (en iyisi: ${verdictLine(best)})` : ""}. İlgisiz görsel KULLANILMADI` };
