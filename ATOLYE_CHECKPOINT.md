@@ -13,7 +13,12 @@ Owner 07:39: "sipariş ver, her aşamada bak, kalite + yönetmen sorumlususun, g
 Hepsi push'lu, canonical'da (feb9b2cf), canlı snapshot DEĞİL (toplu canlıya alma bekliyor; V3 üretici canonical'dan
 okur, izleyici yeniden başlatma gerekmez). Kanıt: smoke-v3-script 62, council 18, episode-director 86, director-council
 12, cirak/commit-lessons/self-improvement PASS; tsc 0; lint 0/0.
-SIRADAKİ: owner OpenAI kredisi yükleyince 051126'yı yeniden kuyruğa al (uret.log/yapim-raporu.json → onceki-deneme-1/,
+Owner kredi yükledi (1 token kontrolü 200) + KESİN EMİR: "boşu boşuna harcama olmasın, kesin çöz" ve "benden onay
+almadan tekrar başlatma". 3076dca2: `fixFieldLimits` (uzun ad/etiket/özet kuralla kısalır, aralık dışı sayı sınıra;
+konuşma satırı/kaynak/arama anahtarı/satır no asla), onarım turu ilerlemezse son tur, düşen uzunluk turu bir kez
+gerekçesiyle tekrar sonra durur, ilk çağrıdan önce taslak+bir yeniden yazım tavana sığmazsa hiç çağrı yok
+(smoke-v3-script C5, 63 PASS). SİPARİŞ OWNER ONAYI BEKLİYOR — onaysız başlatma yok.
+SIRADAKİ (owner "evet" deyince, tek sefer): 051126'yı yeniden kuyruğa al (uret.log/yapim-raporu.json → onceki-deneme-1/,
 durum bekliyor, bitis/ozet/baslangic sil); senaryodan sonra harita önizleme (göl kıyısı, sis, pusu, boğulma öncesi
 gölde birlik yok); tarih kapısı yine düşerse satırı elle düzelt + gardiroptan devam (yeni taslağa bütçe kalmaz).
 Bu videoya şimdiye kadar 1,56 $ gitti (başarısız iki deneme).
