@@ -220,11 +220,16 @@ const DESIGNED_DARK: ReadonlySet<string> = new Set(["kelime", "kapak", "bolum", 
  * the cover, a chapter scroll, the end card, a period picture (archive film comes letterboxed). A slide or a dissolve is
  * judged: the old slide's dark band down the edge was a real fault (Kosovo 1389, Rubicon).
  */
-export function pixelSkip(plan: Pick<V3RenderPlan, "fps" | "shots">): (t: number) => boolean {
+export function pixelSkip(plan: Pick<V3RenderPlan, "fps" | "shots"> & Partial<Pick<V3RenderPlan, "shortsView" | "stage" | "width" | "height">>): (t: number) => boolean {
   return (t) => {
     const f = Math.round(t * plan.fps);
     const shot = plan.shots.find((s) => f >= s.start && f < s.start + s.duration);
     if (!shot) return false;
+    // A native vertical Short shows a 16:9 stage whole across its tall frame (owner, 23 Nov 2026): the dark bands above
+    // and below are the design, the question written in one (the Stalingrad Short's outro was flagged "üst kenarda koyu
+    // şerit, 235 px").
+    const stage = shot.stage ?? plan.stage;
+    if (plan.shortsView === "butun" && stage && plan.width && plan.height && Math.abs(stage.width / stage.height - plan.width / plan.height) > 0.01) return true;
     const local = f - shot.start;
     if ((shot.transitionIn === "beyaz" || shot.transitionIn === "murekkep") && local < transitionFrames(shot, plan.fps)) return true;
     if ((shot.inserts ?? []).some((i) => local >= i.start && local < i.end)) return true;

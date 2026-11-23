@@ -460,6 +460,14 @@ async function main() {
     assert.deepEqual([0.1, 2.1, 2.5, 3.1, 3.5, 3.8].map(skipPx), [false, true, false, true, false, true]);
     const skipBox = layoutSkip(plan);
     assert.deepEqual([3, 30, 63, 95].map(skipBox), [true, false, true, true], "transitions and the period picture");
+    // A native vertical Short (23 Nov 2026): a 16:9 stage shown whole across the tall frame has dark bands by design; its
+    // map on its own tall stage, and the same 16:9 shot outside that layout, are judged.
+    const native = { fps: 30, width: 1080, height: 1920, stage: { width: 1920, height: 1080 }, shortsView: "butun", shots: [
+      { start: 0, duration: 60, transitionIn: "kes", inserts: [], titleCards: [], stage: { width: 607.5, height: 1080 } },
+      { start: 60, duration: 60, transitionIn: "kes", inserts: [], titleCards: [] },
+    ] } as unknown as Parameters<typeof pixelSkip>[0];
+    assert.deepEqual([1, 3].map(pixelSkip(native)), [false, true]);
+    assert.deepEqual([1, 3].map(pixelSkip({ ...native, shortsView: undefined })), [false, false]);
     // Measured, the vision model is asked only what needs an eye.
     assert.deepEqual(frameChecks("sahne", true).map((c) => c.key), ["bozuk"]);
     assert.deepEqual(frameChecks("harita", true), []);

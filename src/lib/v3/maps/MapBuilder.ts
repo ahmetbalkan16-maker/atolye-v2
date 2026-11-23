@@ -112,6 +112,42 @@ export interface MapView {
   readonly height: number;
 }
 
+/**
+ * The narrowest share of the writer's `genislik_km` a tall frame spans across its width (23 Nov 2026, the first native
+ * vertical Short, Stalingrad: the writer's 1200 km across 607.5 px put Kalach and Stalingrad 35 px apart and their names
+ * on each other — everything 3.2 times as crowded as on the 16:9 map). See tallWidthKm.
+ */
+export const TALL_MAP_SPAN = 9 / 16;
+/** A tall map's marks keep this share of the frame's width clear on each side (a badge's ring and name reach ~70 px). */
+const TALL_MARGIN = 0.14;
+
+/**
+ * How wide (km) a tall frame's first view is: wide enough for every mark the writer put on the map (cities, armies and
+ * their roads, badges and their roads, arrows, battles, fires, white flags, unit steps, vehicles' routes) with
+ * TALL_MARGIN on each side, measured from the map's centre — never narrower than TALL_MAP_SPAN of the writer's width
+ * (marks 1.8 times closer than on a 16:9 map, not 3.2) and never wider than it (all a 16:9 map showed stays in). The
+ * Stalingrad preview at a flat 9/16 cut Zhukov's badge and the north pincer at Serafimovich off the left edge.
+ */
+export function tallWidthKm(map: SceneMap): number {
+  const g = map.genislik_km!;
+  const [lon0] = map.merkez!;
+  const kx = Math.max(0.2, Math.cos((map.merkez![1] * Math.PI) / 180));
+  const pts: (readonly [number, number])[] = [
+    ...(map.sehirler ?? []).map((c) => c.konum),
+    ...(map.ordular ?? []).flatMap((a) => [a.konum, ...(a.yol ?? [])]),
+    ...(map.rozetler ?? []).flatMap((r) => [r.konum, ...(r.yol ?? [])]),
+    ...(map.oklar ?? []).flatMap((a) => a.noktalar),
+    ...(map.savaslar ?? []).map((b) => b.konum),
+    ...(map.teslim ?? []).map((t) => t.konum),
+    ...(map.yanginlar ?? []).map((y) => y.konum),
+    ...(map.birlikler ?? []).flatMap((u) => (u.yerler ?? []).flatMap((y): (readonly [number, number])[] => ("cephe" in y ? [...y.cephe] : "kume" in y ? [y.kume] : "kusatma" in y ? [y.kusatma] : []))),
+    ...(map.araclar ?? []).flatMap((v) => (v.yol ?? []) as readonly (readonly [number, number])[]),
+  ];
+  const reach = Math.max(0, ...pts.map((p) => Math.abs(p[0] + 360 * Math.round((lon0 - p[0]) / 360) - lon0) * 111.32 * kx));
+  const needed = (2 * reach) / (1 - 2 * TALL_MARGIN);
+  return Math.min(g, Math.max(g * TALL_MAP_SPAN, needed));
+}
+
 export function mapView(center: readonly [number, number], widthKm: number, width: number, height: number): MapView {
   const [lon0, lat0] = center;
   const kx = Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
@@ -1809,7 +1845,10 @@ export function mapWorld(map: SceneMap, width: number, height: number, tilted = 
   // crosses the Pacific (Hawaii at 202°), not the whole world the other way.
   const lon0 = map.merkez![0];
   const near = (c: readonly [number, number]): [number, number] => [c[0] + 360 * Math.round((lon0 - c[0]) / 360), c[1]];
-  const keys = [{ view: mapView(map.merkez!, map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), k.genislik_km, width, height) }))];
+  // A tall frame (a native vertical Short) spans its first view to the map's marks (tallWidthKm) and each camera stop
+  // the writer zoomed to at TALL_MAP_SPAN of its width; a 16:9 frame the writer's widths as before.
+  const tall = height > width;
+  const keys = [{ view: mapView(map.merkez!, tall ? tallWidthKm(map) : map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), tall ? k.genislik_km * TALL_MAP_SPAN : k.genislik_km, width, height) }))];
   const span = tilted ? TILT_WORLD_SPAN : undefined;
   if (keys.length === 1 && !span) {
     const v = keys[0]!.view;
