@@ -18,6 +18,7 @@ import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
+import { OPENING_CHANGE_S, OPENING_TEMPO_S, openingBeats, openingTempoGaps, pictureChangeFrames } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, MapUnits, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
@@ -3817,6 +3818,59 @@ async function main() {
       globalThis.fetch = prevFetch;
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  await scenario("T7 a Short's opening changes its picture at least every 7 s (owner, 23 Nov 2026): a 12 s single opening shot gets a camera cut, a long video's plan stays as it was", () => {
+    const ep = sampleEpisode();
+    // One stage scene: Mehmed's line, then 10 s of narration over the two of them — no cut after the narrator's wide shot.
+    const scene: EpisodeScene = { ...ep.sahneler[0]!, sahne_duzeni: [{ karakter: "mehmed", x: 0.35 }, { karakter: "halil", x: 0.65 }], satirlar: [ep.sahneler[0]!.satirlar[1]!, { karakter: "anlatici", metin: "Yıl 1452. Genç padişah surları ölçüyor, topçular dökümhanede çalışıyor.", duygu: "notr", kaynak: ["tdv-rumeli"] }] };
+    const one: Episode = { ...ep, sahneler: [scene] };
+    const tl = buildTimeline(one, [[fakeAudio(2), fakeAudio(10)]]);
+    assert.ok(tl.duration > 12 && tl.duration < 14, `a 12–14 s opening shot (${tl.duration.toFixed(1)} s)`);
+    const input = { episode: one, timeline: tl, cast: toRenderCast(one.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" as const }], fps: 30, ...STAGE_SIZE, showCaptions: false, endCard: false };
+    const long = buildRenderPlan(input);
+    const short = buildRenderPlan({ ...input, short: true });
+    // Without the change: one stretch of > 7 s with nothing new on screen.
+    const gaps = openingTempoGaps(long);
+    assert.equal(gaps.length, 1, JSON.stringify(gaps));
+    assert.ok(gaps[0]!.to - gaps[0]!.from > OPENING_CHANGE_S);
+    // With it: every stretch of the first 15 s is ≤ 7 s, by a hard cut (what ffmpeg's scene filter counts), none under 1.5 s.
+    assert.deepEqual(openingTempoGaps(short), []);
+    const cam = short.shots[0]!.camera;
+    const added = cam.filter((k) => k.ease === "cut" && !long.shots[0]!.camera.some((x) => x.frame === k.frame && x.ease === "cut"));
+    assert.equal(added.length, 1, JSON.stringify(cam));
+    const before = cam[cam.indexOf(added[0]!) - 1]!;
+    assert.equal(before.frame, added[0]!.frame - 1, "the picture holds up to the cut");
+    assert.ok(Math.abs(added[0]!.zoom - before.zoom) >= 0.12 || Math.abs(added[0]!.cx - before.cx) >= 0.08, `a visibly different framing: ${JSON.stringify([before, added[0]])}`);
+    assert.deepEqual(shortShots(short), [], "no shot under 1.5 s");
+    const changes = pictureChangeFrames(short.shots[0]!);
+    for (let i = 1; i < changes.length; i++) assert.ok(changes[i]! - changes[i - 1]! >= 45, `${changes}`);
+    // Everything else of the shot is the long video's: only camera keys were added.
+    assert.deepEqual({ ...short.shots[0]!, camera: [] }, { ...long.shots[0]!, camera: [] });
+    assert.deepEqual(cam.filter((k) => k.frame < added[0]!.frame - 1), long.shots[0]!.camera.filter((k) => k.frame < added[0]!.frame - 1), "the camera up to the beat is the long video's");
+    // The close shot holds (a slight push) to the shot's end: the narrator's drift keys do not pull it back in half a second.
+    const after = cam.filter((k) => k.frame > added[0]!.frame);
+    assert.equal(after.length, 1, JSON.stringify(after));
+    assert.ok(after[0]!.frame === short.shots[0]!.duration - 1 && Math.abs(after[0]!.zoom / added[0]!.zoom - 1.03) < 1e-9 && after[0]!.cx === added[0]!.cx);
+    // A longer shot: the close shot lasts OPENING_BEAT_S and cuts back to the camera as it was (wide, close, wide).
+    const tl2 = buildTimeline(one, [[fakeAudio(2), fakeAudio(16)]]);
+    const longer = buildRenderPlan({ ...input, timeline: tl2 });
+    const shorter = buildRenderPlan({ ...input, timeline: tl2, short: true });
+    assert.deepEqual(openingTempoGaps(shorter), []);
+    const cuts2 = shorter.shots[0]!.camera.filter((k) => k.ease === "cut" && !longer.shots[0]!.camera.some((x) => x.frame === k.frame && x.ease === "cut"));
+    assert.equal(cuts2.length, 2, JSON.stringify(shorter.shots[0]!.camera));
+    assert.equal(cuts2[1]!.frame - cuts2[0]!.frame, 180, "6 s close, then back");
+    assert.ok(Math.abs(cuts2[1]!.zoom - cuts2[0]!.zoom) >= 0.12, "back to the wide framing");
+    assert.deepEqual(shorter.shots[0]!.camera.filter((k) => k.frame > cuts2[1]!.frame), longer.shots[0]!.camera.filter((k) => k.frame > cuts2[1]!.frame), "after the cut back the shot's own camera goes on");
+    assert.deepEqual(shortShots(shorter), []);
+    // A long video (no `short`) is laid out exactly as before the rule: the same plan with the flag off.
+    assert.deepEqual(buildRenderPlan({ ...input, short: false }), long);
+    // The placement: 6 s after the last change, or halfway when the next shot would be shorter than 1.5 s; nothing past 15 s.
+    assert.deepEqual(openingBeats([0], 600, 450, 30), [180, 360]);
+    assert.deepEqual(openingBeats([0], 220, 450, 30), [110]);
+    assert.deepEqual(openingBeats([0, 200, 400], 600, 450, 30), [], "changes 6.7 s apart, then 1.7 s up to the 15th second: within the rule");
+    assert.deepEqual(openingBeats([0], 600, 0, 30), [], "a shot after the opening");
+    assert.equal(OPENING_TEMPO_S, 15);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

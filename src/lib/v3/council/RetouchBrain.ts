@@ -4,6 +4,7 @@ import { MIN_FIT_SCORE } from "../backgrounds/BackgroundJudge";
 import { PRODUCTION_STEPS } from "../orders/ProductionOrders";
 import type { DebateEntry } from "./Council";
 import { type DirectorDecision, editLine, editsStep } from "./DirectorCouncil";
+import type { OpeningFix } from "./OpeningRetouch";
 
 /**
  * The retouch brain (Rötuş beyni, owner direction 20 Oct 2026: "hand these fixes to the helper brains, so that they
@@ -31,6 +32,8 @@ export interface RetouchPlan {
   readonly setler: readonly { readonly sahne: string; readonly neden: string }[];
   /** AYAS's fixes from the director's council (DirectorCouncil), applied to the script before the round runs. */
   readonly yonetmen?: DirectorDecision;
+  /** A Short's opening fixes (OpeningRetouch, 23 Nov 2026), applied to the script before the round runs. */
+  readonly acilis?: readonly OpeningFix[];
 }
 
 const stepIndex = (s: RetouchPlan["adim"]) => PRODUCTION_STEPS.indexOf(s);
@@ -44,7 +47,7 @@ export function withDirector(plan: RetouchPlan | undefined, round: number, decis
   if (!step) return plan;
   const sets = decision.duzeltmeler.flatMap((e) => (e.tur === "set" && !plan?.setler.some((s) => s.sahne === e.sahne) ? [{ sahne: e.sahne, neden: `AYAS: ${e.neden || "set değişiyor"}` }] : []));
   const adim = plan && stepIndex(plan.adim) <= stepIndex(step) ? plan.adim : step;
-  return { tur: plan?.tur ?? round + 1, adim, kisiler: plan?.kisiler ?? [], setler: [...(plan?.setler ?? []), ...sets], yonetmen: decision };
+  return { tur: plan?.tur ?? round + 1, adim, kisiler: plan?.kisiler ?? [], setler: [...(plan?.setler ?? []), ...sets], yonetmen: decision, ...(plan?.acilis?.length ? { acilis: plan.acilis } : {}) };
 }
 
 export interface RetouchInput {
@@ -54,6 +57,11 @@ export interface RetouchInput {
   readonly sets: readonly { readonly sahne: string; readonly esikAlti?: boolean; readonly secim?: { readonly puan: number; readonly donem?: number; readonly sorun?: string } }[];
   /** People whose likeness is stuck (LikenessDesigner.likenessPlateau): no round is opened for them. */
   readonly plateau?: ReadonlySet<string>;
+  /**
+   * A Short's opening faults with their fix (ChannelGoals.openingPlanCheck → OpeningRetouch.openingFixes): they open a
+   * round by themselves, from the render step (a camera cue and a sound need no new voice or set).
+   */
+  readonly acilis?: readonly OpeningFix[];
 }
 
 export function planRetouch(input: RetouchInput): RetouchPlan | undefined {
@@ -64,8 +72,9 @@ export function planRetouch(input: RetouchInput): RetouchPlan | undefined {
   const setler = input.sets
     .filter((s) => s.esikAlti)
     .map((s) => ({ sahne: s.sahne, neden: s.secim ? `hakem ${s.secim.puan}/10, dönem ${s.secim.donem ?? "?"}/10${s.secim.sorun ? ` — ${s.secim.sorun}` : ""}` : "hakem puanı yok" }));
-  if (!kisiler.length && !setler.length) return undefined;
-  return { tur: input.round + 1, adim: kisiler.length ? "gardirop" : "gorsel", kisiler, setler };
+  const acilis = input.acilis ?? [];
+  if (!kisiler.length && !setler.length && !acilis.length) return undefined;
+  return { tur: input.round + 1, adim: kisiler.length ? "gardirop" : setler.length ? "gorsel" : "render", kisiler, setler, ...(acilis.length ? { acilis } : {}) };
 }
 
 /**
@@ -297,6 +306,7 @@ export function retouchDebate(plan: RetouchPlan): DebateEntry[] {
     ...plan.kisiler.map((k) => ({ rol: "Sanat yönetmeni", metin: `${k.kisi} portreyle yan yana ${k.puan}/10: ${k.farklar.join("; ") || "fark listesi yok"}` })),
     ...plan.setler.filter((s) => !s.neden.startsWith("AYAS:")).map((s) => ({ rol: "Ortam beyni", metin: `${s.sahne} seti eşiğin altında (${s.neden})` })),
     ...(plan.yonetmen?.duzeltmeler.length ? [{ rol: "AYAS (yönetmen)", metin: plan.yonetmen.duzeltmeler.map(editLine).join(" · ") }] : []),
-    { rol: "Rötuş beyni", metin: `${plan.tur}. rötuş turu: ${[plan.kisiler.length ? `${plan.kisiler.length} kişi farklarla yeniden tasarlanacak` : "", plan.setler.length ? `${plan.setler.length} set yeni tohumlarla yeniden çizilecek` : "", plan.yonetmen?.duzeltmeler.length ? `AYAS'ın ${plan.yonetmen.duzeltmeler.length} düzeltmesi uygulanacak` : ""].filter(Boolean).join(", ")}; üretim "${plan.adim}" adımından bir kez yeniden çalışacak` },
+    ...(plan.acilis?.length ? [{ rol: "Kurgu beyni", metin: `Short açılışında kamera/efekt eksik: ${plan.acilis.map((x) => [x.kamera ? `${x.sahne} kamera (${x.kamera.hedef ?? ""} yakın çekim, ${x.kamera.t.toFixed(1)}. sn)` : "", x.sfx ? `${x.sahne}#${x.sfx.satir} ${x.sfx.sfx} efekti` : ""].filter(Boolean).join(", ")).join(" · ")}` }] : []),
+    { rol: "Rötuş beyni", metin: `${plan.tur}. rötuş turu: ${[plan.kisiler.length ? `${plan.kisiler.length} kişi farklarla yeniden tasarlanacak` : "", plan.setler.length ? `${plan.setler.length} set yeni tohumlarla yeniden çizilecek` : "", plan.yonetmen?.duzeltmeler.length ? `AYAS'ın ${plan.yonetmen.duzeltmeler.length} düzeltmesi uygulanacak` : "", plan.acilis?.length ? `Short açılışına ${plan.acilis.length} sahnede kamera/efekt eklenecek` : ""].filter(Boolean).join(", ")}; üretim "${plan.adim}" adımından bir kez yeniden çalışacak` },
   ];
 }

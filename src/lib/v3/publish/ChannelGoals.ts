@@ -181,6 +181,8 @@ export function openingChecks(goals: ChannelGoals, input: {
  * What the writer planned per scene of a Short (owner, 5 Nov 2026: visual, character move, camera, words, sound
  * effect, music and transition for every scene). Words, the set request and the music mood are required by the episode
  * schema; this counts the optional ones a scene left out. A map scene's moves are its armies, arrows and camera.
+ * With `made`, a camera or an effect the studio itself puts in a scene (the Director's cuts, the Mixer's automatic
+ * sounds — StudioMade) fills that gap too: then it is what the viewer gets, not only what the writer asked for.
  */
 export function scenePlanGaps(scenes: readonly {
   readonly id: string;
@@ -189,11 +191,11 @@ export function scenePlanGaps(scenes: readonly {
   readonly muzik_ruh_hali?: string;
   readonly harita?: { readonly kamera?: readonly unknown[]; readonly ordular?: readonly unknown[]; readonly oklar?: readonly unknown[] };
   readonly satirlar: readonly { readonly jest?: unknown; readonly hareket?: unknown; readonly sfx?: unknown; readonly efekt?: unknown; readonly oyun?: readonly unknown[] }[];
-}[]): { readonly kamera: string[]; readonly efekt: string[]; readonly hareket: string[]; readonly gecis: string[]; readonly muzik: string[] } {
+}[], made: StudioMade = {}): { readonly kamera: string[]; readonly efekt: string[]; readonly hareket: string[]; readonly gecis: string[]; readonly muzik: string[] } {
   const gaps = { kamera: [] as string[], efekt: [] as string[], hareket: [] as string[], gecis: [] as string[], muzik: [] as string[] };
   scenes.forEach((s, i) => {
-    if (!s.kamera?.length && !s.harita?.kamera?.length) gaps.kamera.push(s.id);
-    if (!s.satirlar.some((l) => l.sfx || l.efekt)) gaps.efekt.push(s.id);
+    if (!s.kamera?.length && !s.harita?.kamera?.length && !made.kamera?.has(s.id)) gaps.kamera.push(s.id);
+    if (!s.satirlar.some((l) => l.sfx || l.efekt) && !made.efekt?.has(s.id)) gaps.efekt.push(s.id);
     if (!s.satirlar.some((l) => l.jest || l.hareket || l.oyun?.length) && !s.harita?.ordular?.length && !s.harita?.oklar?.length) gaps.hareket.push(s.id);
     if (i > 0 && !s.gecis) gaps.gecis.push(s.id);
     if (!s.muzik_ruh_hali?.trim()) gaps.muzik.push(s.id);
@@ -205,6 +207,36 @@ export function scenePlanCheck(scenes: Parameters<typeof scenePlanGaps>[0]): QcC
   const g = scenePlanGaps(scenes);
   const parts = ([["kamera", "kamera"], ["efekt", "efekt"], ["hareket", "karakter hareketi"], ["gecis", "geçiş"], ["muzik", "müzik"]] as const).filter(([k]) => g[k].length).map(([k, name]) => `${name}: ${g[k].join(", ")}`);
   return { ok: !parts.length, text: `Sahne planı (${scenes.length} sahne): ${parts.length ? `eksik — ${parts.join("; ")}` : "her sahnede kamera, efekt, hareket, müzik ve geçiş var"}` };
+}
+
+/** Scene ids where the studio itself gives the viewer a camera change or an effect the writer did not ask for. */
+export interface StudioMade { readonly kamera?: ReadonlySet<string>; readonly efekt?: ReadonlySet<string> }
+
+/**
+ * A Short's opening scenes (owner, 23 Nov 2026, "diğer önerileri de kabul ediyorum"): the feed's viewers decide there
+ * (the channel's Shorts lost half of them in the first 4–12 s), so a camera or an effect missing in them is a fault that
+ * sends the production to a retouch round, not a warning like the same gap later (scenePlanCheck).
+ */
+export const OPENING_SCENES = 2;
+
+/** One opening scene's missing pieces (openingPlanCheck), for the retouch brain's fix (OpeningRetouch.openingFixes). */
+export interface OpeningGap { readonly sahne: string; readonly kamera: boolean; readonly efekt: boolean }
+
+/**
+ * The opening's fault row: in the first OPENING_SCENES scenes, a camera (the writer's cue, a map camera, or a visible
+ * camera change the Director made) and an effect (a line's sound or visual effect, or one the Mixer adds by itself).
+ * `eksik` lists what each scene lacks, for the fix.
+ */
+export function openingPlanCheck(scenes: Parameters<typeof scenePlanGaps>[0], made: StudioMade = {}): QcCheck & { readonly eksik: readonly OpeningGap[] } {
+  const opening = scenes.slice(0, OPENING_SCENES);
+  const g = scenePlanGaps(opening, made);
+  const eksik = opening.flatMap((s) => (g.kamera.includes(s.id) || g.efekt.includes(s.id) ? [{ sahne: s.id, kamera: g.kamera.includes(s.id), efekt: g.efekt.includes(s.id) }] : []));
+  const parts = [g.kamera.length ? `kamera: ${g.kamera.join(", ")}` : "", g.efekt.length ? `efekt: ${g.efekt.join(", ")}` : ""].filter(Boolean);
+  return {
+    ok: !eksik.length,
+    eksik,
+    text: `Short açılışı (ilk ${opening.length} sahne) kamera ve efekt: ${parts.length ? `EKSİK — ${parts.join("; ")} (izleyici burada karar verir: rötuş turunda eklenir)` : "var"}`,
+  };
 }
 
 /** The QC.md section that states the channel goal this video will be measured against after publishing (never a pass now). */
