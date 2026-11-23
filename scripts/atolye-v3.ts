@@ -1442,7 +1442,8 @@ async function main() {
         ? row(!!opening && opening.at <= HOOK_S, `Kanca: ${opening ? `${opening.at.toFixed(1)} sn'de ${openingWho} ${opening.kind === "replik" ? "konuşuyor" : "hareket ediyor"}` : "açılış sahnesinde karakter yok"} (Short: ilk ${HOOK_S} sn içinde karakterin repliği ya da hareketi)`)
         : row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
       ...goalRows,
-      row(avgGap >= 1.5 && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef 2–4)`),
+      // A Short's picture moves every 1–3 s (owner, 23 Nov 2026, after Knowledgia's Shorts; its maps pulse every 3 s).
+      row(avgGap >= (shorts ? 0.8 : 1.5) && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef ${shorts ? "1–3" : "2–4"})`),
       row(maxGap <= 6, `En uzun olaysız aralık ${maxGap.toFixed(1)} sn (hedef ≤ 6)`),
       row(emptyStretch <= 6, `Karaktersiz en uzun süre ${emptyStretch.toFixed(1)} sn (hedef ≤ 6; ekranda kimsenin olmadığı arşiv/tablo kareleri, kapak hariç)`),
       row(!briefShots.length, `Kısa çekim (< ${OPENING_HOLD_S} sn): ${briefShots.length ? `${briefShots.length} — ${briefShots.slice(0, 4).map((x) => `${x.at.toFixed(1)}. sn ${x.lengthS.toFixed(2)} sn`).join(", ")}` : "yok"}`, false),

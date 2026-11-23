@@ -1778,11 +1778,20 @@ export function cameraChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE.
   const seen = (f: number) => f > 0 && f < shot.duration && !inserts.some((w) => f > w.start && f < w.end);
   const out = new Set<number>();
   for (const k of shot.camera) if ((k.ease === "cut" || k.ease === "snap") && seen(k.frame)) out.add(k.frame);
-  // On a map the shot camera's push in or pull back (a Short's mapPulse) is a new picture once it has moved this far.
+  // On a map the shot camera's push in or pull back (a Short's mapPulse) is a new picture once it has moved this far
+  // from where the last change left it — measured across keys, since the map's own keys split a glide into short steps
+  // (the Stalingrad Short: no single step reached the ratio and QC said "no camera" on two pulsing maps).
   if (shot.geoMap) {
-    for (let i = 1; i < shot.camera.length; i++) {
-      const a = shot.camera[i - 1]!, b = shot.camera[i]!;
-      if (b.ease !== "cut" && b.ease !== "snap" && Math.max(a.zoom, b.zoom) / Math.max(1e-6, Math.min(a.zoom, b.zoom)) >= MAP_PULSE_SEEN && seen(b.frame)) out.add(b.frame);
+    let ref = shot.camera[0]?.zoom ?? 1;
+    for (const k of shot.camera.slice(1)) {
+      if (k.ease === "cut" || k.ease === "snap") {
+        ref = k.zoom;
+        continue;
+      }
+      if (Math.max(ref, k.zoom) / Math.max(1e-6, Math.min(ref, k.zoom)) >= MAP_PULSE_SEEN) {
+        if (seen(k.frame)) out.add(k.frame);
+        ref = k.zoom;
+      }
     }
   }
   const keys = shot.geoMap?.camera ?? [];
