@@ -18,7 +18,8 @@ import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
-import { OPENING_CHANGE_S, OPENING_TEMPO_S, openingBeats, openingTempoGaps, pictureChangeFrames } from "../src/lib/v3/director/Director";
+import { blankOpening, cameraChangeFrames, MAP_PULSE_S, MAP_PULSE_ZOOM, mapPulse, OPENING_CHANGE_S, OPENING_TEMPO_S, openingBeats, openingTempoGaps, pictureChangeFrames } from "../src/lib/v3/director/Director";
+import { MAP_STAGE_TALL, mapStageFor, outputFrame } from "../src/lib/v3/render/Format";
 import type { Episode, EpisodeScene, MapUnits, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
@@ -1406,16 +1407,18 @@ async function main() {
     assert.ok(shareProblems({ ...episode, sahneler: [sized({ ...map, ara_goruntu_satir: undefined }, 100), sized(stage, 20)] }).some((p) => p.includes('no map scene marks "ara_goruntu_satir"')));
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 100), sized(stage, 20)] }), []);
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }), [], "a short video is told on the stage freely");
-    // A Short (owner, 3 Nov 2026, after DFT Tarih's Shorts): ~70% on the map, the hook and the payoff with the figures.
+    // A Short (owner, 3 Nov 2026, after DFT Tarih's Shorts; ~90% since 23 Nov 2026, after Knowledgia's Shorts): told on
+    // the map, at most one short payoff scene on stage; wholly on the map is no fault.
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }, true).some((p) => p.includes("map scenes take 33% of this Short") && p.includes("SHARES OF A SHORT")));
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true), [], "a hook, the map, a payoff");
-    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 58), sized(stage, 2)] }, true)[0]!.includes("keep the hook and the payoff"));
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true)[0]!.includes("at most one short character scene"), "the old character hook and payoff: 67% map is asked for more");
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 52), sized(stage, 8)] }, true), [], "the map and an 8 s payoff");
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 58), sized(map, 2)] }, true), [], "a Short wholly on the map");
     // Real period pictures in a 3-minute Short (owner, 11 Nov 2026, after the Gallipoli video): every map scene marks
     // its picture line; unmarked ones are asked for, then marked on their first narrator line as a last resort.
     const bare = { ...map, ara_goruntu_satir: undefined };
-    assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 30), sized(bare, 120), sized(stage, 30)] }, true).some((p) => p.includes(`"${map.id}"`) && p.includes("REAL PERIOD PICTURES")));
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 30), sized(map, 120), sized(stage, 30)] }, true), []);
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(bare, 35), sized(stage, 7)] }, true), [], "a minute-long Short has no time for a picture on each map");
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 15), sized(bare, 150), sized(stage, 15)] }, true).some((p) => p.includes(`"${map.id}"`) && p.includes("REAL PERIOD PICTURES")));
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 15), sized(map, 150), sized(stage, 15)] }, true), []);
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(bare, 52), sized(stage, 8)] }, true), [], "a minute-long Short has no time for a picture on each map");
     const quipFirst = { ...bare, satirlar: [{ karakter: speaker, metin: "Ready?", duygu: "mutlu" as const }, narrate("The army marches north.")] };
     const marked = markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 180);
     assert.equal(marked.episode.sahneler[0]!.ara_goruntu_satir, 1, "the narrator's line, never the character's");
@@ -3820,7 +3823,7 @@ async function main() {
     }
   });
 
-  await scenario("T7 a Short's opening changes its picture at least every 7 s (owner, 23 Nov 2026): a 12 s single opening shot gets a camera cut, a long video's plan stays as it was", () => {
+  await scenario("T7 a Short's opening changes its picture at least every 3 s (owner, 23 Nov 2026: 7 s, then 3 s after Knowledgia's Shorts): a 12 s single opening shot gets camera cuts, a long video's plan stays as it was", () => {
     const ep = sampleEpisode();
     // One stage scene: Mehmed's line, then 10 s of narration over the two of them — no cut after the narrator's wide shot.
     const scene: EpisodeScene = { ...ep.sahneler[0]!, sahne_duzeni: [{ karakter: "mehmed", x: 0.35 }, { karakter: "halil", x: 0.65 }], satirlar: [ep.sahneler[0]!.satirlar[1]!, { karakter: "anlatici", metin: "Yıl 1452. Genç padişah surları ölçüyor, topçular dökümhanede çalışıyor.", duygu: "notr", kaynak: ["tdv-rumeli"] }] };
@@ -3830,47 +3833,78 @@ async function main() {
     const input = { episode: one, timeline: tl, cast: toRenderCast(one.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" as const }], fps: 30, ...STAGE_SIZE, showCaptions: false, endCard: false };
     const long = buildRenderPlan(input);
     const short = buildRenderPlan({ ...input, short: true });
-    // Without the change: one stretch of > 7 s with nothing new on screen.
+    assert.equal(OPENING_CHANGE_S, 3);
+    // Without the change: a stretch of > 3 s with nothing new on screen.
     const gaps = openingTempoGaps(long);
-    assert.equal(gaps.length, 1, JSON.stringify(gaps));
-    assert.ok(gaps[0]!.to - gaps[0]!.from > OPENING_CHANGE_S);
-    // With it: every stretch of the first 15 s is ≤ 7 s, by a hard cut (what ffmpeg's scene filter counts), none under 1.5 s.
+    assert.ok(gaps.length >= 1 && gaps.some((g) => g.to - g.from > OPENING_CHANGE_S), JSON.stringify(gaps));
+    // With it: every stretch of the first 15 s is ≤ 3 s, by hard cuts (what ffmpeg's scene filter counts), none under 1.5 s.
     assert.deepEqual(openingTempoGaps(short), []);
     const cam = short.shots[0]!.camera;
     const added = cam.filter((k) => k.ease === "cut" && !long.shots[0]!.camera.some((x) => x.frame === k.frame && x.ease === "cut"));
-    assert.equal(added.length, 1, JSON.stringify(cam));
-    const before = cam[cam.indexOf(added[0]!) - 1]!;
-    assert.equal(before.frame, added[0]!.frame - 1, "the picture holds up to the cut");
-    assert.ok(Math.abs(added[0]!.zoom - before.zoom) >= 0.12 || Math.abs(added[0]!.cx - before.cx) >= 0.08, `a visibly different framing: ${JSON.stringify([before, added[0]])}`);
+    assert.ok(added.length >= 2, JSON.stringify(cam));
+    for (const cut of added) {
+      const before = cam[cam.indexOf(cut) - 1]!;
+      assert.equal(before.frame, cut.frame - 1, "the picture holds up to the cut");
+      assert.ok(Math.abs(cut.zoom - before.zoom) >= 0.12 || Math.abs(cut.cx - before.cx) >= 0.08, `a visibly different framing: ${JSON.stringify([before, cut])}`);
+    }
     assert.deepEqual(shortShots(short), [], "no shot under 1.5 s");
     const changes = pictureChangeFrames(short.shots[0]!);
     for (let i = 1; i < changes.length; i++) assert.ok(changes[i]! - changes[i - 1]! >= 45, `${changes}`);
     // Everything else of the shot is the long video's: only camera keys were added.
     assert.deepEqual({ ...short.shots[0]!, camera: [] }, { ...long.shots[0]!, camera: [] });
-    assert.deepEqual(cam.filter((k) => k.frame < added[0]!.frame - 1), long.shots[0]!.camera.filter((k) => k.frame < added[0]!.frame - 1), "the camera up to the beat is the long video's");
-    // The close shot holds (a slight push) to the shot's end: the narrator's drift keys do not pull it back in half a second.
-    const after = cam.filter((k) => k.frame > added[0]!.frame);
-    assert.equal(after.length, 1, JSON.stringify(after));
-    assert.ok(after[0]!.frame === short.shots[0]!.duration - 1 && Math.abs(after[0]!.zoom / added[0]!.zoom - 1.03) < 1e-9 && after[0]!.cx === added[0]!.cx);
-    // A longer shot: the close shot lasts OPENING_BEAT_S and cuts back to the camera as it was (wide, close, wide).
-    const tl2 = buildTimeline(one, [[fakeAudio(2), fakeAudio(16)]]);
-    const longer = buildRenderPlan({ ...input, timeline: tl2 });
-    const shorter = buildRenderPlan({ ...input, timeline: tl2, short: true });
-    assert.deepEqual(openingTempoGaps(shorter), []);
-    const cuts2 = shorter.shots[0]!.camera.filter((k) => k.ease === "cut" && !longer.shots[0]!.camera.some((x) => x.frame === k.frame && x.ease === "cut"));
-    assert.equal(cuts2.length, 2, JSON.stringify(shorter.shots[0]!.camera));
-    assert.equal(cuts2[1]!.frame - cuts2[0]!.frame, 180, "6 s close, then back");
-    assert.ok(Math.abs(cuts2[1]!.zoom - cuts2[0]!.zoom) >= 0.12, "back to the wide framing");
-    assert.deepEqual(shorter.shots[0]!.camera.filter((k) => k.frame > cuts2[1]!.frame), longer.shots[0]!.camera.filter((k) => k.frame > cuts2[1]!.frame), "after the cut back the shot's own camera goes on");
-    assert.deepEqual(shortShots(shorter), []);
+    assert.deepEqual(cam.filter((k) => k.frame < added[0]!.frame - 1), long.shots[0]!.camera.filter((k) => k.frame < added[0]!.frame - 1), "the camera up to the first beat is the long video's");
     // A long video (no `short`) is laid out exactly as before the rule: the same plan with the flag off.
     assert.deepEqual(buildRenderPlan({ ...input, short: false }), long);
-    // The placement: 6 s after the last change, or halfway when the next shot would be shorter than 1.5 s; nothing past 15 s.
-    assert.deepEqual(openingBeats([0], 600, 450, 30), [180, 360]);
-    assert.deepEqual(openingBeats([0], 220, 450, 30), [110]);
-    assert.deepEqual(openingBeats([0, 200, 400], 600, 450, 30), [], "changes 6.7 s apart, then 1.7 s up to the 15th second: within the rule");
+    // The placement: 2.5 s after the last change, or halfway when the next shot would be shorter than 1.5 s; nothing past 15 s.
+    assert.deepEqual(openingBeats([0], 600, 450, 30), [75, 150, 225, 300, 375]);
+    assert.deepEqual(openingBeats([0], 220, 450, 30), [75, 150]);
+    assert.deepEqual(openingBeats([0, 90, 180, 270, 360, 450], 600, 450, 30), [], "changes 3 s apart up to the 15th second: within the rule");
     assert.deepEqual(openingBeats([0], 600, 0, 30), [], "a shot after the opening");
     assert.equal(OPENING_TEMPO_S, 15);
+  });
+
+  await scenario("T8 a native vertical Short (owner, 23 Nov 2026, after Knowledgia's Shorts: the rotated Shorts played sideways in the feed): maps on their own tall stage, every other shot whole with the question, a cut into the first picture, the map moving every 3 s", () => {
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const map: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", gecis: "murekkep", mekan: "Map: the Balkans", harita: { merkez: [22, 43], genislik_km: 1600, kamera: [{ satir: 1, merkez: [20.45, 44.82], genislik_km: 900 }] }, satirlar: [narrate("Why did Belgrade hold in 1456?"), narrate("At Belgrade the walls wait."), narrate("The siege begins.")] };
+    const stage: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "c1", ortam: { zaman: "gun", manzara: "ordugah", uslup: "osmanli" } };
+    const episode: Episode = { ...ep, soru: "Why did Belgrade hold in 1456?", sahneler: [map, stage] };
+    const square = [[[[15, 38], [30, 38], [30, 48], [15, 48], [15, 38]]]];
+    const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const input = { episode, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" as const }, { src: "", kind: "drawn" as const, drawn: { zaman: "gun" as const, manzara: "ordugah" as const, uslup: "osmanli" as const, tohum: 1 } }], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, ...STAGE_SIZE, showCaptions: false, endCard: false, short: true };
+    const native = buildRenderPlan({ ...input, output: outputFrame(true, "dogal")!, mapStage: mapStageFor(true, "dogal"), question: episode.soru! });
+    assert.deepEqual([native.width, native.height, native.stage], [1080, 1920, { width: 1920, height: 1080 }]);
+    assert.equal(native.shortsView, "butun");
+    assert.equal(native.question, "Why did Belgrade hold in 1456?");
+    const m = native.shots.find((x) => x.id === "m1")!;
+    const c = native.shots.find((x) => x.id === "c1")!;
+    assert.deepEqual(m.stage, MAP_STAGE_TALL, "the map is laid out on its tall stage");
+    assert.equal(c.stage, undefined, "a stage shot keeps the 16:9 stage");
+    // The map's world is the tall stage's: the writer's width across 607.5 px, far more land north and south.
+    const longMap = buildRenderPlan({ ...input, short: false }).shots.find((x) => x.id === 'm1')!.geoMap!;
+    const aspect = (g: NonNullable<typeof m.geoMap>) => g.world!.height / g.world!.width;
+    assert.ok(aspect(m.geoMap!) > 2 * aspect(longMap), JSON.stringify([m.geoMap!.world, longMap.world]));
+    // A Short never comes into its first picture through a transition, even when the writer asked for one.
+    assert.equal(m.transitionIn, "kes");
+    assert.equal(blankOpening(native), undefined);
+    assert.match(blankOpening({ shots: [{ ...m, transitionIn: "murekkep" }] })!, /geçişle \(murekkep\)/);
+    // The map moves in and back every MAP_PULSE_S, each a picture change the opening rule counts.
+    const pulses = cameraChangeFrames(m);
+    assert.ok(pulses.length >= Math.floor(m.duration / (MAP_PULSE_S * 30)) - 1, `${pulses} over ${m.duration} frames`);
+    for (let i = 1; i < pulses.length; i++) assert.ok(pulses[i]! - pulses[i - 1]! <= MAP_PULSE_S * 30 + 1, `${pulses}`);
+    assert.ok(m.camera.every((k) => k.zoom >= 1 && k.zoom <= 2.2));
+    // The old layouts are as they were: the window (no mapStage) has no shot stage and no "butun"; a long video neither.
+    const windowed = buildRenderPlan({ ...input, output: outputFrame(true, "dikey")! });
+    assert.equal(windowed.shortsView, undefined);
+    assert.ok(windowed.shots.every((x) => x.stage === undefined));
+    const longVideo = buildRenderPlan({ ...input, short: false });
+    assert.equal(longVideo.shortsView, undefined);
+    assert.ok(longVideo.shots.every((x) => x.stage === undefined));
+    assert.equal(longVideo.shots.find((x) => x.id === "m1")!.transitionIn, "murekkep", "a long video keeps the writer's transition");
+    // The map pulse on its own: hold, glide in over 0.8 s, hold, glide back.
+    const pulsed = mapPulse([{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5, ease: "smooth" }], 400, 30);
+    const at = (fr: number) => pulsed.find((k) => k.frame === fr)?.zoom;
+    assert.deepEqual([at(0), at(66), at(90), at(156), at(180)], [1, 1, MAP_PULSE_ZOOM, MAP_PULSE_ZOOM, 1]);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

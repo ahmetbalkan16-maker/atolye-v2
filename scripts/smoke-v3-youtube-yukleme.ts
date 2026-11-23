@@ -166,10 +166,12 @@ async function main() {
     const monday = new Date("2026-11-02T12:00:00Z");
     assert.equal(nextSlot("short", [], monday), "2026-11-03T20:00:00.000Z");
     assert.equal(nextSlot("uzun", [], monday), "2026-11-05T20:00:00.000Z");
-    assert.equal(nextSlot("short", ["2026-11-03T20:00:00.000Z"], monday), "2026-11-07T20:00:00.000Z");
+    // Three Shorts a week since 23 Nov 2026: Tuesday, Thursday, Saturday.
+    assert.equal(nextSlot("short", ["2026-11-03T20:00:00.000Z"], monday), "2026-11-05T20:00:00.000Z");
+    assert.equal(nextSlot("short", ["2026-11-03T20:00:00.000Z", "2026-11-05T20:00:00.000Z"], monday), "2026-11-07T20:00:00.000Z");
     assert.equal(nextSlot("uzun", ["2026-11-05T20:00:00.000Z"], monday), "2026-11-12T20:00:00.000Z");
     assert.equal(nextSlot("uzun", [], new Date("2026-07-06T12:00:00Z")), "2026-07-09T19:00:00.000Z", "summer: EDT");
-    assert.equal(nextSlot("short", [], new Date("2026-11-03T19:00:00Z")), "2026-11-07T20:00:00.000Z", "an hour away is too close");
+    assert.equal(nextSlot("short", [], new Date("2026-11-03T19:00:00Z")), "2026-11-05T20:00:00.000Z", "an hour away is too close");
     assert.equal(slotText("2026-11-05T20:00:00.000Z"), "5 Kasım Perşembe 23:00");
   });
 

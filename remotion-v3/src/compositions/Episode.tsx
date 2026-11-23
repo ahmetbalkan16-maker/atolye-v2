@@ -28,7 +28,7 @@ export const Episode: React.FC<EpisodeProps> = ({ plan }) => {
         const overlap = next ? exitFrames(shot, next, plan.fps) : 0;
         return (
           <Sequence key={shot.id} from={shot.start} durationInFrames={shot.duration + overlap} name={shot.id}>
-            <ShotView shot={shot} cast={cast} accessories={accessories} language={plan.language ?? "tr"} {...(plan.stage ? { stage: plan.stage } : {})} {...(next && overlap ? { exit: { kind: next.transitionIn, frames: overlap } } : {})} />
+            <ShotView shot={shot} cast={cast} accessories={accessories} language={plan.language ?? "tr"} {...(plan.stage ? { stage: plan.stage } : {})} {...(plan.shortsView === "butun" ? { whole: true, ...(plan.question ? { question: plan.question } : {}) } : {})} {...(next && overlap ? { exit: { kind: next.transitionIn, frames: overlap } } : {})} />
           </Sequence>
         );
       })}

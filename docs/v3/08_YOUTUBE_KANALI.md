@@ -25,7 +25,7 @@ ilk videolarda **owner onayı olmadan yükleme yok**; Fiverr'de insan döngüde 
    **"videoyu hemen yayınla"** ya da **"yüklemeyi onaylıyorum"**. "Yüklendi mi?" bir durum sorusudur, onay değildir.
    Birden çok video bekliyorsa AYAS hangisi olduğunu sorar, tahmin etmez.
 3. Onay siparişe yazılır; videoyu canlı sunucu değil, sipariş izleyicisi (`scripts/v3/yapim.ts izle`) yükler.
-4. Yayın takvimi: **uzun video Perşembe, Short'lar Salı ve Cumartesi, New York saatiyle 15:00** (Türkiye'de 23:00,
+4. Yayın takvimi: **uzun video Perşembe, Short'lar Salı, Perşembe ve Cumartesi (23 Kas 2026'dan beri haftada 3), New York saatiyle 15:00** (Türkiye'de 23:00,
    ABD yaz saatinde 22:00). Video o saate kadar kanalda **özel** durur (yalnız sen görürsün); YouTube Studio'da son
    bir kez bakabilir, saati değiştirebilir ya da silebilirsin. Bir haftaya fazla video onaylarsan sonraki haftalara
    kayar. "Hemen yayınla" takvimi atlar.

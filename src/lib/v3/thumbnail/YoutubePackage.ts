@@ -1,6 +1,7 @@
 import { readJsonAnswer } from "../council/Council";
 import type { Episode } from "../episode/EpisodeTypes";
-import { choosePackagePair, lintDescriptionLead, type PackageCheck, type PackageIssue } from "./PackageLint";
+import { questionTags, questionTitleFaults, questionVideoTitle } from "../script/QuestionTitle";
+import { choosePackagePair, lintDescriptionLead, lintPair, type PackageCheck, type PackageIssue } from "./PackageLint";
 
 /**
  * The YouTube package of an episode (owner approval 20 Oct 2026; knowledge from the higgsfield-youtube-thumbnail and
@@ -34,25 +35,35 @@ export function chapterScenes(episode: Pick<Episode, "sahneler">): { index: numb
   });
 }
 
+/**
+ * The question a Short's package is built on (Episode.soru, QuestionTitle; owner, 23 Nov 2026, after Knowledgia's Shorts:
+ * every title a question, its tags the question's search variants): only a well-formed one, else undefined.
+ */
+export function packageQuestion(episode: Pick<Episode, "soru">, shorts: boolean): string | undefined {
+  const q = episode.soru?.trim();
+  return shorts && q && !questionTitleFaults(q).some((x) => x === "yok" || x === "soru-degil" || x === "uzunluk") ? q : undefined;
+}
+
 /** A Short has no chapters (YouTube shows none) and "#Shorts" goes into its title and hashtags (owner, 2 Nov 2026). */
 export function packagePrompt(episode: Episode, shorts = false): string {
+  const question = packageQuestion(episode, shorts);
   const marked = chapterScenes(episode);
   const long = marked.length >= 3;
   const chapterWords = (from: number, to: number) => episode.sahneler.slice(from, to).flatMap((s) => s.satirlar.map((l) => l.metin)).join(" ").slice(0, 220);
   const scenes = long
     ? marked.map((m, i) => `${i + 1}. ${m.baslik}: ${chapterWords(m.index, marked[i + 1]?.index ?? episode.sahneler.length)}`).join("\n")
     : episode.sahneler.map((s, i) => `${i + 1}. ${s.mekan}: ${s.satirlar.map((l) => l.metin).join(" ").slice(0, 220)}`).join("\n");
-  return `You publish an animated history ${shorts ? "YouTube Short (watched on a phone, the whole 16:9 picture, up to three minutes)" : "video on YouTube"} for an American audience (in the style of OverSimplified).
-VIDEO: "${episode.baslik}" — ${episode.konu} (${episode.donem})
+  return `You publish an animated history ${shorts ? "YouTube Short (watched upright on a phone, a story told on vertical maps, about a minute)" : "video on YouTube"} for an American audience (in the style of OverSimplified).
+VIDEO: "${episode.baslik}" — ${episode.konu} (${episode.donem})${question ? `\nTHE VIDEO'S QUESTION (its title, read out first): "${question}"` : ""}
 ${long ? "CHAPTERS" : "SCENES"}:
 ${scenes}
 
 Write, in American English:
 - "basliklar": 3 video titles, each under ${shorts ? 50 : 60} characters, the main keyword (the person or event) in the first words, an emotional or curious hook, no clickbait lies.
 - "kapak_basliklari": 3 thumbnail headlines, 2–4 words each, true to the video, opening a question the video answers (e.g. "POINT OF NO RETURN", "HE DID WHAT?"), never repeating the title word for word.
-${long || shorts ? "" : `- "bolumler": ${episode.sahneler.length} chapter titles, one per scene in order, 2–5 words each.\n`}- "etiketler": 12 relevant search tags (people, places, events, era, "history animation").
+${long || shorts ? "" : `- "bolumler": ${episode.sahneler.length} chapter titles, one per scene in order, 2–5 words each.\n`}- "etiketler": 12 relevant search tags${question ? " — at least 5 of them are the question as viewers type it into search, in lower case (other wordings of the same question: \"why did …\", \"how did …\", \"why wasn't …\"), the rest people, places, events, era" : ' (people, places, events, era, "history animation")'}.
 - "hashtagler": 3 hashtags without spaces, starting with "#".
-- "aciklama_giris": the description's first two sentences, under 160 characters together: the first states what happens (the payoff) with the main keyword and ends within 150 characters (YouTube cuts there); never open with "Discover", "Explore", "Join us" or "In this video".
+- "aciklama_giris": the description's first two sentences, under 160 characters together: the first ${question ? "answers the question in short" : "states what happens (the payoff)"} with the main keyword and ends within 150 characters (YouTube cuts there); never open with "Discover", "Explore", "Join us" or "In this video".
 Return ONLY JSON with exactly these keys.`;
 }
 
@@ -71,15 +82,24 @@ export function readPackage(text: string, episode: Episode, shorts = false): You
   const tagged = (t: string) => (shorts && !/#shorts\b/i.test(t) ? `${t} #Shorts` : t);
   // The title and the thumbnail are one unit: the best pair of the model's own options goes first (no model call).
   const pair = choosePackagePair((titles.length ? titles : [episode.baslik.slice(0, 70)]).map(tagged), headlines.length ? headlines : [fallbackHeadline])!;
+  // A Short with a question goes out under the question itself (QuestionTitle), the model's titles kept as options after
+  // it; its tags start with the question's own search wordings.
+  const question = packageQuestion(episode, shorts);
+  const asked = question ? questionVideoTitle(question) : undefined;
+  const basliklar = asked ? [asked, ...pair.basliklar.filter((t) => t !== asked)].slice(0, 3) : pair.basliklar;
+  const askedIssues = asked ? lintPair(asked, pair.kapakBasliklari[0] ?? "") : [];
+  const denetim = asked ? { ...pair.denetim, baslik: asked, sorunlar: askedIssues, ceza: askedIssues.reduce((n, i) => n + (i.agirlik === "HARD" ? 10 : 1), 0), yenidenSiralandi: true } : pair.denetim;
+  const modelTags = list(v.etiketler, 15, 100);
+  const etiketler = question ? [...new Map([...questionTags(question), ...modelTags].map((t) => [t.toLowerCase(), t] as const)).values()].slice(0, 15) : list(v.etiketler, 15, 40);
   return {
-    basliklar: pair.basliklar,
+    basliklar,
     kapakBasliklari: pair.kapakBasliklari,
-    denetim: pair.denetim,
+    denetim,
     bolumler: episode.sahneler.map((s, i) => chapters[i] || s.mekan.slice(0, 40)),
-    etiketler: list(v.etiketler, 15, 40),
+    etiketler,
     hashtagler: shorts ? ["#Shorts", ...hashtags.filter((h) => h.toLowerCase() !== "#shorts")].slice(0, 3) : hashtags,
     aciklamaGiris: clean(v.aciklama_giris, 200),
-    aciklamaDenetim: lintDescriptionLead(clean(v.aciklama_giris, 200), pair.basliklar[0]!),
+    aciklamaDenetim: lintDescriptionLead(clean(v.aciklama_giris, 200), basliklar[0]!),
   };
 }
 

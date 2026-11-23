@@ -64,7 +64,7 @@
       "ad": "History's Most Insane Moments",
       "oncelik": 1,
       "konular": "şaşırtıcı tarihsel olaylar, inanılmaz tesadüfler, komik ve dramatik anlar",
-      "anlatim": "Caesar Short'unun yaklaşımı: karakterin şaşırtıcı repliğiyle açılış, anlatıcı + diyalog, finalde başı tamamlayan espri"
+      "anlatim": "23 Kas 2026'dan beri: soru başlıkla açılış (anlatıcı soruyu dikey haritada okur), harita üstünde anlatım, karakterler rozetlerinden espri yapar, finalde sorunun cevabı"
     },
     {
       "id": "wars-changed",
@@ -80,22 +80,28 @@
     }
   ],
   "shortsYapisi": {
-    "referansSureSn": 45,
-    "not": "Süreler esnektir; hikâyenin doğal akışı bozulmaz. Kanca 0–2, tehlike 2–8 ve ilk hamle 8–12 sn her uzunlukta sabittir (sabit: true; owner 23 Kas 2026, 90 sn Short'ta tehlike 2–16 sn'ye uzuyordu); diğer bölümler sürenin payıyla ölçeklenir.",
+    "referansSureSn": 60,
+    "not": "23 Kas 2026 (owner: \"bütün planları uygula\", Knowledgia incelemesi — 2,2 M abone, 52 Short'un medyan süresi 57 sn, medyan izlenme 1,86 M; hepsi soru başlıklı, sesli soruyla açılan dikey harita): Short ~60 sn, soru 0–3, tehlike 3–8 ve ilk hamle 8–12 sn her uzunlukta sabittir (sabit: true); diğer bölümler sürenin payıyla ölçeklenir. Süreler esnektir; hikâyenin doğal akışı bozulmaz.",
     "bolumler": [
-      { "id": "kanca", "basSn": 0, "bitSn": 2, "sabit": true, "tr": "Kanca: sonuç ya da neredeyse imkânsız somut iddia — bir ad, bir sayı ya da neyin kaybedileceği; espri değil (23 Kas 2026)", "en": "the hook: a character states the outcome or a near-impossible concrete claim — a name, a number or the stake, never a joke" },
-      { "id": "baglam", "basSn": 2, "bitSn": 8, "sabit": true, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when)" },
-      { "id": "ilk_hamle", "basSn": 8, "bitSn": 12, "sabit": true, "tr": "İlk hamle ekranda: hücum, kapanan tuzak, yangın ya da iki karakterin çatışması — önünde geçmiş yok (yürüyüş, yol, asker sayısı, \"X Alpleri aştı\", \"Roma … gönderdi\" ilk çatışmadan sonra, en çok tek satır)", "en": "the first action on screen: a charge, the trap sprung, a fire or two characters clashing — no backstory before it (marches, routes, troop counts, \"X crossed the Alps\", \"Rome sent…\" come after the first clash, in one line at most)" },
-      { "id": "catisma", "basSn": 12, "bitSn": 24, "tr": "Karakter çatışması, mizah ve gerilim", "en": "the clash: characters argue, joke and raise the stakes" },
-      { "id": "doruk", "basSn": 24, "bitSn": 38, "tr": "Hikâyenin en güçlü gelişmesi ve karşılığı", "en": "the strongest turn and its historical payoff (the threat made good)" },
-      { "id": "final", "basSn": 38, "bitSn": 45, "tr": "Akılda kalan final, espri ya da yorum sorusu", "en": "a memorable closing quip that runs back into the first line, or a one-line question to the viewer (never \"subscribe\")" }
+      { "id": "soru", "basSn": 0, "bitSn": 3, "sabit": true, "tr": "Soru: anlatıcı videonun soru başlığını kelimesi kelimesine okur, sorunun bölgesi renkli ve adları yazılı haritada (siyah ekran, selam, espri yok; içinde bir ad ya da sayı)", "en": "the question: the narrator reads the video's question title word for word over the coloured, labelled map of its region (no black screen, no greeting, no joke; a name or a number in it)" },
+      { "id": "baglam", "basSn": 3, "bitSn": 8, "sabit": true, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when)" },
+      { "id": "ilk_hamle", "basSn": 8, "bitSn": 12, "sabit": true, "tr": "İlk hamle haritada: hücum, kapanan tuzak, sınırın değişmesi ya da bir yangın — önünde geçmiş yok (yürüyüş, yol, asker sayısı ilk çatışmadan sonra, en çok tek satır)", "en": "the first action on the map: a charge, the trap sprung, a border changing or a fire — no backstory before it (marches, routes, troop counts come after the first clash, in one line at most)" },
+      { "id": "neden", "basSn": 12, "bitSn": 30, "tr": "Cevabın nedenleri ya da adımları haritada satır satır; hikâyenin en çarpıcı sayısı bir kez büyük (sayaç kartı ya da güç çubuğu); bir karakter rozetinden tek esprili cümle", "en": "the answer's causes or steps on the map, line by line; the story's most striking number shown big once (a counter card or the strength bar); one witty line from a character's badge" },
+      { "id": "doruk", "basSn": 30, "bitSn": 50, "tr": "Dönüm ve sonucu haritada (ya da tek kısa karakter sahnesinde)", "en": "the turn and its outcome on the map (or in the one short character scene)" },
+      { "id": "final", "basSn": 50, "bitSn": 60, "tr": "Sorunun cevabı sorunun kendi sözleriyle tek cümlede (video başa döndüğünde soru yeniden anlam kazanır), ardından ana karakterin kısa abone daveti", "en": "the answer in one sentence in the question's own words (so the question lands again when the Short loops), then the main character's short invitation" }
     ],
     "ilkUcSaniye": {
       "kancaSn": 2,
       "ilkSatirEnFazlaKelime": 8,
       "gorselOlayIlkSn": 3,
       "kartYok": true
-    }
+    },
+    "soruKaliplari": [
+      { "kalip": "How was X formed / How did X grow so fast?", "ornek": "How was Switzerland Formed?", "medyanIzlenme": 4742466 },
+      { "kalip": "Why didn't X happen? (Why wasn't X conquered / colonized?)", "ornek": "Why wasn't Portugal Conquered by Spain?", "medyanIzlenme": 2799436 },
+      { "kalip": "Why did X collapse?", "ornek": "Why did Czechoslovakia Collapse?", "medyanIzlenme": 1619913 },
+      { "kalip": "What happened at / to X? (one event or person)", "ornek": "What did Wilhelm II Think of Hitler?", "medyanIzlenme": 1184613 }
+    ]
   },
   "olcumAnlari": ["48s", "7g", "28g"],
   "pilot": {

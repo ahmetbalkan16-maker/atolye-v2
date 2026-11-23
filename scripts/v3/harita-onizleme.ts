@@ -27,7 +27,7 @@ import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../../src/lib/v3/maps/CloseSite";
 import { periodEndYear } from "../../src/lib/v3/backgrounds/HistorySources";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
-import { rotatedShortArgs, SHORTS_SIZE, shortsLayout } from "../../src/lib/v3/render/Format";
+import { mapStageFor, rotatedShortArgs, SHORTS_SIZE, shortsLayout } from "../../src/lib/v3/render/Format";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -99,7 +99,10 @@ async function main() {
   for (const y of years) historical.set(y, await loadSnapshot(bordersDir, y));
   const base = await loadMapData(paths.mapsDir);
   // The close battle map's own coast and elevation, or the wide map's relief.
-  const ground = await mapGroundFor(paths, scene.harita, pub, base.land, (s) => console.log(s));
+  // --dikey: a Short as its layout makes it — a native vertical Short's map is drawn on its tall stage (Format.mapStageFor).
+  const vertical = process.argv.includes("--dikey");
+  const layout = shortsLayout();
+  const ground = await mapGroundFor(paths, scene.harita, pub, base.land, (s) => console.log(s), mapStageFor(vertical, layout));
   const relief = ground.relief;
   // A produced episode's own voice timings (its folder's ses.json lengths and senkron.json words, one list per scene):
   // lines as long as they were spoken and their words where they fell, so map events on a told word preview where the
@@ -121,7 +124,6 @@ async function main() {
   const audio = real ?? scene.satirlar.map((l): LineAudio => ({ file: "sessiz.wav", duration: estimatedSeconds(l.metin), visemes: [{ t: 0, v: "X" }], words: [], lipSync: "rms" }));
   const timeline = buildTimeline(episode, [audio], { ...DEFAULT_TIMELINE, introS: 0 });
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
-  const vertical = process.argv.includes("--dikey");
   const plan = buildRenderPlan({
     ...(relief ? { reliefs: new Map([[scene.id, relief]]) } : {}),
     ...(ground.coast ? { coasts: new Map([[scene.id, ground.coast]]) } : {}),
@@ -139,13 +141,15 @@ async function main() {
     height: 1080,
     showCaptions: false,
     endCard: false,
-    // The old vertical window only in its own layout; a "dondur" Short is the 16:9 picture turned afterwards (below).
-    ...(vertical && shortsLayout() === "dikey" ? { output: SHORTS_SIZE } : {}),
+    // A native vertical Short (default) on its tall map stage; the old vertical window only in its own layout; a "dondur"
+    // Short is the 16:9 picture turned afterwards (below).
+    ...(vertical && layout !== "dondur" ? { output: SHORTS_SIZE, short: true } : {}),
+    ...(vertical && layout === "dogal" ? { mapStage: mapStageFor(true, layout), ...(full.soru ? { question: full.soru } : {}) } : {}),
     log: (s) => console.log(s.trim()),
   });
   // A "dondur" Short as production makes it: the finished 16:9 file turned a quarter clockwise (Format.rotatedShortArgs).
   const turn = async (file: string, still: boolean) => {
-    if (!vertical || shortsLayout() === "dikey") return;
+    if (!vertical || layout !== "dondur") return;
     const tmp = `${file}.don${path.extname(file)}`;
     await runChecked(paths.ffmpeg, still ? ["-v", "error", "-y", "-i", file, "-vf", "transpose=clock", tmp] : rotatedShortArgs(file, tmp));
     await fs.rename(tmp, file);

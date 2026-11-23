@@ -46,7 +46,7 @@ import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNam
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { canvaCoverFor } from "../src/lib/v3/thumbnail/CanvaClient";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapterScenes, chapters, chapterText, packagePrompt, packageQuestion, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, isMeasureBrain, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
@@ -64,7 +64,7 @@ import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePack
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { ensureEra, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
-import { beats, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, blankOpening, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -77,7 +77,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
-import { isShorts, lengthOk, lengthTopS, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, lengthTopS, mapStageFor, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, openingPlanCheck, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
 import { applyOpeningFixes, openingFixes, openingFixLine, studioMade } from "../src/lib/v3/council/OpeningRetouch";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
@@ -85,6 +85,7 @@ import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
 import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
+import { opensWithQuestion } from "../src/lib/v3/script/QuestionTitle";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
@@ -677,7 +678,7 @@ async function main() {
   // 60 s or less: a vertical YouTube Short (Format) — no cover, no subscribe card, no chapters, "#Shorts" in the title.
   const shorts = isShorts(targetS);
   const layout = shortsLayout();
-  if (shorts) log(`Shorts: ${targetS} sn, dikey ${SHORTS_SIZE.width}×${SHORTS_SIZE.height}, ${layout === "dondur" ? "yatay video bütün olarak çeyrek tur döndürülür" : "yatay sahnede kayan dikey pencere"} (kapak ve abone kartı yok)`);
+  if (shorts) log(`Shorts: ${targetS} sn, dikey ${SHORTS_SIZE.width}×${SHORTS_SIZE.height}, ${layout === "dogal" ? "haritalar dikey çizilir, öteki sahneler bütün ve dik görünür" : layout === "dondur" ? "yatay video bütün olarak çeyrek tur döndürülür" : "yatay sahnede kayan dikey pencere"} (kapak ve abone kartı yok)`);
   // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
   const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
@@ -1142,7 +1143,8 @@ async function main() {
   const coasts = new Map<string, CloseCoast>();
   for (const sc of episode.sahneler) {
     if (!sc.harita?.merkez || !sc.harita.genislik_km || !baseMap) continue;
-    const ground = await mapGroundFor(paths, sc.harita, path.join(work, "public"), baseMap.land, log);
+    // A native vertical Short's map ground is cut for its tall stage (Format.mapStageFor).
+    const ground = await mapGroundFor(paths, sc.harita, path.join(work, "public"), baseMap.land, log, mapStageFor(shorts, layout));
     if (ground.relief) reliefs.set(sc.id, ground.relief);
     if (ground.coast) coasts.set(sc.id, ground.coast);
   }
@@ -1159,10 +1161,11 @@ async function main() {
     pictures: visuals.map((v) => v.gorseller?.map((g) => ({ satir: g.satir, src: g.src, ...(g.caption ? { caption: g.caption } : {}), ...(g.video ? { video: true } : {}) }))),
     language: dil,
     fps,
-    // Every shot is laid out on the 16:9 stage. A Short is made whole like a 16:9 video and only its upload file is
-    // turned (Format.shortsLayout "dondur", owner 12 Nov 2026); the old vertical window only with "dikey".
+    // Every shot is laid out on the 16:9 stage. A native vertical Short (Format.shortsLayout "dogal", owner 23 Nov 2026)
+    // draws its maps on a tall stage and shows every other shot whole, its question above; "dondur" turns the 16:9 upload
+    // file, "dikey" brings the old sliding window back.
     ...STAGE_SIZE,
-    ...(shorts ? { endCard: false, short: true, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}) } : {}),
+    ...(shorts ? { endCard: false, short: true, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}), ...(layout === "dogal" ? { mapStage: mapStageFor(shorts, layout), ...(episode.soru ? { question: episode.soru } : {}) } : {}) } : {}),
     // No burned-in subtitles (owner, 20 Oct 2026; for Shorts too, 2 Nov 2026): speech on screen, altyazi.srt for CC.
     showCaptions: process.argv.includes("--altyazi-gom"),
     log,
@@ -1345,9 +1348,15 @@ async function main() {
     const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";
     // One line per music credit (its three attribution lines joined, as in CREDITS.md), so no cut can split one.
     const musicLines = mix.credits.map((c) => c.replace(/\n/g, " · "));
+    // A question Short's description (owner, 23 Nov 2026, after Knowledgia's Shorts): the question first, the short answer,
+    // the hashtags, and every source and credit below a "Sources & credits" heading (all of them kept, licences need them).
+    const question = shorts ? packageQuestion(episode, shorts) : undefined;
     const describe = (compact: boolean) => {
       const imageLines = imageCredits(compact).lines;
-      return `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${musicLines.join("\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceLine}\n\n${H.note}\n${hashtags}`;
+      const credits = `${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${musicLines.join("\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceLine}\n\n${H.note}\n`;
+      return question
+        ? `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${question}\n${hook}${hashtags.trim() ? `${hashtags.trim()}\n\n` : ""}${en ? "Sources & credits" : "Kaynaklar ve jenerik"}\n\n${credits}`
+        : `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${credits}${hashtags}`;
     };
     // What uploadMeta sends: everything after the title line.
     const bodyOf = (t: string) => t.split("\n").slice(1).join("\n");
@@ -1417,13 +1426,19 @@ async function main() {
             firstSceneCards: (episode.sahneler[0]?.yazi_karti ?? []).map((k) => k.stil),
             ...(followLine ? { followUp: { text: splitDirections(followLine.metin).speech, byCharacter: !followLine.anlatici } } : {}),
             names: episodeNames(episode),
+            // A question Short opens on its question (QuestionTitle; owner 23 Nov 2026), never on an empty frame.
+            ...(episode.soru ? { question: episode.soru } : {}),
+            blankMeasured: true,
+            ...((b) => (b ? { blank: b } : {}))(blankOpening(plan)),
           }),
           scenePlanCheck(episode.sahneler),
           ...(openingPlan ? [openingPlan] : []),
         ].map((c) => row(c.ok, c.text))
       : [];
     const qc = [
-      shorts
+      shorts && episode.soru
+        ? row(opensWithQuestion(episode) && (timeline.lines[0]?.start ?? 99) <= HOOK_S, `Açılış sorusu: ${opensWithQuestion(episode) ? `${timeline.lines[0]!.start.toFixed(1)} sn'de anlatıcı "${episode.soru}" diye soruyor` : `ilk söz başlıktaki soru değil ("${episode.soru}")`} (Short: ilk ${HOOK_S} sn içinde başlıktaki soru)`)
+        : shorts
         ? row(!!opening && opening.at <= HOOK_S, `Kanca: ${opening ? `${opening.at.toFixed(1)} sn'de ${openingWho} ${opening.kind === "replik" ? "konuşuyor" : "hareket ediyor"}` : "açılış sahnesinde karakter yok"} (Short: ilk ${HOOK_S} sn içinde karakterin repliği ya da hareketi)`)
         : row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
       ...goalRows,
@@ -1455,7 +1470,7 @@ async function main() {
       row(!descFit.requiredDropped.length, `YouTube açıklaması: ${Buffer.byteLength(bodyOf(aciklama).trim())} bayt${compactCredits ? ", kamu malı görseller tek satırda sayıldı" : ""}; zorunlu atıf satırları ${descFit.requiredDropped.length ? `— ${descFit.requiredDropped.length} SATIR 5000 BAYTA SIĞMIYOR, yükleme reddedilir` : "hepsi açıklamada"}`, false),
       row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(shortsMinS(target))} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
-      ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%50 / ~%30 / ~%20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
+      ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%85–95 harita, çöp adam ve dönem görseli en çok ~%15–20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
       // Both views over the maps, straight down and the 2.5D tilt (owner, 13 Nov 2026: "bu iki görünüşü de kullansın";
       // "uzun videolarda da olsun": a long video's every chapter). A standing note: no retouch round changes it.
       ((mix) => row(mix.every((m) => m.ikisi), `Harita görünüşleri: ${mix.length ? mix.map((m) => `${m.bolum ? `${m.bolum}: ` : ""}${m.dikey} sn düz, ${m.egik} sn eğik (2.5D)${m.ikisi ? "" : " — TEK GÖRÜNÜŞ"}`).join("; ") : "haritalı sahne yok"}`, false))(mapViewMix(plan)),
@@ -1481,7 +1496,9 @@ async function main() {
     const rms = lipsync.filter((l) => l.lipSync === "rms").length;
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
     if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(shortsMinS(target))})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
-    if (shorts && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
+    if (shorts && episode.soru && !(opensWithQuestion(episode) && (timeline.lines[0]?.start ?? 99) <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short sorusuyla açılmıyor", ayrinti: `ilk söz: "${splitDirections(episode.sahneler[timeline.lines[0]?.sceneIndex ?? 0]?.satirlar[timeline.lines[0]?.lineIndex ?? 0]?.metin ?? "").speech.slice(0, 80)}"`, oneri: `ilk satır anlatıcının "${episode.soru}" sorusu olmalı (QuestionTitle.questionFirst)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
+    if (shorts && blankOpening(plan)) council.find({ beyin: "kalite", onem: "uyari", baslik: "Short boş/siyah kareyle açılıyor", ayrinti: blankOpening(plan)!, oneri: "ilk sahne düz kesmeyle ve resimle açılmalı (Director: Short'un ilk geçişi kes)", tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
+    if (shorts && !episode.soru && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
     if (openingPlan && !openingPlan.ok) council.find({ beyin: "kurgu", onem: "eksik", baslik: "Short açılışında kamera/efekt yok", ayrinti: openingPlan.text, oneri: openingFixList.length ? `rötuş turunda eklenir: ${openingFixList.map(openingFixLine).join(" · ")}` : "haritalı ya da boş sahne: senaryoda harita kamerası ya da satıra sfx ver", tur: "veri", yer: openingPlan.eksik.map((x) => x.sahne).join(", ") });
     for (const x of briefShots) council.find({ beyin: "kalite", onem: "uyari", baslik: `${OPENING_HOLD_S} sn'den kısa çekim`, ayrinti: `${x.shot}: ${x.what}, ${x.lengthS.toFixed(2)} sn`, oneri: "Director.noShortShots / closeInsertTail bu kesmeyi neden bırakmadı bak: kesme birleşmeli ya da ara görüntü sahne sonuna uzamalı", tur: "kod", yer: `${x.at.toFixed(1)}. sn` });
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {

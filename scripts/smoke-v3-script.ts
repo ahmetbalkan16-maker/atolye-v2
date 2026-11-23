@@ -27,6 +27,7 @@ import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
+import { opensWithQuestion, questionFaults, questionFirst, questionProblems, questionTags, questionTitleFaults, questionVideoTitle } from "../src/lib/v3/script/QuestionTitle";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
 import { backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
 import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
@@ -528,12 +529,15 @@ async function main() {
     // river, and a line after the losses.
     for (const needle of ["no other kind shoots", "number of\n    men in \"etiket\"", "\"arazi\"\n    woods, fields and hills", "never the losses on a scene's last line"]) assert.ok(en.includes(needle), `battle drawing rule missing: ${needle}`);
     assert.ok(factCheckPrompt("{}", "en").includes("legend has it"));
-    // A Short (60 s or less, owner 2 Nov 2026): hook in 2 s, one moment, no subscribe line, a loop; longer has none of it.
+    // A Short (owner 2 Nov 2026; question first since 23 Nov 2026, after Knowledgia's Shorts): the question title read out
+    // first over a map, one chain of events, one big number, the answer before the invitation; longer has none of it.
     const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
-    assert.ok(short.includes("YOUTUBE SHORT") && short.includes("within 2 seconds") && short.includes("ONE moment") && short.includes("MAIN CHARACTER") && short.includes("Crowns & Doodles") && short.includes(`about ${wordBudget({ konu: "", donem: "", hedefSureSn: 60, ton: "mizahi", dil: "en" })} spoken words`), short.slice(0, 400));
+    assert.ok(short.includes("\"soru\":\"Why … ?\"") && short.includes("THE QUESTION") && short.includes("word for word") && short.includes("ONE BIG NUMBER") && short.includes("The first scene is a MAP scene"), short.slice(0, 400));
+    assert.ok(!en.includes("\"soru\""), "a long video has no question title");
+    assert.ok(short.includes("YOUTUBE SHORT") && short.includes("ONE clear chain") && short.includes("MAIN CHARACTER") && short.includes("Crowns & Doodles") && short.includes(`about ${wordBudget({ konu: "", donem: "", hedefSureSn: 60, ton: "mizahi", dil: "en" })} spoken words`), short.slice(0, 400));
     assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 45, ton: "mizahi", dil: "tr" }, CATALOG).includes("YOUTUBE SHORTS"));
-    // A Short's shares (owner, 3 Nov 2026, after DFT Tarih's Shorts): ~70% on the map, the hook and the payoff on stage.
-    assert.ok(short.includes("SHARES OF A SHORT") && short.includes("about 70% of the running time on the map") && short.includes("3–5 scenes") && short.includes("as their\n  badges"), short.slice(0, 400));
+    // A Short's shares (owner, 3 Nov 2026, after DFT Tarih's Shorts; ~90% since 23 Nov 2026, after Knowledgia's Shorts).
+    assert.ok(short.includes("SHARES OF A SHORT") && short.includes("about 90% (85–95%) of the") && short.includes("3–5 scenes") && short.includes("as their\n  badges"), short.slice(0, 400));
     assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 45, ton: "mizahi", dil: "tr" }, CATALOG).includes("SHORT PAYLARI"));
     assert.ok(!en.includes("SHARES OF A SHORT"));
     assert.ok(!en.includes("YOUTUBE SHORT"), "a 4-minute video is a normal one");
@@ -553,7 +557,7 @@ async function main() {
     assert.ok(tr.includes("Soğuk açılış") && tr.includes("yeniden kanca"), "tr long rule missing");
     // A Short keeps its own 2-second character hook and ends on the invitation: no long beats, a callback instead.
     const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 170, ton: "mizahi", dil: "en" }, CATALOG);
-    assert.ok(!short.includes("Cold open") && short.includes("calls back to the first line") && short.indexOf("calls back to the first line") < short.indexOf("The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last\n  scene)"));
+    assert.ok(!short.includes("Cold open") && short.includes("answers the question in one sentence") && short.indexOf("answers the question in one sentence") < short.indexOf("The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last\n  scene)"));
     assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 170, ton: "mizahi", dil: "tr" }, CATALOG).includes("Son, başa bağlanır"));
     for (const [line, hit] of [["Hello everyone, and welcome!", "hello"], ["Hi guys! Rome is about to fall.", "hi guys"], ["Welcome back to Crowns & Doodles.", "welcome"], ["In this video we look at Rome.", "in this video"], ["Today, we talk about Rome.", "today, we"], ["Let's talk about Rome.", "let's talk"], ["Before we begin, a word.", "before we begin"], ["Don't forget to subscribe!", "don't forget to subscribe"], ["Herkese merhaba!", "herkese merhaba"], ["Hoş geldiniz.", "hos geldiniz"], ["Bu videoda İstanbul'un fethini anlatacağız.", "bu videoda"], ["“Bugün sizlere bir kaleden bahsedeceğim.", "bugun sizlere"]] as const) assert.equal(throatClearingOpening(line), hit, line);
     for (const line of ["Hey! Who moved my cannon?", "Today, Constantinople fell.", "Welcoming no one, Mehmed rode on.", "Rome had one job.", "Bir kale dört ayda biter mi?", "Hiç kimse beklemiyordu."]) assert.equal(throatClearingOpening(line), undefined, line);
@@ -675,8 +679,10 @@ async function main() {
     // round spent on its errors was not told about the opening, the length rounds never were, and the long line stayed.
     const trasimeneDraft = (fixedHook: boolean) => {
       const x = JSON.parse(validJson());
+      // Since 23 Nov 2026 a Short opens on its question title, read out by the narrator (QuestionTitle).
+      if (fixedHook) x.soru = "Why Did Thirty Thousand Romans Walk Into the Fog?";
       x.sahneler[0].satirlar = [
-        { karakter: "mehmed", metin: fixedHook ? "Otuz bin asker, tek bir gece." : "Who needs fog machines when you have nature?", duygu: "kararli", jest: "isaret_et", kurgu: true },
+        fixedHook ? { karakter: "anlatici", metin: "Why did thirty thousand Romans walk into the fog?", duygu: "notr", kaynak: ["avunduk-2008"] } : { karakter: "mehmed", metin: "Who needs fog machines when you have nature?", duygu: "kararli", jest: "isaret_et", kurgu: true },
         { karakter: "anlatici", metin: follow, duygu: "notr", kaynak: ["avunduk-2008"] },
       ];
       if (!fixedHook) x.sahneler[1].satirlar.unshift({ karakter: "anlatici", metin: backstory, duygu: "notr", kaynak: ["avunduk-2008"] });
@@ -688,17 +694,46 @@ async function main() {
     const logs: string[] = [];
     const out = await writeScript({ brief: { konu: "x", donem: "217 BC", hedefSureSn: 90, ton: "mizahi", dil: "en" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 1, log: (m) => logs.push(m) });
     const repair = openai.calls[1]!.prompt;
-    for (const tag of ["mekan", "HOOK ANCHOR", "HOOK FOLLOW-UP", "BACKSTORY FIRST"]) assert.ok(repair.includes(tag), `repair round lacks ${tag}: ${repair.split("JSON:")[0]}`);
-    assert.ok(repair.indexOf("HOOK ANCHOR") < repair.indexOf("HOOK FOLLOW-UP"), "the hook is asked first");
+    for (const tag of ["mekan", "QUESTION TITLE", "HOOK FOLLOW-UP", "BACKSTORY FIRST"]) assert.ok(repair.includes(tag), `repair round lacks ${tag}: ${repair.split("JSON:")[0]}`);
+    assert.ok(repair.indexOf("QUESTION TITLE") < repair.indexOf("HOOK FOLLOW-UP"), "the question is asked first");
     assert.ok(openai.calls[2]!.prompt.includes("HOOK FOLLOW-UP"), "the length round carries the opening ask");
-    assert.deepEqual(out.episode.sahneler[0]!.satirlar.map((l) => l.metin), ["Otuz bin asker, tek bir gece.", "Hannibal is about to spring history’s biggest ambush.", "The Romans are walking right into it."]);
+    assert.deepEqual(out.episode.sahneler[0]!.satirlar.map((l) => l.metin), ["Why did thirty thousand Romans walk into the fog?", "Hannibal is about to spring history’s biggest ambush.", "The Romans are walking right into it."]);
     assert.ok(logs.some((m) => /s1-kanca: kancadan sonraki anlatıcı satırı 15 kelimeydi — cümle sınırından ikiye bölündü/.test(m)), logs.join("\n"));
     assert.ok(!logs.some((m) => m.includes("AÇILIŞ SORUNU KALDI")), logs.join("\n"));
     // Prompt-only parts (both languages): no joke hook, an anchor, no backstory before the first action.
     const en = writingPrompt({ konu: "Lake Trasimene", donem: "217 BC", hedefSureSn: 90, ton: "mizahi", dil: "en" }, CATALOG);
-    for (const needle of ["The hook is NOT a joke or a quip", "a name, a number or what is at stake", "Thirty thousand Romans walk into my fog.", "NO backstory before the first action", "\"X crossed the Alps\", \"Rome sent…\" — comes AFTER the first clash, in one line at most"]) assert.ok(en.includes(needle), needle);
+    for (const needle of ["No greeting, no joke, nothing before it", "with a name or a number in it", "Why Couldn't 290,000 Germans Escape Stalingrad?", "NO backstory before the first action", "\"X crossed the Alps\", \"Rome sent…\" — comes AFTER the first clash, in one line at most"]) assert.ok(en.includes(needle), needle);
     const tr = writingPrompt({ konu: "Trasimene", donem: "MÖ 217", hedefSureSn: 90, ton: "mizahi", dil: "tr" }, CATALOG);
-    for (const needle of ["Kanca ESPRİ ya da laf sokma DEĞİLDİR", "İlk hamleden önce geçmiş YOK", "ilk çatışmadan SONRA ve en çok tek satırla"]) assert.ok(tr.includes(needle), needle);
+    for (const needle of ["Önünde selam, espri ya da başka cümle yok", "İlk hamleden önce geçmiş YOK", "ilk çatışmadan SONRA ve en çok tek satırla"]) assert.ok(tr.includes(needle), needle);
+  });
+
+  await scenario("I6 a Short's question title (owner, 23 Nov 2026, after Knowledgia's 52 Shorts — every one a question read out first): its shape, its anchor, said first; the narrator's line put in when the rounds left it out", () => {
+    const names = ["Stalingrad", "Paulus"];
+    assert.deepEqual(questionTitleFaults("Why Couldn't 290,000 Germans Escape Stalingrad?", names), []);
+    assert.deepEqual(questionTitleFaults("How Did Paulus Get Trapped?", names), [], "a name the episode knows is the anchor");
+    assert.deepEqual(questionTitleFaults(undefined), ["yok"]);
+    assert.deepEqual(questionTitleFaults("The Trap at Stalingrad", names), ["soru-degil"], "a title that is no question");
+    assert.ok(questionTitleFaults("Why?", names).includes("uzunluk"));
+    // Title Case capitalises every word: only a name the episode knows (or a number, or a stake) anchors it.
+    assert.deepEqual(questionTitleFaults("Why Did The Plan Seem So Clever?", names), ["dayanak-yok"]);
+    const cast = [{ id: "anlatici", ad: "Narrator", gorunur: false }, { id: "paulus", ad: "Friedrich Paulus", gorunur: true }];
+    const map = { kamera: [{ satir: 1 }], tarih: [{ satir: 0, metin: "Nov 1942" }] };
+    const ep = { soru: "Why Couldn't 290,000 Germans Escape Stalingrad?", oyuncu_kadrosu: cast, sahneler: [{ id: "s1", harita: map, satirlar: [{ karakter: "anlatici", metin: "Paulus is stuck in Stalingrad." }, { karakter: "paulus", metin: "We hold." }] }] };
+    assert.deepEqual(questionFaults(ep), ["ilk-satir-degil"]);
+    assert.match(questionProblems(ep)[0]!, /first spoken line does not say "soru"[^]*QUESTION TITLE$/);
+    const fixed = questionFirst(ep);
+    assert.equal(fixed.fix, `s1: açılış sorusu ("Why Couldn't 290,000 Germans Escape Stalingrad?") ilk satır olarak anlatıcıya eklendi`);
+    const s1 = fixed.episode.sahneler[0]! as unknown as { harita: typeof map; satirlar: { karakter: string; metin: string }[] };
+    assert.deepEqual(s1.satirlar.map((l) => l.karakter), ["anlatici", "anlatici", "paulus"]);
+    assert.deepEqual([s1.harita.kamera[0]!.satir, s1.harita.tarih[0]!.satir], [2, 1], "the scene's line cues move one down with the inserted line");
+    assert.ok(opensWithQuestion(fixed.episode) && !questionProblems(fixed.episode).length);
+    assert.equal(questionFirst(fixed.episode).fix, undefined, "said already: nothing more");
+    assert.equal(questionFirst({ ...ep, soru: "The Trap" }).fix, undefined, "a faulty question is never put in the narrator's mouth");
+    assert.equal(questionFirst({ ...ep, oyuncu_kadrosu: [cast[1]!] }).fix, undefined, "no narrator, no line");
+    // Said with other punctuation or case still counts.
+    assert.ok(opensWithQuestion({ ...ep, sahneler: [{ id: "s1", satirlar: [{ karakter: "anlatici", metin: "why couldn't 290,000 germans escape Stalingrad" }] }] }));
+    assert.equal(questionVideoTitle("Why Couldn't 290,000 Germans Escape Stalingrad?"), "Why Couldn't 290,000 Germans Escape Stalingrad? #Shorts");
+    assert.deepEqual(questionTags("Why Did the Soviets Trap the 6th Army?"), ["why did the soviets trap the 6th army", "why did soviets trap 6th army"]);
   });
 
   await scenario("I4 the reference skill's measurable rules (20 Nov 2026): story time only forward after the cold open and one bridge, one idea per line (22 words), a phrase typed OR said — asked in the repair round, in the prompt", async () => {
@@ -821,7 +856,8 @@ async function main() {
     const kept = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: again } }), log: (m) => logs.push(m), maxRepairs: 0 });
     assert.equal(kept.spokenWords, 21 + 5 * 9, "the near-band script with its map kept");
     // Since 19 Nov 2026 the count holds the fixture's line after the hook too ("Hisar 1452 …" opens on a date): 1 → 2 became 2 → 3.
-    assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (2 → 3)")), logs.join("\n"));
+    // Since 23 Nov 2026 also its missing question title (QuestionTitle): 2 → 3 became 3 → 4.
+    assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (3 → 4)")), logs.join("\n"));
     // Far under the band (21 of 83 words; the Constantinople Short, 20 Nov 2026: 162 of 389 after three dropped rounds) length wins.
     const farLogs: string[] = [];
     const far = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 50, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: new FakeProvider([validJson(), JSON.stringify(lostMap), JSON.stringify({ iddialar: [] })]) } }), log: (m) => farLogs.push(m), maxRepairs: 0 });

@@ -18,9 +18,12 @@ export function videoKind(sure: string): VideoKind {
  * The weekly calendar (owner, 2 Nov 2026: "haftada 2 short 1 uzun video", more on the new PC): the long video on
  * Thursday, the Shorts on Tuesday and Saturday, at 15:00 New York time — the American audience's afternoon, 22:00 or
  * 23:00 in Turkey. A slot holds one video; an approved video takes the first free slot of its kind at least two hours
- * away, so three long videos approved in one week go out over three weeks instead of flooding the channel.
+ * away, so three long videos approved in one week go out over three weeks instead of flooding the channel. Since 23 Nov
+ * 2026 three Shorts a week, Tuesday, Thursday and Saturday (owner, "bütün planları uygula": Knowledgia's Shorts drew a
+ * median 2.9 M views in 2024 at about one a week and fell to 0.87 M when they thinned out; a fixed, steady rhythm). The
+ * Thursday Short shares its day with the long video: they go to different shelves (the Shorts feed, the home page).
  */
-export const WEEKLY_SLOTS: Readonly<Record<VideoKind, readonly number[]>> = { uzun: [4], short: [2, 6] };
+export const WEEKLY_SLOTS: Readonly<Record<VideoKind, readonly number[]>> = { uzun: [4], short: [2, 4, 6] };
 export const SLOT_HOUR_NEW_YORK = 15;
 const SLOT_LEAD_MS = 2 * 3_600_000;
 

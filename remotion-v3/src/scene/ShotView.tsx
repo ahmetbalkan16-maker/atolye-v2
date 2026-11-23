@@ -15,6 +15,7 @@ import { mapBubbleSize } from "./mapEffects";
 import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { tiltAt } from "./tilt";
+import { yer } from "./LayoutProbe";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
@@ -45,6 +46,21 @@ function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: Perfor
   );
 }
 
+/**
+ * A native vertical Short's question over a whole 16:9 shot (owner, 23 Nov 2026, after Knowledgia's Shorts: the title is
+ * a question, read out first and kept in view): big white capitals with a dark edge, centred in the empty band above the
+ * stage (the size steps down for a long question; the cover's lettering, TitleCard).
+ */
+export function QuestionBand({ text, width, band }: { text: string; width: number; band: number }) {
+  const chars = text.trim().length;
+  const size = Math.round(Math.min(band * 0.26, chars > 70 ? 62 : chars > 45 ? 74 : 88));
+  return (
+    <div style={{ position: "absolute", left: width * 0.06, width: width * 0.88, top: band * 0.16, height: band * 0.72, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div {...yer("baslik", "soru")} style={{ textAlign: "center", font: `900 ${size}px 'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif`, lineHeight: 1.06, color: "#fffaf0", textTransform: "uppercase", WebkitTextStroke: `${Math.max(3, size / 7)}px #1d1b26`, paintOrder: "stroke fill", textWrap: "balance" }}>{text.trim()}</div>
+    </div>
+  );
+}
+
 /** Stage → screen: x across the frame, depth 0 front .. 1 back. */
 export function stageTransform(x: number, depth: number, width: number, height: number) {
   const k = height / 1080;
@@ -55,13 +71,14 @@ export function stageTransform(x: number, depth: number, width: number, height: 
  * One shot. `exit`: the next shot's transition, for the frames past this shot's end that it stays drawn under the next
  * one (Episode) — pushed aside by a slide, dimmed under an iris.
  */
-export function ShotView({ shot, cast, accessories, language = "tr", stage, exit }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number }; exit?: { kind: V3Transition; frames: number } }) {
+export function ShotView({ shot, cast, accessories, language = "tr", stage, exit, whole = false, question }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number }; exit?: { kind: V3Transition; frames: number }; whole?: boolean; question?: string }) {
   const frame = useCurrentFrame();
   const { fps, width: OW, height: OH } = useVideoConfig();
   // W × H: the stage the shot is laid out on — the frame itself, or for a Short (OW × OH = 1080 × 1920) the 16:9 stage
-  // under a vertical window. Titles, cards and speech are laid out on the frame.
-  const W = stage?.width ?? OW;
-  const H = stage?.height ?? OH;
+  // under a vertical window; a native vertical Short's map its own tall stage (shot.stage). Titles, cards and speech
+  // are laid out on the frame.
+  const W = shot.stage?.width ?? stage?.width ?? OW;
+  const H = shot.stage?.height ?? stage?.height ?? OH;
   const raw = filmCamera(cameraAt(shot.camera, frame, fps), shot.id, frame, shot.duration, fps);
   const cam = clampView(raw.zoom, raw.cx, raw.cy);
   const shake = shakeAt(shot, frame);
@@ -143,9 +160,15 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
   // A Short (owner, 2 Nov 2026): the stage's full height fills the frame, so about a third of its width shows; the
   // window follows whoever speaks (their bubble), gliding to a new speaker, and while no one speaks holds the shot's
   // lead (else the middle of the actors on stage; the middle of the stage on a map).
-  const fit = OH / H;
+  // A native vertical Short (whole, owner 23 Nov 2026) shows the stage whole instead: fitted to the frame and centred —
+  // a tall map fills it, a 16:9 stage lies across it with the Short's question above.
+  const fit = whole ? Math.min(OW / W, OH / H) : OH / H;
   const winW = OW / fit;
-  const vertical = winW < W - 1;
+  const vertical = !whole && winW < W - 1;
+  const offX = whole ? (OW - W * fit) / 2 : 0;
+  const offY = whole ? (OH - H * fit) / 2 : 0;
+  // The stage is scaled and moved only when it is not the frame itself (a long video keeps its exact old layout).
+  const placed = whole && (Math.abs(fit - 1) > 1e-6 || Math.abs(offX) > 0.5 || Math.abs(offY) > 0.5);
   let winX = 0;
   // The window turns to a speaker's words, and to whom the narration acts out (`focus`); on a map with no one on its
   // stage, to what happens on the map as well (and back to it after a badge's words).
@@ -194,13 +217,13 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
   const [seenA, seenB] = [unview({ x: winX, y: 0 }), unview({ x: winX + (vertical ? winW : W), y: H })];
   const mapVisible = { x0: Math.max(0, seenA.x), y0: Math.max(0, seenA.y), x1: Math.min(W, seenB.x), y1: Math.min(H, seenB.y) };
   // Stage → frame (identity unless a Short).
-  const toFrameX = (x: number) => (x - winX) * fit;
+  const toFrameX = (x: number) => (x - winX) * fit + offX;
   const anchorOf = (castId: string): HeadAnchor | undefined => {
     const h = heads.get(castId);
     if (!h) return undefined;
     let neighbourX: number | undefined;
     for (const [id, o] of heads) if (id !== castId && toFrameX(o.x) > 0 && toFrameX(o.x) < OW && (neighbourX === undefined || Math.abs(o.x - h.x) < Math.abs(neighbourX - h.x))) neighbourX = o.x;
-    return { x: toFrameX(h.x), top: h.top * fit, r: h.r * fit, ...(neighbourX !== undefined ? { neighbourX: toFrameX(neighbourX) } : {}) };
+    return { x: toFrameX(h.x), top: h.top * fit + offY, r: h.r * fit, ...(neighbourX !== undefined ? { neighbourX: toFrameX(neighbourX) } : {}) };
   };
   // While a period image is cut in, the set and everything on it is hidden.
   const insertOn = (shot.inserts ?? []).some((i) => frame >= i.start && frame < i.end);
@@ -216,7 +239,8 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
     <AbsoluteFill>
     <AbsoluteFill style={{ backgroundColor: "#15121c", overflow: "hidden", ...(look ? layerStyle(look) : {}) }}>
       {/* The stage; for a Short, scaled to the frame's height and slid to the window. */}
-      <div style={vertical ? { position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translate(${-winX * fit}px, 0px) scale(${fit})`, transformOrigin: "0 0" } : { position: "absolute", inset: 0 }}>
+      {placed && question && offY > OH * 0.12 ? <QuestionBand text={question} width={OW} band={offY} /> : null}
+      <div style={vertical ? { position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translate(${-winX * fit}px, 0px) scale(${fit})`, transformOrigin: "0 0" } : placed ? { position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden", transform: `translate(${offX}px, ${offY}px) scale(${fit})`, transformOrigin: "0 0" } : { position: "absolute", inset: 0 }}>
       <AbsoluteFill>
         <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0" }}>
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>

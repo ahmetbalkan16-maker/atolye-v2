@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { isShorts } from "../render/Format";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookFollowFaults } from "../script/HookFollow";
+import { questionTitleFaults } from "../script/QuestionTitle";
 
 /**
  * Crowns & Doodles' video goals (owner, 5 Nov 2026, from the channel's real YouTube Studio numbers): ONE source,
@@ -38,6 +39,11 @@ export interface ChannelGoals {
     readonly referansSureSn: number;
     readonly bolumler: readonly ShortBeat[];
     readonly ilkUcSaniye: { readonly kancaSn: number; readonly ilkSatirEnFazlaKelime: number; readonly gorselOlayIlkSn: number; readonly kartYok: boolean };
+    /**
+     * The question shapes that drew most on the studied channel (owner, 23 Nov 2026: Knowledgia's 52 Shorts, median
+     * views per shape), for the writer's brief and the topic choice (shortBeatRule, kanal.ts hedefler). Optional.
+     */
+    readonly soruKaliplari?: readonly { readonly kalip: string; readonly ornek: string; readonly medyanIzlenme: number }[];
   };
   readonly olcumAnlari: readonly string[];
   readonly pilot: { readonly ad: string; readonly saatDilimi: string; readonly hedefSureSn: number; readonly videolar: readonly PilotVideo[] };
@@ -119,9 +125,11 @@ export function shortBeats(goals: ChannelGoals, targetS: number): ShortBeat[] {
 /** One writer-prompt bullet: the beat map in seconds for this Short (flexible, never at the cost of the story). */
 export function shortBeatRule(goals: ChannelGoals, targetS: number, lang: "tr" | "en"): string {
   const beats = shortBeats(goals, targetS).map((b) => `${b.basSn}–${b.bitSn} s ${lang === "tr" ? b.tr : b.en}`).join("; ");
+  // The question shapes that drew most (soruKaliplari), best first, for the "soru" (QuestionTitle).
+  const shapes = [...(goals.shortsYapisi.soruKaliplari ?? [])].sort((a, b) => b.medyanIzlenme - a.medyanIzlenme).map((k) => `"${k.kalip}" (e.g. "${k.ornek}")`).join(", ");
   return lang === "tr"
-    ? `- ZAMAN HARİTASI (yaklaşık, hikâyenin akışı önce gelir): ${beats}.\n`
-    : `- BEAT MAP (approximate; the story's own flow comes first): ${beats}.\n`;
+    ? `- ZAMAN HARİTASI (yaklaşık, hikâyenin akışı önce gelir): ${beats}.\n${shapes ? `- SORU KALIPLARI (en çok izlenenden aza; konuya uyanı seç): ${shapes}.\n` : ""}`
+    : `- BEAT MAP (approximate; the story's own flow comes first): ${beats}.\n${shapes ? `- QUESTION SHAPES (most watched first; take the one that fits the topic): ${shapes}.\n` : ""}`;
 }
 
 /* ------------------------------------------------------- production QC --- */
@@ -142,6 +150,15 @@ export function openingChecks(goals: ChannelGoals, input: {
   readonly followUp?: { readonly text: string; readonly byCharacter: boolean };
   /** The episode's proper names (HookFollow.episodeNames), for the hook's anchor row: a name opening the hook counts. */
   readonly names?: readonly string[];
+  /**
+   * The Short's question (Episode.soru; owner, 23 Nov 2026): the first line is then judged as the narrator saying it, and
+   * the anchor row reads the question. Absent: the character hook's rows as before.
+   */
+  readonly question?: string;
+  /** Why the first frames are empty or black (Director.blankOpening); absent when the picture is there from frame 0. */
+  readonly blank?: string;
+  /** Whether the blank row is judged at all (a caller that measured it); absent: no row. */
+  readonly blankMeasured?: boolean;
 }): QcCheck[] {
   const rules = goals.shortsYapisi.ilkUcSaniye;
   const follow = input.followUp;
@@ -162,12 +179,35 @@ export function openingChecks(goals: ChannelGoals, input: {
         text: `Kanca dayanağı: ${anchor ? `${{ sayi: "sayı", ad: "ad", tehlike: "tehlike/sonuç" }[anchor.tur]} ("${anchor.kelime}")` : `YOK — "${input.firstLine.text.slice(0, 60)}" espri ya da laf, somut değil`} (hedef: sonuç ya da neredeyse imkânsız iddia; bir ad, bir sayı ya da neyin kaybedileceği — hikâyeyi bilmeyen izleyiciye espri bir şey söylemez)`,
       }]
     : [];
+  const blankRow: QcCheck[] = input.blankMeasured ? [{ ok: !input.blank, text: `İlk kare: ${input.blank ? `BOŞ — ${input.blank}` : "resim ilk kareden ekranda"} (siyah ya da boş açılış hata sayılır)` }] : [];
+  const question = input.question?.trim();
+  if (question) {
+    // A question Short (QuestionTitle): the narrator reads the title question first, the question carries the anchor.
+    const bare = (t: string) => t.toLowerCase().replace(/[^\p{L}\d]+/gu, " ").trim();
+    const said = !!input.firstLine && bare(input.firstLine.text) === bare(question);
+    const qFaults = questionTitleFaults(question, input.names);
+    return [
+      {
+        ok: said && input.firstLine!.startS <= rules.kancaSn,
+        text: `İlk 3 sn — soru: ${input.firstLine ? `${input.firstLine.startS.toFixed(1)} sn'de ${said ? "anlatıcı başlıktaki soruyu okuyor" : `ilk söz soru DEĞİL ("${input.firstLine.text.slice(0, 60)}")`}` : "konuşma yok"} (hedef: ${rules.kancaSn} sn içinde başlıktaki soru, kelimesi kelimesine)`,
+      },
+      { ok: !qFaults.length, text: `Soru başlık: "${question}"${qFaults.length ? ` — SORUN: ${qFaults.join(", ")}` : ""} (Why/How/What ile başlar, "?" ile biter, 4–14 kelime, içinde ad ya da sayı)` },
+      {
+        ok: input.firstVisualEventS !== undefined && input.firstVisualEventS <= rules.gorselOlayIlkSn,
+        text: `İlk 3 sn — ilk görsel olay ${input.firstVisualEventS === undefined ? "yok" : `${input.firstVisualEventS.toFixed(1)} sn'de`} (hedef ≤ ${rules.gorselOlayIlkSn} sn: hareket, jest ya da kamera)`,
+      },
+      { ok: !rules.kartYok || !fullScreen.length, text: `İlk 3 sn — tam ekran kart: ${fullScreen.length ? `VAR (${fullScreen.join(", ")})` : "yok"} (akışta kaydırtır)` },
+      ...blankRow,
+      ...followRow,
+    ];
+  }
   return [
     {
       ok: !!input.firstLine && input.firstLine.byCharacter && words > 0 && words <= rules.ilkSatirEnFazlaKelime && input.firstLine.startS <= rules.kancaSn,
       text: `İlk 3 sn — ilk söz: ${input.firstLine ? `${input.firstLine.startS.toFixed(1)} sn'de ${input.firstLine.byCharacter ? "karakter" : "ANLATICI"}, ${words} kelime` : "konuşma yok"} (hedef: ${rules.kancaSn} sn içinde karakterin en çok ${rules.ilkSatirEnFazlaKelime} kelimelik repliği)`,
     },
     ...anchorRow,
+    ...blankRow,
     {
       ok: input.firstVisualEventS !== undefined && input.firstVisualEventS <= rules.gorselOlayIlkSn,
       text: `İlk 3 sn — ilk görsel olay ${input.firstVisualEventS === undefined ? "yok" : `${input.firstVisualEventS.toFixed(1)} sn'de`} (hedef ≤ ${rules.gorselOlayIlkSn} sn: hareket, jest ya da kamera)`,

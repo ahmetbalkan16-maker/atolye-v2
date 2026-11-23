@@ -207,9 +207,12 @@ function mapLives(h: SceneMap): boolean {
  * A Short's map share (owner, 3 Nov 2026: "like the long video, ~70% map, the rest the characters' close-ups — look at
  * DFT Tarih's Shorts"). Ten of them, frame by frame: the battle and campaign Shorts 96–100% map (Pelekanon 1329, 1.3M
  * views: 12% wide map, 87% close battle map, people speaking as badges), the question Shorts 33–67% map; the two built on
- * character close-ups (74–85%) were the channel's least watched. Our stick figures carry the hook and the payoff.
+ * character close-ups (74–85%) were the channel's least watched. Raised on 23 Nov 2026 (owner, "bütün planları uygula",
+ * after Knowledgia's Shorts — 52 of them, every one a vertical map from start to end, median 1.86 M views): a Short opens
+ * on its question over the map and is told there; the stick figures speak from their badges and play at most one short
+ * payoff scene. A Short wholly on the map is no fault.
  */
-export const SHORT_MAP_SHARE = { min: 0.55, aim: 0.7, max: 0.85 } as const;
+export const SHORT_MAP_SHARE = { min: 0.8, aim: 0.9, max: 1 } as const;
 
 /** A Short shorter than this is one scene and a punchline: no room for a hook, a map and a payoff, so no shares. */
 export const SHORT_SHARES_FROM_S = 30;
@@ -235,8 +238,7 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
     const share = 1 - onStage / total;
     const pct = Math.round(share * 100);
     const aim = Math.round(SHORT_MAP_SHARE.aim * 100);
-    if (share < SHORT_MAP_SHARE.min) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): after the character hook, tell the moment on the map — a few seconds of the wider map for where it happens, then the close map where it happens (ships sail, tokens close in and fall, arrows strike, line by line; a character's quip from their badge) — and keep one short character scene for the payoff — SHARES OF A SHORT`];
-    if (share > SHORT_MAP_SHARE.max) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): keep the hook and the payoff as character scenes — the stick figures carry about ${100 - aim}% of a Short — SHARES OF A SHORT`];
+    if (share < SHORT_MAP_SHARE.min) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): open on the question over the map and tell it on the map — a few seconds of the wider map for where it happens, then the close map where it happens (ships sail, tokens close in and fall, arrows strike, line by line; a character's quip from their badge) — with at most one short character scene (about 8 s) for the payoff — SHARES OF A SHORT`];
     // Real period pictures (owner, 11 Nov 2026, after the Gallipoli video): an unmarked map scene is never searched.
     const unmarked = total >= SHORT_PICTURES_FROM_S ? map.filter((s) => s.ara_goruntu_satir === undefined) : [];
     if (unmarked.length) return [`map scene${unmarked.length > 1 ? "s" : ""} ${unmarked.map((s) => `"${s.id}"`).join(", ")} mark${unmarked.length > 1 ? "" : "s"} no "ara_goruntu_satir": every map scene of a Short marks one narrator line whose moment gets its real period picture (and its "arka_plan_sorgusu" searches for it) — REAL PERIOD PICTURES`];

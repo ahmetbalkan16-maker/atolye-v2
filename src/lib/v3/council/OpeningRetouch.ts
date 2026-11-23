@@ -27,7 +27,7 @@ export interface OpeningFix {
  */
 export function studioMade(plan: Pick<V3RenderPlan, "shots" | "width" | "stage">, episode: Pick<Episode, "sahneler" | "oyuncu_kadrosu">, timeline: EpisodeTimeline): StudioMade {
   const width = plan.stage?.width ?? plan.width;
-  const kamera = new Set(plan.shots.filter((s) => cameraChangeFrames(s, width).length).map((s) => s.sceneId));
+  const kamera = new Set(plan.shots.filter((s) => cameraChangeFrames(s, s.stage?.width ?? width).length).map((s) => s.sceneId));
   const efekt = new Set<string>();
   // A cue belongs to the scene it is heard in; a whoosh just before a scene's start is that scene's way in.
   for (const c of sfxCues(episode as Episode, timeline)) {

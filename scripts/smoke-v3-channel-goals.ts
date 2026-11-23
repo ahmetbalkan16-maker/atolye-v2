@@ -17,7 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import { recentTalk } from "../src/lib/v3/council/DevBrain";
 import { allLessons } from "../src/lib/v3/council/ExperienceMemory";
-import { AFTER_HOOK_S, analyticsRecord, channelSummary, dueMoments, episodeTimeline, feedCurve, holdAfterHook, isoDurationS, organicViews, retentionDrops, retentionLessons } from "../src/lib/v3/publish/ChannelAnalyticsMap";
+import { AFTER_HOOK_S, analyticsRecord, channelSummary, dueMoments, episodeTimeline, feedCurve, holdAfterHook, isoDurationS, organicViews, retentionDrops, retentionLessons, viewSplit } from "../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   channelGoalNote, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, openingChecks, parseChannelGoals,
   PERFORMANCE_METRICS, performanceLessons, pilotTrends, recordViewRatio, scenePlanCheck, shortBeatRule, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
@@ -165,20 +165,24 @@ async function main() {
     assert.equal(viewTargetSeconds(goals, 600), undefined, "assert.equal(viewTargetSeconds(goals, 600), undefined)");
   });
 
-  await scenario("C the Short beat map: 0–2 s hook stays, the rest keeps its share; the writer gets it for a Short only", () => {
-    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["kanca", 0, 2], ["baglam", 2, 8], ["ilk_hamle", 8, 12], ["catisma", 12, 24], ["doruk", 24, 38], ["final", 38, 45]]);
+  await scenario("C the Short beat map: 0–3 s question stays, the rest keeps its share; the writer gets it for a Short only", () => {
+    // Since 23 Nov 2026 (owner, after Knowledgia's Shorts): a ~60 s reference, the question title read out at 0–3 s.
+    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 7], ["ilk_hamle", 7, 10], ["neden", 10, 23], ["doruk", 23, 38], ["final", 38, 45]]);
+    assert.deepEqual(shortBeats(goals, 60).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 12], ["neden", 12, 30], ["doruk", 30, 50], ["final", 50, 60]], "the 60 s default is the map itself");
     // The 90 s default (owner, 23 Nov 2026): the hook, the stakes and the first action keep their seconds — scaled as
     // before, the stakes ran 2–16 s and the first action came at ~23 s, in the window where half the viewers swipe away.
-    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["kanca", 0, 2], ["baglam", 2, 8], ["ilk_hamle", 8, 12], ["catisma", 12, 40], ["doruk", 40, 73], ["final", 73, 90]]);
-    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [2, 8, 12], `${t} s`);
-    assert.match(shortBeatRule(goals, 90, "en"), /8–12 s the first action on screen[^;]*no backstory before it/);
+    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 12], ["neden", 12, 41], ["doruk", 41, 74], ["final", 74, 90]]);
+    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [3, 8, 12], `${t} s`);
+    assert.match(shortBeatRule(goals, 90, "en"), /8–12 s the first action on the map[^;]*no backstory before it/);
+    // The question shapes that drew most, best first (soruKaliplari).
+    assert.match(shortBeatRule(goals, 60, "en"), /\n- QUESTION SHAPES \(most watched first; take the one that fits the topic\): "How was X formed \/ How did X grow so fast\?" \(e\.g\. "How was Switzerland Formed\?"\), "Why didn't X happen\?/);
     const b30 = shortBeats(goals, 30);
-    assert.deepEqual([b30[0]!.basSn, b30[0]!.bitSn, b30.at(-1)!.bitSn], [0, 2, 30], "assert.deepEqual([b30[0]!.basSn, b30[0]!.bitSn, b30.at(-1)!.bitSn], [0, 2, 30])");
+    assert.deepEqual([b30[0]!.basSn, b30[0]!.bitSn, b30.at(-1)!.bitSn], [0, 3, 30], "a 30 s Short keeps the question's 3 s and ends at 30");
     assert.ok(b30.every((b, i) => b.bitSn > b.basSn && (i === 0 || b.basSn === b30[i - 1]!.bitSn)), "assert.ok(b30.every((b, i) => b.bitSn > b.basSn && (i === 0 || b.basSn === b30[i - 1]!.bitSn)))");
     assert.equal(shortBeats(goals, 60).at(-1)!.bitSn, 60, "assert.equal(shortBeats(goals, 60).at(-1)!.bitSn, 60)");
     const rule = shortBeatRule(goals, 45, "en");
-    assert.match(rule, /^- BEAT MAP \(approximate; the story's own flow comes first\): 0–2 s the hook/);
-    assert.match(rule, /38–45 s a memorable closing quip .*never "subscribe"/);
+    assert.match(rule, /^- BEAT MAP \(approximate; the story's own flow comes first\): 0–3 s the question: the narrator reads the video's question title word for word/);
+    assert.match(rule, /38–45 s the answer in one sentence in the question's own words/);
     const brief = { konu: "Caesar and the pirates", donem: "75 BC", ton: "mizahi" as const, dil: "en" as const };
     assert.ok(writingPrompt({ ...brief, hedefSureSn: 45, kisaZamanHaritasi: rule }, []).includes(rule), "assert.ok(writingPrompt({ ...brief, hedefSureSn: 45, kisaZamanHaritasi: rule }, []).includes(rule))");
     assert.ok(!writingPrompt({ ...brief, hedefSureSn: 45 }, []).includes("BEAT MAP"), "without goals the prompt is as before");
@@ -259,7 +263,7 @@ async function main() {
     assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[4]!.text, /karakter cevap veriyor/);
     // The beat map no longer asks for a "who, where and when" set-up line after the hook.
     assert.doesNotMatch(shortBeatRule(goals, 45, "en"), /set up who, where and when/);
-    assert.match(shortBeatRule(goals, 45, "en"), /2–8 s the stakes in one short line \(at most 12 words/);
+    assert.match(shortBeatRule(goals, 45, "en"), /3–7 s the stakes in one short line \(at most 12 words/);
     const scene = (id: string, extra: Record<string, unknown> = {}) => ({ id, muzik_ruh_hali: "playful", satirlar: [{ jest: "point", sfx: "pop" }], kamera: [{ tip: "zoom", t: 0 }], gecis: "wipe", ...extra });
     assert.equal(scenePlanCheck([scene("s1"), scene("s2")]).ok, true, "assert.equal(scenePlanCheck([scene(\"s1\"), scene(\"s2\")]).ok, true)");
     const gaps = scenePlanCheck([scene("s1"), scene("s2", { kamera: undefined, gecis: undefined, satirlar: [{}] }), scene("s3", { kamera: undefined, satirlar: [{}], harita: { kamera: [{}], ordular: [{}] } })]);
@@ -287,6 +291,19 @@ async function main() {
     // A name opening the hook counts once the episode knows it; a stake word counts as well.
     assert.match(openingChecks(goals, { firstLine: { text: "Hannibal never loses.", byCharacter: true, startS: 0.4 }, firstSceneCards: [], names })[1]!.text, /ad \("Hannibal"\)/);
     assert.match(openingChecks(goals, { firstLine: { text: "Nobody walks out of this fog.", byCharacter: true, startS: 0.4 }, firstSceneCards: [] })[1]!.text, /tehlike\/sonuç \("nobody"\)/);
+    // A question Short (owner, 23 Nov 2026, after Knowledgia's Shorts): the narrator reads the title question first; an
+    // empty or black first frame is a fault.
+    const q = "Why Couldn't 290,000 Germans Escape Stalingrad?";
+    const asked = openingChecks(goals, { firstLine: { text: "Why couldn't 290,000 Germans escape Stalingrad?", byCharacter: false, startS: 0.2 }, firstVisualEventS: 0.5, firstSceneCards: [], question: q, names: ["Stalingrad"], blankMeasured: true });
+    assert.deepEqual(asked.map((c) => c.ok), [true, true, true, true, true], asked.map((c) => c.text).join("\n"));
+    assert.match(asked[0]!.text, /^İlk 3 sn — soru: 0\.2 sn'de anlatıcı başlıktaki soruyu okuyor/);
+    assert.match(asked[4]!.text, /^İlk kare: resim ilk kareden ekranda/);
+    const notAsked = openingChecks(goals, { firstLine: { text: "Paulus is stuck.", byCharacter: false, startS: 0.2 }, firstVisualEventS: 0.5, firstSceneCards: [], question: "The Trap", blankMeasured: true, blank: "ilk çekim geçişle (murekkep) giriyor — ilk kareler boş" });
+    assert.deepEqual(notAsked.map((c) => c.ok), [false, false, true, true, false]);
+    assert.match(notAsked[0]!.text, /ilk söz soru DEĞİL \("Paulus is stuck\."\)/);
+    assert.match(notAsked[1]!.text, /SORUN: soru-degil/);
+    assert.match(notAsked[4]!.text, /^İlk kare: BOŞ — ilk çekim geçişle/);
+    assert.equal(openingChecks(goals, { firstSceneCards: [] }).some((c) => c.text.startsWith("İlk kare")), false, "no blank row unless measured");
   });
 
   await scenario("I records are kept per video, moment and day in the work root; a broken goals file is refused", async () => {
@@ -488,6 +505,16 @@ async function main() {
     assert.equal(again.sonuc!.kayitlar.length, 2);
     assert.equal((await listPerformance(workRoot)).length, 2, "the same files, overwritten");
     assert.equal((await allLessons(workRoot, "kurgu")).filter((l) => l.bolum === `tutma ${VIDEO}`).length, 1);
+  });
+
+  await scenario("S2 views split by who brought them (owner, 23 Nov 2026): the total, the paid ones, the organic rest and its Shorts feed", () => {
+    const base = { metrikler: Object.fromEntries(["goruntuleme", "aktifIzlenme", "izlemeyiSecenler", "kaydiranlar", "ortIzlemeSn", "ortGoruntulenenYuzde", "izlenmeSaat", "aboneKazanimi", "begeni", "yorum", "benzersizIzleyici", "paylasim"].map((k) => [k, null])) as Record<string, number | null> };
+    // Cannae, 23 Nov 2026: 2,659 views, 2,369 of them paid, 263 from the Shorts feed.
+    const cannae = { metrikler: { ...base.metrikler, goruntuleme: 2659 } as never, trafik: { reklam: 2369 / 2659, shortsAkisi: 263 / 2659, diger: 27 / 2659 } };
+    assert.deepEqual(viewSplit(cannae), { toplam: 2659, reklam: 2369, organik: 290, akis: 263 });
+    assert.deepEqual(viewSplit({ ...cannae, trafik: { shortsAkisi: 1 } }), { toplam: 2659, reklam: 0, organik: 2659, akis: 2659 }, "no ads: all organic");
+    assert.equal(viewSplit({ ...cannae, trafik: undefined }), undefined, "no traffic read: no split");
+    assert.equal(viewSplit({ metrikler: base.metrikler as never }), undefined, "no views read: no split");
   });
 
   await scenario("R linking: a renamed upload found in the folder, the take whose plan fits among two of the same file name, the delivered round's plan", async () => {

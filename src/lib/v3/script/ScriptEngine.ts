@@ -6,7 +6,8 @@ import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
 import { splitDirections } from "../tts/StageDirections";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
-import { hookAnchorProblems, hookFollowProblems, splitHookFollow } from "./HookFollow";
+import { hookFollowProblems, splitHookFollow } from "./HookFollow";
+import { questionFirst, questionProblems } from "./QuestionTitle";
 import { backstoryProblems } from "./ShortOpening";
 import { storyRuleProblems } from "./StoryRules";
 import { addToldStrengths } from "./ToldNumbers";
@@ -290,17 +291,19 @@ function scriptFaults(s: { readonly problems: readonly string[]; readonly qualit
 }
 const OPENING_WEIGHT = 10;
 /** The tags of a Short's opening asks (HookFollow, ShortOpening). */
-const OPENING_ASK = /— (HOOK ANCHOR|HOOK FOLLOW-UP|BACKSTORY FIRST)$/;
+const OPENING_ASK = /— (QUESTION TITLE|HOOK ANCHOR|HOOK FOLLOW-UP|BACKSTORY FIRST)$/;
 
 /**
- * A Short's opening asks (owner, 23 Nov 2026): the hook's concrete anchor, the line after the hook, no backstory before
+ * A Short's opening asks (owner, 23 Nov 2026): its question title said first, the line after it, no backstory before
  * the first action. Asked first in every repair round — even beside errors that make the draft unusable, since they read
  * only the lines — and carried into the length rounds, which must not undo them. Until then the Lake Trasimene Short's
  * "HOOK FOLLOW-UP" ask stood among six map asks, was not asked in a round spent on errors, and the length rounds did not
  * carry it: it went out at 15 words.
  */
 export function openingProblems(episode: Episode): string[] {
-  return [...hookAnchorProblems(episode), ...hookFollowProblems(episode), ...backstoryProblems(episode)];
+  // Since 23 Nov 2026 a Short opens on its question (QuestionTitle; owner, after Knowledgia's Shorts): the question's own
+  // anchor replaces the character hook's (HookFollow.hookAnchorProblems, kept for reading older scripts).
+  return [...questionProblems(episode), ...hookFollowProblems(episode), ...backstoryProblems(episode)];
 }
 
 /** openingProblems of a draft that may not be a valid episode yet: a shape the checks cannot read asks nothing. */
@@ -784,8 +787,14 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     }
     written = revised.value as Episode;
   }
-  // The line after the hook still too long: split at its sentence break, no word changed (HookFollow.splitHookFollow).
+  // A good question the rounds left unsaid goes in as the narrator's first line (QuestionTitle.questionFirst); then the
+  // line after the hook, still too long, is split at its sentence break, no word changed (HookFollow.splitHookFollow).
   if (shortShares) {
+    const asked = questionFirst(written);
+    if (asked.fix && validateEpisode(asked.episode).ok) {
+      written = asked.episode;
+      input.log?.(`  senaryo: ${asked.fix}`);
+    }
     const split = splitHookFollow(written);
     if (split.fix && validateEpisode(split.episode).ok) {
       written = split.episode;

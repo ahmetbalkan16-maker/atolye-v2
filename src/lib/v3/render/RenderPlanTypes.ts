@@ -624,6 +624,11 @@ export interface V3Shot {
   readonly strips?: readonly V3Strip[];
   /** A drawn geographic map instead of the background image. */
   readonly geoMap?: V3GeoMap;
+  /**
+   * The stage this shot is laid out on when it is not the plan's: a native vertical Short's map scene on its tall stage
+   * (Format.MAP_STAGE_TALL; owner, 23 Nov 2026). ShotView shows it whole, fitted to the frame.
+   */
+  readonly stage?: { readonly width: number; readonly height: number };
 }
 
 export interface V3CaptionWord {
@@ -653,6 +658,13 @@ export interface V3RenderPlan {
    * 1920×1080 stage that follows who speaks; titles, cards and speech are laid out on the frame (Format, ShotView).
    */
   readonly stage?: { readonly width: number; readonly height: number };
+  /**
+   * "butun" — a native vertical Short (Format.shortsLayout "dogal", owner 23 Nov 2026): every shot is shown whole, fitted
+   * to the frame and centred (a map on its own tall stage fills it; a 16:9 stage lies across it), never a sliding window.
+   */
+  readonly shortsView?: "butun";
+  /** A native vertical Short's question (its title, spoken first), written in the empty band over a whole 16:9 shot. */
+  readonly question?: string;
   readonly durationInFrames: number;
   readonly cast: readonly V3CastMember[];
   readonly accessories: readonly V3Accessory[];

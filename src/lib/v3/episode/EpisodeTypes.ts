@@ -621,6 +621,12 @@ export interface EpisodeSeries {
 export interface Episode {
   readonly id: string;
   readonly baslik: string;
+  /**
+   * A Short's question (owner, 23 Nov 2026, after Knowledgia's Shorts — all 52 titles a Why/How/What question read out
+   * word for word at 0 s): the YouTube title and the first spoken line, carrying a concrete anchor (a name, a number).
+   * Absent for a long video and for Shorts written before it.
+   */
+  readonly soru?: string;
   readonly dizi?: EpisodeSeries;
   readonly konu: string;
   readonly donem: string;

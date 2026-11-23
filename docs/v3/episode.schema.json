@@ -230,6 +230,7 @@
   "properties": {
     "id": { "$ref": "#/$defs/slug" },
     "baslik": { "type": "string", "maxLength": 120 },
+    "soru": { "type": "string", "maxLength": 100, "description": "A Short's question title, read out first (QuestionTitle; 23 Nov 2026)" },
     "konu": { "type": "string", "maxLength": 300 },
     "donem": { "type": "string", "maxLength": 120 },
     "hedef_sure_sn": { "type": "number", "minimum": 20, "maximum": 1800 },

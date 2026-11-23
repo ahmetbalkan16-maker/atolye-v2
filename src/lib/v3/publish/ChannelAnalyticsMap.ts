@@ -138,6 +138,20 @@ export function organicViews(rows: readonly ReportRow[]): { readonly goruntuleme
   return { goruntuleme: views, ortIzlemeSn: timed ? Math.round((seconds / timed) * 10) / 10 : null, reklamPayi: r4(ads / (ads + views)) };
 }
 
+/**
+ * A video's views split by who brought them (owner, 23 Nov 2026, "bütün planları uygula": "never compare a Short's views
+ * without splitting the ads" — Cannae's 2,659 views were 2,369 paid and only 263 from the Shorts feed): the total, the
+ * paid ones (ADVERTISING), the rest, and those of the rest that came from the Shorts feed — the organic reach a Short is
+ * judged by. From the record's total and its traffic shares; undefined without either.
+ */
+export function viewSplit(record: Pick<VideoPerformanceRecord, "metrikler" | "trafik">): { readonly toplam: number; readonly reklam: number; readonly organik: number; readonly akis: number } | undefined {
+  const total = record.metrikler.goruntuleme;
+  if (total === null || !(total > 0) || !record.trafik) return undefined;
+  const paid = Math.round(total * (record.trafik[TRAFFIC_KEYS[AD_TRAFFIC]!] ?? 0));
+  const feed = Math.round(total * (record.trafik[TRAFFIC_KEYS.SHORTS!] ?? 0));
+  return { toplam: total, reklam: paid, organik: total - paid, akis: feed };
+}
+
 /** The curve the feed's viewers drew: the organic one when it was read (a mostly paid video), else the whole one. */
 export function feedCurve(record: Pick<VideoPerformanceRecord, "tutma" | "tutmaOrganik">): { readonly curve: readonly RetentionPoint[]; readonly organik: boolean } {
   return record.tutmaOrganik?.length ? { curve: record.tutmaOrganik, organik: true } : { curve: record.tutma ?? [], organik: false };

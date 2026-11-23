@@ -360,8 +360,11 @@ const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1
  * `px`: drawn pixels per 1080p screen pixel (MapView keeps names and marks at a constant screen size). `tall`: how much
  * more of the map an upright name takes up and down (TILT_BADGE_TALL on a tilted map, whose ground is foreshortened under
  * it; Gallipoli s4, 14 Nov 2026: "OTTOMAN EMPIRE", clear of Gallipoli's name on the flat map, sat on it once tilted).
+ * `frame`: the stage the map is seen on, given for a native vertical Short's tall map (23 Nov 2026: the Stalingrad
+ * preview's "NORTH PINCER", pushed 340 px aside by the badges and tanks round the arrow, stood outside the 607-px-wide
+ * view and was cut at the frame's edge): an arrow's name then also keeps inside the camera's view when the arrow shows.
  */
-export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number, inside?: readonly (readonly (readonly [number, number])[] | undefined)[], tall = 1): V3GeoMap {
+export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number, inside?: readonly (readonly (readonly [number, number])[] | undefined)[], tall = 1, frame?: { readonly width: number; readonly height: number }): V3GeoMap {
   const cityMarks: Rect[] = m.cities.map((c) => ({ x0: c.x - 10 * px, y0: c.y - 16 * px, x1: c.x + (16 + c.label.length * 13) * px, y1: c.y + 16 * px }));
   // An arrow's name goes above the first point along it (middle first) where it covers no city ("CRUSADERS" sat on
   // "Belgrade" in the Nicopolis map trial).
@@ -373,17 +376,25 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
   const badgeTalk: Rect[] = (m.badges ?? []).flatMap((b) => b.path.slice(0, 1).concat(b.path.length > 1 ? [b.path[b.path.length - 1]!] : []).map((p) => ({ x0: p.x - 200 * px, y0: p.y - 240 * px, x1: p.x + 200 * px, y1: p.y + 6 * px })));
   const arrows = m.arrows.map((ar) => {
     if (!ar.label || ar.points.length < 2) return ar;
+    // The camera's view when the arrow shows (the last key begun by then), on a stage given as `frame` (a tall map): the
+    // name is sized for that view's zoom — not the first, widest one's — and a name cut off the frame is worse than one
+    // over a badge or tokens.
+    const key = frame && m.camera?.length ? ([...m.camera].reverse().find((k) => k.frame <= ar.start) ?? m.camera[0]!) : undefined;
+    const view = key && frame ? { x0: key.x - frame.width / 2 / key.zoom, x1: key.x + frame.width / 2 / key.zoom, y0: key.y - frame.height / 2 / key.zoom, y1: key.y + frame.height / 2 / key.zoom } : undefined;
+    const apx = key && frame ? frame.height / 1080 / key.zoom : px;
+    const cities = apx === px ? cityMarks : m.cities.map((c) => ({ x0: c.x - 10 * apx, y0: c.y - 16 * apx, x1: c.x + (16 + c.label.length * 13) * apx, y1: c.y + 16 * apx }));
+    const talks = apx === px ? badgeTalk : (m.badges ?? []).flatMap((b) => b.path.slice(0, 1).concat(b.path.length > 1 ? [b.path[b.path.length - 1]!] : []).map((p) => ({ x0: p.x - 200 * apx, y0: p.y - 240 * apx, x1: p.x + 200 * apx, y1: p.y + 6 * apx })));
     const box = nameBox(ar.label, ar.plan ? 28 : 32, relief);
-    const boxAt = (s: XY): Rect => ({ x0: s.x - (box.w / 2) * px, y0: s.y - (box.h / 2) * px, x1: s.x + (box.w / 2) * px, y1: s.y + (box.h / 2) * px });
+    const boxAt = (s: XY): Rect => ({ x0: s.x - (box.w / 2) * apx, y0: s.y - (box.h / 2) * apx, x1: s.x + (box.w / 2) * apx, y1: s.y + (box.h / 2) * apx });
     const tokens: Rect[] = (m.units ?? []).flatMap((u) =>
       u.steps
         .filter((st, i) => (u.steps[i + 1]?.start ?? Infinity) > ar.start && (ar.end === undefined || st.start < ar.end))
-        .flatMap((st) => st.points.map((p) => ({ x0: p.x - 34 * px, y0: p.y - 34 * px, x1: p.x + 34 * px, y1: p.y + 34 * px }))),
+        .flatMap((st) => st.points.map((p) => ({ x0: p.x - 34 * apx, y0: p.y - 34 * apx, x1: p.x + 34 * apx, y1: p.y + 34 * apx }))),
     );
     const fractions = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
     // Above the line first, then below it; then to either side of it, further out each time (a north–south arrow's
     // "above" lies on the line itself), then past its two ends.
-    const spots: XY[] = [-40, 40].flatMap((dy) => fractions.map((f) => ({ x: alongPoints(ar.points, f).x, y: alongPoints(ar.points, f).y + dy * px })));
+    const spots: XY[] = [-40, 40].flatMap((dy) => fractions.map((f) => ({ x: alongPoints(ar.points, f).x, y: alongPoints(ar.points, f).y + dy * apx })));
     for (const gap of [24, 120, 220, 320])
       for (const f of [0.5, 0.3, 0.7])
         for (const side of [1, -1]) {
@@ -392,7 +403,7 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
           const n = { x: (-(b.y - a.y) / len) * side, y: ((b.x - a.x) / len) * side };
           const ext = (Math.abs(n.x) * box.w) / 2 + (Math.abs(n.y) * box.h) / 2 + gap;
           const p = alongPoints(ar.points, f);
-          spots.push({ x: p.x + n.x * ext * px, y: p.y + n.y * ext * px });
+          spots.push({ x: p.x + n.x * ext * apx, y: p.y + n.y * ext * apx });
         }
     for (const [f, dir] of [[1, 1], [0, -1]] as const) {
       const [a, b] = [alongPoints(ar.points, f === 1 ? 0.95 : 0), alongPoints(ar.points, f === 1 ? 1 : 0.05)];
@@ -400,13 +411,14 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
       const t = { x: ((b.x - a.x) / len) * dir, y: ((b.y - a.y) / len) * dir };
       const ext = (Math.abs(t.x) * box.w) / 2 + (Math.abs(t.y) * box.h) / 2 + 40;
       const p = alongPoints(ar.points, f);
-      spots.push({ x: p.x + t.x * ext * px, y: p.y + t.y * ext * px });
+      spots.push({ x: p.x + t.x * ext * apx, y: p.y + t.y * ext * apx });
     }
     const hits = (r: Rect, marks: readonly Rect[]) => marks.reduce((a, q) => a + (overlaps(q, r) ? 1 : 0), 0);
     const outside = (r: Rect) => r.x0 < 0 || r.y0 < 0 || r.x1 > width || r.y1 > height;
+    const offView = (r: Rect) => !!view && (r.x0 < view.x0 || r.x1 > view.x1 || r.y0 < view.y0 || r.y1 > view.y1);
     const cost = (s: XY, i: number) => {
       const r = boxAt(s);
-      return i * 0.05 + hits(r, cityMarks) * 30 + hits(r, badgeTalk) * 25 + hits(r, tokens) * 8 + (outside(r) ? 20 : 0);
+      return i * 0.05 + hits(r, cities) * 30 + hits(r, talks) * 25 + hits(r, tokens) * 8 + (outside(r) ? 20 : 0) + (offView(r) ? 60 : 0);
     };
     const spot = spots.reduce((best, s, i) => (cost(s, i) < cost(best.s, best.i) ? { s, i } : best), { s: spots[0]!, i: 0 }).s;
     return { ...ar, labelX: r1(spot.x), labelY: r1(spot.y) };
@@ -2316,7 +2328,8 @@ function projectGeoMap(
     ...(dates.length ? { dates } : {}),
     ...(fog?.banks.length ? { fog } : {}),
   };
-  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings, tilt !== undefined ? TILT_BADGE_TALL : 1);
+  // A tall stage (a native vertical Short) keeps arrow names inside the camera's narrow view; a 16:9 map as before.
+  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings, tilt !== undefined ? TILT_BADGE_TALL : 1, height > width ? { width, height } : undefined);
 }
 
 /**

@@ -47,16 +47,17 @@ export function windowLeft(shot: Pick<V3Shot, "performers">, marks: readonly Act
  * things out of the picture on purpose, never under a character). A vertical Short through its window over the stage, any
  * other plan through its whole frame (fullStage).
  */
-export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "height" | "stage" | "shots">): MapFramingFault[] {
-  const vertical = !!plan.stage && plan.height > plan.width;
-  const stage = plan.stage ?? { width: plan.width, height: plan.height };
-  const win = vertical ? shortWindow(stage, plan) : fullStage(stage.width, stage.height);
-  const winW = win.width * stage.width;
+export function mapFramingFaults(plan: Pick<V3RenderPlan, "fps" | "width" | "height" | "stage" | "shots" | "shortsView">): MapFramingFault[] {
+  // A native vertical Short (shortsView "butun") shows every shot whole: a map on its own tall stage, no window.
+  const vertical = !!plan.stage && plan.height > plan.width && plan.shortsView !== "butun";
   const faults: MapFramingFault[] = [];
   const names = (l: readonly ActionMark[]) => [...new Set(l.map((m) => m.name))].join(", ");
   for (const shot of plan.shots) {
     const map = shot.geoMap;
     if (!map) continue;
+    const stage = shot.stage ?? plan.stage ?? { width: plan.width, height: plan.height };
+    const win = vertical ? shortWindow(stage, plan) : fullStage(stage.width, stage.height);
+    const winW = win.width * stage.width;
     // Frames already found at fault (a camera stop on an action's frame is reported once).
     const found = new Set<number>();
     for (const frame of actionFrames(map)) {

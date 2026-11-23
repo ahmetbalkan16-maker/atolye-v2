@@ -16,7 +16,7 @@
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { AFTER_HOOK_S, channelSummary, feedCurve, holdAfterHook, retentionDrops } from "../../src/lib/v3/publish/ChannelAnalyticsMap";
+import { AFTER_HOOK_S, channelSummary, feedCurve, holdAfterHook, retentionDrops, viewSplit } from "../../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   type ChannelGoals, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, PERFORMANCE_METRICS, type PerformanceEvaluation,
   pilotTrends, recordViewRatio, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
@@ -64,6 +64,9 @@ function evaluationLines(record: VideoPerformanceRecord, e: PerformanceEvaluatio
     lines.push(`  İzleyici tutma${feed.organik ? " (organik)" : ""}: ${parts.length ? parts.join("; ") : "belirgin düşüş yok"}`);
   }
   if (record.trafik) lines.push(`  Trafik: ${Object.entries(record.trafik).map(([k, v]) => `${k} ${pct(v)}`).join(", ")}`);
+  // Paid and organic apart (owner, 23 Nov 2026): a Short is judged by its organic feed views, never by the ads' total.
+  const split = viewSplit(record);
+  if (split) lines.push(`  Görüntüleme ayrımı: toplam ${split.toplam} — reklam ${split.reklam}, organik ${split.organik} (Shorts akışı ${split.akis})`);
   if (e.eksikMetrikler.length) lines.push(`  Ölçülmeyen: ${e.eksikMetrikler.join(", ")}`);
   return lines;
 }
@@ -87,6 +90,9 @@ async function main(): Promise<void> {
     }
     console.log(`Uzun video: ${goals.hedefler.uzun.durum}${goals.hedefler.uzun.not ? ` — ${goals.hedefler.uzun.not}` : ""}`);
     console.log(`Diziler: ${goals.diziler.map((d) => `${d.oncelik}. ${d.ad}`).join(" · ")}`);
+    // The question shapes that drew most on the studied channel (owner, 23 Nov 2026), for choosing the next topics.
+    const shapes = [...(goals.shortsYapisi.soruKaliplari ?? [])].sort((a, b) => b.medyanIzlenme - a.medyanIzlenme);
+    if (shapes.length) console.log(`Soru kalıpları (Knowledgia medyan izlenmesine göre): ${shapes.map((k) => `${k.kalip} — ör. "${k.ornek}" (${(k.medyanIzlenme / 1e6).toFixed(1)} M)`).join(" · ")}`);
     return;
   }
 
@@ -144,6 +150,12 @@ async function main(): Promise<void> {
         if (sum.enIyi) console.log(`  En iyi: ${v(sum.enIyi)}`);
         if (sum.enKotu) console.log(`  En zayıf: ${v(sum.enKotu)}`);
         if (sum.trafik.length) console.log(`  Trafik (görüntülemeye göre): ${sum.trafik.slice(0, 6).map((t) => `${t.kaynak} ${pct(t.pay)}`).join(", ")}`);
+        // Every video by its organic Shorts-feed views (owner, 23 Nov 2026: reklamla gelen izlenme ayrı ölçülür).
+        const split = latestPerVideo(records).flatMap((r) => ((x) => (x ? [{ r, x }] : []))(viewSplit(r))).sort((a, b) => b.x.akis - a.x.akis);
+        if (split.length) {
+          console.log("  Organik Shorts akışına göre (reklam ayrı):");
+          for (const { r, x } of split) console.log(`    ${r.videoId} "${(r.baslik ?? "?").slice(0, 50)}": akış ${x.akis}, organik ${x.organik}, reklam ${x.reklam} / toplam ${x.toplam}`);
+        }
       }
       const next = nextShortTargets(goals, records);
       console.log(`\nSonraki Short hedefi: izlemeyi seçenler ${pct(next.izlemeyiSecenler.min)}–${pct(next.izlemeyiSecenler.max)}, ort. izlenme ${pct(next.ortIzlenmeOrani.min)}–${pct(next.ortIzlenmeOrani.max)} (${next.neden})`);

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout } from "../src/lib/v3/render/Format";
+import { MAP_STAGE_TALL, mapStageFor, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { runProcess } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths } from "../src/lib/v3/V3Paths";
 
@@ -24,17 +24,21 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 }
 
 async function run() {
-  await scenario("A a Short is laid out whole (no vertical window) unless the old layout is asked for", () => {
-    assert.equal(shortsLayout({}), "dondur", "assert.equal(shortsLayout({}), \"dondur\")");
+  await scenario("A a Short is native vertical by default (owner, 23 Nov 2026); the rotated and windowed layouts on ask", () => {
+    assert.equal(shortsLayout({}), "dogal", "a Short is native vertical unless another layout is asked for");
+    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "dondur" }), "dondur", "the rotated layout of 12 Nov 2026 on ask");
     assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "dikey" }), "dikey", "assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: \"dikey\" }), \"dikey\")");
-    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "baska" }), "dondur", "assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: \"baska\" }), \"dondur\")");
+    assert.equal(shortsLayout({ ATOLYE_V3_SHORTS_BICIM: "baska" }), "dogal", "an unknown value keeps the default");
     assert.equal(outputFrame(true, "dondur"), undefined, "the director lays a rotated Short out like a 16:9 video");
     assert.deepEqual(outputFrame(true, "dikey"), SHORTS_SIZE, "assert.deepEqual(outputFrame(true, \"dikey\"), SHORTS_SIZE)");
+    assert.deepEqual(outputFrame(true, "dogal"), SHORTS_SIZE, "a native vertical Short is laid out on its 1080×1920 frame");
     assert.equal(outputFrame(false, "dikey"), undefined, "a long video never gets the window");
-    const a = rotatedShortArgs("in.mp4", "out.mp4");
-    assert.equal(a[a.indexOf("-vf") + 1], "transpose=clock", "assert.equal(a[a.indexOf(\"-vf\") + 1], \"transpose=clock\")");
-    assert.equal(a[a.indexOf("-c:a") + 1], "copy", "the sound is not encoded again");
-    assert.deepEqual([a[a.indexOf("-i") + 1], a[a.length - 1]], ["in.mp4", "out.mp4"], "assert.deepEqual([a[a.indexOf(\"-i\") + 1], a[a.length - 1]], [\"in.mp4\", \"out.mp4\"])");
+    assert.equal(outputFrame(false, "dogal"), undefined, "a long video stays 16:9");
+    assert.deepEqual(mapStageFor(true, "dogal"), MAP_STAGE_TALL, "a native Short's maps are tall");
+    assert.equal(MAP_STAGE_TALL.height, STAGE_SIZE.height, "the tall map stage keeps the 1080 rows every map size is made for");
+    assert.equal(Math.round((MAP_STAGE_TALL.width / MAP_STAGE_TALL.height) * 1000), Math.round((SHORTS_SIZE.width / SHORTS_SIZE.height) * 1000), "the tall map stage has the Short's shape");
+    assert.deepEqual(mapStageFor(true, "dondur"), STAGE_SIZE, "a rotated Short's maps stay 16:9");
+    assert.deepEqual(mapStageFor(false, "dogal"), STAGE_SIZE, "a long video's maps stay 16:9");
   });
 
   await scenario("B the studio's FFmpeg turns a 16:9 clip into 9:16, its top edge to the right, sound kept", async () => {

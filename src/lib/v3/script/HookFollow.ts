@@ -206,7 +206,7 @@ export function hookAnchorProblems(episode: EpisodeLike): string[] {
 const LINE_KEY = /(^|_)satir$/;
 
 /** Every line index in a scene's parts other than its lines, moved one down past `at` (a line inserted after `at`). */
-function shiftLineRefs(node: unknown, at: number): unknown {
+export function shiftLineRefs(node: unknown, at: number): unknown {
   if (Array.isArray(node)) return node.map((x) => shiftLineRefs(x, at));
   if (!node || typeof node !== "object") return node;
   const out: Record<string, unknown> = {};

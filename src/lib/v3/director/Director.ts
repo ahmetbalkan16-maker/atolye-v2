@@ -83,6 +83,14 @@ export interface DirectorInput {
   readonly height: number;
   /** The video's own frame when it is not the stage: a Short's 1080×1920 window over the stage (Format, ShotView). */
   readonly output?: { readonly width: number; readonly height: number };
+  /**
+   * A native vertical Short (Format.shortsLayout "dogal", owner 23 Nov 2026): every map scene is laid out on this tall
+   * stage (Format.MAP_STAGE_TALL) and fills the frame; every other shot is the 16:9 stage shown whole across the frame
+   * (V3RenderPlan.shortsView "butun") — no sliding window. Absent: as before.
+   */
+  readonly mapStage?: { readonly width: number; readonly height: number };
+  /** The Short's question (its title, spoken first), written over a whole 16:9 shot's empty band in a native Short. */
+  readonly question?: string;
   readonly showCaptions: boolean;
   readonly audio?: string;
   /** The closing subscribe card (default on); off for a single-scene preview (scripts/v3/harita-onizleme.ts). */
@@ -657,9 +665,11 @@ export const PICTURE_SHARE_TARGET = { harita: [0.72, 0.84], sahne: [0.1, 0.2], g
 /**
  * A Short's shares on screen (owner, 3 Nov 2026, after DFT Tarih's Shorts; MapRules.SHORT_MAP_SHARE): map scenes ~70%,
  * stick figures ~30%. Since 11 Nov 2026 real period pictures are cut in over the map scenes' narration (owner, after the
- * Gallipoli video's 40/38/22): on screen ~50% map, ~30% stick figures, ~20% pictures.
+ * Gallipoli video's 40/38/22): on screen ~50% map, ~30% stick figures, ~20% pictures. Since 23 Nov 2026 (owner, after
+ * Knowledgia's Shorts, every one a vertical map from start to end — MapRules.SHORT_MAP_SHARE): ~85–95% map, the stick
+ * figures and the period pictures each at most ~15–20%.
  */
-export const SHORTS_PICTURE_SHARE_TARGET = { harita: [0.4, 0.8], sahne: [0.15, 0.45], gorsel: [0.1, 0.3] } as const;
+export const SHORTS_PICTURE_SHARE_TARGET = { harita: [0.7, 1], sahne: [0, 0.2], gorsel: [0, 0.2] } as const;
 
 /**
  * How the finished video divides between the map, the stage (the stick figures' scenes) and period pictures (cutaways,
@@ -856,8 +866,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   // Characters already introduced with a name tag (the first time they speak in the episode).
   const introduced = new Set<string>();
   const lead = episodeLead(episode);
-  // A Short: the stage is seen through a vertical window (ShotView).
-  const vertical = !!input.output && input.output.height > input.output.width;
+  // A Short: the stage is seen through a vertical window (ShotView) — not in a native vertical Short (mapStage), whose
+  // shots are shown whole.
+  const vertical = !!input.output && input.output.height > input.output.width && !input.mapStage;
 
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si]!;
@@ -872,6 +883,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     // A rider's face is higher than a walker's: close shots frame it there.
     const faceOf = (id: string) => (slots.get(id)?.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y);
     const mapped = Boolean(scene.harita?.merkez && scene.harita.genislik_km && input.mapData);
+    // The stage this scene's map is laid out on: a native vertical Short's tall one, else the 16:9 stage.
+    const MW = mapped && input.mapStage ? input.mapStage.width : input.width;
+    const MH = mapped && input.mapStage ? input.mapStage.height : input.height;
     // On a map, who has a badge there speaks through it and is not drawn on the stage (MapSpeakers).
     const onMap = mapped ? mapSpeakers(scene, episode.oyuncu_kadrosu.filter((c) => visibleIds.has(c.id))) : undefined;
     for (const id of onMap?.badged ?? []) slots.delete(id);
@@ -887,9 +901,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const shortWin = vertical ? shortWindow({ width: input.width, height: input.height }, input.output!) : undefined;
     const sceneMap = mapped ? withNamedHighlights(scene).harita! : undefined;
     const mapData = mapped ? withCoast(input.mapData!, input.coasts?.get(scene.id)) : undefined;
-    const kamera = sceneMap ? frameLineAction(withShipsAfloat(sceneMap, mapData!, input.width, input.height), shortWin ?? fullStage(input.width, input.height)).map.kamera : undefined;
+    const kamera = sceneMap ? frameLineAction(withShipsAfloat(sceneMap, mapData!, MW, MH), shortWin ?? fullStage(MW, MH)).map.kamera : undefined;
     const geo = mapped
-      ? buildGeoMap(kamera ? { ...sceneMap!, kamera } : sceneMap!, mapData!, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+      ? buildGeoMap(kamera ? { ...sceneMap!, kamera } : sceneMap!, mapData!, MW, MH, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),
@@ -900,7 +914,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           lineEnd: (index) => (lines[index] ? local(lines[index]!.end) : undefined),
           sceneFrames: duration,
           // The world its ground was cut for and its tilt, from the writer's map (MapGround.mapGroundFor asks the same).
-          ...((g) => (g ? { ground: g } : {}))(groundOf(scene.harita!, input.width, input.height)),
+          ...((g) => (g ? { ground: g } : {}))(groundOf(scene.harita!, MW, MH)),
           toldAt: (index, word) => {
             const sec = toldWordAt(lines, index, word);
             return sec === undefined ? undefined : local(sec);
@@ -919,15 +933,15 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
       const speaks = lines.find((l) => l.speaker === lone[0]);
       const at = speaks ? local(speaks.start) : 0;
-      const free = mapStageX(mapOnScreen(geo!, at, input.width, input.height), input.width, input.height);
+      const free = mapStageX(mapOnScreen(geo!, at, MW, MH), MW, MH);
       // In a Short the window holds the character: they stand beside what acts on the map then, not away from it.
-      const marks = shortWin ? recentAction(geo!, at, fps, input.width, input.height) : [];
-      const beside = shortWin ? besideAction(marks, free, input.width, input.height, shortWin) : undefined;
+      const marks = shortWin ? recentAction(geo!, at, fps, MW, MH) : [];
+      const beside = shortWin ? besideAction(marks, free, MW, MH, shortWin) : undefined;
       // A placement judged at that one moment must hold at every camera stop while they stand there (MapFramingCheck):
       // in a vertical Short's window, else over the whole 16:9 frame.
-      const x = clearAtEveryStop(geo!, beside ?? free, duration, input.width, input.height, shortWin);
+      const x = clearAtEveryStop(geo!, beside ?? free, duration, MW, MH, shortWin);
       // Beside the action they face it.
-      const toward = beside !== undefined ? marks.reduce((a, m) => a + m.x, 0) / marks.length / input.width : 0.5;
+      const toward = beside !== undefined ? marks.reduce((a, m) => a + m.x, 0) / marks.length / MW : 0.5;
       slots.set(lone[0], { ...lone[1], x, facing: x < toward ? "right" : "left" });
     }
 
@@ -1251,9 +1265,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       if (!slots.get(loneId)?.mount) {
         const events = (geo.vehicles ?? []).flatMap((v) => [v.lossStart !== undefined ? { at: v.lossStart, loss: true } : undefined, v.fireStart !== undefined ? { at: v.fireStart, loss: false } : undefined]).filter((e): e is { at: number; loss: boolean } => !!e).sort((a, b) => a.at - b.at);
         for (const e of events) {
-          const marks = actionAt(geo, e.at, input.width, input.height);
+          const marks = actionAt(geo, e.at, MW, MH);
           if (!marks.length || e.at >= duration - 2) continue;
-          const toward = sideOf(lt.x, marks.reduce((a, m) => a + m.x, 0) / marks.length / input.width);
+          const toward = sideOf(lt.x, marks.reduce((a, m) => a + m.x, 0) / marks.length / MW);
           const end = Math.min(duration - 1, e.at + f(1.4));
           // The event takes the hands from whatever gesture is running: that one stops where this one starts.
           lt.gestures = lt.gestures.filter((g) => !(g.start >= e.at && g.start < end)).map((g) => (g.start < e.at && g.end > e.at ? { ...g, end: e.at } : g));
@@ -1326,7 +1340,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       };
     });
 
-    const transitionIn: V3Transition = scene.gecis ?? autoTransition(si > 0 ? episode.sahneler[si - 1] : undefined, scene);
+    // A Short's first picture is there from its first frame (owner, 23 Nov 2026: Knowledgia's weakest Shorts opened on
+    // black): its first scene always comes in on a cut.
+    const transitionIn: V3Transition = input.short && si === 0 ? "kes" : (scene.gecis ?? autoTransition(si > 0 ? episode.sahneler[si - 1] : undefined, scene));
     const period = input.inserts?.[si];
     // On a living set the moment itself is on screen (owner, 22 Oct 2026; the quality brain's story score on the
     // benchmark): no cutaway while anyone moves on stage — the legion wading the Rubicon was hidden behind an
@@ -1383,7 +1399,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       performers,
       props,
       camera: geo
-        ? mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps))
+        ? ((c) => (input.short ? mapPulse(c, duration, fps) : c))(mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps)))
         : ((cam) => (input.short && !photo && start < f(OPENING_TEMPO_S) ? withOpeningBeats(cam, performers, inserts, duration, f(OPENING_TEMPO_S) - start, fps, shotLead) : cam))(
             fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts), shotEventFrames(performers, titleCards, []), duration, fps),
           ).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
@@ -1401,6 +1417,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       ...(infoCards.length ? { infoCards } : {}),
       ...(strips.length ? { strips } : {}),
       ...(geo ? { geoMap: talks.size ? { ...geo, badges: (geo.badges ?? []).map((b) => withTalk(b, talks.get(b.castId))) } : geo } : {}),
+      // A native vertical Short's map is laid out on its own tall stage (ShotView fits it to the frame).
+      ...(geo && input.mapStage ? { stage: { width: MW, height: MH } } : {}),
     });
   });
 
@@ -1443,6 +1461,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     width: input.output?.width ?? input.width,
     height: input.output?.height ?? input.height,
     ...(input.output ? { stage: { width: input.width, height: input.height } } : {}),
+    ...(input.output && input.mapStage ? { shortsView: "butun" as const, ...(input.question?.trim() ? { question: input.question.trim() } : {}) } : {}),
     durationInFrames: f(timeline.duration),
     cast: input.cast,
     accessories: input.accessories,
@@ -1465,6 +1484,21 @@ export function layoutProbeFor(episodeId: string, fps: number): NonNullable<V3Re
  * (after the cover, if any), in seconds from the video's start; undefined when the opening shot has no character at all.
  * A Short needs it within HOOK_S (owner, 2 Nov 2026).
  */
+/**
+ * Why a Short's first frames would be empty or black, or undefined when its picture is there from frame 0 (owner, 23 Nov
+ * 2026, after Knowledgia's Shorts: the two least watched of its 52 opened on black, mid-story — "siyah açılış hata
+ * sayılır"): an opening cover, a transition into the first shot (it comes in over nothing), or a full-screen card over
+ * its first frame.
+ */
+export function blankOpening(plan: Pick<V3RenderPlan, "shots">): string | undefined {
+  const first = plan.shots[0];
+  if (!first) return "çekim yok";
+  if (first.id === "kapak") return "kapakla açılıyor";
+  if (first.transitionIn !== "kes") return `ilk çekim geçişle (${first.transitionIn}) giriyor — ilk kareler boş`;
+  const card = first.titleCards.find((c) => c.start <= 0 && (c.style === "kelime" || c.style === "bolum"));
+  return card ? `ilk karede tam ekran kart ("${card.text.slice(0, 40)}")` : undefined;
+}
+
 export function openingHook(plan: Pick<V3RenderPlan, "fps" | "shots">): { at: number; kind: "replik" | "hareket"; castId: string } | undefined {
   const shot = plan.shots.find((s) => s.id !== "kapak");
   if (!shot) return undefined;
@@ -1561,6 +1595,42 @@ function cameraAtFrame(keys: readonly V3CameraKey[], frame: number): { zoom: num
  */
 export function mapShotCamera(camera: readonly V3CameraKey[]): V3CameraKey[] {
   return camera.map((c) => ({ ...c, zoom: Math.round((1 + (c.zoom - 1) * 0.25) * 1000) / 1000, cx: 0.5 + (c.cx - 0.5) * 0.25, cy: 0.5 + (c.cy - 0.5) * 0.25 }));
+}
+
+/**
+ * A Short's map never stands still (owner, 23 Nov 2026, "bütün planları uygula", after Knowledgia's Shorts: one map for
+ * the whole minute with almost no cut — 0 to 7 in 60 s — yet the picture moves every 1–3 s, pushing in and pulling back):
+ * every MAP_PULSE_S the shot's camera over the map glides MAP_PULSE_MOVE_S in by MAP_PULSE_ZOOM, or back out, and holds
+ * in between; on top of the camera it had (its own keys keep their place and ease). Never a shot camera above 2.2.
+ */
+export const MAP_PULSE_S = 3;
+export const MAP_PULSE_MOVE_S = 0.8;
+export const MAP_PULSE_ZOOM = 1.2;
+export function mapPulse(camera: readonly V3CameraKey[], duration: number, fps: number): V3CameraKey[] {
+  const step = Math.round(MAP_PULSE_S * fps);
+  const move = Math.round(MAP_PULSE_MOVE_S * fps);
+  // The pulse's own factor at a frame: 1 or MAP_PULSE_ZOOM, gliding over `move` frames before each pulse frame.
+  const factor = (frame: number) => {
+    const k = Math.floor((frame + move) / step);
+    const into = frame - (k * step - move);
+    const now = k % 2 === 1 ? MAP_PULSE_ZOOM : 1;
+    const before = k % 2 === 1 ? 1 : MAP_PULSE_ZOOM;
+    if (k < 1) return 1;
+    if (into >= move) return now;
+    const t = into / Math.max(1, move);
+    return before + (now - before) * (t * t * (3 - 2 * t));
+  };
+  const frames = new Set<number>([0, ...camera.map((k) => k.frame)]);
+  for (let f = step; f < duration - 1; f += step) {
+    if (f - move > 0) frames.add(f - move);
+    frames.add(Math.min(duration - 1, f));
+  }
+  const own = new Map(camera.map((k) => [k.frame, k] as const));
+  return [...frames].sort((a, b) => a - b).map((frame) => {
+    const at = cameraAtFrame(camera, frame);
+    const ease = own.get(frame)?.ease ?? "smooth";
+    return { frame, ...clampCam(Math.min(2.2, Math.round(at.zoom * factor(frame) * 1000) / 1000), at.cx, at.cy), ease };
+  });
 }
 
 /**
@@ -1681,9 +1751,12 @@ export function shortShots(plan: Pick<V3RenderPlan, "fps" | "shots">, minS = OPE
  * first seconds): in the first OPENING_TEMPO_S of a Short the picture changes at least every OPENING_CHANGE_S.
  */
 export const OPENING_TEMPO_S = 15;
-export const OPENING_CHANGE_S = 7;
+/** 7 s until 23 Nov 2026; 3 s since (owner, "bütün planları uygula": Knowledgia's Shorts change the picture every 1–3 s). */
+export const OPENING_CHANGE_S = 3;
 /** Where a missing change is put: this long after the last one (a little under OPENING_CHANGE_S). */
-export const OPENING_BEAT_S = 6;
+export const OPENING_BEAT_S = 2.5;
+/** A shot camera's glide over a map is a new picture from this zoom ratio (a Short's mapPulse moves by MAP_PULSE_ZOOM). */
+const MAP_PULSE_SEEN = 1.15;
 /** A map's camera key moves the picture visibly from this zoom ratio, or from this share of the frame's width. */
 const MAP_MOVE_ZOOM = 1.2;
 const MAP_MOVE_PAN = 0.12;
@@ -1705,6 +1778,13 @@ export function cameraChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE.
   const seen = (f: number) => f > 0 && f < shot.duration && !inserts.some((w) => f > w.start && f < w.end);
   const out = new Set<number>();
   for (const k of shot.camera) if ((k.ease === "cut" || k.ease === "snap") && seen(k.frame)) out.add(k.frame);
+  // On a map the shot camera's push in or pull back (a Short's mapPulse) is a new picture once it has moved this far.
+  if (shot.geoMap) {
+    for (let i = 1; i < shot.camera.length; i++) {
+      const a = shot.camera[i - 1]!, b = shot.camera[i]!;
+      if (b.ease !== "cut" && b.ease !== "snap" && Math.max(a.zoom, b.zoom) / Math.max(1e-6, Math.min(a.zoom, b.zoom)) >= MAP_PULSE_SEEN && seen(b.frame)) out.add(b.frame);
+    }
+  }
   const keys = shot.geoMap?.camera ?? [];
   for (let i = 1; i < keys.length; i++) {
     const a = keys[i - 1]!, b = keys[i]!;
@@ -1730,7 +1810,8 @@ export function pictureChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE
 export function openingTempoGaps(plan: Pick<V3RenderPlan, "fps" | "shots" | "width" | "stage">): { readonly from: number; readonly to: number; readonly shot: string }[] {
   const horizon = OPENING_TEMPO_S * plan.fps;
   const width = plan.stage?.width ?? plan.width;
-  const changes = plan.shots.filter((s) => s.start < horizon).flatMap((s) => pictureChangeFrames(s, width).map((f) => ({ at: s.start + f, end: s.start + s.duration, shot: s.id })));
+  // A native vertical Short's map is measured on its own tall stage (its pans are a share of that width).
+  const changes = plan.shots.filter((s) => s.start < horizon).flatMap((s) => pictureChangeFrames(s, s.stage?.width ?? width).map((f) => ({ at: s.start + f, end: s.start + s.duration, shot: s.id })));
   const out: { from: number; to: number; shot: string }[] = [];
   changes.forEach((c, i) => {
     const to = Math.min(changes[i + 1]?.at ?? Infinity, c.end, horizon);

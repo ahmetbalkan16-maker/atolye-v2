@@ -116,6 +116,8 @@ export function validateEpisode(input: unknown): EpisodeValidation {
   const ep = input;
   str(ep, "id", "$", { pattern: SLUG });
   str(ep, "baslik", "$", { max: 120 });
+  // A Short's question title (optional; QuestionTitle checks its shape and that it is spoken first).
+  if (ep.soru !== undefined) str(ep, "soru", "$", { max: 100 });
   str(ep, "konu", "$", { max: 300 });
   str(ep, "donem", "$", { max: 120 });
   num(ep, "hedef_sure_sn", "$", 20, MAX_EPISODE_S);

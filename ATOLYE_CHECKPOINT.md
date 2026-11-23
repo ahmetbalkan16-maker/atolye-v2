@@ -1,3 +1,21 @@
+## 23 Kasım 2026 (3) — Knowledgia incelemesi: dikey Short, soru başlık, 60 sn, %90 harita, 3 sn tempo (claude/short-dikey-harita)
+
+Owner: "@Knowledgia … shorts videolarını izle … kapak fotoğraflarından hesap ayarlarına kadar analiz et … plan çıkar",
+sonra "bütün planları uygula hepsini atlamadan hatasız … bugün yaptığımız shorts videosuna uyarla, yeni şekliyle
+yükleyelim". Ayrıntı ve ölçümler: `docs/v3/10_KNOWLEDGIA_INCELEME.md`.
+- Bulgu: 12 Kas'tan beri "dondur" Short'lar akışta YAN YATIK görünüyordu (organik akış 1.168/263 → 99/2).
+- Yapıldı: varsayılan Short düzeni "dogal" (haritalar 607,5×1080 dikey sahnede, öteki sahneler 16:9 bütün + üstte soru;
+  döndürme yok), `Episode.soru` + `script/QuestionTitle.ts` (ilk satır soru, onarım isteği, son çare satır ekleme),
+  YouTube başlığı/etiketleri/açıklaması sorudan, varsayılan Short 60 sn, vuruş haritası 0–3 soru…50–60 cevap, soru
+  kalıpları, harita payı %80+ (hedef %90), ilk sahne harita, tek büyük sayı, açılış temposu 3 sn + harita nabzı
+  (`Director.mapPulse`), boş/siyah açılış QC hatası (`blankOpening`, Short ilk geçişi kes), haftada 3 Short (Salı,
+  Perşembe, Cumartesi), `kanal.ts rapor` reklam/organik/akış ayrımı, dikey haritada ok adı kamera görüşünde.
+- Kanıt: tsc (kök + remotion-v3) temiz, lint 0/0; smoke-v3-script 65, -episode-director 89 (T7 3 sn, T8 dikey Short),
+  -channel-goals 20, -youtube 10, -youtube-yukleme 12, -shorts-rotate, -short-tempo, -motion, -council, -render, -mix,
+  ayas-video-order 10, firewall closure PASS; Stalingrad s3 haritası ve s4 sahnesi dikey kare kare önizlendi.
+- CANLIDA DEĞİL (toplu canlı alma kuralı). Owner'a kalan: Studio'da varsayılan dil İngilizce (ABD); ilk dikey
+  Short'larda reklam yok önerisi; mobil uygulamadan Shorts kapağı.
+
 ## 23 Kasım 2026 (2) — The Trap at Stalingrad: ilk 90 sn Short TESLİM (tur 1, elle)
 
 Owner: "shorts videosu hazırlayalım konu The Trap at Stalingrad … takip et gerektiğinde müdahale et … 90 sn … etkileyici

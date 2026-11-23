@@ -129,11 +129,12 @@ const PUBLISH_EN = /^(?:please\s+)?(?:upload|publish)\s+(?:the\s+)?(.{0,80}?)\s*
 const NOW_WORD = /(?<!\p{L})(?:hemen|şimdi|now)(?!\p{L})/u;
 
 /**
- * A "kısa"/"short"/"shorts" video without a number: a 90-second vertical Short (owner, 23 Nov 2026, after the 146 s
- * Lake Trasimene Short got 73 views in 35 hours: "90 sn olsun"; 3 minutes from 11 Nov 2026). An explicit length
- * ("3 dakikalık shorts") still keeps its own; the $1 cap is unchanged.
+ * A "kısa"/"short"/"shorts" video without a number: a 60-second vertical Short (owner, 23 Nov 2026, "bütün planları
+ * uygula", after the study of Knowledgia's Shorts — all 51 of its hits run 46–60 s, its one 85 s Short is among its
+ * weakest; earlier that day 90 s after the 146 s Lake Trasimene Short got 73 views in 35 hours; 3 minutes from 11 Nov
+ * 2026). An explicit length ("3 dakikalık shorts") still keeps its own; the $1 cap is unchanged.
  */
-export const SHORT_ORDER_LENGTH = "90sn";
+export const SHORT_ORDER_LENGTH = "60sn";
 
 /** Long episodes run 20–30 minutes (owner, 23 Oct 2026: "maksimum 30 dakika, minimum 20 dakika", no 45 for now). */
 export const LONG_ORDER_MIN_MIN = 20;

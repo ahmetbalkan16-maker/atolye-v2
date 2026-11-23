@@ -37,18 +37,37 @@ export const STAGE_SIZE = { width: 1920, height: 1080 } as const;
 export const SHORTS_SIZE = { width: 1080, height: 1920 } as const;
 
 /**
- * How a Short fills its vertical frame. "dondur" (owner, 12 Nov 2026: "shorts videosu hazırlarken bütün sahnelerin
- * gözüktüğünden emin ol, çok yakın duruyor video; yatay videoyu sadece döndürülmüş gibi shorts videoyu ayarla"): the
- * Short is made exactly like a 16:9 video — every scene whole, every check on the full frame — and only the file to
- * upload is turned a quarter clockwise into 1080×1920, so a viewer who turns the phone sees the whole picture full
- * screen. "dikey" (2 Nov – 12 Nov 2026): a vertical window slides over the 16:9 stage (ShotView) — it showed about a
- * third of the stage's width. `ATOLYE_V3_SHORTS_BICIM=dikey` brings the window back.
+ * How a Short fills its vertical frame.
+ * - "dogal" (default since 23 Nov 2026; owner, after the study of Knowledgia's Shorts — 2.2 M subscribers, every Short a
+ *   vertical map: "bütün planları uygula"): a native vertical Short. A map scene is drawn on a tall stage
+ *   (MAP_STAGE_TALL) and fills the 1080×1920 frame, the region fitted across its width; every other scene is the whole
+ *   16:9 stage shown upright across the frame (nothing cut, as the owner asked on 12 Nov 2026: "bütün sahnelerin
+ *   gözüktüğünden emin ol"), the Short's question over it. The upload file is the cut itself. The rotated Shorts played
+ *   sideways in the feed: organic feed views fell from 1,168 (Caesar, upright) to 99 and 2 (Baghdad, Constantinople).
+ * - "dondur" (12 – 23 Nov 2026, owner: "yatay videoyu sadece döndürülmüş gibi shorts videoyu ayarla"): made exactly
+ *   like a 16:9 video and only the upload file turned a quarter clockwise. `ATOLYE_V3_SHORTS_BICIM=dondur`.
+ * - "dikey" (2 – 12 Nov 2026): a vertical window slides over the 16:9 stage (ShotView), about a third of its width.
+ *   `ATOLYE_V3_SHORTS_BICIM=dikey`.
  */
-export type ShortsLayout = "dondur" | "dikey";
-export const shortsLayout = (env: Readonly<Record<string, string | undefined>> = process.env): ShortsLayout => (env.ATOLYE_V3_SHORTS_BICIM?.trim() === "dikey" ? "dikey" : "dondur");
+export type ShortsLayout = "dogal" | "dondur" | "dikey";
+export const shortsLayout = (env: Readonly<Record<string, string | undefined>> = process.env): ShortsLayout => {
+  const v = env.ATOLYE_V3_SHORTS_BICIM?.trim();
+  return v === "dikey" || v === "dondur" ? v : "dogal";
+};
 
-/** The frame the director lays a video out for: a Short's vertical window only in the "dikey" layout. */
-export const outputFrame = (shorts: boolean, layout: ShortsLayout): { readonly width: number; readonly height: number } | undefined => (shorts && layout === "dikey" ? SHORTS_SIZE : undefined);
+/** The frame the director lays a video out for: a Short's 1080×1920 in the "dikey" and "dogal" layouts. */
+export const outputFrame = (shorts: boolean, layout: ShortsLayout): { readonly width: number; readonly height: number } | undefined => (shorts && layout !== "dondur" ? SHORTS_SIZE : undefined);
+
+/**
+ * A native vertical Short's map stage: the Short's 9:16 at the 16:9 stage's height, so every map size made for 1080 rows
+ * (tokens, badges, names — `height / 1080`) keeps its meaning and the drawn map is scaled 1920/1080 into the frame: the
+ * marks read on a phone as large as they did in the old window. The writer's `genislik_km` spans its width, so all
+ * a 16:9 map showed stays in, with more land north and south.
+ */
+export const MAP_STAGE_TALL = { width: (STAGE_SIZE.height * SHORTS_SIZE.width) / SHORTS_SIZE.height, height: STAGE_SIZE.height } as const;
+
+/** The stage a video's map scenes are laid out on: MAP_STAGE_TALL in a native vertical Short, else the 16:9 stage. */
+export const mapStageFor = (shorts: boolean, layout: ShortsLayout): { readonly width: number; readonly height: number } => (shorts && layout === "dogal" ? MAP_STAGE_TALL : STAGE_SIZE);
 
 /**
  * FFmpeg arguments turning a finished 16:9 video a quarter clockwise into the Short's 1080×1920 upload file: the top of

@@ -7,7 +7,7 @@
  *        [--dil en|tr] [--onizleme] [--dikey] [--cikti <klasör>]
  *
  * Satır süreleri kelime sayısından tahmin edilir. Varsayılan: her satırın sonuna yakın birer kare. --dikey: Short olarak
- * (1080×1920, sahnenin üstünde dikey pencere).
+ * (1080×1920; varsayılan dikey düzende 16:9 sahne ekranın ortasında bütün, sorusu üstünde — ATOLYE_V3_SHORTS_BICIM=dikey eski pencere).
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -18,7 +18,7 @@ import { applyParts, costumeRootsFor } from "../../src/lib/v3/costumes/PartDesig
 import { buildRenderPlan } from "../../src/lib/v3/director/Director";
 import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
-import { SHORTS_SIZE } from "../../src/lib/v3/render/Format";
+import { mapStageFor, SHORTS_SIZE, shortsLayout } from "../../src/lib/v3/render/Format";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -68,7 +68,8 @@ async function main() {
     height: 1080,
     showCaptions: false,
     endCard: false,
-    ...(process.argv.includes("--dikey") ? { output: SHORTS_SIZE } : {}),
+    // --dikey: a Short in its layout — native vertical by default (the whole 16:9 stage across the frame, the question above).
+    ...(process.argv.includes("--dikey") ? { output: SHORTS_SIZE, short: true, ...(shortsLayout() === "dogal" ? { mapStage: mapStageFor(true, "dogal"), ...(full.soru ? { question: full.soru } : {}) } : {}) } : {}),
   });
   const planFile = path.join(out, "plan.json");
   await fs.writeFile(planFile, JSON.stringify({ plan }));
