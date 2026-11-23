@@ -18,9 +18,13 @@ de kabul ediyorum".
   Trasimene bu iki kuraldan geçerdi (zayıf yeri 8–23 sn duran s2 haritası, 15 sn penceresinin dışında).
 Kanıt: tsc 0, lint-yerel 0/0; smoke short-tempo 3, channel-goals 19, script 64, episode-director 88, motion 29,
 director-council 12, ayas-video-order 10, firewall-closure 13 PASS. Render yapılmadı.
-CANLIYA ALINMADI (toplu go-live bekliyor): 20c6bf0a, 69ef131e, bcc72d2d + merge'ler. V3 üretici canonical'dan okuduğu
-için bir sonraki Short go-live'dan sonra bu kurallarla çıkar. AÇIK: Trasimene'nin Studio sayıları; ilk 90 sn Short'un
-48 sa ölçümü; "uzunluk turu açılış hatasını geri getirirse düşür" dalının smoke'u yok.
+CANLIDA (owner "canlıya al", 23 Kas 08:19): canlı dal + canonical b4d9ec13, snapshot ayas-live-b4d9ec13 (geri dönüş
+ayas-live-bb544899), dış erişim healthy; izleyici yeniden başlatılmadı (yapim.ts değişen dosyaların hiçbirini yüklemiyor).
+Organik/reklam ayrımı (API): önceki Short'ların görüntülemeleri çoğunlukla REKLAM (İstanbul 1335/1341, Bağdat 1557/1708,
+Cannae 2369/2659, Guadalcanal 2176/2341); Shorts akışı Sezar 1168 → Cannae 263 → Guadalcanal 129 → Bağdat 99 → İstanbul 2.
+Akışta kalma (engagedViews/views) hepsinde %38–47 (Sezar %47), reklam izleyicisinde %15–22 → organik sorun dağıtım,
+kaydırma değil. Trasimene Analytics verisi henüz yok (~3 gün gecikme). AÇIK: Trasimene trafik kaynağı (reklam var mı);
+ilk 90 sn Short'un 48 sa ölçümü; "uzunluk turu açılış hatasını geri getirirse düşür" dalının smoke'u yok.
 
 ## 21 Kasım 2026 (4) — owner iki açığı onayladı: CC BY-SA açık, başka kişi/olay adlı tablo kodla eleniyor
 
