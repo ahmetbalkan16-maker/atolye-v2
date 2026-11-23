@@ -1,3 +1,23 @@
+## 23 Kasım 2026 (2) — The Trap at Stalingrad: ilk 90 sn Short TESLİM (tur 1, elle)
+
+Owner: "shorts videosu hazırlayalım konu The Trap at Stalingrad … takip et gerektiğinde müdahale et … 90 sn … etkileyici
+giriş". Sipariş 20261123T054239-the-trap-at-stalingrad-19-23-november-19 (90sn, en, mizahi). Yükleme dosyası
+trap-at-stalingrad-1942-animated-history.mp4 1080×1920, 84,3 sn, −14,4 LUFS; başlık "6th Army Encircled at Stalingrad
+#Shorts". Toplam 0,844 $ (tavan 1 $). YÜKLENMEDİ (owner karar verir).
+- Senaryo tarih kapısında iki kez durdu: konu metnimdeki "about 250,000" (kaynak bankası 290.000), sonra "290.000 … tek
+  şehirde". Son taslak elle düzeltildi (kanca "Two hundred ninety thousand Axis troops. One Soviet trap.", hava köprüsü
+  750/105 ton, Manstein 48 km, Zhukov teslim sahnesinden çıktı) → devamAdimi gardirop; senaryo yeniden ödenmedi.
+- Haritalar elle: s3 iki kıskaç oku + tanklar + Sovyet kusatma halkası (km = yarıçap) + Kalaç halkası; s2 kurulum
+  (Rumen ordularının kümeleri). harita-onizleme ile kare kare doğrulandı.
+- s4 görseli: hakem savaş öncesi battaniyeli Hitler + SS kolluğu fotoğrafına 10/10 verdi → Commons "Ju 52 approaching
+  Stalingrad late 1942" (PD). Rötuş turu 1 (gardıroptan) görseli yeniden aradı ve eski fotoğrafı geri getirdi; plan
+  bellekten kurulduğu için render'da durdurulup devamAdimi render + rotusTuru 1 ile yeniden başlatıldı.
+- Rötuş turu 2 "Snack-sized" esprisini ve kuzey/güney kıskaç bilgisini sildi → durduruldu; deliverAfterFailedRound ile
+  tur 1 teslim (Zhukov 8/10, kurul 7, 3 kusur; tur 0: 7/7/4), rotatedShortArgs ile yükleme dosyası.
+Vakalar (beyinlere): el-20261123T055814-mim3, el-20261123T055828-pjvs + görsel değişimi + rötuş yeniden seçimi + tur 2.
+AÇIK (owner onayı gerekir, kod): bölüm düzeyinde "reddedilen görseller" dosyası — elle çıkarılan görseli rötuş turunun
+görsel adımı yeniden seçmesin; rötuş turunun espri/yön sözcüğü silmesini yakalayan denetim. Kod değişikliği yapılmadı.
+
 ## 23 Kasım 2026 — Trasimene Short az izlendi: Short 90 sn, kanca dayanağı, açılış zorunlu, açılış temposu
 
 Owner: "son yaptığımız videoyu yükledim … neden az izleniyor" → Trasimene Short `_Fn4W5HW0Uo` (21 Kas 20:00 TR, 146 sn)
