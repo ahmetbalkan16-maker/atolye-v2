@@ -83,7 +83,7 @@ import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "..
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
-import { hookFollowLine } from "../src/lib/v3/script/HookFollow";
+import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { inventedPeople, type ArticleLookup } from "../src/lib/v3/research/CastCheck";
 import { fetchArticle, researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
@@ -1411,6 +1411,7 @@ async function main() {
             ...(events.length ? { firstVisualEventS: events[0]! } : {}),
             firstSceneCards: (episode.sahneler[0]?.yazi_karti ?? []).map((k) => k.stil),
             ...(followLine ? { followUp: { text: splitDirections(followLine.metin).speech, byCharacter: !followLine.anlatici } } : {}),
+            names: episodeNames(episode),
           }),
           scenePlanCheck(episode.sahneler),
         ].map((c) => row(c.ok, c.text))

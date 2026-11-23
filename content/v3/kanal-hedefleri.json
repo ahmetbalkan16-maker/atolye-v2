@@ -81,11 +81,12 @@
   ],
   "shortsYapisi": {
     "referansSureSn": 45,
-    "not": "Süreler esnektir; hikâyenin doğal akışı bozulmaz. Kanca mutlak 0–2 sn'dir, diğer bölümler sürenin payıyla ölçeklenir.",
+    "not": "Süreler esnektir; hikâyenin doğal akışı bozulmaz. Kanca 0–2, tehlike 2–8 ve ilk hamle 8–12 sn her uzunlukta sabittir (sabit: true; owner 23 Kas 2026, 90 sn Short'ta tehlike 2–16 sn'ye uzuyordu); diğer bölümler sürenin payıyla ölçeklenir.",
     "bolumler": [
-      { "id": "kanca", "basSn": 0, "bitSn": 2, "tr": "Güçlü diyalog, şaşırtıcı olay ya da soru", "en": "the hook: a character's surprising line, event or question" },
-      { "id": "baglam", "basSn": 2, "bitSn": 9, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when; one wider map beat is fine)" },
-      { "id": "catisma", "basSn": 9, "bitSn": 24, "tr": "Karakter çatışması, mizah ve gerilim", "en": "the clash: characters argue, joke and raise the stakes" },
+      { "id": "kanca", "basSn": 0, "bitSn": 2, "sabit": true, "tr": "Kanca: sonuç ya da neredeyse imkânsız somut iddia — bir ad, bir sayı ya da neyin kaybedileceği; espri değil (23 Kas 2026)", "en": "the hook: a character states the outcome or a near-impossible concrete claim — a name, a number or the stake, never a joke" },
+      { "id": "baglam", "basSn": 2, "bitSn": 8, "sabit": true, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when)" },
+      { "id": "ilk_hamle", "basSn": 8, "bitSn": 12, "sabit": true, "tr": "İlk hamle ekranda: hücum, kapanan tuzak, yangın ya da iki karakterin çatışması — önünde geçmiş yok (yürüyüş, yol, asker sayısı, \"X Alpleri aştı\", \"Roma … gönderdi\" ilk çatışmadan sonra, en çok tek satır)", "en": "the first action on screen: a charge, the trap sprung, a fire or two characters clashing — no backstory before it (marches, routes, troop counts, \"X crossed the Alps\", \"Rome sent…\" come after the first clash, in one line at most)" },
+      { "id": "catisma", "basSn": 12, "bitSn": 24, "tr": "Karakter çatışması, mizah ve gerilim", "en": "the clash: characters argue, joke and raise the stakes" },
       { "id": "doruk", "basSn": 24, "bitSn": 38, "tr": "Hikâyenin en güçlü gelişmesi ve karşılığı", "en": "the strongest turn and its historical payoff (the threat made good)" },
       { "id": "final", "basSn": 38, "bitSn": 45, "tr": "Akılda kalan final, espri ya da yorum sorusu", "en": "a memorable closing quip that runs back into the first line, or a one-line question to the viewer (never \"subscribe\")" }
     ],

@@ -27,7 +27,8 @@ import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { dateOpener, HOOK_FOLLOW_MAX_WORDS, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems } from "../src/lib/v3/script/HookFollow";
+import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
+import { backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
 import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
@@ -609,6 +610,95 @@ async function main() {
     const short = new FakeProvider([longer("Hisar 1452 yazında tamamlandı."), JSON.stringify({ iddialar: [] })]);
     await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 25, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: short } }), maxRepairs: 1 });
     assert.ok(!short.calls.some((c) => c.prompt.includes("HOOK FOLLOW-UP")));
+  });
+
+  await scenario("I5 the Lake Trasimene Short's opening (owner, 23 Nov 2026: 73 views in 35 h): the joke hook, the 15-word line after it and the Alps backstory before the first action are measured, asked in every round and the long line is split without a word changed", async () => {
+    // B. The hook's concrete anchor: a number, a name or a stake — never a joke.
+    assert.equal(hookAnchor("Who needs fog machines when you have nature?"), undefined);
+    assert.equal(hookAnchor("Who needs fog machines when you have nature?", ["Hannibal", "Rome"]), undefined);
+    assert.deepEqual(hookAnchor("Thirty thousand Romans walk into this fog."), { tur: "sayi", kelime: "Thirty" });
+    assert.deepEqual(hookAnchor("30,000 Romans walked into the fog. Almost none walked out."), { tur: "sayi", kelime: "30,000" });
+    assert.deepEqual(hookAnchor("Hannibal never loses.", ["Hannibal"]), { tur: "ad", kelime: "Hannibal" });
+    assert.deepEqual(hookAnchor("(smirking) Wait till Rome sees this."), { tur: "ad", kelime: "Rome" });
+    assert.deepEqual(hookAnchor("Nobody walks out of this fog."), { tur: "tehlike", kelime: "nobody" });
+    assert.deepEqual(hookAnchor("Otuz bin Romalı benim sisime yürüyor."), { tur: "sayi", kelime: "Otuz" });
+    assert.deepEqual(hookAnchor("Bu sisten kimse sağ çıkamaz."), { tur: "tehlike", kelime: "kimse" });
+    // Past Shorts' quips (Waterloo, Taranto, the second Constantinople) have none; a contraction is no stake ("won't").
+    for (const joke of ["Nice weather for a stroll, eh?", "Who ordered all this mud?!", "Is that a biplane? At midnight?!", "Why won't this wall just explode already?", "Bu sis de nereden çıktı?", "Düşündüm de, olmaz mı?", "On your marks!"]) assert.equal(hookAnchor(joke), undefined, joke);
+    assert.deepEqual(hookAnchor("Rome's last army walks in."), { tur: "tehlike", kelime: "last" });
+    // The Trasimene opening as it went out: hook (Hannibal), the narrator's 15 words, the Alps and troop counts, then
+    // only at Hannibal's next line something happens.
+    const narrator = { id: "anlatici", ad: "Narrator", gorunur: false };
+    const cast = [narrator, { id: "hannibal", ad: "Hannibal", gorunur: true }, { id: "flaminius", ad: "Gaius Flaminius", gorunur: true }];
+    const follow = "Hannibal is about to spring history’s biggest ambush. The Romans are walking right into it.";
+    const backstory = "Hannibal crossed the Alps with his army. By the time he reached Lake Trasimene, he had over 50,000 men. Rome sent Flaminius with 25,000 to stop him.";
+    const trasimene = {
+      oyuncu_kadrosu: cast,
+      sahneler: [
+        { id: "s1-hook", kamera: [{ satir: 2, tip: "zoom" }], bilgi_kartlari: [{ satir: 1 }], satirlar: [{ karakter: "hannibal", metin: "Who needs fog machines when you have nature?" }, { karakter: "anlatici", metin: follow }, { karakter: "flaminius", metin: "Fog? We march anyway." }] },
+        { id: "s2-map-campaign", harita: { ordular: [{ satir: 0, yol_satir: 0 }], birlikler: [{ vurgu: [0, 1], yerler: [{ satir: 0 }, { satir: 1, hareket: "tut" }] }] }, satirlar: [{ karakter: "anlatici", metin: backstory }, { karakter: "hannibal", metin: "Let’s light up Etruria. Maybe the Romans will chase us." }] },
+      ],
+    };
+    assert.match(hookAnchorProblems(trasimene)[0]!, /^scene "s1-hook" line 1, the hook "Who needs fog machines when you have nature\?", has no concrete anchor[^]*HOOK ANCHOR$/);
+    assert.match(hookFollowProblems(trasimene)[0]!, /has 15 words \(at most 12\)[^]*HOOK FOLLOW-UP$/);
+    assert.deepEqual(backstoryPhrases(backstory), ["crossed", "sent", "50,000 men", "by the time"]);
+    assert.deepEqual(backstoryPhrases("Mehmed Edirne'den yola çıktı ve 30 bin askerle Boğaz'a vardı."), ["yola cikti", "bin askerle"]);
+    assert.deepEqual(backstoryPhrases("The Romans march into the fog."), []);
+    // The first action: a visible character's line (a clash of words) on line 3 of s1 — the Alps line is after it here.
+    assert.deepEqual(openingBeforeAction(trasimene)?.arkaPlan, [], "Flaminius answers in s1: the first action comes first");
+    const asWent = { ...trasimene, sahneler: [{ ...trasimene.sahneler[0]!, satirlar: trasimene.sahneler[0]!.satirlar.slice(0, 2) }, trasimene.sahneler[1]!] };
+    const o = openingBeforeAction(asWent)!;
+    assert.deepEqual([o.sahne, o.satir, o.kelime, o.arkaPlan.map((b) => `${b.sahne}#${b.satir}`)], ["s2-map-campaign", 2, 50, ["s2-map-campaign#1"]]);
+    assert.match(backstoryProblems(asWent)[0]!, /^background told before the first action — scene "s2-map-campaign" line 1 \("Hannibal crossed the Alps[^]*crossed, sent, 50,000 men, by the time\); the first action comes at scene "s2-map-campaign" line 2, after 50 spoken words \(~21 s; at most 30, on screen by ~12 s\)[^]*BACKSTORY FIRST$/);
+    // A unit's charge on the map line is the first action too; a stand ("tut") or a march route is not.
+    const charged = { ...asWent, sahneler: [asWent.sahneler[0]!, { ...asWent.sahneler[1]!, satirlar: [{ karakter: "anlatici", metin: "Hannibal's cavalry charges out of the fog." }, ...asWent.sahneler[1]!.satirlar], harita: { birlikler: [{ yerler: [{ satir: 0, hareket: "hucum" }] }] } }] };
+    assert.deepEqual(backstoryProblems(charged), []);
+    // C1. The last resort: the 15 words split at the sentence break, nothing added; the scene's indexes move with it.
+    const split = splitHookFollow(asWent as never as Episode);
+    const s1 = split.episode.sahneler[0]! as unknown as { satirlar: { metin: string; karakter: string }[]; kamera: { satir: number }[]; bilgi_kartlari: { satir: number }[] };
+    assert.deepEqual(s1.satirlar.map((l) => [l.karakter, l.metin]), [["hannibal", "Who needs fog machines when you have nature?"], ["anlatici", "Hannibal is about to spring history’s biggest ambush."], ["anlatici", "The Romans are walking right into it."]]);
+    assert.match(split.fix!, /15 kelimeydi — cümle sınırından ikiye bölündü \(8 \+ 7 kelime, söz eklenmedi\)/);
+    assert.deepEqual(hookFollowProblems(split.episode), []);
+    const withRefs = splitHookFollow(trasimene as never as Episode).episode.sahneler[0]! as unknown as { kamera: { satir: number }[]; bilgi_kartlari: { satir: number }[]; satirlar: unknown[] };
+    assert.deepEqual([withRefs.kamera[0]!.satir, withRefs.bilgi_kartlari[0]!.satir, withRefs.satirlar.length], [3, 1, 4], "a cue on a later line moves down, one on the split line stays");
+    const mapSplit = splitHookFollow({ oyuncu_kadrosu: cast, sahneler: [{ id: "a", satirlar: [{ karakter: "hannibal", metin: "Thirty thousand Romans." }] }, { id: "m", harita: { birlikler: [{ vurgu: [0, 1], yerler: [{ satir: 0 }, { satir: 1 }] }], kamera: [{ satir: 1 }] }, satirlar: [{ karakter: "anlatici", metin: follow }, { karakter: "anlatici", metin: "Then the trap." }] }] } as never as Episode).episode.sahneler[1]! as unknown as { harita: { birlikler: { vurgu: number[]; yerler: { satir: number }[] }[]; kamera: { satir: number }[] } };
+    assert.deepEqual([mapSplit.harita.birlikler[0]!.vurgu, mapSplit.harita.birlikler[0]!.yerler.map((y) => y.satir), mapSplit.harita.kamera[0]!.satir], [[0, 1, 2], [0, 2], 2]);
+    // One long sentence, or stage directions: nothing safe to split, the line stays.
+    const one = "Hisar 1452 yazında, yalnızca dört ayda tamamlandı ve Boğaz'ın en dar yerine, Anadolu Hisarı'nın tam karşısına kuruldu.";
+    const ep = episode();
+    const long = { ...ep, sahneler: ep.sahneler.map((s, i) => (i === 0 ? { ...s, satirlar: [s.satirlar[0]!, { ...s.satirlar[1]!, metin: one }] } : s)) };
+    assert.equal(splitHookFollow(long).fix, undefined);
+    const directed = { ...asWent, sahneler: [{ ...asWent.sahneler[0]!, satirlar: [asWent.sahneler[0]!.satirlar[0]!, { karakter: "anlatici", metin: `(grim) ${follow}` }] }, asWent.sahneler[1]!] };
+    assert.equal(splitHookFollow(directed as never as Episode).fix, undefined);
+
+    // Through the writer (90 s, the new default): the draft is unusable AND opens like Trasimene. Until 23 Nov 2026 the
+    // round spent on its errors was not told about the opening, the length rounds never were, and the long line stayed.
+    const trasimeneDraft = (fixedHook: boolean) => {
+      const x = JSON.parse(validJson());
+      x.sahneler[0].satirlar = [
+        { karakter: "mehmed", metin: fixedHook ? "Otuz bin asker, tek bir gece." : "Who needs fog machines when you have nature?", duygu: "kararli", jest: "isaret_et", kurgu: true },
+        { karakter: "anlatici", metin: follow, duygu: "notr", kaynak: ["avunduk-2008"] },
+      ];
+      if (!fixedHook) x.sahneler[1].satirlar.unshift({ karakter: "anlatici", metin: backstory, duygu: "notr", kaynak: ["avunduk-2008"] });
+      return x;
+    };
+    const broken = trasimeneDraft(false);
+    delete broken.sahneler[1].mekan;
+    const openai = new FakeProvider([JSON.stringify(broken), JSON.stringify(trasimeneDraft(true)), "", "", JSON.stringify({ iddialar: [] })]);
+    const logs: string[] = [];
+    const out = await writeScript({ brief: { konu: "x", donem: "217 BC", hedefSureSn: 90, ton: "mizahi", dil: "en" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), maxRepairs: 1, log: (m) => logs.push(m) });
+    const repair = openai.calls[1]!.prompt;
+    for (const tag of ["mekan", "HOOK ANCHOR", "HOOK FOLLOW-UP", "BACKSTORY FIRST"]) assert.ok(repair.includes(tag), `repair round lacks ${tag}: ${repair.split("JSON:")[0]}`);
+    assert.ok(repair.indexOf("HOOK ANCHOR") < repair.indexOf("HOOK FOLLOW-UP"), "the hook is asked first");
+    assert.ok(openai.calls[2]!.prompt.includes("HOOK FOLLOW-UP"), "the length round carries the opening ask");
+    assert.deepEqual(out.episode.sahneler[0]!.satirlar.map((l) => l.metin), ["Otuz bin asker, tek bir gece.", "Hannibal is about to spring history’s biggest ambush.", "The Romans are walking right into it."]);
+    assert.ok(logs.some((m) => /s1-kanca: kancadan sonraki anlatıcı satırı 15 kelimeydi — cümle sınırından ikiye bölündü/.test(m)), logs.join("\n"));
+    assert.ok(!logs.some((m) => m.includes("AÇILIŞ SORUNU KALDI")), logs.join("\n"));
+    // Prompt-only parts (both languages): no joke hook, an anchor, no backstory before the first action.
+    const en = writingPrompt({ konu: "Lake Trasimene", donem: "217 BC", hedefSureSn: 90, ton: "mizahi", dil: "en" }, CATALOG);
+    for (const needle of ["The hook is NOT a joke or a quip", "a name, a number or what is at stake", "Thirty thousand Romans walk into my fog.", "NO backstory before the first action", "\"X crossed the Alps\", \"Rome sent…\" — comes AFTER the first clash, in one line at most"]) assert.ok(en.includes(needle), needle);
+    const tr = writingPrompt({ konu: "Trasimene", donem: "MÖ 217", hedefSureSn: 90, ton: "mizahi", dil: "tr" }, CATALOG);
+    for (const needle of ["Kanca ESPRİ ya da laf sokma DEĞİLDİR", "İlk hamleden önce geçmiş YOK", "ilk çatışmadan SONRA ve en çok tek satırla"]) assert.ok(tr.includes(needle), needle);
   });
 
   await scenario("I4 the reference skill's measurable rules (20 Nov 2026): story time only forward after the cold open and one bridge, one idea per line (22 words), a phrase typed OR said — asked in the repair round, in the prompt", async () => {

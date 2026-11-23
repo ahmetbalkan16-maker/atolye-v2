@@ -53,11 +53,18 @@ video hedefi düşürmez.
 Mevcut tarif (`ScriptPrompts.ts`: karakterin 2 sn içinde kancası, tek an, 3–5 sahne, döngülü son, abone daveti yok,
 ~%70 harita) korunur. Eklenen:
 
-- **Zaman haritası** (yazara bir madde olarak gider, süreye göre ölçeklenir; kanca her zaman 0–2 sn):
-  0–2 sn kanca · 2–9 sn bağlam · 9–24 sn çatışma, mizah, gerilim · 24–38 sn en güçlü gelişme ve karşılığı ·
-  38–45 sn akılda kalan final, espri ya da yorum sorusu ("abone ol" asla). Hikâyenin akışı önce gelir.
+- **Zaman haritası** (yazara bir madde olarak gider, süreye göre ölçeklenir; `sabit` bölümler — kanca, tehlike, ilk
+  hamle — 45 sn ve üstü her Short'ta saniyelerini korur, owner 23 Kas 2026):
+  0–2 sn kanca (somut dayanaklı, espri değil) · 2–8 sn tehlike (en çok 12 kelime) · 8–12 sn ilk hamle ekranda (önünde
+  geçmiş yok) · 12–24 sn çatışma, mizah, gerilim · 24–38 sn en güçlü gelişme ve karşılığı · 38–45 sn akılda kalan
+  final. 90 sn'de: 0–2 · 2–8 · 8–12 · 12–40 · 40–73 · 73–90. Hikâyenin akışı önce gelir.
 - **İlk 3 saniye QC** (Short'ta, mevcut "Kanca" satırına ek): ilk söz 2 sn içinde, karakterin ve en çok 8 kelime;
-  ilk görsel olay ≤ 3 sn; açılışta tam ekran kart yok.
+  kanca dayanağı (sayı, ad ya da tehlike/sonuç kelimesi: `HookFollow.hookAnchor`); ilk görsel olay ≤ 3 sn; açılışta
+  tam ekran kart yok; kanca ardı en çok 12 kelime, tarihle açılmaz.
+- **Açılış yazarda zorlanır** (23 Kas 2026, Trasimene Short'u): kanca dayanağı, kanca ardı ve "ilk hamleden önce geçmiş
+  yok" (`ShortOpening.backstoryProblems`: ilk hamleden önce yürüyüş/yol/asker sayısı satırı ya da 30 kelimeden fazla)
+  her onarım turunda önce, geçersiz taslağın turunda da istenir, uzunluk turlarına taşınır ve onları bozan uzunluk turu
+  alınmaz; sonunda hâlâ uzun kanca ardı cümle sınırından ikiye bölünür (söz eklenmez, `splitHookFollow`).
 - **Sahne planı QC:** her sahnede kamera hareketi (sahne kamerası ya da harita kamerası), efekt, karakter hareketi
   (jest/hareket/oyun ya da haritada ordu/ok), müzik ruh hali ve (ilk sahne hariç) geçiş. Görsel amaç
   (`arka_plan_sorgusu`) ve diyalog şemada zaten zorunlu. Eksik satırlar yönetmen kuruluna düzeltme önerisi olarak gider.

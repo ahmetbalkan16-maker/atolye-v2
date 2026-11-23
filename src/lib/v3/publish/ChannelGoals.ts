@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { isShorts } from "../render/Format";
-import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookFollowFaults } from "../script/HookFollow";
+import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookFollowFaults } from "../script/HookFollow";
 
 /**
  * Crowns & Doodles' video goals (owner, 5 Nov 2026, from the channel's real YouTube Studio numbers): ONE source,
@@ -16,7 +16,8 @@ import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookFollowFaults } from "../script/H
 
 export type VideoKind = "short" | "uzun";
 export interface Band { readonly min: number; readonly max: number; readonly baslangic?: number; readonly not?: string }
-export interface ShortBeat { readonly id: string; readonly basSn: number; readonly bitSn: number; readonly tr: string; readonly en: string }
+/** `sabit`: the beat keeps its seconds at any length (the hook, the stakes, the first action: shortBeats). */
+export interface ShortBeat { readonly id: string; readonly basSn: number; readonly bitSn: number; readonly tr: string; readonly en: string; readonly sabit?: boolean }
 export interface PilotVideo { readonly no: number; readonly dizi: string; readonly tur: string; readonly konu: string; readonly donem: string; readonly saat: string; readonly dogruluk?: string }
 export interface SeriesGoal { readonly id: string; readonly ad: string; readonly oncelik: number; readonly konular: string; readonly anlatim?: string }
 
@@ -103,12 +104,15 @@ const scale = (band: Band, durationS: number) => ({ min: Math.round(band.min * d
 
 /**
  * The Short's beat map for a target length: the hook stays 0–HOOK s (a hook does not get longer with the video), the
- * other beats keep their share of the reference length.
+ * other beats keep their share of the reference length. On a Short at least as long as the reference, the leading beats
+ * marked `sabit` keep their seconds too (owner, 23 Nov 2026, with the 90 s default: scaled, the stakes beat ran 2–16 s
+ * and the first action came only at ~23 s — the window where half the channel's Short viewers swipe away).
  */
 export function shortBeats(goals: ChannelGoals, targetS: number): ShortBeat[] {
   const { bolumler, referansSureSn } = goals.shortsYapisi;
-  const hook = bolumler[0]!.bitSn;
-  const at = (s: number) => (s <= hook ? s : Math.round(hook + ((s - hook) / (referansSureSn - hook)) * (targetS - hook)));
+  const lead = bolumler.findIndex((b, i) => i > 0 && !b.sabit);
+  const fixed = targetS >= referansSureSn && lead > 1 ? bolumler[lead - 1]!.bitSn : bolumler[0]!.bitSn;
+  const at = (s: number) => (s <= fixed ? s : Math.round(fixed + ((s - fixed) / (referansSureSn - fixed)) * (targetS - fixed)));
   return bolumler.map((b) => ({ ...b, basSn: at(b.basSn), bitSn: at(b.bitSn) }));
 }
 
@@ -126,7 +130,8 @@ export interface QcCheck { readonly ok: boolean; readonly text: string }
 
 /**
  * The first three seconds of a Short, beyond the hook row the pipeline already has (a character within HOOK_S): the
- * first spoken line is a character's and short, something moves on screen early, and no full-screen card opens it.
+ * first spoken line is a character's and short, it carries a concrete anchor (a number, a name or a stake: 23 Nov 2026),
+ * something moves on screen early, and no full-screen card opens it.
  * Each is measured from the plan and the timeline; nothing here is a guess about viewers.
  */
 export function openingChecks(goals: ChannelGoals, input: {
@@ -135,6 +140,8 @@ export function openingChecks(goals: ChannelGoals, input: {
   readonly firstSceneCards: readonly string[];
   /** The line after the hook (HookFollow.hookFollowLine): judged when given and the narrator's (19 Nov 2026). */
   readonly followUp?: { readonly text: string; readonly byCharacter: boolean };
+  /** The episode's proper names (HookFollow.episodeNames), for the hook's anchor row: a name opening the hook counts. */
+  readonly names?: readonly string[];
 }): QcCheck[] {
   const rules = goals.shortsYapisi.ilkUcSaniye;
   const follow = input.followUp;
@@ -147,11 +154,20 @@ export function openingChecks(goals: ChannelGoals, input: {
     : [];
   const words = input.firstLine ? input.firstLine.text.split(/\s+/).filter((w) => /\p{L}|\d/u.test(w)).length : 0;
   const fullScreen = input.firstSceneCards.filter((c) => c === "kelime" || c === "bolum");
+  // The hook's concrete anchor (owner, 23 Nov 2026: the Lake Trasimene Short's joke hook carried no name, number or stake).
+  const anchor = input.firstLine ? hookAnchor(input.firstLine.text, input.names) : undefined;
+  const anchorRow: QcCheck[] = input.firstLine
+    ? [{
+        ok: !!anchor,
+        text: `Kanca dayanağı: ${anchor ? `${{ sayi: "sayı", ad: "ad", tehlike: "tehlike/sonuç" }[anchor.tur]} ("${anchor.kelime}")` : `YOK — "${input.firstLine.text.slice(0, 60)}" espri ya da laf, somut değil`} (hedef: sonuç ya da neredeyse imkânsız iddia; bir ad, bir sayı ya da neyin kaybedileceği — hikâyeyi bilmeyen izleyiciye espri bir şey söylemez)`,
+      }]
+    : [];
   return [
     {
       ok: !!input.firstLine && input.firstLine.byCharacter && words > 0 && words <= rules.ilkSatirEnFazlaKelime && input.firstLine.startS <= rules.kancaSn,
       text: `İlk 3 sn — ilk söz: ${input.firstLine ? `${input.firstLine.startS.toFixed(1)} sn'de ${input.firstLine.byCharacter ? "karakter" : "ANLATICI"}, ${words} kelime` : "konuşma yok"} (hedef: ${rules.kancaSn} sn içinde karakterin en çok ${rules.ilkSatirEnFazlaKelime} kelimelik repliği)`,
     },
+    ...anchorRow,
     {
       ok: input.firstVisualEventS !== undefined && input.firstVisualEventS <= rules.gorselOlayIlkSn,
       text: `İlk 3 sn — ilk görsel olay ${input.firstVisualEventS === undefined ? "yok" : `${input.firstVisualEventS.toFixed(1)} sn'de`} (hedef ≤ ${rules.gorselOlayIlkSn} sn: hareket, jest ya da kamera)`,

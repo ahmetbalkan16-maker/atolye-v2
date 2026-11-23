@@ -255,14 +255,14 @@ const SHORT_PICTURES: Readonly<Record<ScriptLanguage, string>> = {
  */
 const SHORT_SHARES: Readonly<Record<ScriptLanguage, string>> = {
   tr: `- SHORT PAYLARI (en çok izlenen tarih Short'ları harita hikâyesidir): sürenin yaklaşık %70'i haritada, %30'u çöp
-  adamlarla. Karakterli kanca sahnesinden (6–10 sn) sonra an haritada anlatılır — birkaç saniye geniş harita (nerede,
-  ne zaman), sonra olayın geçtiği yakın harita ("genislik_km" ≤ 120): gemiler yol alır, pullar yaklaşır ve teker teker
+  adamlarla. Karakterli kanca sahnesinden (6–10 sn) sonra an haritada anlatılır — birkaç saniye geniş harita (nerede;
+  ilk çatışmadan önce orada yürüyüş ya da yol anlatılmaz), sonra olayın geçtiği yakın harita ("genislik_km" ≤ 120): gemiler yol alır, pullar yaklaşır ve teker teker
   düşer, oklar satırla vurur; oradaki bir karakter tek cümlesini rozetinden söyler (o harita sahnesinde kendi satırı).
   Sonuç ya da son espri kısa bir karakter sahnesinde (ya da yakın haritada) oynanır.
 ${SHORT_PICTURES.tr}`,
   en: `- SHARES OF A SHORT (the most-watched history Shorts are map stories): about 70% of the running time on the map, about
   30% with the stick figures. After the character hook scene (6–10 s) tell the moment on the map — a few seconds of the
-  wider map for where and when, then the close map where it happens ("genislik_km" ≤ 120): ships sail, tokens close in
+  wider map for where it happens (no march or route told there before the first clash), then the close map where it happens ("genislik_km" ≤ 120): ships sail, tokens close in
   and fall one by one, arrows strike with the lines; a character there says a one-liner from their badge (their own
   line in that map scene). Play the payoff or the last quip in a short character scene (or on the close map).
 ${SHORT_PICTURES.en}`,
@@ -286,19 +286,29 @@ export function shortsShape(targetS: number): { readonly min: number; readonly m
  * line, the last line leading back into the first. It overrides the long rules where they differ. Since 11 Nov 2026 a
  * Short runs up to 3 minutes: the moment then gets its build-up and outcome (still one event, never a whole war).
  * Since 13 Nov 2026 the main character's subscribe invitation is the last line, so the loop became a callback: the line
- * before it answers the first line (19 Nov 2026, retention beats — see RETENTION_BEATS).
+ * before it answers the first line (19 Nov 2026, retention beats — see RETENTION_BEATS). Since 23 Nov 2026 (owner, after the
+ * Lake Trasimene Short's joke hook and its Alps backstory at 8–19 s) the hook carries a concrete anchor, never a joke
+ * (HookFollow.hookAnchor), and no background comes before the first action (ShortOpening.backstoryProblems).
  */
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `
 
 YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da daha kısa bir YouTube Short; her sahne 16:9 resmin tamamıyla gösterilir (dar dikey pencere yok). Bu kurallar yukarıdakilerle ya da aşağıdakilerle çeliştiğinde bunlar geçerlidir:
 - İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
+  Kanca ESPRİ ya da laf sokma DEĞİLDİR (hikâyeyi bilmeyen izleyiciye espri bir şey söylemez: "Sis makinesine ne gerek,
+  doğa var?" kanalı kaybettirdi). Sonucu ya da neredeyse imkânsız, somut bir iddiayı söyler ve somut bir dayanak taşır:
+  bir ad, bir sayı ya da neyin kaybedileceği ("30.000 Romalı sise yürüdü. Neredeyse hiçbiri çıkamadı." → karakterin
+  ağzından: "Otuz bin Romalı benim sisime yürüyor."). Espri sonraki satırlara kalır.
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
-  ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
+  ya da "efekt" ile; anlatıcı ondan sonra gelir. Karakter böyle bir cümleyi doğal söyleyemiyorsa kendi üslubuyla söyler.
+  İlk sahne harita değil, karakterli bir sahnedir.
 - Kancadan hemen sonraki satır izleyiciyi tutar: en fazla ${HOOK_FOLLOW_MAX_WORDS} kelimeyle ne olduğu ve neyin tehlikede olduğu (kim
   ne istiyor, ne ters gitmek üzere). Tarih, saat ya da "yer, tarih" ile AÇILMAZ — "yer_tarih" kartı nerede ve ne zaman
   olduğunu zaten gösteriyor; önemli bir tarih sonraki bir satıra girer. (Kanalın 45–56 sn'lik Short'larında izleyicinin
   yaklaşık yarısı tam bu satırda, 4–12. saniyede kaydırdı.)
+- İlk hamleden önce geçmiş YOK: tehlike satırından hemen sonra ilk hamle ya da çatışma ekrandadır (en geç ~12. saniyede:
+  bir hücum, kurulan tuzağın kapanması, bir yangın, iki karakterin çatışması). Geçmiş — yürüyüşler, yollar, asker
+  sayıları, "X Alpleri aştı", "Roma … gönderdi" — ilk çatışmadan SONRA ve en çok tek satırla gelir.
 - Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.${b.hedefSureSn > 90 ? " Süre uzun olduğu için o anın hazırlığını, kendisini ve sonucunu anlat — yine tek olay, başka olaya geçme." : ""}
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} sahne, yaklaşık ${words} konuşulan kelime. ${shortsShape(b.hedefSureSn).karakter} görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
 - Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
@@ -315,12 +325,20 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
 
 YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, watched on a phone in a feed and shown as the whole 16:9 picture (no narrow vertical window). Where these rules differ from the rules above or below, these win:
 - The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
+  The hook is NOT a joke or a quip (a joke means nothing to a viewer who does not know the story yet: "Who needs fog
+  machines when you have nature?" lost the feed). It states the outcome or a near-impossible concrete claim and carries
+  a concrete anchor: a name, a number or what is at stake ("30,000 Romans walked into the fog. Almost none walked out."
+  → in a character's mouth: "Thirty thousand Romans walk into my fog."). The jokes come in the lines after it.
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
-  "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
+  "jest" or an "efekt"; the narrator comes after it. If the character cannot say such a line naturally, they say it in
+  their own voice. The first scene is a character scene, not a map.
 - The line right after the hook keeps the scroller: what is happening and what is at stake in at most ${HOOK_FOLLOW_MAX_WORDS} words
   (who wants what, what is about to go wrong). It NEVER opens on a date, a time or "place, date" — the "yer_tarih" card
   already shows where and when; a date that matters goes in a later line. (On our 45–56 s Shorts about half the viewers
   swiped away on exactly this line, between 4 and 12 seconds.)
+- NO backstory before the first action: right after the stakes line the first action or clash is on screen (by about
+  12 seconds: a charge, the trap sprung, a fire, two characters clashing). Background — marches, routes, troop counts,
+  "X crossed the Alps", "Rome sent…" — comes AFTER the first clash, in one line at most.
 - Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.${b.hedefSureSn > 90 ? " With this length, tell that moment's build-up, the moment itself and its outcome — still one event, never a second one." : ""}
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} scenes, about ${words} spoken words. ${shortsShape(b.hedefSureSn).karakter} visible characters; at most two of them speak in a scene, standing side by side and seen together.
 - SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"

@@ -166,7 +166,12 @@ async function main() {
   });
 
   await scenario("C the Short beat map: 0–2 s hook stays, the rest keeps its share; the writer gets it for a Short only", () => {
-    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["kanca", 0, 2], ["baglam", 2, 9], ["catisma", 9, 24], ["doruk", 24, 38], ["final", 38, 45]], "assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [[\"kanca\", 0, 2], [\"baglam\", 2, 9], [\"catisma\", 9, 24], [\"doruk\", 24, 38], [\"final\", 38, 45]])");
+    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["kanca", 0, 2], ["baglam", 2, 8], ["ilk_hamle", 8, 12], ["catisma", 12, 24], ["doruk", 24, 38], ["final", 38, 45]]);
+    // The 90 s default (owner, 23 Nov 2026): the hook, the stakes and the first action keep their seconds — scaled as
+    // before, the stakes ran 2–16 s and the first action came at ~23 s, in the window where half the viewers swipe away.
+    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["kanca", 0, 2], ["baglam", 2, 8], ["ilk_hamle", 8, 12], ["catisma", 12, 40], ["doruk", 40, 73], ["final", 73, 90]]);
+    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [2, 8, 12], `${t} s`);
+    assert.match(shortBeatRule(goals, 90, "en"), /8–12 s the first action on screen[^;]*no backstory before it/);
     const b30 = shortBeats(goals, 30);
     assert.deepEqual([b30[0]!.basSn, b30[0]!.bitSn, b30.at(-1)!.bitSn], [0, 2, 30], "assert.deepEqual([b30[0]!.basSn, b30[0]!.bitSn, b30.at(-1)!.bitSn], [0, 2, 30])");
     assert.ok(b30.every((b, i) => b.bitSn > b.basSn && (i === 0 || b.basSn === b30[i - 1]!.bitSn)), "assert.ok(b30.every((b, i) => b.bitSn > b.basSn && (i === 0 || b.basSn === b30[i - 1]!.bitSn)))");
@@ -240,20 +245,21 @@ async function main() {
 
   await scenario("H the first three seconds and the scene plan are measured from the plan; the goal note never claims a pass", () => {
     const good = openingChecks(goals, { firstLine: { text: "You kidnapped the wrong Roman.", byCharacter: true, startS: 0.3 }, firstVisualEventS: 0.5, firstSceneCards: ["yer_tarih"] });
-    assert.deepEqual(good.map((c) => c.ok), [true, true, true], "assert.deepEqual(good.map((c) => c.ok), [true, true, true])");
+    // Rows: first line, the hook's anchor (23 Nov 2026), first visual event, full-screen card[, the line after the hook].
+    assert.deepEqual(good.map((c) => c.ok), [true, true, true, true]);
     const bad = openingChecks(goals, { firstLine: { text: "In the year 75 BC, a young Roman nobleman sailed to Rhodes to study.", byCharacter: false, startS: 2.5 }, firstSceneCards: ["kelime"] });
-    assert.deepEqual(bad.map((c) => c.ok), [false, false, false], "assert.deepEqual(bad.map((c) => c.ok), [false, false, false])");
+    assert.deepEqual(bad.map((c) => c.ok), [false, true, false, false], "a number is an anchor even in a bad opening");
     assert.match(bad[0]!.text, /ANLATICI, 14 kelime/);
-    // The line after the hook (19 Nov 2026): a fourth row only when the pipeline gives it; the narrator's date line fails.
+    // The line after the hook (19 Nov 2026): a last row only when the pipeline gives it; the narrator's date line fails.
     const base = { firstLine: { text: "Twenty? I'm worth more!", byCharacter: true, startS: 0.3 }, firstVisualEventS: 0.5, firstSceneCards: ["yer_tarih"] };
     const dated = openingChecks(goals, { ...base, followUp: { text: "Around 75 BC, Julius Caesar was kidnapped by Cilician pirates along the southern coast of Asia Minor.", byCharacter: false } });
-    assert.deepEqual(dated.map((c) => c.ok), [true, true, true, false]);
-    assert.match(dated[3]!.text, /^Kanca ardı: anlatıcı, 17 kelime, TARİHLE açılıyor \("75 bc"\)/);
-    assert.deepEqual(openingChecks(goals, { ...base, followUp: { text: "He told them to ask for fifty.", byCharacter: false } }).map((c) => c.ok), [true, true, true, true]);
-    assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[3]!.text, /karakter cevap veriyor/);
+    assert.deepEqual(dated.map((c) => c.ok), [true, true, true, true, false]);
+    assert.match(dated[4]!.text, /^Kanca ardı: anlatıcı, 17 kelime, TARİHLE açılıyor \("75 bc"\)/);
+    assert.deepEqual(openingChecks(goals, { ...base, followUp: { text: "He told them to ask for fifty.", byCharacter: false } }).map((c) => c.ok), [true, true, true, true, true]);
+    assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[4]!.text, /karakter cevap veriyor/);
     // The beat map no longer asks for a "who, where and when" set-up line after the hook.
     assert.doesNotMatch(shortBeatRule(goals, 45, "en"), /set up who, where and when/);
-    assert.match(shortBeatRule(goals, 45, "en"), /2–9 s the stakes in one short line \(at most 12 words/);
+    assert.match(shortBeatRule(goals, 45, "en"), /2–8 s the stakes in one short line \(at most 12 words/);
     const scene = (id: string, extra: Record<string, unknown> = {}) => ({ id, muzik_ruh_hali: "playful", satirlar: [{ jest: "point", sfx: "pop" }], kamera: [{ tip: "zoom", t: 0 }], gecis: "wipe", ...extra });
     assert.equal(scenePlanCheck([scene("s1"), scene("s2")]).ok, true, "assert.equal(scenePlanCheck([scene(\"s1\"), scene(\"s2\")]).ok, true)");
     const gaps = scenePlanCheck([scene("s1"), scene("s2", { kamera: undefined, gecis: undefined, satirlar: [{}] }), scene("s3", { kamera: undefined, satirlar: [{}], harita: { kamera: [{}], ordular: [{}] } })]);
@@ -261,6 +267,26 @@ async function main() {
     assert.match(gaps.text, /kamera: s2; efekt: s2, s3; karakter hareketi: s2; geçiş: s2/);
     assert.match(channelGoalNote(goals, 45), /yayından sonra ölçülür — şimdi geçti sayılmaz[^]*\n- İzlemeyi seçenler: hedef %58–%60 \(başlangıç %52\)\n- Ortalama izlenme: hedef 26–28 sn \/ 45 sn/);
     assert.match(channelGoalNote(goals, 900), /HEDEF_TANIMLANMADI/);
+  });
+
+  await scenario("H2 the Lake Trasimene Short's opening (owner, 23 Nov 2026: 73 views in 35 h): the joke hook has no anchor and the 15-word line after it fails; a concrete hook passes", () => {
+    const names = ["Hannibal", "Flaminius", "Maharbal", "Rome", "Romans", "Lake", "Trasimene"];
+    const trasimene = openingChecks(goals, {
+      firstLine: { text: "Who needs fog machines when you have nature?", byCharacter: true, startS: 0.4 },
+      firstVisualEventS: 0,
+      firstSceneCards: [],
+      followUp: { text: "Hannibal is about to spring history’s biggest ambush. The Romans are walking right into it.", byCharacter: false },
+      names,
+    });
+    assert.deepEqual(trasimene.map((c) => c.ok), [true, false, true, true, false], trasimene.map((c) => c.text).join("\n"));
+    assert.match(trasimene[1]!.text, /^Kanca dayanağı: YOK — "Who needs fog machines when you have nature\?" espri ya da laf, somut değil/);
+    assert.match(trasimene[4]!.text, /^Kanca ardı: anlatıcı, 15 kelime/);
+    const concrete = openingChecks(goals, { firstLine: { text: "Thirty thousand Romans walk into this fog.", byCharacter: true, startS: 0.4 }, firstVisualEventS: 0, firstSceneCards: [], names });
+    assert.equal(concrete[1]!.ok, true);
+    assert.match(concrete[1]!.text, /^Kanca dayanağı: sayı \("Thirty"\)/);
+    // A name opening the hook counts once the episode knows it; a stake word counts as well.
+    assert.match(openingChecks(goals, { firstLine: { text: "Hannibal never loses.", byCharacter: true, startS: 0.4 }, firstSceneCards: [], names })[1]!.text, /ad \("Hannibal"\)/);
+    assert.match(openingChecks(goals, { firstLine: { text: "Nobody walks out of this fog.", byCharacter: true, startS: 0.4 }, firstSceneCards: [] })[1]!.text, /tehlike\/sonuç \("nobody"\)/);
   });
 
   await scenario("I records are kept per video, moment and day in the work root; a broken goals file is refused", async () => {

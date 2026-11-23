@@ -6,7 +6,8 @@ import { isShorts } from "../render/Format";
 import { normalizeForMatch } from "../research/SourceResearch";
 import { splitDirections } from "../tts/StageDirections";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
-import { hookFollowProblems } from "./HookFollow";
+import { hookAnchorProblems, hookFollowProblems, splitHookFollow } from "./HookFollow";
+import { backstoryProblems } from "./ShortOpening";
 import { storyRuleProblems } from "./StoryRules";
 import { addToldStrengths } from "./ToldNumbers";
 import { fixFieldLimits, normalizeDraft } from "./DraftNormalizer";
@@ -279,9 +280,36 @@ const REWRITE_CHARS_PER_TOKEN = 2;
 const REWRITE_GROWTH = 1.35;
 /** Dropped length rounds after which no more are paid (writeScript). */
 export const MAX_LENGTH_DROPS = 2;
-/** A draft's faults for comparing two rounds: an error that makes it unusable outweighs any number of map asks. */
+/**
+ * A draft's faults for comparing two rounds: an error that makes it unusable outweighs any number of map asks, and an
+ * opening ask (OPENING_ASK) weighs as much as OPENING_WEIGHT map asks (owner, 23 Nov 2026: the opening is where the
+ * channel's Shorts lose half their viewers; a round that fixes the hook but adds one map ask is progress).
+ */
 function scriptFaults(s: { readonly problems: readonly string[]; readonly quality: readonly string[] }): number {
-  return s.problems.length * 1000 + s.quality.length;
+  return s.problems.length * 1000 + s.quality.length + (OPENING_WEIGHT - 1) * s.quality.filter((q) => OPENING_ASK.test(q)).length;
+}
+const OPENING_WEIGHT = 10;
+/** The tags of a Short's opening asks (HookFollow, ShortOpening). */
+const OPENING_ASK = /— (HOOK ANCHOR|HOOK FOLLOW-UP|BACKSTORY FIRST)$/;
+
+/**
+ * A Short's opening asks (owner, 23 Nov 2026): the hook's concrete anchor, the line after the hook, no backstory before
+ * the first action. Asked first in every repair round — even beside errors that make the draft unusable, since they read
+ * only the lines — and carried into the length rounds, which must not undo them. Until then the Lake Trasimene Short's
+ * "HOOK FOLLOW-UP" ask stood among six map asks, was not asked in a round spent on errors, and the length rounds did not
+ * carry it: it went out at 15 words.
+ */
+export function openingProblems(episode: Episode): string[] {
+  return [...hookAnchorProblems(episode), ...hookFollowProblems(episode), ...backstoryProblems(episode)];
+}
+
+/** openingProblems of a draft that may not be a valid episode yet: a shape the checks cannot read asks nothing. */
+function draftOpeningProblems(value: unknown): string[] {
+  try {
+    return openingProblems(value as Episode);
+  } catch {
+    return [];
+  }
 }
 
 const FACT_CHECK_MAX_TOKENS = 3_000;
@@ -647,8 +675,9 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
-    // A Short's line after the hook is asked with its shares (19 Nov 2026, the channel's retention curves: HookFollow).
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value, rules), ...shareProblems(value as Episode, shortShares), ...(shortShares ? hookFollowProblems(value as Episode) : []), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...storyRuleProblems(value), ...copiedFromSources(value, brief.kaynakBankasi)] };
+    // A Short's opening (the hook, the line after it, the first action) is asked first, beside errors too (openingProblems).
+    const opening = shortShares ? draftOpeningProblems(value) : [];
+    return { value, validation, problems, quality: problems.length ? opening : [...opening, ...mapProblems(value, rules), ...shareProblems(value as Episode, shortShares), ...crowdProblems(value, isShorts(brief.hedefSureSn)), ...storyRuleProblems(value), ...copiedFromSources(value, brief.kaynakBankasi)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -658,8 +687,12 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const current = state.value !== undefined ? JSON.stringify(state.value) : raw;
     const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(current, [...state.problems, ...state.quality]), rewriteOpts(current));
     const checked = check(next.result.content);
-    // A round for the map that broke a valid script: the valid one stays.
-    if (!state.problems.length && checked.problems.length) break;
+    // A round for the map that broke a valid script: the valid one stays (said in the log: the Lake Trasimene Short's
+    // second round ended the rounds this way without a word, its asks unanswered).
+    if (!state.problems.length && checked.problems.length) {
+      input.log?.(`  senaryo: onarım turu ${repairs} geçerli senaryoyu bozdu (${checked.problems.length} hata: ${checked.problems.slice(0, 2).join("; ").slice(0, 160)}) — önceki senaryo kaldı`);
+      break;
+    }
     // A round that fixed nothing is not paid for again (owner, 21 Nov 2026): the Lake Trasimene drafts got the same
     // single slip back three rounds running. The better (or the earlier) script stays.
     if (scriptFaults(checked) >= scriptFaults(state)) {
@@ -712,6 +745,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (words < targetWords * band[0]) extra.push(...sceneShortfalls(written, targetWords));
     // A round that runs anyway also splits the narrator's crowded lines (no round of its own: nothing paid is added).
     extra.push(...denseNarratorLines(written, { grow: words < targetWords * band[0] }));
+    // The opening asks ride along, so a longer script keeps the hook's anchor and a short line after it (23 Nov 2026).
+    if (shortShares) extra.push(...openingProblems(written));
     if (lastDrop) extra.push(`your previous revision was not used because ${lastDrop}`);
     const current = JSON.stringify(written);
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(current, spokenWords(written), targetWords, extra), rewriteOpts(current));
@@ -728,7 +763,15 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written, rules).length + shareProblems(written, shortShares).length + (shortShares ? hookFollowProblems(written).length : 0) + crowdProblems(written, isShorts(brief.hedefSureSn)).length + storyRuleProblems(written).length + copiedFromSources(written, brief.kaynakBankasi).length;
+    const opening = shortShares ? openingProblems(written).length : 0;
+    const before = mapProblems(written, rules).length + shareProblems(written, shortShares).length + opening + crowdProblems(written, isShorts(brief.hedefSureSn)).length + storyRuleProblems(written).length + copiedFromSources(written, brief.kaynakBankasi).length;
+    // A longer script that brings an opening fault back is not taken while the script is near its band (23 Nov 2026).
+    const openingAfter = revised.quality.filter((q) => OPENING_ASK.test(q));
+    if (openingAfter.length > opening && spokenWords(written) >= targetWords * band[0] * FAR_SHORT_SHARE) {
+      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} açılışı bozdu (kanca, kanca ardı, ilk hamle sorunları ${opening} → ${openingAfter.length}) — kullanılmadı`);
+      if (drop(`it broke the opening: ${openingAfter.join(" | ").slice(0, 300)}`)) break;
+      continue;
+    }
     if (revised.quality.length > before) {
       // A script far under its band is no video yet: the Constantinople Short (20 Nov 2026) had all three expansions
       // dropped for "5 → 7" map issues and went out at 162 of 389 words, 85 s of the 144–180 s asked. Length wins there.
@@ -740,6 +783,15 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} alındı — senaryo bandın çok altında (${spokenWords(written)}/${targetWords} kelime); harita sorunları ${before} → ${revised.quality.length}, sonraki adımlar ele alır`);
     }
     written = revised.value as Episode;
+  }
+  // The line after the hook still too long: split at its sentence break, no word changed (HookFollow.splitHookFollow).
+  if (shortShares) {
+    const split = splitHookFollow(written);
+    if (split.fix && validateEpisode(split.episode).ok) {
+      written = split.episode;
+      input.log?.(`  senaryo: ${split.fix}`);
+    }
+    for (const left of openingProblems(written)) input.log?.(`  senaryo: AÇILIŞ SORUNU KALDI — ${left.slice(0, 260)}`);
   }
   const dense = denseNarratorLines(written);
   if (dense.length) input.log?.(`  senaryo: ${dense.length} anlatıcı satırı tek resimde birden çok olay anlatıyor (bölünmedi): ${dense.map((d) => d.slice(0, d.indexOf(","))).join(" · ")}`);
