@@ -13,8 +13,15 @@ yükleyelim". Ayrıntı ve ölçümler: `docs/v3/10_KNOWLEDGIA_INCELEME.md`.
 - Kanıt: tsc (kök + remotion-v3) temiz, lint 0/0; smoke-v3-script 65, -episode-director 89 (T7 3 sn, T8 dikey Short),
   -channel-goals 20, -youtube 10, -youtube-yukleme 12, -shorts-rotate, -short-tempo, -motion, -council, -render, -mix,
   ayas-video-order 10, firewall closure PASS; Stalingrad s3 haritası ve s4 sahnesi dikey kare kare önizlendi.
-- CANLIDA DEĞİL (toplu canlı alma kuralı). Owner'a kalan: Studio'da varsayılan dil İngilizce (ABD); ilk dikey
-  Short'larda reklam yok önerisi; mobil uygulamadan Shorts kapağı.
+- Sonradan (aynı gün): video kare kare incelendi → dikey haritada yazar genişliği 3,2 kat sıkışıyordu; ca5affca
+  MapBuilder.tallWidthKm (işaretlere sığan genişlik, 9/16..1), pixelSkip bant istisnası; 386ec377 harita nabzı sayımı.
+- CANLIDA: owner "canlıya al ve planlı yükle" → ayas-publish-live 386ec377 -Apply, dış erişim healthy (geri dönüş:
+  ayas-live-b4d9ec13, yedek `handover/live-publish/20261123-154618-386ec377`).
+- İlk dikey Short: Stalingrad, klasör 20261123T150000-stalingrad-dikey-short (geliştirme ağacından elle üretildi, sipariş
+  değil). Elle düzeltmeler: "Germans" → "Axis troops" (soru, ilk/son satır, sayaç kartı), s1–s5 harita verileri (vaka
+  el-20261123T110920-j4yn ve commit Vaka blokları). 67 sn (owner: süre kalsın). YouTube: **bolGvK1B9m0**, özel,
+  2026-11-24T20:00Z planlı (Salı 23:00 TR).
+- Owner'a kalan: Studio'da varsayılan dil İngilizce (ABD); bu Short'a reklam vermeme önerisi (organik akış ölçümü).
 
 ## 23 Kasım 2026 (2) — The Trap at Stalingrad: ilk 90 sn Short TESLİM (tur 1, elle)
 
