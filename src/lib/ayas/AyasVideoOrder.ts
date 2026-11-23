@@ -129,10 +129,11 @@ const PUBLISH_EN = /^(?:please\s+)?(?:upload|publish)\s+(?:the\s+)?(.{0,80}?)\s*
 const NOW_WORD = /(?<!\p{L})(?:hemen|şimdi|now)(?!\p{L})/u;
 
 /**
- * A "kısa"/"short"/"shorts" video without a number: a 3-minute vertical Short (owner, 11 Nov 2026: Shorts run 3
- * minutes, no more 60 s; under the long-form line, the $1 cap).
+ * A "kısa"/"short"/"shorts" video without a number: a 90-second vertical Short (owner, 23 Nov 2026, after the 146 s
+ * Lake Trasimene Short got 73 views in 35 hours: "90 sn olsun"; 3 minutes from 11 Nov 2026). An explicit length
+ * ("3 dakikalık shorts") still keeps its own; the $1 cap is unchanged.
  */
-export const SHORT_ORDER_LENGTH = "3dk";
+export const SHORT_ORDER_LENGTH = "90sn";
 
 /** Long episodes run 20–30 minutes (owner, 23 Oct 2026: "maksimum 30 dakika, minimum 20 dakika", no 45 for now). */
 export const LONG_ORDER_MIN_MIN = 20;

@@ -121,13 +121,13 @@ async function main() {
     assert.deepEqual(len("Rubicon hakkında 90 saniyelik video yap"), ["Rubicon", "90sn"], "assert.deepEqual(len(\"Rubicon hakkında 90 saniyelik video yap\"), [\"Rubicon\", \"90sn\"])");
     assert.deepEqual(len("Rubicon hakkında 2 dk'lık kısa bir video yap"), ["Rubicon", "2dk"], "assert.deepEqual(len(\"Rubicon hakkında 2 dk'lık kısa bir video yap\"), [\"Rubicon\", \"2dk\"])");
     // Owner, 11 Nov 2026: a Short is 3 minutes, a "shorts videosu" order included.
-    assert.deepEqual(len("Taranto Baskını hakkında shorts videosu yap"), ["Taranto Baskını", "3dk"], "a shorts order is a 3-minute Short");
+    assert.deepEqual(len("Taranto Baskını hakkında shorts videosu yap"), ["Taranto Baskını", SHORT_ORDER_LENGTH], "a shorts order is a 90-second Short");
     assert.deepEqual(len("Taranto Baskını hakkında 3 dakikalık shorts videosu yap"), ["Taranto Baskını", "3dk"], "a 3-minute shorts order");
     // Owner, 19 Nov 2026 ("ayasa ne diyerek shorts hazırlatacağım"): "shorts" alone, the colon form and "-(y)la ilgili".
-    assert.deepEqual(len("Viyana kuşatmasıyla ilgili bir shorts hazırla"), ["Viyana kuşatması", "3dk"], "shorts as the noun, -yla ilgili");
-    assert.deepEqual(len("Mohaç Savaşı'yla ilgili kısa video yap"), ["Mohaç Savaşı", "3dk"], "apostrophe -yla ilgili");
-    assert.deepEqual(len("shorts video yap: 1683 Viyana Kuşatması"), ["1683 Viyana Kuşatması", "3dk"], "colon form with shorts first");
-    assert.deepEqual(len("shorts yap: Taranto Baskını"), ["Taranto Baskını", "3dk"], "colon form, shorts alone");
+    assert.deepEqual(len("Viyana kuşatmasıyla ilgili bir shorts hazırla"), ["Viyana kuşatması", SHORT_ORDER_LENGTH], "shorts as the noun, -yla ilgili");
+    assert.deepEqual(len("Mohaç Savaşı'yla ilgili kısa video yap"), ["Mohaç Savaşı", SHORT_ORDER_LENGTH], "apostrophe -yla ilgili");
+    assert.deepEqual(len("shorts video yap: 1683 Viyana Kuşatması"), ["1683 Viyana Kuşatması", SHORT_ORDER_LENGTH], "colon form with shorts first");
+    assert.deepEqual(len("shorts yap: Taranto Baskını"), ["Taranto Baskını", SHORT_ORDER_LENGTH], "colon form, shorts alone");
     assert.deepEqual(len("video yap: Taranto Baskını"), ["Taranto Baskını", undefined], "the plain colon form keeps the long default");
     assert.equal(detectAyasVideoIntent("shorts nasıl yapılır"), null, "a question about Shorts is no order");
     assert.equal(detectAyasVideoIntent("dünkü shorts güzel olmuş"), null, "talk about a Short is no order");
@@ -139,12 +139,13 @@ async function main() {
     assert.equal(lengthOf("45 dakikalık"), "30dk", "long episodes at most 30 minutes");
     assert.equal(lengthOf("15 dakikalık"), "20dk", "long episodes at least 20 minutes");
     assert.equal(lengthOf("25 dakikalık"), "25dk", "assert.equal(lengthOf(\"25 dakikalık\"), \"25dk\")");
+    assert.equal(SHORT_ORDER_LENGTH, "90sn", "owner 23 Nov 2026: a Short without a number is 90 s");
     assert.equal(lengthOf("3 dakikalık"), "3dk", "a 3-minute trial stays");
     assert.equal(lengthOf("90 saniyelik"), "90sn", "a 90-second trial stays");
     assert.equal(lengthOf("2400 saniyelik"), "1800sn", "assert.equal(lengthOf(\"2400 saniyelik\"), \"1800sn\")");
     assert.equal(lengthOf("5 saniyelik"), "20sn", "the producer's floor");
     const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
-    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);
+    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 90 sn\)/);
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 20 dk\)/);
     assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH], "assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH])");
   });
