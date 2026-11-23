@@ -78,7 +78,8 @@ import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlan
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
 import { isShorts, lengthOk, lengthTopS, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
-import { channelGoalNote, loadChannelGoals, openingChecks, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
+import { channelGoalNote, loadChannelGoals, openingChecks, openingPlanCheck, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
+import { applyOpeningFixes, openingFixes, openingFixLine, studioMade } from "../src/lib/v3/council/OpeningRetouch";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
@@ -1161,7 +1162,7 @@ async function main() {
     // Every shot is laid out on the 16:9 stage. A Short is made whole like a 16:9 video and only its upload file is
     // turned (Format.shortsLayout "dondur", owner 12 Nov 2026); the old vertical window only with "dikey".
     ...STAGE_SIZE,
-    ...(shorts ? { endCard: false, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}) } : {}),
+    ...(shorts ? { endCard: false, short: true, ...(outputFrame(shorts, layout) ? { output: outputFrame(shorts, layout)! } : {}) } : {}),
     // No burned-in subtitles (owner, 20 Oct 2026; for Shorts too, 2 Nov 2026): speech on screen, altyazi.srt for CC.
     showCaptions: process.argv.includes("--altyazi-gom"),
     log,
@@ -1404,6 +1405,10 @@ async function main() {
     const firstLine = timeline.lines[0];
     // The line after the hook (19 Nov 2026: the channel's Shorts lost half their viewers on it, 4–12 s).
     const followLine = hookFollowLine(episode);
+    // A Short's opening scenes with no camera or no effect at all — the writer's, the Director's or the Mixer's — are a
+    // fault (owner, 23 Nov 2026): a missing piece of the delivery and a retouch round that puts them in (OpeningRetouch).
+    const openingPlan = shorts ? openingPlanCheck(episode.sahneler, studioMade(plan, episode, timeline)) : undefined;
+    const openingFixList = openingPlan && !openingPlan.ok ? openingFixes(episode, timeline, openingPlan.eksik) : [];
     const goalRows = shorts && goals
       ? [
           ...openingChecks(goals, {
@@ -1413,6 +1418,7 @@ async function main() {
             ...(followLine ? { followUp: { text: splitDirections(followLine.metin).speech, byCharacter: !followLine.anlatici } } : {}),
           }),
           scenePlanCheck(episode.sahneler),
+          ...(openingPlan ? [openingPlan] : []),
         ].map((c) => row(c.ok, c.text))
       : [];
     const qc = [
@@ -1475,6 +1481,7 @@ async function main() {
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
     if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(shortsMinS(target))})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
     if (shorts && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
+    if (openingPlan && !openingPlan.ok) council.find({ beyin: "kurgu", onem: "eksik", baslik: "Short açılışında kamera/efekt yok", ayrinti: openingPlan.text, oneri: openingFixList.length ? `rötuş turunda eklenir: ${openingFixList.map(openingFixLine).join(" · ")}` : "haritalı ya da boş sahne: senaryoda harita kamerası ya da satıra sfx ver", tur: "veri", yer: openingPlan.eksik.map((x) => x.sahne).join(", ") });
     for (const x of briefShots) council.find({ beyin: "kalite", onem: "uyari", baslik: `${OPENING_HOLD_S} sn'den kısa çekim`, ayrinti: `${x.shot}: ${x.what}, ${x.lengthS.toFixed(2)} sn`, oneri: "Director.noShortShots / closeInsertTail bu kesmeyi neden bırakmadı bak: kesme birleşmeli ya da ara görüntü sahne sonuna uzamalı", tur: "kod", yer: `${x.at.toFixed(1)}. sn` });
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin" || claim.sonuc === "dayanaksiz") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
@@ -1625,7 +1632,7 @@ async function main() {
       log(`↺ rötuş beyni: ${why}`);
       council.debate("sef", "rötuş kararı", [{ rol: "Rötuş beyni", metin: why }]);
     }
-    let nextRound = process.argv.includes("--rotus-yok") || !improved ? undefined : planRetouch({ round: rotusTuru, ...scored, plateau });
+    let nextRound = process.argv.includes("--rotus-yok") || !improved ? undefined : planRetouch({ round: rotusTuru, ...scored, plateau, acilis: openingFixList });
     // AYAS's fixes ride in the same round as the likeness and set retouch, from the earlier of their steps.
     if (canRevise && improved && session?.karar?.duzeltmeler.length) nextRound = withDirector(nextRound, rotusTuru, session.karar);
     if (nextRound) {
@@ -1685,6 +1692,18 @@ async function main() {
         }
       }
       log(`AYAS (yönetmen): ${fixes.duzeltmeler.map(editLine).join(" · ")}`);
+    }
+    // A Short's opening fixes (OpeningRetouch): the same way into both scripts, after AYAS's.
+    if (retouchPlan.acilis?.length) {
+      for (const name of ["episode.json", "episode-siparisli.json"]) {
+        if (!existsSync(f(name))) continue;
+        try {
+          await writeJson(f(name), assertEpisode(applyOpeningFixes(assertEpisode(await readJson<unknown>(f(name))), retouchPlan.acilis)));
+        } catch (e) {
+          log(`  açılış düzeltmeleri ${name} dosyasına işlenemedi: ${(e as Error).message.slice(0, 160)}`);
+        }
+      }
+      log(`Short açılışı: ${retouchPlan.acilis.map(openingFixLine).join(" · ")}`);
     }
     const keep = process.argv.slice(2).filter((a, i, all) => !["--from-step", "--rotus-turu"].includes(a) && !["--from-step", "--rotus-turu"].includes(all[i - 1] ?? ""));
     const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];

@@ -36,6 +36,7 @@ import { mapSpeakers } from "../maps/MapSpeakers";
 import { actionAt, besideAction, clearAtEveryStop, frameLineAction, fullStage, groundOf, recentAction, shortWindow } from "../maps/UnitFraming";
 import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
+import { STAGE_SIZE } from "../render/Format";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
 export interface SceneInsert {
@@ -86,6 +87,11 @@ export interface DirectorInput {
   readonly audio?: string;
   /** The closing subscribe card (default on); off for a single-scene preview (scripts/v3/harita-onizleme.ts). */
   readonly endCard?: boolean;
+  /**
+   * A Short (Format.isShorts of the ordered length): its opening keeps a picture change at least every
+   * OPENING_CHANGE_S (openingBeats). Off by default, so a long video's plan is laid out exactly as before.
+   */
+  readonly short?: boolean;
   /** What the maps' plan put right on the writer's map (MapBuilder's notes: a unit pulled out of the water), logged. */
   readonly log?: (s: string) => void;
 }
@@ -1378,7 +1384,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       props,
       camera: geo
         ? mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps))
-        : fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
+        : ((cam) => (input.short && !photo && start < f(OPENING_TEMPO_S) ? withOpeningBeats(cam, performers, inserts, duration, f(OPENING_TEMPO_S) - start, fps, shotLead) : cam))(
+            fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts), shotEventFrames(performers, titleCards, []), duration, fps),
+          ).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
       mapArrows,
@@ -1663,6 +1671,159 @@ export function shortShots(plan: Pick<V3RenderPlan, "fps" | "shots">, minS = OPE
       const len = at[i]! - at[i - 1]!;
       if (len > 0 && len < min) out.push({ shot: s.id, at: Math.round(((s.start + at[i - 1]!) / plan.fps) * 10) / 10, lengthS: Math.round((len / plan.fps) * 100) / 100, what: `${marks.get(at[i - 1]!)} → ${marks.get(at[i]!)}` });
     }
+  }
+  return out;
+}
+
+/**
+ * A Short's opening tempo (owner, 23 Nov 2026, "diğer önerileri de kabul ediyorum"; the Lake Trasimene Short measured
+ * one picture cut every 29 s against the 39 studied reference videos' one about every 7 s, and its viewers left in the
+ * first seconds): in the first OPENING_TEMPO_S of a Short the picture changes at least every OPENING_CHANGE_S.
+ */
+export const OPENING_TEMPO_S = 15;
+export const OPENING_CHANGE_S = 7;
+/** Where a missing change is put: this long after the last one (a little under OPENING_CHANGE_S). */
+export const OPENING_BEAT_S = 6;
+/** A map's camera key moves the picture visibly from this zoom ratio, or from this share of the frame's width. */
+const MAP_MOVE_ZOOM = 1.2;
+const MAP_MOVE_PAN = 0.12;
+/** A beat's framing differs visibly from the camera it cuts from: this much zoom, or this much of the stage sideways. */
+const BEAT_ZOOM_STEP = 0.12;
+const BEAT_PAN_STEP = 0.08;
+
+/** What the picture-change marks read of a shot. */
+type ChangeShot = Pick<V3Shot, "duration" | "camera"> & { readonly inserts?: readonly Pick<V3Insert, "start" | "end">[]; readonly geoMap?: Pick<NonNullable<V3Shot["geoMap"]>, "camera"> };
+
+/**
+ * Where a shot's camera visibly changes, in its own frames, the same marks the plan-time "picture cut" counts use
+ * (shortShots; ffmpeg's scene filter counts the finished video's): a stage camera cut or snap (a punch-in) not hidden under
+ * a cutaway, and on a map each camera key that takes the map to a visibly different view (it glides there from its frame,
+ * mapCamera.cameraAt). A smooth drift or a 5% push (fillTempo) is not a change: a viewer does not see a new picture.
+ */
+export function cameraChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE.width): number[] {
+  const inserts = shot.inserts ?? [];
+  const seen = (f: number) => f > 0 && f < shot.duration && !inserts.some((w) => f > w.start && f < w.end);
+  const out = new Set<number>();
+  for (const k of shot.camera) if ((k.ease === "cut" || k.ease === "snap") && seen(k.frame)) out.add(k.frame);
+  const keys = shot.geoMap?.camera ?? [];
+  for (let i = 1; i < keys.length; i++) {
+    const a = keys[i - 1]!, b = keys[i]!;
+    const zoomed = Math.max(a.zoom, b.zoom) / Math.max(1e-6, Math.min(a.zoom, b.zoom)) >= MAP_MOVE_ZOOM;
+    const panned = Math.hypot(b.x - a.x, b.y - a.y) * Math.min(a.zoom, b.zoom) >= MAP_MOVE_PAN * width;
+    if ((zoomed || panned) && seen(b.frame)) out.add(b.frame);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** Every visible picture change of a shot, in its own frames: its start, its camera changes, each cutaway's start and end. */
+export function pictureChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE.width): number[] {
+  const marks = new Set<number>([0, ...cameraChangeFrames(shot, width)]);
+  for (const w of shot.inserts ?? []) for (const f of [w.start, w.end]) if (f > 0 && f < shot.duration) marks.add(f);
+  return [...marks].sort((a, b) => a - b);
+}
+
+/**
+ * The stretches of a plan's first OPENING_TEMPO_S without a picture change longer than OPENING_CHANGE_S (seconds on the
+ * video's clock; the last stretch is measured up to OPENING_TEMPO_S): what the opening tempo rule leaves open — a map
+ * shot is never cut (mapGlides), so a still map there is reported, not fixed.
+ */
+export function openingTempoGaps(plan: Pick<V3RenderPlan, "fps" | "shots" | "width" | "stage">): { readonly from: number; readonly to: number; readonly shot: string }[] {
+  const horizon = OPENING_TEMPO_S * plan.fps;
+  const width = plan.stage?.width ?? plan.width;
+  const changes = plan.shots.filter((s) => s.start < horizon).flatMap((s) => pictureChangeFrames(s, width).map((f) => ({ at: s.start + f, end: s.start + s.duration, shot: s.id })));
+  const out: { from: number; to: number; shot: string }[] = [];
+  changes.forEach((c, i) => {
+    const to = Math.min(changes[i + 1]?.at ?? Infinity, c.end, horizon);
+    if (to - c.at > OPENING_CHANGE_S * plan.fps) out.push({ from: Math.round((c.at / plan.fps) * 10) / 10, to: Math.round((to / plan.fps) * 10) / 10, shot: c.shot });
+  });
+  return out;
+}
+
+/**
+ * The frames inside one shot where a beat goes so that, up to `horizon` (the shot's own frame where the video's
+ * OPENING_TEMPO_S ends), no stretch between two changes is longer than OPENING_CHANGE_S. A beat goes OPENING_BEAT_S after
+ * the last change, or halfway when that would leave the next shot shorter than OPENING_HOLD_S; never a shot under it.
+ */
+export function openingBeats(changes: readonly number[], duration: number, horizon: number, fps: number): number[] {
+  const max = OPENING_CHANGE_S * fps, step = Math.round(OPENING_BEAT_S * fps), hold = Math.round(OPENING_HOLD_S * fps);
+  const marks = [...new Set([...changes, duration])].sort((a, b) => a - b);
+  const out: number[] = [];
+  for (let i = 0; i + 1 < marks.length; i++) {
+    const b = marks[i + 1]!;
+    let t = marks[i]!;
+    while (Math.min(b, horizon) - t > max) {
+      let beat = t + step;
+      if (b - beat < hold) beat = Math.round((t + b) / 2);
+      if (beat - t < hold || b - beat < hold) break;
+      out.push(beat);
+      t = beat;
+    }
+  }
+  return out;
+}
+
+/** Where a performer stands at a frame (its walks, from the plan's own move events); undefined while off the stage. */
+function standsAt(p: Pick<V3Performer, "x" | "moves">, frame: number): number | undefined {
+  let x = p.x;
+  for (const m of [...p.moves].sort((a, b) => a.start - b.start)) {
+    if (frame >= m.end) x = m.toX;
+    else if (frame >= m.start) x = m.fromX + ((m.toX - m.fromX) * (frame - m.start)) / Math.max(1, m.end - m.start);
+  }
+  return x > 0 && x < 1 ? x : undefined;
+}
+
+/**
+ * A stage shot's camera with the opening's beats (openingBeats) cut in: the picture holds up to the beat, then cuts to a
+ * visibly different framing — a close shot of who speaks then (else the shot's lead) when the camera is wide, the whole
+ * cast when it is close, a push in or out on an empty set — framed so nobody is cut at the edge (cleanFrame). Nobody is
+ * framed close while someone walks (the walk reads only wide, like the Director's action lines). The new framing holds
+ * (a slight push) until the next change, or for OPENING_BEAT_S and then cuts back to the camera as it was — wide, close,
+ * wide, like an editor's insert — so the shot's own moves never pull it back in a rush. A beat with no visibly different
+ * framing, or under a cutaway, is left out. Only keys are set: the renderer's camera stays a function of the frame alone.
+ */
+export function withOpeningBeats(camera: readonly V3CameraKey[], performers: readonly V3Performer[], inserts: readonly Pick<V3Insert, "start" | "end">[], duration: number, horizon: number, fps: number, lead?: string): V3CameraKey[] {
+  const hold = Math.round(OPENING_HOLD_S * fps), step = Math.round(OPENING_BEAT_S * fps);
+  const skipped = new Set<number>();
+  let out = [...camera];
+  for (let guard = 0; guard < 8; guard++) {
+    const marks = pictureChangeFrames({ duration, camera: out, inserts });
+    const beat = openingBeats(marks, duration, horizon, fps).find((b) => !skipped.has(b));
+    if (beat === undefined) break;
+    skipped.add(beat);
+    if (inserts.some((w) => beat >= w.start && beat <= w.end)) continue;
+    const now = cameraAtFrame(out, beat);
+    const on = performers.flatMap((p) => {
+      const x = standsAt(p, beat);
+      return x === undefined || (p.falls !== undefined && p.falls <= beat) ? [] : [{ p, x }];
+    });
+    const walking = performers.some((p) => p.moves.some((m) => m.start < beat + hold && m.end > beat - 1));
+    const options: { zoom: number; cx: number; cy: number }[] = [];
+    if (on.length) {
+      const xs = on.map((o) => o.x);
+      const wide = cleanFrame(1.18, (Math.min(...xs) + Math.max(...xs)) / 2, xs, []);
+      const who = on.find((o) => o.p.speaking.some((s) => s.start <= beat && s.end > beat)) ?? on.find((o) => o.p.castId === lead) ?? on[0]!;
+      const close = cleanFrame(on.length > 1 ? 1.62 : 1.42, who.x, [who.x], xs.filter((x) => x !== who.x));
+      const closeKey = { ...close, cy: who.p.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y };
+      const wideKey = { ...wide, cy: TWO_SHOT_Y };
+      options.push(...(now.zoom >= 1.3 || walking ? [wideKey] : [closeKey, wideKey]));
+    } else options.push({ zoom: now.zoom >= 1.25 ? 1 : now.zoom + 0.2, cx: 0.5, cy: 0.5 });
+    const pick = options.map((o) => ({ ...o, ...clampCam(o.zoom, o.cx, o.cy) })).find((o) => Math.abs(o.zoom - now.zoom) >= BEAT_ZOOM_STEP || Math.abs(o.cx - now.cx) >= BEAT_PAN_STEP);
+    if (!pick) continue;
+    // The beat's shot: up to the next change, or OPENING_BEAT_S and back to the camera as it was.
+    const next = marks.find((m) => m > beat) ?? duration;
+    const push = clampCam(pick.zoom * 1.03, pick.cx, pick.cy);
+    const away = (v: { zoom: number; cx: number }) => Math.abs(v.zoom - push.zoom) >= BEAT_ZOOM_STEP || Math.abs(v.cx - push.cx) >= BEAT_PAN_STEP;
+    // A cut back only to a framing that differs as visibly: else the beat's framing holds to the next change.
+    const end = next - beat >= step + hold && away(cameraAtFrame(out, beat + step)) ? beat + step : next;
+    const before = cameraAtFrame(out, beat - 1);
+    const back = cameraAtFrame(out, end);
+    out = normalizeCamera([
+      ...out.filter((k) => k.frame < beat - 1 || k.frame >= end),
+      { frame: beat - 1, ...before, ease: "smooth" },
+      { frame: beat, zoom: pick.zoom, cx: pick.cx, cy: pick.cy, ease: "cut" },
+      ...(end - 1 > beat ? [{ frame: end - 1, ...push, ease: "smooth" as const }] : []),
+      ...(end < next ? [{ frame: end, ...back, ease: "cut" as const }] : []),
+    ]);
   }
   return out;
 }
