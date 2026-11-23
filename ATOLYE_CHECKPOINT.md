@@ -1,3 +1,27 @@
+## 23 Kasım 2026 — Trasimene Short az izlendi: Short 90 sn, kanca dayanağı, açılış zorunlu, açılış temposu
+
+Owner: "son yaptığımız videoyu yükledim … neden az izleniyor" → Trasimene Short `_Fn4W5HW0Uo` (21 Kas 20:00 TR, 146 sn)
+35 saatte 73 görüntüleme (kanalın diğer Short'ları 700–2.600; tek rakip Trasimene Short'u 57 sn, 13 görüntüleme). Teknik
+engel yok. Neden adayları: uzunluk, şaka kanca ("Who needs fog machines…"), 15 kelimelik kanca ardı, 8–19 sn arası
+geçmiş/sayı anlatımı, 29 sn'de bir görüntü değişimi. `kanal.ts cek/rapor` bu makinede zaman aşımına uğradı (çıktısız) —
+Studio sayıları (gösterim, izlemeyi seçenler, ort. süre) owner'dan istendi, gelmedi. Owner: "90 sn olsun diğer önerileri
+de kabul ediyorum".
+- 20c6bf0a: `AyasVideoOrder.SHORT_ORDER_LENGTH` "3dk" → "90sn" (açık süre kendi süresini korur).
+- 69ef131e (ajan, claude/short-kanca): `HookFollow.hookAnchor` (sayı/ad/tehlike sözcüğü), `ShortOpening.ts` (ilk hamleden
+  önce geçmiş), ScriptEngine her onarım turunda önce açılışı soruyor (eskiden yalnız hatasız taslakta soruluyordu; ikinci
+  tur geçerli senaryoyu bozunca turlar sessizce bitiyordu — Trasimene'nin 15 kelimesi böyle geçti), `splitHookFollow`
+  güvenli bölme, QC "Kanca dayanağı" satırı, beat map 0–2 / 2–8 / 8–12 sabit. 22 eski Short'ta Zanzibar, Waterloo,
+  Taranto, Guadalcanal ve ilk İstanbul kancaları da dayanaksız çıktı.
+- bcc72d2d (ajan, claude/short-tempo): Director `short` bayrağıyla ilk 15 sn'de en çok 7 sn'de bir görüntü değişimi
+  (`withOpeningBeats`, uzun videolar bit bit aynı); QC "Short açılışı (ilk 2 sahne) kamera ve efekt" satırı rötuş turu
+  açar, modelsiz `OpeningRetouch.applyOpeningFixes` (zoom + pop/whoosh); stüdyonun kendi kesme ve seslerini sayar.
+  Trasimene bu iki kuraldan geçerdi (zayıf yeri 8–23 sn duran s2 haritası, 15 sn penceresinin dışında).
+Kanıt: tsc 0, lint-yerel 0/0; smoke short-tempo 3, channel-goals 19, script 64, episode-director 88, motion 29,
+director-council 12, ayas-video-order 10, firewall-closure 13 PASS. Render yapılmadı.
+CANLIYA ALINMADI (toplu go-live bekliyor): 20c6bf0a, 69ef131e, bcc72d2d + merge'ler. V3 üretici canonical'dan okuduğu
+için bir sonraki Short go-live'dan sonra bu kurallarla çıkar. AÇIK: Trasimene'nin Studio sayıları; ilk 90 sn Short'un
+48 sa ölçümü; "uzunluk turu açılış hatasını geri getirirse düşür" dalının smoke'u yok.
+
 ## 21 Kasım 2026 (4) — owner iki açığı onayladı: CC BY-SA açık, başka kişi/olay adlı tablo kodla eleniyor
 
 Owner: "önceki oturumda benden beklediklerini onaylıyorum" + "sistemde açık kalmasın".
