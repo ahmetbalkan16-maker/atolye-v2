@@ -25,7 +25,7 @@ import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../s
 import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
 import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
-import { addToldStrengths, namesSide, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
+import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
 import { backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
@@ -903,6 +903,38 @@ async function main() {
     assert.equal(addToldStrengths(writerCard).episode.sahneler[0]!.bilgi_kartlari!.length, 1, "the writer's own card stays the only one");
     // The writer is asked for it first.
     assert.match(writingPrompt({ konu: "Cannae", donem: "216 BC", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG), /"tur": "guc", "satir": 1, "taraflar": \[\{"ad": "Romans"[\s\S]*both sides' numbers/);
+  });
+
+  await scenario("P3b amounts the narrator tells by their measure get their card (the Stalingrad Short, 23 Nov 2026: tons and kilometres over a still photo)", async () => {
+    const airlift = "They need 750 tons daily; Luftwaffe brings 105. Snack-sized.";
+    assert.deepEqual(toldAmountCard(airlift, 2), { tur: "guc", satir: 2, taraflar: [{ ad: "They need", renk: AMOUNT_COLOURS[0], sayi: "750 tons" }, { ad: "Luftwaffe brings", renk: AMOUNT_COLOURS[1], sayi: "105 tons" }] });
+    assert.deepEqual(toldAmountCard("Spoiler: the army needs 750 tons a day. The Luftwaffe brings about 105. Snack-sized.", 0)!.taraflar!.map((t) => [t.ad, t.sayi]), [["the army needs", "750 tons"], ["The Luftwaffe brings", "105 tons"]], "a hedge is no name; the second number ends its clause");
+    assert.deepEqual(toldAmountCard("In December, Manstein's rescue gets within 48 kilometres. Then it stops.", 1), { tur: "sayac", satir: 1, deger: 48, etiket: "kilometres" });
+    assert.deepEqual(toldAmountCard("They marched 300 miles in ten days.", 0), { tur: "sayac", satir: 0, deger: 300, etiket: "miles in ten days" }, "a number of days is no second amount");
+    assert.equal(toldAmountCard("Germans want Stalingrad; Soviets want them trapped.", 0), undefined, "no number, no card");
+    assert.equal(toldAmountCard("In 1942 the 6th Army reached the Volga.", 0), undefined, "a year and an ordinal are no amounts");
+    assert.equal(toldAmountCard("The front was 2.5 km wide.", 0), undefined, "a decimal would count up to a wrong whole");
+    assert.equal(toldNumbers(airlift).length, 0, "tons are still no army");
+    // The last resort: armies first, then amounts; a scene with a map or a card is left alone.
+    const ep = episode();
+    const prisoners = [{ karakter: "anlatici", metin: "Ninety-one thousand prisoners march out.", duygu: "uzgun" as const }];
+    const shaped: Episode = {
+      ...ep,
+      sahneler: [
+        { ...ep.sahneler[0]!, satirlar: [ep.sahneler[0]!.satirlar[0]!, { karakter: "anlatici", metin: airlift, duygu: "notr" }] },
+        { ...ep.sahneler[1]!, satirlar: [{ karakter: "anlatici", metin: "The rescue gets within 48 kilometres.", duygu: "notr" }, ...prisoners] },
+      ],
+    };
+    assert.equal(validateEpisode(shaped).ok, true, JSON.stringify(validateEpisode(shaped).errors.slice(0, 2)));
+    const counted = addToldStrengths(shaped);
+    assert.deepEqual(counted.episode.sahneler.map((s) => s.bilgi_kartlari?.map((c) => [c.tur, c.satir, c.deger ?? c.taraflar?.map((t) => t.sayi).join(" / ")])), [[["guc", 1, "750 tons / 105 tons"]], [["sayac", 1, 91_000]]], "an army counted in the scene wins over an amount before it");
+    assert.equal(validateEpisode(counted.episode).ok, true, JSON.stringify(validateEpisode(counted.episode).errors.slice(0, 2)));
+    assert.ok(counted.fixes.some((f) => f.includes("iki miktarı karşılaştırıyor — güç kartı eklendi (They need 750 tons / Luftwaffe brings 105 tons, satır 1)")), counted.fixes.join("\n"));
+    assert.equal(addToldStrengths(counted.episode).fixes.length, 0, "a second pass changes nothing");
+    const amountOnly = addToldStrengths({ ...shaped, sahneler: shaped.sahneler.map((s, i) => (i === 1 ? { ...s, satirlar: s.satirlar.slice(0, 1) } : s)) });
+    assert.deepEqual(amountOnly.episode.sahneler[1]!.bilgi_kartlari, [{ tur: "sayac", satir: 0, deger: 48, etiket: "kilometres" }]);
+    assert.ok(amountOnly.fixes.some((f) => f.includes("bir miktar veriyor — sayaç kartı eklendi (48 kilometres, satır 0)")), amountOnly.fixes.join("\n"));
+    assert.match(writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 90, ton: "mizahi", dil: "en" }, CATALOG), /compare two amounts \("They need 750 tons a day/);
   });
 
   await scenario("N2 a long video is researched deeper: more articles, three times the facts, the whole story in order", () => {
