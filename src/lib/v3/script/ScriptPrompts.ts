@@ -315,7 +315,8 @@ YOUTUBE SHORTS — bu, telefonda akışta dik izlenen ${b.hedefSureSn} saniye ya
   sayıları, "X Alpleri aştı", "Roma … gönderdi" — ilk çatışmadan SONRA ve en çok tek satırla gelir.
 - Soruyu TEK açık bir olay zinciriyle cevapla (2–4 neden ya da adım, sonucuyla) — bütün bir savaşın ya da hayatın dökümü değil.${b.hedefSureSn > 90 ? " Süre uzun olduğu için o anın hazırlığını, kendisini ve sonucunu anlat — yine tek olay, başka olaya geçme." : ""}
 - TEK BÜYÜK SAYI: hikâyenin en çarpıcı sayısı bir kez ekranda büyük görünür — o satırda bir "sayac" bilgi kartı ya da
-  haritada "guc" çubuğu.
+  haritada "guc" çubuğu. Soru başlığında bir sayı varsa ekrandaki büyük sayı ve anlatımdaki her sayı AYNI sayıdır (aynı
+  rakam, aynı birim, kaynak bankasından); aynı şey için iki farklı sayı asla yok (Stalingrad Short'u: başlık 290,000, kart 270,556).
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} sahne, yaklaşık ${words} konuşulan kelime. ${shortsShape(b.hedefSureSn).karakter} görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
 - Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
   anlatıcı satırı onları "oyun" ile oynatır (kovalama, yakalama, gülme) — anlatıcı başkalarının yaptığını anlatırken baş
@@ -348,7 +349,9 @@ YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, w
   "X crossed the Alps", "Rome sent…" — comes AFTER the first clash, in one line at most.
 - Answer the question with ONE clear chain of events (2–4 causes or steps, with the outcome) — never a whole war's or a whole life's chronicle.${b.hedefSureSn > 90 ? " With this length, tell that moment's build-up, the moment itself and its outcome — still one event, never a second one." : ""}
 - ONE BIG NUMBER: the story's most striking number is shown big on screen once — a "sayac" info card on that line, or the
-  map's "guc" bar.
+  map's "guc" bar. If the question title has a number, the big on-screen number and every spoken figure for that thing are
+  the SAME number (same figure, same unit, from the source bank); never two different figures for one thing (the
+  Stalingrad Short's title said 290,000 while its card showed 270,556).
 ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- ${shortsShape(b.hedefSureSn).min}–${shortsShape(b.hedefSureSn).max} scenes, about ${words} spoken words. ${shortsShape(b.hedefSureSn).karakter} visible characters; at most two of them speak in a scene, standing side by side and seen together.
 - SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"
   and the narrator line acts them out with "oyun" (a chase, a capture, a laugh) — never the lead alone on an empty set

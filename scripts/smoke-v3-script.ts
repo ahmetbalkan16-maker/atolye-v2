@@ -27,7 +27,7 @@ import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { opensWithQuestion, questionFaults, questionFirst, questionProblems, questionTags, questionTitleFaults, questionVideoTitle } from "../src/lib/v3/script/QuestionTitle";
+import { opensWithQuestion, questionFaults, questionFirst, questionNumberClash, questionProblems, questionTags, questionTitleFaults, questionVideoTitle } from "../src/lib/v3/script/QuestionTitle";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
 import { backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
 import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
@@ -2190,6 +2190,19 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     const mapEnd = { ...base, sahneler: [base.sahneler[0]!, { ...base.sahneler[1]!, harita: { merkez: [0, 0], genislik_km: 10 } }] } as unknown as Episode;
     assert.deepEqual(ensureClosingLine(mapEnd, "en", "C").fixes, []);
     assert.ok(closingText("tr", "Crowns & Doodles").metin.includes("abone"));
+  });
+
+  await scenario("I7 a Short's question number and its big sayac number are one figure (owner, 26 Nov 2026: Stalingrad Short title 290,000, card 270,556)", () => {
+    const ep = {
+      soru: "Why Couldn't 290,000 Axis Troops Escape Stalingrad?",
+      sahneler: [{ id: "s1", satirlar: [{ karakter: "anlatici", metin: "Why Couldn't 290,000 Axis Troops Escape Stalingrad?" }], bilgi_kartlari: [{ tur: "sayac", satir: 0, deger: 270556, etiket: "Axis trapped" }] }],
+    };
+    assert.deepEqual(questionNumberClash(ep), { question: 290000, card: 270556 });
+    assert.match(questionProblems(ep).join(" | "), /says 290,000 but the "sayac" card shows 270,556[^]*QUESTION TITLE/);
+    // The same figure, an unrelated magnitude, or no number in the question: no ask.
+    assert.equal(questionNumberClash({ ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [{ tur: "sayac", deger: 290000 }] }] }), undefined);
+    assert.equal(questionNumberClash({ ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [{ tur: "sayac", deger: 750 }] }] }), undefined);
+    assert.equal(questionNumberClash({ ...ep, soru: "Why Did Stalingrad Become a Trap?" }), undefined);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

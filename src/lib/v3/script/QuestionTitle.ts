@@ -27,7 +27,7 @@ const bareWords = (text: string) => wordsOf(fold(splitDirections(text).speech)).
 export type QuestionFault = "yok" | "soru-degil" | "uzunluk" | "dayanak-yok" | "ilk-satir-degil";
 
 interface Line { readonly karakter?: string; readonly metin?: string }
-interface Scene { readonly id?: string; readonly satirlar?: readonly Line[] }
+interface Scene { readonly id?: string; readonly satirlar?: readonly Line[]; readonly bilgi_kartlari?: readonly { readonly tur?: string; readonly deger?: number }[] }
 interface QuestionEpisode {
   readonly soru?: string;
   readonly oyuncu_kadrosu?: readonly { readonly id?: string; readonly ad?: string; readonly gorunur?: boolean }[];
@@ -78,8 +78,12 @@ export function questionFaults(episode: QuestionEpisode): QuestionFault[] {
  * Tagged QUESTION TITLE so the opening weight counts it.
  */
 export function questionProblems(episode: QuestionEpisode): string[] {
+  const clash = questionNumberClash(episode);
+  const clashAsk = clash
+    ? [`the question says ${clash.question.toLocaleString("en-US")} but the "sayac" card shows ${clash.card.toLocaleString("en-US")} for the same thing: use ONE figure from the source bank in "soru", the first line, every spoken figure and the card — QUESTION TITLE`]
+    : [];
   const faults = questionFaults(episode);
-  if (!faults.length) return [];
+  if (!faults.length) return clashAsk;
   const q = episode.soru?.trim();
   const what = faults.map((f) =>
     f === "yok"
@@ -92,7 +96,32 @@ export function questionProblems(episode: QuestionEpisode): string[] {
             ? `"soru" ("${q}") has no concrete anchor — no name, no number`
             : `the first spoken line does not say "soru" ("${q}") word for word`,
   );
-  return [`${what.join("; ")}: give the Short a "soru" — the question a viewer would type into search, which the video answers ("Why Couldn't 290,000 Germans Escape Stalingrad?", "How Did 21 Biplanes Sink Italy's Fleet?"), with a name or a number in it — and make the very first line the narrator saying exactly that question over the opening map; it is also the video's title — QUESTION TITLE`];
+  return [...clashAsk, `${what.join("; ")}: give the Short a "soru" — the question a viewer would type into search, which the video answers ("Why Couldn't 290,000 Germans Escape Stalingrad?", "How Did 21 Biplanes Sink Italy's Fleet?"), with a name or a number in it — and make the very first line the narrator saying exactly that question over the opening map; it is also the video's title — QUESTION TITLE`];
+}
+
+/** Whole numbers written in a text ("290,000", "21"); years 1000–2099 written alone are kept too — the caller compares magnitudes. */
+function numbersIn(text: string): number[] {
+  return [...text.matchAll(/\d[\d,.]*/g)].map((m) => Number(m[0].replace(/[,.](?=\d{3}\b)/g, ""))).filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/**
+ * Owner, 26 Nov 2026 (review of the Stalingrad Short bolGvK1B9m0: title "Why Couldn't 290,000 Axis Troops Escape
+ * Stalingrad?", big card "270,556 Axis trapped"): the question's number and the big "sayac" number must be one figure.
+ * A card value within ±40 % of a number in the question, but not equal to it, is the same quantity told twice differently.
+ */
+export function questionNumberClash(episode: QuestionEpisode): { readonly question: number; readonly card: number } | undefined {
+  const asked = numbersIn(episode.soru ?? "").filter((n) => n >= 10);
+  if (!asked.length) return undefined;
+  for (const scene of episode.sahneler ?? []) {
+    for (const card of scene.bilgi_kartlari ?? []) {
+      if (card.tur !== "sayac" || typeof card.deger !== "number" || card.deger <= 0) continue;
+      for (const q of asked) {
+        const ratio = card.deger / q;
+        if (card.deger !== q && ratio > 0.6 && ratio < 1.4) return { question: q, card: card.deger };
+      }
+    }
+  }
+  return undefined;
 }
 
 /**

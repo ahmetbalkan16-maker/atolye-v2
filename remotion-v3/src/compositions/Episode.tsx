@@ -5,6 +5,7 @@ import { ShotView } from "../scene/ShotView";
 import { Captions } from "../scene/Captions";
 import { LayoutProbe } from "../scene/LayoutProbe";
 import { exitFrames } from "../scene/transitions";
+import { OpeningQuestion } from "../scene/OpeningQuestion";
 import "../scene/fonts";
 
 export interface EpisodeProps {
@@ -32,6 +33,8 @@ export const Episode: React.FC<EpisodeProps> = ({ plan }) => {
           </Sequence>
         );
       })}
+      {/* A native vertical Short shows its question from frame 0, over the first shot whatever it is. */}
+      {plan.shortsView === "butun" && plan.question ? <OpeningQuestion text={plan.question} /> : null}
       {plan.showCaptions ? <Captions pages={plan.captions} /> : null}
       {plan.audio ? <Audio src={staticFile(plan.audio)} /> : null}
       {plan.layoutProbe ? <LayoutProbe root={root} every={plan.layoutProbe.every} dir={plan.layoutProbe.dir} /> : null}
