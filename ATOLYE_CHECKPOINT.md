@@ -1,3 +1,19 @@
+## 27 Kasım 2026 (1) — Ana sayfada 3D ofis + şehir; Bekçi (güvenlik beyni); iki paralel Opus işi
+
+Owner: "ana sayfada görmek istiyorum eski beyni değil" → 7ca24aa5 (ofis ana sayfada, parke/tuğla/cam, dört yol, otopark,
+trafik, statik parçalar birleştirildi; telefon tam genişlik). Sonra "güvenlik için yapay zekamız yok" → öneri kabul edildi →
+494e1889 Bekçi: `src/lib/brain/security/SecurityWatch{Model,Store,Improvement}.ts`, `scripts/ayas-security-watch.ts`
+(gözlemci her tick sonrası, tick'in DIŞINDA çağırır — pinli suite'ler tick metnini vm'de çalıştırıyor), giriş kilidi
+(saatte 60 hata → 60 dk, oturumlar etkilenmez, panelden "Kilidi kaldır"), Güvenlik paneli, ana sayfa rayında "Güvenlik",
+ofiste Bekçi. Kendini geliştirme: ölçülmüş ihtiyaç → AYAS yarar/zarar incelemesi → Gelişim Merkezi "AYAS ÖNERİYOR · Bekçi"
+→ 5 dk grace → akşam geliştirici; yalnız `src/lib/security-watch/LearnedChecks.ts` değişebilir (çekirdek vet eder).
+İlk gerçek tur (dev kopyası): SMB 445 ve NetBIOS 139 tüm ağlarda, Ortak ağ güvenlik duvarı kuralı açık (sahibin kararı).
+- Paralel (owner "görev paylaşımı"): Opus-1 `codex/ayas-oneriyor-tech-watch` — "AYAS öneriyor"a neden geliştirme gelmiyor
+  + teknoloji takibi eksikleri; Opus-2 `codex/bekci-research` — Bekçi'nin internetten sürekli güvenlik araştırması +
+  GitHub araçları (gitleaks vb.). İkisi bitince incelenip feature dalına alınacak, sonra toplu canlıya alma (owner: "önce
+  beyni yap sonra hepsini canlıya al").
+- Canlıya almada: gözlemci uzun ömürlü süreç; yeni Bekçi turu için gözlemcinin bir kez yeniden başlaması gerekir.
+
 ## 26 Kasım 2026 (7) — "Atölye" butonları yeni 3D ofisi açıyor (canlı 90db7935)
 
 Owner: "yeni ofis tasarımını canlıya al demiştim ama internetten ve telefondan girdiğimde eskisine girdi … ikisinden de yeni
