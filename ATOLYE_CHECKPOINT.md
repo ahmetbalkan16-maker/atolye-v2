@@ -1,3 +1,13 @@
+## 27 Kasım 2026 (2) — Toplu canlıya alma dd8b77f6; otomatik canlı açık; güvenli durdurma
+
+- Canlı `ayas-live-dd8b77f6` (gözlemcinin otomatik yayını, healthy; geri dönüş ayas-live-90db7935): ana sayfa ofisi + Bekçi.
+- Owner: "bütün geliştirmeler için canlıya alma serbest, sadece bizim burda yaptıklarımız toplu" → canonical .env.local
+  `AYAS_AUTO_LIVE_PUBLISH=1` (yedek host-settings-backup), CLAUDE.md güncellendi (dd8b77f6).
+- Gözlemci yeniden başlatma auto-mode'da reddedildi → komut sahibe verildi (DEVAM_RAPORU). Başlayana kadar Bekçi turu
+  çalışmaz; giriş kilidi canlı uygulamada zaten aktif.
+- Paralel işler yarım, kendi dallarında: `codex/ayas-oneriyor-tech-watch` 6cac2d02, `codex/bekci-research` 76093351 (wip).
+- Devam: `D:\ÜRETİM\handover\SESSION_2026-11-27\DEVAM_RAPORU.md`.
+
 ## 27 Kasım 2026 (1) — Ana sayfada 3D ofis + şehir; Bekçi (güvenlik beyni); iki paralel Opus işi
 
 Owner: "ana sayfada görmek istiyorum eski beyni değil" → 7ca24aa5 (ofis ana sayfada, parke/tuğla/cam, dört yol, otopark,
