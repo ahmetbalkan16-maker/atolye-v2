@@ -67,6 +67,8 @@ export interface CompositionRequest {
   readonly seconds: number;
   readonly caption: string;
   readonly seed: number;
+  /** The length the piece is checked against when it differs from the one asked for (a longer second try). Not part of the library key. */
+  readonly checkS?: number;
 }
 
 /** The text the composer gets: instrumental underscore, period colour, mood; never vocals. */
@@ -89,11 +91,12 @@ export interface PieceStats {
 
 /**
  * Why a composed piece cannot be used (empty when it can). Measured after its silent head and tail are cut; a bed
- * loops in the mixer, so a piece down to 60% of the bed (at least 8 s) is fine.
+ * loops in the mixer, so a piece down to 60% of the bed (at least 8 s) is fine. `askedS`: the length the composer was
+ * asked for when longer than the bed (a second try, longerRequest); only a piece far over it is refused as too long.
  */
-export function pieceProblems(s: PieceStats, wantS: number): string[] {
+export function pieceProblems(s: PieceStats, wantS: number, askedS: number = wantS): string[] {
   const out: string[] = [];
-  if (s.durationS < Math.max(8, wantS * 0.6) || s.durationS > wantS * 1.2 + 2) out.push(`süre ${s.durationS.toFixed(1)} sn (istenen ${wantS.toFixed(1)})`);
+  if (s.durationS < Math.max(8, wantS * 0.6) || s.durationS > Math.max(wantS, askedS) * 1.2 + 2) out.push(`süre ${s.durationS.toFixed(1)} sn (istenen ${wantS.toFixed(1)})`);
   if (s.meanDb < -40) out.push(`çok sessiz (ortalama ${s.meanDb.toFixed(1)} dB)`);
   if (s.peakDb > -0.1) out.push(`tepe ${s.peakDb.toFixed(1)} dB (kırpılmış olabilir)`);
   if (s.longestSilenceS > 3) out.push(`${s.longestSilenceS.toFixed(1)} sn sessizlik`);
@@ -149,8 +152,11 @@ export class MusicComposer {
     return path.join(this.libraryDir, `${compositionKey(req)}.wav`);
   }
 
-  /** A checked piece for the request (from the library when made before), or the reasons it could not be made. */
-  async compose(req: CompositionRequest): Promise<{ file: string; cached: boolean } | { problems: string[] }> {
+  /**
+   * A checked piece for the request (from the library when made before), or the reasons it could not be made (with the
+   * refused piece's length after its edges were cut, when it was composed).
+   */
+  async compose(req: CompositionRequest): Promise<{ file: string; cached: boolean } | { problems: string[]; durationS?: number }> {
     const file = this.fileFor(req);
     if (existsSync(file)) return { file, cached: true };
     if (this.broken) return { problems: [this.broken] };
@@ -195,7 +201,7 @@ export class MusicComposer {
     await fs.rename(tmp, raw);
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", pieceShapeFilter(), tmp]);
     const stats = await measurePiece(this.paths, tmp);
-    const problems = pieceProblems(stats, req.seconds);
+    const problems = pieceProblems(stats, req.checkS ?? req.seconds, req.seconds);
     if (problems.length) {
       // Kept for a look (append-only), never used.
       const rejected = path.join(this.libraryDir, "reddedilen", path.basename(file));
@@ -204,7 +210,7 @@ export class MusicComposer {
       await fs.writeFile(rejected.replace(/\.wav$/, ".json"), `${JSON.stringify({ ...req, stats, problems, created: new Date().toISOString() }, null, 2)}\n`);
       await fs.rm(tmp, { force: true });
       await fs.rm(raw, { force: true });
-      return { problems };
+      return { problems, durationS: stats.durationS };
     }
     await fs.rm(raw, { force: true });
     // Append-only: copy, never overwrite.
@@ -245,6 +251,19 @@ export function composedTrack(file: string, mood: MusicMood): MusicTrack {
 export const MIN_PIECE_REQUEST_S = 12;
 
 /**
+ * The second try of a piece that came back too short (Constantinople, 20 Nov 2026: 12 s asked, 7.4 s left after its
+ * silent edges and pauses were cut, and the historical bed kept its 7.4 s library track): asked longer by the share the
+ * cutting took (12 × 12 / 7.4 → 20 s, at most three times the first ask), with another seed, and still checked against
+ * the first length. Undefined when the piece was not refused for being short.
+ */
+export function longerRequest(req: CompositionRequest, gotS: number | undefined): CompositionRequest | undefined {
+  const wantS = req.checkS ?? req.seconds;
+  if (gotS === undefined || !Number.isFinite(gotS) || gotS >= Math.max(8, wantS * 0.6)) return undefined;
+  const seconds = Math.min(req.seconds * 3, Math.ceil((req.seconds * req.seconds) / Math.max(gotS, req.seconds / 3)));
+  return { ...req, seconds, seed: (req.seed + 1) % 1_000_000, checkS: wantS };
+}
+
+/**
  * Composes every bed of the plan; a bed whose piece fails keeps its library track. Seeds follow the episode and the
  * bed, so a rerun asks for the same pieces (and gets them from the library).
  */
@@ -259,14 +278,25 @@ export async function composeBeds(
   for (const [i, seg] of segments.entries()) {
     const seed = parseInt(createHash("sha256").update(`${episode.id}#${i}#${seg.mood}`).digest("hex").slice(0, 8), 16) % 1_000_000;
     const req: CompositionRequest = { mood: seg.mood, seconds: Math.max(MIN_PIECE_REQUEST_S, seg.end - seg.start + 2), caption: compositionCaption(episode, seg.mood), seed };
-    const got = await composer.compose(req).catch((e: Error) => ({ problems: [`besteci çalışmadı: ${e.message.slice(0, 160)}`] }));
+    const ask = (r: CompositionRequest) => composer.compose(r).catch((e: Error): { problems: string[]; durationS?: number } => ({ problems: [`besteci çalışmadı: ${e.message.slice(0, 160)}`] }));
+    let got = await ask(req);
+    const problems: string[] = [];
+    let label = "";
+    // A piece refused for being short is asked for once more, longer (longerRequest); every other refusal stands.
+    const longer = "file" in got ? undefined : longerRequest(req, got.durationS);
+    if (longer && !("file" in got)) {
+      problems.push(got.problems.join("; "));
+      label = `ikinci deneme (${longer.seconds} sn)`;
+      got = await ask(longer);
+    }
     if ("file" in got) {
       out.push({ ...seg, track: composedTrack(got.file, seg.mood) });
-      report.push(`yatak ${i + 1} (${seg.mood}): özgün müzik${got.cached ? " (kütüphaneden)" : ""}`);
+      report.push(`yatak ${i + 1} (${seg.mood}): özgün müzik${got.cached ? " (kütüphaneden)" : ""}${label ? `, ${label}` : ""}`);
     } else {
+      problems.push(label ? `${label}: ${got.problems.join("; ")}` : got.problems.join("; "));
       out.push(seg);
-      report.push(`yatak ${i + 1} (${seg.mood}): kütüphane parçası kaldı — ${got.problems.join("; ")}`);
-      log(`  ⚠ müzik yatağı ${i + 1}: ${got.problems.join("; ")} — kütüphane parçası kullanılıyor`);
+      report.push(`yatak ${i + 1} (${seg.mood}): kütüphane parçası kaldı — ${problems.join("; ")}`);
+      log(`  ⚠ müzik yatağı ${i + 1}: ${problems.join("; ")} — kütüphane parçası kullanılıyor`);
     }
   }
   return { segments: out, report };

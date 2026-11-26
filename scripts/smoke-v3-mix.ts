@@ -15,7 +15,7 @@ import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
-import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, MIN_PIECE_REQUEST_S, periodInstruments, PIECE_PAUSE_KEEP_S, pieceProblems, pieceShapeFilter, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
+import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, longerRequest, MIN_PIECE_REQUEST_S, periodInstruments, PIECE_PAUSE_KEEP_S, pieceProblems, pieceShapeFilter, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, HIT_SECONDS, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodHitRequest, periodSfxPrompt, repeatFilter, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -328,6 +328,28 @@ async function main() {
     await composeBeds([{ start: 0, end: 2.9, mood: "historical" as const, track: lib("historical"), scenes: [0] }], rome, { compose: async (r) => (lengths.push(r.seconds), { file: "x", cached: true }) }, () => undefined);
     assert.equal(lengths[0], MIN_PIECE_REQUEST_S);
     assert.deepEqual(pieceProblems({ ...ok, durationS: MIN_PIECE_REQUEST_S - 1.2 }, lengths[0]!), [], "its piece, edges cut, is used");
+    // Constantinople, 20 Nov 2026: 12 s asked, 7.4 s left after cutting, refused, and the bed kept its short library
+    // track. A piece refused for being short is asked once more, longer, with another seed, checked against the bed.
+    const short = { start: 0, end: 10, mood: "historical" as const, track: lib("historical"), scenes: [0] };
+    const tries: { seconds: number; seed: number; checkS?: number }[] = [];
+    const shortThenOk = await composeBeds([short], rome, {
+      compose: async (r) => (tries.push({ seconds: r.seconds, seed: r.seed, checkS: r.checkS }), tries.length === 1 ? { problems: ["süre 7.4 sn (istenen 12.0)"], durationS: 7.4 } : { file: "D:/muzik/uzun.wav", cached: false }),
+    }, () => undefined);
+    assert.equal(tries.length, 2);
+    assert.deepEqual(tries[1], { seconds: 20, seed: (tries[0]!.seed + 1) % 1_000_000, checkS: 12 }, "12 × 12 / 7.4 → 20 s, next seed, checked against 12 s");
+    assert.equal(shortThenOk.segments[0]!.track.absolutePath, "D:/muzik/uzun.wav");
+    assert.equal(shortThenOk.report[0], "yatak 1 (historical): özgün müzik, ikinci deneme (20 sn)");
+    assert.deepEqual(pieceProblems({ ...ok, durationS: 19 }, 12, 20), [], "the longer piece is not refused as too long for the bed");
+    assert.equal(pieceProblems({ ...ok, durationS: 19 }, 12).length, 1, "without the asked length it would be");
+    const twiceShort = await composeBeds([short], rome, { compose: async (r) => ({ problems: [`süre 7.4 sn (istenen ${r.seconds.toFixed(1)})`], durationS: 7.4 }) }, () => undefined);
+    assert.equal(twiceShort.segments[0]!.track.title, "lib-historical", "a second short piece keeps the library track");
+    assert.match(twiceShort.report[0]!, /kütüphane parçası kaldı — süre 7\.4 sn \(istenen 12\.0\); ikinci deneme \(20 sn\): süre 7\.4 sn/);
+    // Other refusals, a crash and a piece long enough are not tried again; a near-empty piece asks at most three times.
+    assert.equal(longerRequest({ mood: "calm", seconds: 12, caption: cap, seed: 1 }, undefined), undefined);
+    assert.equal(longerRequest({ mood: "calm", seconds: 12, caption: cap, seed: 1 }, 8.5), undefined);
+    assert.equal(longerRequest({ mood: "calm", seconds: 12, caption: cap, seed: 1 }, 0.2)!.seconds, 36);
+    assert.equal(longerRequest({ mood: "calm", seconds: 31.4, caption: cap, seed: 999_999 }, 15)!.seed, 0);
+    assert.equal(compositionKey({ mood: "calm", seconds: 20, caption: cap, seed: 2 }), compositionKey({ mood: "calm", seconds: 20, caption: cap, seed: 2, checkS: 12 }), "the check length is not part of the library key");
   });
 
   await scenario("sound designer: period effects by era, ambience from the place, a failing sound keeps Kenney or silence", async () => {

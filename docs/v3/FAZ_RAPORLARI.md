@@ -687,6 +687,17 @@ kullansın ve hem öğrenmesi hızlansın hem de Claude olmadan yazabilecek duru
   parçası, eski seslerin anahtarı değişmez). O da düşerse kütüphane davulu kalır.
 - Doğrulama: `smoke-v3-mix` (besteci ve efektçi senaryoları genişletildi); `tsc` ve lint 0/0.
 
+### Ses: kısa gelen özgün parça bir kez daha, uzun istenir (26 Kasım 2026, Ses beyninin önerisi)
+
+- Aynı Konstantinopolis üretiminde 12 sn istenen "historical" parça kırpmadan sonra 7.4 sn kaldı, 8 sn altı diye
+  reddedildi ve yatak 7.4 sn'lik kütüphane parçasında kaldı. Kısa diye reddedilen parça artık bir kez daha, kırpmanın
+  aldığı pay kadar uzun (12 × 12 / 7.4 → 20 sn, en çok ilk isteğin 3 katı) ve başka tohumla istenir
+  (`MusicComposer.longerRequest`); yatağın boyuna göre denetlenir (`CompositionRequest.checkS`, kütüphane anahtarına
+  girmez), çok uzun sınırı istenen uzunluğa göredir (`pieceProblems(..., askedS)`). Rapor: "özgün müzik, ikinci deneme
+  (20 sn)" ya da "kütüphane parçası kaldı — …; ikinci deneme (20 sn): …". Başka ret nedenleri ve çöküşler denenmez.
+- Davul efekti için ek iş gerekmedi: ölçülen "3 tohum" hatası tek vuruş yedeğinden (`PERIOD_HIT`) önceki koşudandı.
+- Doğrulama: `smoke-v3-mix` besteci senaryosu genişletildi; `tsc` ve lint 0/0.
+
 ### Kurgu: kalabalık anlatıcı satırı bölünmesi istenir (20 Kasım 2026, Kurgu beyninin önerisi)
 
 - Konstantinopolis Short'unda anlatıcı tek satırda üç olay anlattı ("Ottomans pour through the breach. Constantine XI
