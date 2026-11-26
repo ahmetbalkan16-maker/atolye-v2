@@ -1429,3 +1429,19 @@ body:has(.bc-shell) {
     animation: none !important;
   }
 }
+
+/* Security brain (Bekçi) section of the Güvenlik panel — owner 2026-11-26. */
+.bc-security-watch { display: grid; gap: 10px; margin-bottom: 18px; padding: 14px 16px; border: 1px solid #1d4a63; border-radius: 12px; background: #04111dcc; }
+.bc-security-watch h3 { margin: 0; font-size: 16px; }
+.bc-security-watch__lead, .bc-security-watch__meta { margin: 0; font-size: 13px; color: #a9c3d6; }
+.bc-security-watch__lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 12px; border: 1px solid #ff7a7a; border-radius: 10px; background: #3a0d1266; }
+.bc-security-watch__lock button { min-height: 40px; padding: 0 14px; border: 1px solid #ffb4b4; border-radius: 8px; background: #5b1520; color: #fff; cursor: pointer; }
+.bc-security-watch__findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bc-security-watch__findings li { display: grid; gap: 3px; padding: 9px 11px; border-left: 3px solid #6f93ad; border-radius: 6px; background: #071a29; font-size: 14px; overflow-wrap: anywhere; }
+.bc-security-watch__findings li[data-severity="kritik"] { border-left-color: #ff5d5d; }
+.bc-security-watch__findings li[data-severity="yuksek"] { border-left-color: #ff9d4d; }
+.bc-security-watch__findings li[data-severity="orta"] { border-left-color: #f2c94c; }
+.bc-security-watch__findings b { margin-right: 6px; font-size: 11px; letter-spacing: .06em; }
+.bc-security-watch__findings small { display: block; font-size: 12px; color: #a9c3d6; }
+.bc-security-watch__cases summary { cursor: pointer; font-size: 13px; min-height: 32px; }
+.bc-security-watch__cases ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: #a9c3d6; }

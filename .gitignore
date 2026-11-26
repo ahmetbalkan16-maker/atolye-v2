@@ -233,3 +233,6 @@ graphify-out/
 
 # Python bayt kodu (V3 yan süreçleri; repo içinde izlenmeyen klasör Observer'ı durdurur)
 __pycache__/
+
+# Security brain (Bekçi, 2026-11-26): reports, login lock state and its case library are local working state.
+/data/brain/security/

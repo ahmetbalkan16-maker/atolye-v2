@@ -17,6 +17,7 @@ import { yayinciBrain } from "./yayinci";
 import { analistBrain } from "./analist";
 import { gozcuBrain } from "./gozcu";
 import { radarBrain } from "./radar";
+import { guvenlikBrain } from "./guvenlik";
 
 export const PREVIEW_BRAINS: readonly PreviewBrainProfile[] = [
   ayasBrain,
@@ -37,6 +38,7 @@ export const PREVIEW_BRAINS: readonly PreviewBrainProfile[] = [
   analistBrain,
   gozcuBrain,
   radarBrain,
+  guvenlikBrain,
 ];
 
 export const PREVIEW_BRAIN_BY_ID: Readonly<Record<PreviewBrainId, PreviewBrainProfile>> =

@@ -18,6 +18,7 @@ import {
   timingSafeEqual,
   type AttemptLimiterState,
 } from "@/lib/auth/accessGate";
+import { loginLockedUntil, recordLoginOutcome } from "@/lib/brain/security/SecurityWatchStore";
 
 /**
  * POST /api/auth/login — exchange the shared passcode for a session cookie.
@@ -68,9 +69,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await new Promise((resolve) => setTimeout(resolve, admission.waitMs));
   }
 
+  // Owner 2026-11-26: the security brain's one automatic defence. After a brute-force run (LOGIN_LOCK_FAILURES_PER_HOUR
+  // failures in an hour) the passcode login is locked for a while; sessions already signed in keep working and the
+  // owner can lift the lock in the Güvenlik panel. While locked no passcode is even compared.
+  const lockedUntil = loginLockedUntil(Date.now());
+  if (lockedUntil) {
+    const retryAfter = Math.max(1, Math.ceil((Date.parse(lockedUntil) - Date.now()) / 1000));
+    if (isForm) return new NextResponse(null, { status: 303, headers: { location: `/login?error=kilit${next ? `&next=${encodeURIComponent(next)}` : ""}` } });
+    return NextResponse.json({ error: "login_locked", lockedUntil }, { status: 423, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const ok =
     isPlausibleAccessKey(key) && timingSafeEqual(key, gate.key as string);
   settleLoginAttempt(brake, ok, LOGIN_BRAKE_OPTIONS);
+  recordLoginOutcome(ok, Date.now());
 
   if (!ok) {
     return respond(request, isForm, next, {

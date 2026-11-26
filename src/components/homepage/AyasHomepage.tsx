@@ -157,6 +157,7 @@ const RAIL: readonly { label: string; icon: IconName; domain?: AyasCcDomainId; h
   { label: "Otonomi", icon: "growth", domain: "autonomy", href: "/brain?panel=autonomous" },
   { label: "Görevler", icon: "tasks", href: "/brain?panel=tasks" },
   { label: "Onaylar", icon: "check", domain: "approvals", href: "/brain?panel=development" },
+  { label: "Güvenlik", icon: "check", domain: "security", href: "/brain?panel=safety" },
 ];
 
 function RailLoading() {

@@ -83,6 +83,20 @@ function runAyasUpdateExecutor(): { readonly ok: boolean; readonly summary: stri
   }
 }
 
+// Owner 2026-11-26 — the security brain ("Bekçi"): the fourth arm's-length child. Read-only measurements of this
+// machine; it decides itself which checks are due (most ticks it exits at once with NOT_DUE). Loaded with
+// .env.local only to know the passcode's length and the gate mode, never to print or send it.
+function runAyasSecurityWatch(): { readonly ok: boolean; readonly summary: string } {
+  const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
+  const script = path.join(root, "scripts", "ayas-security-watch.ts");
+  try {
+    const stdout = execFileSync(process.execPath, ["--env-file-if-exists=.env.local", tsxCli, script], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 240_000, maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"] });
+    return { ok: true, summary: stdout.trim().split(/\r?\n/).at(-1) ?? "" };
+  } catch (error) {
+    return { ok: false, summary: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 // Owner decisions 2026-10-15 — after an owner-approved update committed a new
 // package-lock.json, the update executor leaves this marker. The tree's
 // node_modules can be replaced only while no process of this tree holds it,
@@ -144,6 +158,9 @@ async function main(): Promise<void> {
   try {
     do {
       await tick(observer, intervalMs, continuous, constitution);
+      // Read-only observation, so it runs even under a constitution hold; kept outside `tick` on purpose.
+      const security = runAyasSecurityWatch();
+      console.log(JSON.stringify({ status: "SECURITY_WATCH", ok: security.ok, summary: security.summary.slice(0, 400) }));
       if (continuous && dependencySyncRestartDue(startedAtMs)) {
         console.log(JSON.stringify({ status: "DEPENDENCY_SYNC_RESTART", marker: syncMarker }));
         process.exitCode = SYNC_RESTART_EXIT_CODE;

@@ -131,6 +131,13 @@ export interface DevProposal {
    */
   readonly kapsam?: "v3" | "ayas";
   /**
+   * A proposal another AYAS brain raised and AYAS itself reviewed before it reached the owner (owner 2026-11-26: "buraya
+   * gelen gelişimleri gelişim merkezine bağlayalım, ayasa önersin, ayas da kendisi kontrol etsin bize ne yararı var ne
+   * zararı var, sonra gelişim merkezindeki AYAS öneriyor'a düşsün"). `otomatikOnay`: when it is approved by itself if the
+   * owner has not rejected it (the 5-minute grace, owner the same day).
+   */
+  readonly ayasOneriyor?: { readonly kaynak: string; readonly yarar: string; readonly zarar: string; readonly otomatikOnay: string };
+  /**
    * onaylandi: in the development queue (DevQueue); yapiliyor: the developer is building it; hazir: built and checked on
    * its own branch, waiting to be applied; yapilamadi: the build was thrown away (why in `is`); yapildi: in the studio;
    * birlesti: the same want in other words as an earlier proposal, counted there (`birlesti` says which).
@@ -191,7 +198,7 @@ export const SAME_PROPOSAL = 0.45;
  * Adds a proposal, or counts it again on the one it repeats (same brain, similar title): the owner sees how often a
  * want came back instead of the same thing ten times. A rejected want is counted, never reopened.
  */
-export async function proposeDevelopment(workRoot: string, p: { readonly beyin: BrainId; readonly baslik: string; readonly neden: string; readonly kaynak: string; readonly kaynakTuru?: DevProposal["kaynakTuru"] }, now = new Date()): Promise<"yeni" | "tekrar"> {
+export async function proposeDevelopment(workRoot: string, p: { readonly beyin: BrainId; readonly baslik: string; readonly neden: string; readonly kaynak: string; readonly kaynakTuru?: DevProposal["kaynakTuru"]; readonly kapsam?: DevProposal["kapsam"]; readonly ayasOneriyor?: DevProposal["ayasOneriyor"] }, now = new Date()): Promise<"yeni" | "tekrar"> {
   const all = await listProposals(workRoot);
   const same = all.find((x) => x.proposal.beyin === p.beyin && overlap(x.proposal.baslik, p.baslik) >= SAME_PROPOSAL);
   if (same) {
@@ -203,7 +210,7 @@ export async function proposeDevelopment(workRoot: string, p: { readonly beyin: 
   }
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "");
   const id = `${stamp}-${p.beyin}-${all.length + 1}`;
-  await writeProposal(path.join(proposalDir(workRoot), `${id}.json`), { id, tarih: now.toISOString(), beyin: p.beyin, baslik: p.baslik.slice(0, 200), neden: p.neden.slice(0, 600), kaynaklar: [p.kaynak], sayi: 1, kaynakTuru: p.kaynakTuru ?? "fikir", durum: "bekliyor" });
+  await writeProposal(path.join(proposalDir(workRoot), `${id}.json`), { id, tarih: now.toISOString(), beyin: p.beyin, baslik: p.baslik.slice(0, 200), neden: p.neden.slice(0, 600), kaynaklar: [p.kaynak], sayi: 1, kaynakTuru: p.kaynakTuru ?? "fikir", durum: "bekliyor", ...(p.kapsam ? { kapsam: p.kapsam } : {}), ...(p.ayasOneriyor ? { ayasOneriyor: p.ayasOneriyor } : {}) });
   return "yeni";
 }
 

@@ -86,6 +86,7 @@ import { createAyasGraceStore, isAyasGraceSubject, loadAyasGraceView, type AyasG
 import { codeBuildOf } from "@/lib/v3/council/DevQueue";
 import { decideProposal, listProposals, recordCodeApply, rejectBuild, requestDevelopment } from "@/lib/v3/council/SelfImprovement";
 import { resolveV3Paths } from "@/lib/v3/V3Paths";
+import { liftLoginLock, loadSecurityWatchView, type SecurityWatchView } from "@/lib/brain/security/SecurityWatchStore";
 import {
   ayasReplyMessage,
   type AyasReplyOutcome,
@@ -735,4 +736,21 @@ export async function requestAyasDevelopmentAction(input: { metin: string }): Pr
   } catch (error) {
     return { ok: false, code: v3Code(error, "V3_REQUEST_FAILED"), view: await loadAtolyeBrainsView(workRoot) };
   }
+}
+
+/**
+ * The security brain's panel (owner 2026-11-26): its latest report, newest cases and the login lock. Read-only.
+ */
+export async function readSecurityWatchAction(): Promise<SecurityWatchView> {
+  await requireBrainSession();
+  return loadSecurityWatchView(Date.now());
+}
+
+/**
+ * The owner lifts the brute-force login lock (owner 2026-11-26: "kilit geri alınabilir olsun"). Only an already
+ * signed-in owner can reach this, since the lock never ends existing sessions.
+ */
+export async function liftSecurityLoginLockAction(): Promise<{ readonly lifted: boolean }> {
+  await requireBrainSession();
+  return { lifted: liftLoginLock(Date.now()) };
 }

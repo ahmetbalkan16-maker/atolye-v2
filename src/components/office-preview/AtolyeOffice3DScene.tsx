@@ -109,6 +109,8 @@ const WORKERS: readonly WorkerSpec[] = [
   { key: "publisher", brainId: "yayinci", x: -3.4, z: -0.65, deskX: -3.4, deskZ: -1.5, accent: "#e8604a", focusX: -2.4, focusZ: 0.0, firstMove: 39 },
   { key: "analyst", brainId: "analist", x: 3.3, z: -0.65, deskX: 3.3, deskZ: -1.5, accent: "#f0a060", focusX: 2.3, focusZ: 0.0, firstMove: 43 },
   { key: "watcher", brainId: "gozcu", x: 7.2, z: 1.25, deskX: 7.2, deskZ: 0.45, accent: "#6f7fa6", focusX: 6.2, focusZ: 1.55, firstMove: 47 },
+  // Owner 2026-11-26: the security brain (Bekçi) sits by the entrance in the meeting & audit room.
+  { key: "security", brainId: "guvenlik", x: 4.3, z: 7.45, deskX: 4.3, deskZ: 6.7, accent: "#c0392b", focusX: 0.6, focusZ: 7.2, firstMove: 51 },
 ];
 
 /** Sample-only status shown above each worker; the preview page derives it from the scripted scenario step. */
@@ -123,7 +125,7 @@ export const OFFICE_STATUS_LABEL: Record<OfficeWorkerStatus, string> = {
 const SHORT_NAME: Record<PreviewBrainId, string> = {
   ayas: "AYAS", arastirma: "Araştırma", kurgu: "Kurgu", mizah: "Mizah", kostum: "Kostüm", ortam: "Ortam", ses: "Ses",
   kalite: "Kalite", onarim: "Onarım", gelistirici: "Geliştirici", cirak: "Çırak", denetci: "Denetçi", muhasebe: "Muhasebe",
-  tarih: "Tarih Hakemi", yayinci: "Yayıncı", analist: "Kanal Analisti", gozcu: "Gözcü", radar: "Radar",
+  tarih: "Tarih Hakemi", yayinci: "Yayıncı", analist: "Kanal Analisti", gozcu: "Gözcü", radar: "Radar", guvenlik: "Bekçi",
 };
 const STATUS_COLOR: Record<OfficeWorkerStatus, string> = {
   bekliyor: "#9aa4ad",
@@ -1740,6 +1742,7 @@ function buildOfficeScene(
   addDesk(box, room, -3.4, -1.5, "#e8604a");
   addDesk(box, room, 3.3, -1.5, "#f0a060");
   addDesk(box, room, 7.2, 0.35, "#6f7fa6");
+  addDesk(box, room, 4.3, 6.6, "#c0392b");
   addContactShadow(room, -9.15, 4.65, 4.2, 1.65);
   addSofa(box, room, -9.15, 4.65);
   addRug(room, -9.15, 5.15, 2.7, 1.95, "#92785e");

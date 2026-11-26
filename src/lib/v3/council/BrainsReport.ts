@@ -34,7 +34,7 @@ export interface AtolyeBrainsView {
   readonly hedefler: readonly string[];
   readonly donguler: readonly { readonly tarih: string; readonly ozet: string }[];
   readonly degisiklikler: readonly string[];
-  readonly oneriler: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly sayi: number; readonly olcum: boolean }[];
+  readonly oneriler: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly sayi: number; readonly olcum: boolean; readonly ayasOneriyor?: { readonly kaynak: string; readonly yarar: string; readonly zarar: string; readonly otomatikOnay: string } }[];
   readonly fikirSayisi: number;
   /**
    * The ideas raised by one production so far (owner, 6 Nov 2026: "onaya bir şey düşmüyor ki nasıl onay vericem"): they
@@ -169,7 +169,7 @@ export async function loadAtolyeBrainsView(workRoot: string): Promise<AtolyeBrai
       }),
       donguler: cycles.slice(-5).reverse().map((c) => ({ tarih: c.bitis, ozet: cycleLine(c) })),
       degisiklikler,
-      oneriler: proposals.filter(needsOwner).sort((a, b) => b.sayi - a.sayi || b.tarih.localeCompare(a.tarih)).slice(0, 12).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, sayi: p.sayi, olcum: p.kaynakTuru === "olcum" })),
+      oneriler: proposals.filter(needsOwner).sort((a, b) => b.sayi - a.sayi || b.tarih.localeCompare(a.tarih)).slice(0, 12).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, sayi: p.sayi, olcum: p.kaynakTuru === "olcum", ...(p.ayasOneriyor ? { ayasOneriyor: p.ayasOneriyor } : {}) })),
       fikirSayisi: proposals.filter((p) => p.durum === "bekliyor" && !needsOwner(p)).length,
       fikirler: proposals.filter((p) => p.durum === "bekliyor" && !needsOwner(p)).sort((a, b) => b.tarih.localeCompare(a.tarih)).slice(0, 40).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, tarih: p.tarih })),
       kararlar: proposals.filter((p) => p.karar).sort((a, b) => (b.karar?.tarih ?? "").localeCompare(a.karar?.tarih ?? "")).slice(0, 5).map((p) => ({ baslik: p.baslik, durum: p.durum })),

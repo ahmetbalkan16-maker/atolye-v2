@@ -37,6 +37,7 @@ import type { AyasHealthVerdict, AyasHealthSeverity } from "../autonomy/AyasSelf
 import type { BrainReportCenterView } from "../selfheal/BrainReportCenter";
 import type { AyasCapability } from "../../ayas/routing/AyasAgenticRouting";
 import type { AyasSecurityReviewRecord } from "../../ayas/security/AyasSecurityReviewRecord";
+import { securityWatchLabel, type SecurityWatchReport } from "../security/SecurityWatchModel";
 
 /* ------------------------------------------------------------ facts --- */
 
@@ -159,6 +160,8 @@ export interface AyasCcSecurityFacts {
   readonly autonomousExecutionEnabled: boolean;
   readonly executionGate: "CLOSED";
   readonly review: AyasSecurityReviewRecord;
+  /** The security brain's latest report (owner 2026-11-26); absent in callers that predate it. */
+  readonly watch?: { readonly report: SecurityWatchReport | null; readonly error?: string };
 }
 
 export interface AyasCcAtolyeFacts {
@@ -210,7 +213,7 @@ export type AyasCcDomainId =
   | "health" | "autonomy" | "approvals" | "development" | "graphify" | "research"
   | "experiments" | "memory" | "capabilities" | "security" | "atolye" | "reports";
 /** Existing Brain panels an action may open. Opening a panel is navigation only. */
-export type AyasCcPanelTarget = "development" | "research" | "memory" | "selfheal" | "production" | "system" | "autonomous";
+export type AyasCcPanelTarget = "development" | "research" | "memory" | "selfheal" | "production" | "system" | "autonomous" | "safety";
 
 export interface AyasCcNextAction {
   readonly kind: AyasCcActionClass;
@@ -860,6 +863,20 @@ function securityDomain(fact: AyasCcFact<AyasCcSecurityFacts> | undefined, items
   if (security.accessGate === "misconfigured") { attention = "ACTION_REQUIRED"; label = "KAPI YANLIŞ YAPILANDIRILMIŞ"; }
   else if (review.blockers > 0 || review.unresolvedMajors > 0) { attention = "ACTION_REQUIRED"; label = "AÇIK BULGU"; }
   else if (security.accessGate === "disabled-dev") { attention = "WARNING"; label = "KAPI KAPALI (yerel geliştirme)"; }
+  // The security brain (Bekçi, owner 2026-11-26) decides the label once it reports; its serious findings become
+  // attention items. A misconfigured gate or an open review blocker above still wins.
+  const watch = security.watch;
+  if (watch && attention !== "ACTION_REQUIRED") {
+    const report = watch.report;
+    const verdict = watch.error ? { label: "BEKÇİ RAPORU OKUNAMADI", level: "WARNING" as const } : securityWatchLabel(report, fact.observedAt);
+    const watchAttention: AyasCcAttention = verdict.level;
+    for (const finding of (report?.findings ?? []).filter((f) => f.severity === "kritik" || f.severity === "yuksek").slice(0, 4)) {
+      items.push({ id: `security:watch:${finding.id}`, domain: "security", level: "ACTION_REQUIRED", title: `Güvenlik: ${finding.title}`, reason: `${finding.evidence} — ${finding.advice}`, source: "Bekçi (güvenlik beyni)", at: report?.checkedAt ?? fact.observedAt, next: { kind: "READ_ONLY", label: "Güvenlik panelinde incele", panel: "safety" }, details: [] });
+    }
+    const exam = report?.exam ? ` · sınav ${report.exam.passed}/${report.exam.total}` : "";
+    const summary = watch.error ? `Bekçi raporu okunamadı: ${watch.error}` : report ? `son tur ${report.checkedAt.slice(11, 16)} UTC · ${report.findings.length} bulgu${exam}` : "Bekçi henüz çalışmadı";
+    return { ...seed, panel: "safety", attention: watchAttention, statusLabel: verdict.label, summary, availability: "OK", observedAt: fact.observedAt, dataAt: report?.checkedAt ?? fact.observedAt, dataAtLabel: "son güvenlik turu" };
+  }
   if (attention !== "HEALTHY") {
     items.push({ id: `security:${label}`, domain: "security", level: attention === "ACTION_REQUIRED" ? "ACTION_REQUIRED" : "WARNING", title: `Güvenlik: ${label}`, reason: security.accessGate === "disabled-dev" ? "AYAS_ACCESS_KEY tanımlı değil; korunan sayfalar oturum istemiyor. Yalnız yerel geliştirmede kabul edilebilir." : "Güvenlik incelemesinde çözülmemiş bulgu var.", source: seed.source, at: fact.observedAt, next: { kind: "READ_ONLY", label: "Sistem sekmesinde incele", panel: "system" }, details: [] });
   }

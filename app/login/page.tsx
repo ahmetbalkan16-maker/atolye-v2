@@ -52,7 +52,9 @@ export default async function LoginPage({
               autoFocus
               style={styles.input}
             />
-            {hasError ? (
+            {params.error === "kilit" ? (
+              <p style={styles.error}>Çok sayıda hatalı deneme yüzünden giriş geçici olarak kilitlendi. Biraz sonra tekrar dene.</p>
+            ) : hasError ? (
               <p style={styles.error}>Anahtar hatalı. Tekrar dene.</p>
             ) : null}
             <button type="submit" style={styles.button}>

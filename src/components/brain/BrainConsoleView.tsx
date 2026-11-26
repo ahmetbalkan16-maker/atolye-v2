@@ -46,6 +46,7 @@ import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasAppro
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { AyasGoalResearchPanel, AyasUpdateRadarPointer } from "./AyasGoalResearchPanel";
+import { SecurityWatchPanel } from "./SecurityWatchPanel";
 import {
   AyasAtolyePanel,
   AyasDomainTiles,
@@ -830,6 +831,7 @@ function LearningPanel({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
 function SafetyPanel({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
   return (
     <div data-testid="bc-safety">
+      <SecurityWatchPanel />
       <dl className="bc-kv">
         <dt>Karar</dt>
         <dd>{snapshot.safety.decision}</dd>

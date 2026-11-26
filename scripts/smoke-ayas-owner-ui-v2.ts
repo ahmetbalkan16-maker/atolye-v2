@@ -108,7 +108,9 @@ async function main() {
       // Second owner-instructed addition (2026-11-26, "Atölye office"): the dock's and the rail's Atölye open the
       // 3D office; Üretim still opens /studio.
       .replace('{ label: "Atölye", icon: "cube", href: "/studio", tone: "blue" }', '{ label: "Atölye", icon: "cube", href: "/studio/office-preview", tone: "blue" }')
-      .replace('{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio" }', '{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio/office-preview" }');
+      .replace('{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio" }', '{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio/office-preview" }')
+      // Fourth (2026-11-26, security brain): the rail's live "Güvenlik" row after "Onaylar".
+      .replace('  { label: "Onaylar", icon: "check", domain: "approvals", href: "/brain?panel=development" },\n', '  { label: "Onaylar", icon: "check", domain: "approvals", href: "/brain?panel=development" },\n  { label: "Güvenlik", icon: "check", domain: "security", href: "/brain?panel=safety" },\n');
     assert.equal(lf(fs.readFileSync("src/components/homepage/AyasHomepage.tsx", "utf8")), expectedHome);
     // public/sw.js keeps its launch constants, precache and navigation handling byte-identical to 98c36b2. Its one
     // permitted addition (2026-10-19, owner-requested first-wake fix) is the wake asset cache that

@@ -101,6 +101,10 @@ export const OFFICE_ROSTER: readonly OfficeRosterEntry[] = [
   { id: "onarim", reportsTo: "ayas", authority: "uretir", roomSlug: "onarim-nobet", ownerGate: ["Durmuş siparişi yeniden başlatma"],
     auditor: { name: "Onarım denetçisi", questions: ["Seçilen çare sabit listeden mi?", "Aynı hata tekrar etti mi?", "Kök neden yazıldı mı?"] },
     qualityGate: true, opens: { label: "AYAS raporları", href: "/brain?panel=selfheal" } },
+  // Owner 2026-11-26: the security brain, seated by the entrance; it reports straight to the owner.
+  { id: "guvenlik", reportsTo: "owner", authority: "durdurur", roomSlug: "toplanti", ownerGate: ["Port ya da hizmet kapatma", "Şifre ya da anahtar değiştirme", "Oturumları silme", "Kendi kurallarını değiştirme"],
+    auditor: { name: "Sahip", questions: ["Bulgu ölçülmüş bir kanıta mı dayanıyor?", "Ölçülemeyen bir şey temiz mi sayıldı?", "Haftalık sınav tam mı, yanlış alarm var mı?"] },
+    qualityGate: true, opens: { label: "Güvenlik paneli", href: "/brain?panel=safety" } },
   { id: "gozcu", reportsTo: "owner", authority: "gozler", roomSlug: "onarim-nobet", ownerGate: ["Bir servisi kapatma"],
     auditor: { name: "Sağlık denetçisi", questions: ["Alarm gerçek bir ölçüme mi dayanıyor?", "Aynı alarm tekrar mı gönderildi?"] },
     qualityGate: true, opens: { label: "Sistem paneli", href: "/brain?panel=system" } },

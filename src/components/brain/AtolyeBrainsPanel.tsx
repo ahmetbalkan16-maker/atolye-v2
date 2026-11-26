@@ -130,8 +130,15 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
           <div className="bc-dev__timeline">
             {view.oneriler.map((o) => (
               <article key={o.id} className="bc-dev__proposal" data-testid={`atolye-proposal-${o.id}`}>
-                <header className="bc-dev__proposal-head"><div><span className="bc-dev__status">{o.olcum ? "ÖLÇÜLDÜ" : `${o.sayi} ÜRETİMDE`}</span><h3>{o.baslik}</h3></div><span>{o.beyin}</span></header>
-                <p>{o.neden}</p>
+                <header className="bc-dev__proposal-head"><div><span className="bc-dev__status">{o.ayasOneriyor ? `AYAS ÖNERİYOR · ${o.ayasOneriyor.kaynak}` : o.olcum ? "ÖLÇÜLDÜ" : `${o.sayi} ÜRETİMDE`}</span><h3>{o.baslik}</h3></div><span>{o.beyin}</span></header>
+                {o.ayasOneriyor ? (
+                  <>
+                    <p><b>Yararı:</b> {o.ayasOneriyor.yarar}</p>
+                    <p><b>Zararı / sınırı:</b> {o.ayasOneriyor.zarar}</p>
+                    <p className="bc-dev__notice bc-dev__notice--safe">{o.ayasOneriyor.otomatikOnay === "kapalı" ? "Otomatik onay kapalı; senin kararını bekliyor." : `Reddetmezsen ${when(o.ayasOneriyor.otomatikOnay)} itibarıyla kendiliğinden onaylanır; yapılan iş de uygulanmadan önce ayrıca 5 dakika bekler.`}</p>
+                    <details><summary>Geliştiriciye gidecek görev</summary><p>{o.neden}</p></details>
+                  </>
+                ) : <p>{o.neden}</p>}
                 {error?.id === o.id ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{error.text}</p> : null}
                 <div className="bc-dev__actions">
                   <button type="button" disabled={!decide || pending !== null} onClick={() => void onDecide(o.id, "onaylandi")}>{pending === o.id ? "KAYDEDİLİYOR…" : "ONAYLA"}</button>

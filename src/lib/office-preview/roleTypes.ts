@@ -16,7 +16,8 @@ export type PreviewBrainId =
   | "yayinci"
   | "analist"
   | "gozcu"
-  | "radar";
+  | "radar"
+  | "guvenlik";
 
 export type PreviewLiveStatus = "mevcut" | "koşullu" | "planlanan";
 

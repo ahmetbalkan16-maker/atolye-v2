@@ -45,6 +45,7 @@ import { inventoryAyasCapabilities } from "../../ayas/routing/AyasAgenticRouting
 import { loadAyasRuntimeSkills } from "../../ayas/routing/AyasSkillRegistry";
 import { createOllamaAyasProvider } from "../../ayas/model/OllamaAyasProvider";
 import { AYAS_LAST_SECURITY_REVIEW } from "../../ayas/security/AyasSecurityReviewRecord";
+import { readSecurityWatchReport } from "../security/SecurityWatchStore";
 import { loadAyasProjectCatalog, summarizeAyasProductionProjects, type AyasProjectCatalogView } from "../../ayas/AyasProjectCatalog";
 import { resolveAccessGate } from "../../auth/accessGate";
 import {
@@ -350,10 +351,13 @@ async function readCapabilities(cwd: string, env: NodeJS.ProcessEnv, fetcher: ty
   };
 }
 
-function readSecurity(env: NodeJS.ProcessEnv, now: () => string): AyasCcFact<AyasCcSecurityFacts> {
+function readSecurity(cwd: string, env: NodeJS.ProcessEnv, now: () => string): AyasCcFact<AyasCcSecurityFacts> {
   // Only the mode crosses this boundary — never the key or its length.
   const { mode } = resolveAccessGate(env);
-  return { kind: "ok", observedAt: now(), value: { accessGate: mode, autonomousExecutionEnabled: readAyasAutonomousExecutionFlag(env), executionGate: "CLOSED", review: AYAS_LAST_SECURITY_REVIEW } };
+  // The security brain's latest report (owner 2026-11-26); unreadable is shown as such, never as clean.
+  let watch: AyasCcSecurityFacts["watch"];
+  try { watch = { report: readSecurityWatchReport(cwd) }; } catch (error) { watch = { report: null, error: error instanceof Error ? error.message : String(error) }; }
+  return { kind: "ok", observedAt: now(), value: { accessGate: mode, autonomousExecutionEnabled: readAyasAutonomousExecutionFlag(env), executionGate: "CLOSED", review: AYAS_LAST_SECURITY_REVIEW, watch } };
 }
 
 async function readAtolye(load: () => Promise<AyasProjectCatalogView>, now: () => string): Promise<AyasCcFact<AyasCcAtolyeFacts>> {
@@ -411,7 +415,7 @@ async function collectAyasControlCenterFacts(options: AyasControlCenterCollectOp
     source(now, timeoutMs, () => readExperiments(cwd, now), "EXPERIMENT_READ_FAILED"),
     source(now, timeoutMs, () => readMemory(cwd, now), "MEMORY_READ_FAILED"),
     source(now, timeoutMs, () => readCapabilities(cwd, env, options.fetcher, now), "CAPABILITY_READ_FAILED"),
-    source(now, timeoutMs, () => readSecurity(env, now), "SECURITY_READ_FAILED"),
+    source(now, timeoutMs, () => readSecurity(cwd, env, now), "SECURITY_READ_FAILED"),
     source(now, timeoutMs, () => readAtolye(options.loadProjectCatalog ?? loadAyasProjectCatalog, now), "ATOLYE_READ_FAILED"),
     source(now, timeoutMs, () => readRoadmap(cwd, now), "ROADMAP_READ_FAILED"),
   ]);
