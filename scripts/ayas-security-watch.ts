@@ -39,7 +39,8 @@ import {
 import { LEARNED_SECURITY_CHECKS } from "../src/lib/security-watch/LearnedChecks";
 import { deriveSecurityNeeds, graceApproveSecurityProposals, proposeSecurityImprovements } from "../src/lib/brain/security/SecurityWatchImprovement";
 import { resolveV3Paths } from "../src/lib/v3/V3Paths";
-import { readLoginFacts, readSecurityCases, readSecurityWatchReport, readWatchState, recordSecurityCases, writeSecurityWatchReport, writeWatchState } from "../src/lib/brain/security/SecurityWatchStore";
+import { readLoginFacts, readSecurityCases, readSecurityResearchState, readSecurityWatchReport, readWatchState, recordSecurityCases, writeSecurityWatchReport, writeWatchState } from "../src/lib/brain/security/SecurityWatchStore";
+import { researchFactsFromState, type SecurityResearchFacts } from "../src/lib/brain/security/SecurityResearch";
 
 const root = process.cwd();
 const MIN = 60_000;
@@ -199,6 +200,13 @@ async function main(): Promise<void> {
     liveIntegrity: cache.liveIntegrity ?? notYet(),
     secrets: cache.secrets ?? notYet(),
     vulnerabilities: cache.vulnerabilities ?? notYet(),
+    // WIP (2026-11-27): the research child is not started from this round yet; its stored state is read if present.
+    research: (() => {
+      try { const s = readSecurityResearchState(root); return s ? { value: researchFactsFromState(s, nowMs), at: s.lastAttemptAt } : notYet<SecurityResearchFacts>(); }
+      catch (error) { return failed<SecurityResearchFacts>(nowIso, error); }
+    })(),
+    // WIP: Gitleaks is installed and verified by scripts/ayas-security-tools-install.ts but not yet run from this round.
+    secretScanner: { value: { tool: "yerlesik" as const, version: null, reason: "Gitleaks bu turdan henüz çalıştırılmıyor (geliştirme sürüyor)" }, at: nowIso },
   };
   const findings = evaluateSecurityWatch(facts, nowIso, LEARNED_SECURITY_CHECKS);
   const learned = vetLearnedChecks(LEARNED_SECURITY_CHECKS).verdicts;
