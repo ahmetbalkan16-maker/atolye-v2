@@ -238,6 +238,12 @@ This project is developed across many sequential AI sessions under strict, check
     `AYAS_AUTO_LIVE_PUBLISH=0` (executor dry run: `"autoLive":"DISABLED"`), so main-AYAS code-lane
     commits also wait for the batch. A batch go-live runs `scripts/ayas-publish-live.ps1 -Commit <sha>
     -Apply` by hand (or removes that line for one tick and puts it back).
+    **Changed 2026-11-27 (owner: "bütün geliştirmeler için canlıya alma serbest olsun, sadece bizim burda yaptığımız
+    geliştirmeler toplu canlıya alma olsun"):** the canonical `.env.local` now has `AYAS_AUTO_LIVE_PUBLISH=1` (backup in
+    `D:\ÜRETİM\private\host-settings-backup\`), so AYAS's own developments (code lane, grace approvals, update applies,
+    Bekçi's learned checks) go live automatically again. Claude-session work stays batched: it lives on the feature branch
+    and reaches the live branch only at a batch go-live the owner asks for — never merge it into the live branch earlier,
+    because the observer would publish it at once.
   - **Grace auto-approval (owner 2026-11-19, in his words: "gelişim merkezine gelen ... geliştirmelerini
     benden onay almadan yapmasını istiyorum; örnek veriyorum, böyle bir geliştirme keşfetti, 5 dakika
     orada onayda beklesin, ben onay vermezsem bile kendisi işleme alsın ve onaylasın"; this was also his
