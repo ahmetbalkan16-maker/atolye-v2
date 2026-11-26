@@ -8,6 +8,8 @@ import type { PreviewBrainId } from "@/lib/office-preview/roleTypes";
 type Props = {
   selectedBrainId: PreviewBrainId;
   onSelectBrain: (id: PreviewBrainId) => void;
+  /** Sample status per brain from the scripted flow; brains not listed are shown as "bekliyor". */
+  statuses?: Partial<Record<PreviewBrainId, OfficeWorkerStatus>>;
 };
 
 type Stage = "work" | "rest" | "rise" | "walk-out" | "inspect" | "wait" | "talk" | "coffee" | "lounge" | "walk-back" | "sit";
@@ -44,6 +46,7 @@ type WorkerRig = {
   rightKnee: THREE.Group;
   chair?: THREE.Group;
   selectedRing: THREE.Mesh;
+  statusDisc: THREE.Mesh;
   spec: WorkerSpec;
   stage: Stage;
   stageAt: number;
@@ -61,9 +64,10 @@ type WorkerRig = {
 
 const FLOOR_Y = 0;
 const AISLE_Z = 1.1;
-const PERIOD = 38;
+// Ambient walks are rare so desks are mostly occupied; a worker the sample flow marks busy never leaves its desk.
+const PERIOD = 64;
 const PAIR_TALK_DISTANCE = 2.45;
-const TASK_TRIPS_BEFORE_BREAK = 1;
+const TASK_TRIPS_BEFORE_BREAK = 2;
 const LOUNGE_BREAK_SECONDS = 12;
 const LOUNGE_SEATS = [
   { x: -10.05, z: 5.05 },
@@ -86,20 +90,41 @@ const WORKERS: readonly WorkerSpec[] = [
   { key: "repair", brainId: "onarim", x: 10, z: 1.25, deskX: 10, deskZ: 0.45, accent: "#f0a85f", focusX: 11.05, focusZ: 1.55, firstMove: 27 },
 ];
 
-const ROOM_SIGNS: readonly { text: string; x: number; y?: number; z: number; color?: string; width?: number; height?: number; wall?: "front" | "right"; row: "back" | "middle" | "front" }[] = [
-  // Wall-mounted department plaques sit on glass dividers or the perimeter, clear of door openings.
-  { text: "ARAŞTIRMA", x: -10.7, y: 2.3, z: -2.53, width: 2.25, height: 0.82, row: "back" },
-  { text: "KURGU & MİZAH", x: 0.75, y: 2.3, z: -2.53, width: 3.15, height: 0.82, row: "back" },
-  { text: "KOSTÜM & KALİTE", x: 6.9, y: 2.58, z: -8.1, width: 3.45, height: 0.82, row: "back" },
-  { text: "ORTAM & GÖRSEL", x: -10.7, y: 2.3, z: 2.03, width: 2.25, height: 0.72, row: "middle" },
-  { text: "AYAS YÖNETİM", x: -1.38, y: 2.3, z: 2.03, color: "#e6c88c", width: 2.5, height: 0.72, row: "middle" },
-  { text: "MUHASEBE", x: 8.35, y: 3.35, z: 0.05, width: 2.6, height: 0.72, row: "middle" },
-  { text: "DİNLENME", x: -9.2, y: 2.3, z: 7.98, width: 2.3, height: 0.62, row: "front" },
-  { text: "SES STÜDYOSU", x: -3.5, y: 2.3, z: 7.98, width: 2.8, height: 0.62, row: "front" },
-  { text: "TOPLANTI & DENETİM", x: 1.95, y: 2.3, z: 7.98, width: 3.25, height: 0.62, row: "front" },
-  { text: "YAZILIM & GELİŞTİRME", x: 8.45, y: 2.3, z: 7.98, width: 3.6, height: 0.62, row: "front" },
-  { text: "MONTAJ & ONARIM", x: 8, y: 2.72, z: 2.03, width: 2.8, height: 0.72, row: "middle" },
-  { text: "ONAY", x: 3.05, y: 2.3, z: 2.03, color: "#e6c88c", width: 1.45, height: 0.72, row: "middle" },
+/** Sample-only status shown above each worker; the preview page derives it from the scripted scenario step. */
+export type OfficeWorkerStatus = "bekliyor" | "calisiyor" | "denetliyor" | "yonetiyor" | "bitti";
+export const OFFICE_STATUS_LABEL: Record<OfficeWorkerStatus, string> = {
+  bekliyor: "bekliyor",
+  calisiyor: "çalışıyor",
+  denetliyor: "denetliyor",
+  yonetiyor: "yönetiyor",
+  bitti: "bitti",
+};
+const SHORT_NAME: Record<PreviewBrainId, string> = {
+  ayas: "AYAS", arastirma: "Araştırma", kurgu: "Kurgu", mizah: "Mizah", kostum: "Kostüm", ortam: "Ortam", ses: "Ses",
+  kalite: "Kalite", onarim: "Onarım", gelistirici: "Geliştirici", cirak: "Çırak", denetci: "Denetçi", muhasebe: "Muhasebe",
+};
+const STATUS_COLOR: Record<OfficeWorkerStatus, string> = {
+  bekliyor: "#9aa4ad",
+  calisiyor: "#3b8ef3",
+  denetliyor: "#f2b630",
+  yonetiyor: "#a66cf0",
+  bitti: "#34c472",
+};
+
+// One floor colour and one floor-level name per room. Names are drawn as screen overlays (never mirrored, always
+// readable) at the room's front edge; floor tints follow the department accent so rooms read apart at a glance.
+const ROOMS: readonly { name: string; x: number; z: number; sx: number; sz: number; floor: string; gold?: boolean }[] = [
+  { name: "ARAŞTIRMA", x: -8.9, z: -5.3, sx: 5.75, sz: 5.15, floor: "#dbe7f1" },
+  { name: "KURGU & MİZAH", x: -1.7, z: -5.3, sx: 8.05, sz: 5.15, floor: "#f3e2cf" },
+  { name: "KOSTÜM & KALİTE", x: 7.2, z: -5.3, sx: 9.0, sz: 5.15, floor: "#f1dde2" },
+  { name: "ORTAM & GÖRSEL", x: -8.9, z: -0.25, sx: 5.75, sz: 4.3, floor: "#dcebdc" },
+  { name: "AYAS · YÖNETİM", x: -0.45, z: -0.25, sx: 10.65, sz: 4.3, floor: "#efe5c9", gold: true },
+  { name: "MUHASEBE", x: 8.45, z: -1.25, sx: 6.55, sz: 2.25, floor: "#ece5cc" },
+  { name: "MONTAJ & ONARIM", x: 8.45, z: 1.05, sx: 6.55, sz: 1.75, floor: "#e1e5e8" },
+  { name: "DİNLENME", x: -8.9, z: 5.05, sx: 5.75, sz: 5.8, floor: "#eee2cf" },
+  { name: "SES STÜDYOSU", x: -3.5, z: 5.05, sx: 4.55, sz: 5.8, floor: "#e4dff1" },
+  { name: "TOPLANTI & DENETİM", x: 1.95, z: 5.05, sx: 5.85, sz: 5.8, floor: "#e8e3d7" },
+  { name: "YAZILIM & GELİŞTİRME", x: 8.45, z: 5.05, sx: 6.55, sz: 5.8, floor: "#dce5f0" },
 ];
 
 const PAIR_TARGETS: Record<string, readonly [readonly [number, number], readonly [number, number]]> = {
@@ -231,102 +256,6 @@ function makeSphereFactory() {
     parent.add(mesh);
     return mesh;
   };
-}
-
-function makeLabel(text: string, accent = "#86eee2", illuminated = false, fontSize = 104): { texture: THREE.CanvasTexture; material: THREE.SpriteMaterial } {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 160;
-  const context = canvas.getContext("2d");
-  if (context) {
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "rgba(13, 29, 32, 0.97)";
-    context.strokeStyle = accent;
-    context.lineWidth = 8;
-    context.shadowColor = illuminated ? accent : "transparent";
-    context.shadowBlur = illuminated ? 30 : 4;
-    context.beginPath();
-    context.roundRect(4, 4, 1016, 152, 24);
-    context.fill();
-    context.stroke();
-    context.fillStyle = "#f6f3e8";
-    context.font = `700 ${fontSize}px Segoe UI, Arial, sans-serif`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(text, 512, 80, 920);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false, toneMapped: false });
-  return { texture, material };
-}
-
-function addMountedPlaque(
-  box: ReturnType<typeof makeBoxFactory>,
-  parent: THREE.Object3D,
-  textures: THREE.Texture[],
-  text: string,
-  x: number,
-  y: number,
-  wallPosition: number,
-  width: number,
-  height: number,
-  wall: "front" | "right" = "front",
-  accent = "#86eee2",
-  illuminated = false,
-  fontSize = 104,
-) {
-  const label = makeLabel(text, accent, illuminated, fontSize);
-  textures.push(label.texture);
-  label.material.dispose();
-
-  const frame = mat("#51483a", 0.4, 0.32);
-  const backing = mat(illuminated ? "#15292c" : "#182527", 0.36, 0.22);
-  const frontFacing = wall === "front";
-  const surfaceOffset = 0.2;
-  if (frontFacing) {
-    box(parent, `${text} plaque backing`, x, y, wallPosition + 0.09, width + 0.2, height + 0.2, 0.18, backing);
-    for (const dx of [-width * 0.34, width * 0.34]) {
-      for (const dy of [-height * 0.32, height * 0.32]) {
-        box(parent, `${text} glass standoff`, x + dx, y + dy, wallPosition + 0.045, 0.07, 0.07, 0.11, frame);
-      }
-    }
-  } else {
-    box(parent, `${text} plaque backing`, x + 0.09, y, wallPosition, 0.18, height + 0.2, width + 0.2, backing);
-    for (const dz of [-width * 0.34, width * 0.34]) {
-      for (const dy of [-height * 0.32, height * 0.32]) {
-        box(parent, `${text} glass standoff`, x + 0.045, y + dy, wallPosition + dz, 0.11, 0.07, 0.07, frame);
-      }
-    }
-  }
-
-  const faceMaterial = new THREE.MeshBasicMaterial({
-    map: label.texture,
-    transparent: true,
-    side: THREE.DoubleSide,
-    toneMapped: false,
-    depthWrite: false,
-  });
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), faceMaterial);
-  face.name = `${text} mounted sign face`;
-  if (frontFacing) face.position.set(x, y, wallPosition + surfaceOffset);
-  else {
-    face.rotation.y = Math.PI / 2;
-    face.position.set(x + surfaceOffset, y, wallPosition);
-  }
-  face.renderOrder = illuminated ? 30 : 25;
-  parent.add(face);
-
-  if (illuminated) {
-    if (frontFacing) {
-      box(parent, `${text} illuminated sign top rail`, x, y + height / 2 + 0.11, wallPosition + surfaceOffset, width + 0.16, 0.035, 0.045, mat(accent, 0.3, 0.06));
-      box(parent, `${text} illuminated sign lower rail`, x, y - height / 2 - 0.11, wallPosition + surfaceOffset, width + 0.16, 0.035, 0.045, mat(accent, 0.3, 0.06));
-    } else {
-      box(parent, `${text} illuminated sign top rail`, x + surfaceOffset, y + height / 2 + 0.11, wallPosition, 0.045, 0.035, width + 0.16, mat(accent, 0.3, 0.06));
-      box(parent, `${text} illuminated sign lower rail`, x + surfaceOffset, y - height / 2 - 0.11, wallPosition, 0.045, 0.035, width + 0.16, mat(accent, 0.3, 0.06));
-    }
-  }
 }
 
 function addRoomPanel(
@@ -465,8 +394,9 @@ function addDesk(
 }
 
 function addOfficeLinearLight(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, z: number) {
-  const housing = mat("#4b4a43", 0.42, 0.28);
-  const diffuser = new THREE.MeshStandardMaterial({ color: "#fff0cc", emissive: "#e4b86e", emissiveIntensity: 0.42, roughness: 0.34 });
+  // Light housings hang above the rooms; a pale finish keeps them from reading as black bars in the top-down view.
+  const housing = mat("#ece6da", 0.5, 0.1);
+  const diffuser = new THREE.MeshStandardMaterial({ color: "#fff6dd", emissive: "#ffd894", emissiveIntensity: 0.55, roughness: 0.34 });
   for (const dx of [-0.56, 0.56]) box(parent, "suspended light cable", x + dx, 3.68, z, 0.025, 0.34, 0.025, housing);
   box(parent, "suspended office light housing", x, 3.49, z, 1.38, 0.1, 0.32, housing);
   box(parent, "warm linear light diffuser", x, 3.425, z, 1.2, 0.035, 0.22, diffuser);
@@ -728,22 +658,6 @@ function addGlassDividerAlongZ(
   for (const z of [nearDoor, farDoor]) box(parent, "glass doorway frame post", x, 1.02, z, 0.12, 2.02, 0.075, frame);
 }
 
-function addGlassEnclosureWallAlongX(
-  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, z: number, startX: number, endX: number,
-  glass: THREE.Material, frame: THREE.Material,
-) {
-  const panelWidth = 3.9;
-  for (let start = startX; start < endX - 0.01; start += panelWidth) {
-    const end = Math.min(endX, start + panelWidth);
-    const width = end - start;
-    box(parent, "full-height perimeter glass", (start + end) / 2, 2.02, z, width - 0.1, 4.04, 0.08, glass);
-    box(parent, "perimeter glass mullion", start, 2.02, z, 0.09, 4.12, 0.14, frame);
-  }
-  box(parent, "perimeter glass end mullion", endX, 2.02, z, 0.09, 4.12, 0.14, frame);
-  box(parent, "perimeter glass top rail", (startX + endX) / 2, 4.04, z, endX - startX, 0.12, 0.14, frame);
-  box(parent, "perimeter glass base rail", (startX + endX) / 2, 0.06, z, endX - startX, 0.12, 0.14, frame);
-}
-
 function addGlassEnclosureWallAlongZ(
   box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, startZ: number, endZ: number,
   glass: THREE.Material, frame: THREE.Material,
@@ -763,25 +677,17 @@ function addGlassEnclosureWallAlongZ(
 function addFloorAndZones(
   box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, textures: THREE.Texture[], carpetTexture: THREE.Texture,
 ) {
-  const slab = mat("#a99b85", 0.92);
-  const trim = mat("#5e4e3f", 0.62, 0.06);
+  const slab = mat("#d9d0c0", 0.92);
+  const trim = mat("#9c8a72", 0.62, 0.06);
   box(parent, "single open-plan office floor", 0, -0.12, 0, 24, 0.24, 16.4, slab);
   box(parent, "floor front trim", 0, -0.22, 8.05, 24, 0.11, 0.16, trim);
   box(parent, "floor left trim", -11.92, -0.22, 0, 0.16, 0.11, 16.2, trim);
   box(parent, "floor right trim", 11.92, -0.22, 0, 0.16, 0.11, 16.2, trim);
   // Each team has a room on one aligned grid. Transparent full-height partitions and door gaps keep it open-plan.
-  const roomPalette: readonly [number, number, number, number, string][] = [
-    [-8.9, -5.3, 5.75, 5.15, "#ad916d"], [-1.7, -5.3, 8.05, 5.15, "#ab9277"],
-    [7.2, -5.3, 9.0, 5.15, "#b39a73"], [-8.9, -0.25, 5.75, 4.3, "#969377"],
-    [-0.45, -0.25, 10.65, 4.3, "#b39e7e"], [8.45, -1.25, 6.55, 2.25, "#9e9475"],
-    [8.45, 1.05, 6.55, 1.75, "#8e8d72"], [-8.9, 5.05, 5.75, 5.8, "#8d795f"],
-    [-3.5, 5.05, 4.55, 5.8, "#79897d"], [1.95, 5.05, 5.85, 5.8, "#96927c"],
-    [8.45, 5.05, 6.55, 5.8, "#89917f"],
-  ];
-  for (const [x, z, sx, sz, color] of roomPalette) addRoomPanel(box, parent, textures, carpetTexture, x, z, sx, sz, color);
+  for (const room of ROOMS) addRoomPanel(box, parent, textures, carpetTexture, room.x, room.z, room.sx, room.sz, room.floor);
 
-  const glass = new THREE.MeshStandardMaterial({ color: "#668a7e", transparent: true, opacity: 0.3, roughness: 0.24, metalness: 0.05 });
-  const frame = mat("#574634", 0.56, 0.08);
+  const glass = new THREE.MeshStandardMaterial({ color: "#d4ebe8", transparent: true, opacity: 0.2, roughness: 0.18, metalness: 0.05, depthWrite: false });
+  const frame = mat("#cfc5b4", 0.5, 0.08);
   const wallStart = -11.82;
   const wallEnd = 11.82;
   for (const [start, end, door] of [[wallStart, -5.9, -8.85], [-5.9, 2.5, -1.7], [2.5, wallEnd, 7.2]] as const) {
@@ -795,12 +701,16 @@ function addFloorAndZones(
   }
   // Separate accounting from assembly while leaving their door beside the main aisle.
   addGlassDividerAlongX(box, parent, 0.05, 5.05, wallEnd, 6.1, glass, frame, 1.55);
-  // The one-level office is enclosed in full-height glass on its front and both sides.
-  addGlassEnclosureWallAlongX(box, parent, 8.05, -11.82, 11.82, glass, frame);
+  // Doll-house cut: the far (left) side keeps full-height glass; the two sides facing the camera are low sills so
+  // nothing tall stands between the viewer and the people inside.
   addGlassEnclosureWallAlongZ(box, parent, -11.92, -8.05, 8.05, glass, frame);
-  addGlassEnclosureWallAlongZ(box, parent, 11.92, -8.05, 8.05, glass, frame);
+  const sill = mat("#e7dfd0", 0.7);
+  box(parent, "front low sill", 0, 0.28, 8.05, 23.84, 0.56, 0.16, sill);
+  box(parent, "right low sill", 11.92, 0.28, 0, 0.16, 0.56, 16.1, sill);
+  box(parent, "front sill cap", 0, 0.575, 8.05, 23.9, 0.05, 0.24, frame);
+  box(parent, "right sill cap", 11.92, 0.575, 0, 0.24, 0.05, 16.16, frame);
   // A clear cross-shaped aisle is reserved for walking routes.
-  const aisle = mat("#927b5f", 0.94);
+  const aisle = mat("#cdbfa6", 0.94);
   box(parent, "main walking aisle", 0, 0.008, 1.1, 23.6, 0.015, 1.28, aisle);
   box(parent, "cross walking aisle", 0, 0.009, -0.1, 1.22, 0.016, 5.0, aisle);
 }
@@ -825,13 +735,9 @@ function makeHumanWorker(
   const trouserPalette = ["#2f3542", "#3b3f4a", "#4b4338", "#283244"];
   const skin = mat(skinPalette[index % skinPalette.length]!, 0.68);
   const hair = mat(index === 0 ? "#6b625b" : hairPalette[index % hairPalette.length]!, 0.95);
-  const jacketColor = spec.brainId === "ayas" ? "#26334b"
-    : spec.brainId === "muhasebe" ? "#414857"
-      : spec.brainId === "onarim" ? "#2c3038"
-        : spec.brainId === "kostum" ? "#7a5233"
-          : spec.brainId === "kurgu" ? "#48566a"
-            : spec.brainId === "gelistirici" ? "#3f5d4c"
-              : ["#415765", "#53675a", "#66584e", "#555064", "#355d60"][index % 5]!;
+  // Each role wears its own accent so people read apart from the furniture; AYAS keeps the dark manager suit.
+  const jacketColor = spec.brainId === "ayas" ? "#24365e"
+    : "#" + new THREE.Color(spec.accent).lerp(new THREE.Color("#3a4250"), 0.3).getHexString();
   const jacket = mat(jacketColor, 0.86);
   const shirt = mat("#f4f2ee", 0.78);
   const trousers = mat(trouserPalette[index % trouserPalette.length]!, 0.91);
@@ -1046,6 +952,16 @@ function makeHumanWorker(
   selectedRing.position.y = 0.035;
   selectedRing.visible = false;
   root.add(selectedRing);
+  // Floor glow under the worker in the colour of its sample status (grey while idle).
+  const statusDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(0.62, 28),
+    new THREE.MeshBasicMaterial({ color: STATUS_COLOR.bekliyor, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
+  );
+  statusDisc.name = "worker status floor glow";
+  statusDisc.rotation.x = -Math.PI / 2;
+  statusDisc.position.y = 0.04;
+  statusDisc.renderOrder = 2;
+  root.add(statusDisc);
   root.userData.brainId = spec.brainId;
   root.userData.workerKey = spec.key;
   root.userData.selectable = true;
@@ -1056,7 +972,7 @@ function makeHumanWorker(
     leftElbow: leftArm.elbow, rightElbow: rightArm.elbow,
     leftLeg: leftLeg.leg, rightLeg: rightLeg.leg,
     leftKnee: leftLeg.knee, rightKnee: rightLeg.knee,
-    chair, selectedRing, spec, stage: initialStage, stageAt: now,
+    chair, selectedRing, statusDisc, spec, stage: initialStage, stageAt: now,
     nextMoveAt: now + spec.firstMove + (index % 4) * 0.35,
     path: [], pathIndex: 0, gait: index * 0.7, talkStarted: false,
     taskTripsSinceBreak: 0, loungeQueued: false, tripKind: "task",
@@ -1309,28 +1225,37 @@ function moveOnPath(worker: WorkerRig, dt: number): boolean {
   return worker.pathIndex >= worker.path.length;
 }
 
-function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: PreviewBrainId }, onSelectRef: { current: (id: PreviewBrainId) => void }) {
+function buildOfficeScene(
+  container: HTMLDivElement,
+  selectedRef: { current: PreviewBrainId },
+  onSelectRef: { current: (id: PreviewBrainId) => void },
+  statusRef: { current: Partial<Record<PreviewBrainId, OfficeWorkerStatus>> },
+) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#c5d2cf");
+  scene.background = new THREE.Color("#e9ede6");
   const camera = new THREE.OrthographicCamera(-12, 12, 6.75, -6.75, 0.1, 120);
   camera.position.set(18, 25, 25);
-  camera.lookAt(0, 0.7, 0);
-  scene.add(new THREE.HemisphereLight("#f4ead6", "#5f695b", 1.22));
-  const keyLight = new THREE.DirectionalLight("#ffe3bd", 1.42);
-  keyLight.position.set(-12, 22, -4);
+  camera.lookAt(0, 0.6, -0.2);
+  // Bright, soft daylight: the key light sits on the camera side so the faces we see are lit, not the backs.
+  scene.add(new THREE.HemisphereLight("#fffaf0", "#b9ad98", 1.75));
+  const keyLight = new THREE.DirectionalLight("#fff1dc", 1.55);
+  keyLight.position.set(14, 26, 12);
   scene.add(keyLight);
-  const fillLight = new THREE.DirectionalLight("#a4c4a4", 0.56);
-  fillLight.position.set(10, 10, 12);
+  const fillLight = new THREE.DirectionalLight("#dfe9ff", 0.55);
+  fillLight.position.set(-14, 12, 6);
   scene.add(fillLight);
 
   const renderer = new THREE.WebGLRenderer({ alpha: false, antialias: true, powerPreference: "low-power", depth: true, stencil: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.08;
   renderer.domElement.className = "oop-office-3d-canvas";
   renderer.domElement.setAttribute("aria-hidden", "true");
-  container.replaceChildren(renderer.domElement);
+  // Screen overlay for room names and worker name tags: crisp text at any size, never mirrored like a 3D plaque.
+  const overlay = document.createElement("div");
+  overlay.className = "oop-office-overlay";
+  container.replaceChildren(renderer.domElement, overlay);
 
   const box = makeBoxFactory();
   const sphere = makeSphereFactory();
@@ -1352,36 +1277,14 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
   ] as const;
   for (const [x, z] of plantPositions) addPlant(box, sphere, room, x, z);
 
-  const signs = new THREE.Group();
-  scene.add(signs);
-  const rowTypography = {
-    back: { fontSize: 116, height: 0.82 },
-    middle: { fontSize: 98, height: 0.72 },
-    front: { fontSize: 86, height: 0.62 },
-  } as const;
-  for (const item of ROOM_SIGNS) {
-    const type = rowTypography[item.row];
-    addMountedPlaque(
-      box,
-      signs,
-      textures,
-      item.text,
-      item.x,
-      item.y ?? 2.3,
-      item.z,
-      item.width ?? 2.65,
-      type.height,
-      item.wall,
-      item.color,
-      false,
-      type.fontSize,
-    );
-  }
-  // Larger, illuminated corporate sign on the outside of the front-right glass façade.
-  addMountedPlaque(box, signs, textures, "ATÖLYE", 11.92, 3.28, 0.1, 3.6, 0.94, "right", "#71f5ff", true);
-  const atelierGlow = new THREE.PointLight("#55eaff", 0.55, 4.8, 2);
-  atelierGlow.position.set(12.45, 3.28, 0.1);
-  scene.add(atelierGlow);
+  // Room names sit on the floor at each room's front edge (projected every frame into the overlay).
+  const roomTags = ROOMS.map((item) => {
+    const tag = document.createElement("span");
+    tag.className = "oop-room-tag" + (item.gold ? " is-gold" : "");
+    tag.textContent = item.name;
+    overlay.append(tag);
+    return { tag, at: new THREE.Vector3(item.x, 0.05, item.z + item.sz / 2 - 0.42) };
+  });
 
   addDesk(box, room, -9, -6.15, "#6dd7ff", { wide: true });
   addDesk(box, room, -2.9, -6.15, "#ffbd70");
@@ -1433,6 +1336,48 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
     members.push(worker);
     pairMembers.set(worker.spec.pair, members);
   }
+  // A name tag with a status light above every worker; clicking it opens that brain's profile like clicking the body.
+  const workerTags = workers.map((worker) => {
+    const tag = document.createElement("button");
+    tag.type = "button";
+    tag.className = "oop-worker-tag";
+    const dot = document.createElement("i");
+    const name = document.createElement("b");
+    name.textContent = SHORT_NAME[worker.spec.brainId];
+    const state = document.createElement("small");
+    tag.append(dot, name, state);
+    tag.addEventListener("click", () => onSelectRef.current(worker.spec.brainId));
+    overlay.append(tag);
+    return { worker, tag, state, status: "" as OfficeWorkerStatus | "" };
+  });
+  const headPoint = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  const place = (element: HTMLElement, world: THREE.Vector3, width: number, height: number) => {
+    projected.copy(world).project(camera);
+    const x = ((projected.x + 1) / 2) * width;
+    const y = ((1 - projected.y) / 2) * height;
+    element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+  };
+  const updateOverlay = () => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    for (const { tag, at } of roomTags) place(tag, at, width, height);
+    for (const entry of workerTags) {
+      const status = statusRef.current[entry.worker.spec.brainId] ?? "bekliyor";
+      if (status !== entry.status) {
+        entry.status = status;
+        entry.tag.dataset.status = status;
+        entry.state.textContent = OFFICE_STATUS_LABEL[status];
+        const disc = entry.worker.statusDisc.material as THREE.MeshBasicMaterial;
+        disc.color.set(STATUS_COLOR[status]);
+        disc.opacity = status === "bekliyor" ? 0 : 0.5;
+      }
+      entry.tag.classList.toggle("is-selected", entry.worker.spec.brainId === selectedRef.current);
+      entry.worker.head.getWorldPosition(headPoint);
+      headPoint.y += 0.42;
+      place(entry.tag, headPoint, width, height);
+    }
+  };
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const selectable = workers.map((worker) => worker.root);
@@ -1447,7 +1392,7 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
     const width = Math.max(1, container.clientWidth);
     const height = Math.max(1, container.clientHeight);
     const aspect = width / height;
-    const frustumHeight = 17.4;
+    const frustumHeight = 16.9;
     camera.left = (-frustumHeight * aspect) / 2;
     camera.right = (frustumHeight * aspect) / 2;
     camera.top = frustumHeight / 2;
@@ -1533,6 +1478,13 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
 
   const updateWorker = (worker: WorkerRig, now: number, dt: number) => {
     if (worker.stage === "work" || worker.stage === "rest") {
+      const status = statusRef.current[worker.spec.brainId];
+      if (status === "calisiyor" || status === "denetliyor" || status === "yonetiyor") {
+        // Busy in the sample flow: stay seated and keep working; the ambient walk waits until it is over.
+        worker.nextMoveAt = Math.max(worker.nextMoveAt, now + 6);
+        setPose(worker, worker.stage, 1, now, 0);
+        return;
+      }
       if (worker.loungeSeatIndex !== undefined) {
         makeTrip(worker, now);
         return;
@@ -1682,6 +1634,7 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
     dispatchLoungeBreaks(now);
     for (const worker of workers) updateWorker(worker, now, dt);
     renderer.render(scene, camera);
+    updateOverlay();
   };
   frame = requestAnimationFrame(animate);
 
@@ -1706,18 +1659,22 @@ function buildOfficeScene(container: HTMLDivElement, selectedRef: { current: Pre
   };
 }
 
-export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain }: Props) {
+const LEGEND: readonly OfficeWorkerStatus[] = ["calisiyor", "denetliyor", "yonetiyor", "bitti", "bekliyor"];
+
+export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses = {} }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selectedBrainId);
   const onSelectRef = useRef(onSelectBrain);
+  const statusRef = useRef(statuses);
   useEffect(() => { selectedRef.current = selectedBrainId; }, [selectedBrainId]);
   useEffect(() => { onSelectRef.current = onSelectBrain; }, [onSelectBrain]);
+  useEffect(() => { statusRef.current = statuses; }, [statuses]);
 
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
     try {
-      return buildOfficeScene(container, selectedRef, onSelectRef);
+      return buildOfficeScene(container, selectedRef, onSelectRef, statusRef);
     } catch (error) {
       container.dataset.webgl = "unavailable";
       container.textContent = "Bu bilgisayarda 3D çizim başlatılamadı.";
@@ -1727,7 +1684,9 @@ export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain }: Props) {
 
   return <>
     <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; beyinler görev alanlarına yürür, boşta kaldıklarında sırayla dinlenme odasını kullanır ve masalarına döner." />
-    <div className="oop-office-3d-note">SANDBOX · {new Set(WORKERS.map((worker) => worker.brainId)).size} TEKİL BEYİN · DİNLENME DÖNÜŞÜMLÜ · CANLI SİSTEME BAĞLI DEĞİL</div>
+    <div className="oop-office-legend" aria-label="Durum renkleri">{LEGEND.map((status) =>
+      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}</div>
+    <div className="oop-office-3d-note">ÖRNEK · {new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · CANLI SİSTEME BAĞLI DEĞİL</div>
     <div className="oop-office-sr-list" aria-label="Ofisteki çalışan profilleri">{WORKERS.map((worker) => {
       const profile = getPreviewBrain(worker.brainId);
       return <button key={worker.key} type="button" onClick={() => onSelectBrain(worker.brainId)}>{profile.name} — {worker.key}</button>;

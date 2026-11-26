@@ -67,13 +67,34 @@
 .oop-mic-button i:nth-of-type(2) { height:12px; }
 .oop-mic-button i:nth-of-type(3) { height:8px; }
 
-.oop-office-scene { position:relative; overflow:hidden; width:100%; aspect-ratio:1.78/1; min-height:385px; max-height:calc(100vh - 214px); border:1px solid rgba(139,183,174,.72); border-radius:15px; background:#d5e0dc; box-shadow:0 12px 32px rgba(6,28,29,.2); }
+.oop-office-scene { position:relative; overflow:hidden; width:100%; aspect-ratio:1.62/1; min-height:420px; max-height:calc(100vh - 190px); border:1px solid rgba(139,183,174,.72); border-radius:15px; background:#d5e0dc; box-shadow:0 12px 32px rgba(6,28,29,.2); }
 .oop-office-3d-mount { position:absolute; inset:0; overflow:hidden; }
 .oop-office-3d-mount[data-webgl="unavailable"] { display:grid; place-items:center; padding:24px; color:#203a38; font-size:14px; }
 .oop-office-3d-canvas { display:block; width:100%; height:100%; outline:none; cursor:grab; touch-action:pan-y; }
-.oop-office-3d-note { position:absolute; z-index:6; right:9px; bottom:8px; max-width:calc(100% - 24px); padding:4px 7px; border:1px solid rgba(77,101,88,.3); border-radius:6px; background:rgba(250,247,236,.88); color:#30413b; font-size:7px; font-weight:800; letter-spacing:.035em; }
+.oop-office-3d-note { position:absolute; z-index:6; right:10px; bottom:10px; max-width:calc(100% - 24px); padding:5px 9px; border:1px solid rgba(77,101,88,.25); border-radius:8px; background:rgba(255,253,247,.9); color:#3a4a44; font-size:10.5px; font-weight:800; letter-spacing:.04em; }
+/* Room names and worker tags are projected from the 3D scene every frame (AtolyeOffice3DScene updateOverlay). */
+.oop-office-overlay { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.oop-room-tag,.oop-worker-tag { position:absolute; left:0; top:0; will-change:transform; white-space:nowrap; font-family:"Segoe UI",Inter,Arial,sans-serif; }
+.oop-room-tag { padding:3px 9px; border-radius:6px; background:rgba(255,255,255,.78); color:#4a4237; font-size:clamp(9px,.72vw,12px); font-weight:800; letter-spacing:.09em; box-shadow:0 1px 4px rgba(60,45,25,.12); }
+.oop-room-tag.is-gold { background:#1f2b45; color:#f1d27a; }
+.oop-office-overlay .oop-worker-tag { display:flex; align-items:center; gap:5px; padding:3px 8px 3px 6px; border:0; border-radius:999px; background:rgba(255,255,255,.95); color:#24282e; font:650 clamp(10px,.76vw,12.5px)/1.1 "Segoe UI",Inter,Arial,sans-serif; box-shadow:0 2px 7px rgba(30,30,30,.2); cursor:pointer; pointer-events:auto; }
+.oop-worker-tag i { width:.72em; height:.72em; flex:none; border-radius:50%; background:#9aa4ad; }
+.oop-worker-tag b { font-weight:750; }
+.oop-worker-tag small { color:#6a7078; font-size:.86em; }
+.oop-worker-tag[data-status="bekliyor"] small { display:none; }
+.oop-worker-tag[data-status="calisiyor"] i { background:#3b8ef3; box-shadow:0 0 7px #3b8ef3; }
+.oop-worker-tag[data-status="denetliyor"] i { background:#f2b630; box-shadow:0 0 7px #f2b630; }
+.oop-worker-tag[data-status="yonetiyor"] i { background:#a66cf0; box-shadow:0 0 7px #a66cf0; }
+.oop-worker-tag[data-status="bitti"] i { background:#34c472; }
+.oop-office-overlay .oop-worker-tag[data-status="calisiyor"],.oop-office-overlay .oop-worker-tag[data-status="denetliyor"],.oop-office-overlay .oop-worker-tag[data-status="yonetiyor"] { z-index:2; font-size:clamp(11px,.86vw,14px); }
+.oop-office-overlay .oop-worker-tag.is-selected { z-index:3; background:#1f2b45; color:#fff; outline:2px solid #4fd8e4; }
+.oop-worker-tag.is-selected small { color:#c9d3e6; }
+.oop-office-legend { position:absolute; z-index:6; left:10px; top:10px; display:flex; flex-wrap:wrap; gap:10px; padding:5px 10px; border-radius:8px; background:rgba(255,253,247,.9); color:#3a4048; font-size:11px; font-weight:650; box-shadow:0 1px 5px rgba(0,0,0,.1); }
+.oop-office-legend span { display:flex; align-items:center; gap:5px; }
+.oop-office-legend i { width:9px; height:9px; border-radius:50%; }
+@media (prefers-reduced-motion: reduce) { .oop-room-tag,.oop-worker-tag { will-change:auto; } }
 .oop-office-sr-list { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-.oop-scene-caption { position:absolute; z-index:6; bottom:8px; left:9px; display:flex; align-items:center; gap:6px; padding:4px 7px; border-radius:6px; background:rgba(2,15,19,.7); color:#ebf8f3; font-size:8px; text-shadow:0 1px 4px #000; }
+.oop-scene-caption { position:absolute; z-index:6; bottom:10px; left:10px; display:flex; align-items:center; gap:6px; padding:5px 9px; border-radius:8px; background:rgba(2,15,19,.75); color:#ebf8f3; font-size:11px; text-shadow:0 1px 4px #000; }
 .oop-scene-caption i { width:5px; height:5px; border-radius:50%; background:#e7c66d; box-shadow:0 0 7px rgba(231,198,109,.65); }
 
 .oop-rig { display:block; width:31px; height:38px; overflow:visible; color:#edf1e9; }

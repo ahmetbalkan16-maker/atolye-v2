@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getPreviewBrain } from "@/lib/office-preview/brains";
 import { PREVIEW_SCENARIOS, type PreviewDialogueStep, type PreviewScenarioId } from "@/lib/office-preview/scenarios";
 import type { PreviewBrainId, PreviewBrainProfile } from "@/lib/office-preview/roleTypes";
-import { AtolyeOffice3DScene } from "./AtolyeOffice3DScene";
+import { AtolyeOffice3DScene, type OfficeWorkerStatus } from "./AtolyeOffice3DScene";
 
 type Motion = "idle" | "walk" | "work" | "review";
 type ProfileTab = "mission" | "limits" | "reviewer";
@@ -24,6 +24,18 @@ function statusLabel(status: PreviewBrainProfile["liveStatus"]): string {
 function kindLabel(kind: string): string {
   const labels: Record<string,string> = { assign:"ATAMA", work:"ÇALIŞMA", review:"DENETİM", rework:"DÜZELTME", verify:"YENİDEN KONTROL", learn:"DERS ADAYI", owner:"OWNER KAPISI" };
   return labels[kind] ?? "SİMÜLASYON";
+}
+/** Sample status of every brain at a scripted step: earlier speakers are done, the current speaker is busy. */
+function statusesAt(steps: readonly PreviewDialogueStep[], stepIndex: number): Partial<Record<PreviewBrainId, OfficeWorkerStatus>> {
+  const out: Partial<Record<PreviewBrainId, OfficeWorkerStatus>> = {};
+  if (stepIndex < 0) return out;
+  for (const item of steps.slice(0, stepIndex)) out[item.brainId] = "bitti";
+  const current = steps[stepIndex];
+  if (!current) return out;
+  out[current.brainId] = current.kind === "assign" || current.kind === "owner" ? "yonetiyor"
+    : current.kind === "review" || current.kind === "verify" ? "denetliyor"
+      : "calisiyor";
+  return out;
 }
 function motionFor(step?: PreviewDialogueStep): Motion {
   if (!step) return "idle";
@@ -80,6 +92,7 @@ export function AtolyeOfficePreview() {
   const isFinished = stepIndex >= scenario.steps.length - 1;
   const visibleMessages = stepIndex >= 0 ? scenario.steps.slice(Math.max(0,stepIndex-3),stepIndex+1) : [];
   const lessonVisible = stepIndex >= 0 && scenario.steps.slice(0,stepIndex+1).some(item => item.kind === "learn");
+  const statuses = useMemo(() => statusesAt(scenario.steps, stepIndex), [scenario.steps, stepIndex]);
 
   useEffect(() => {
     if (!playing) return;
@@ -134,7 +147,7 @@ export function AtolyeOfficePreview() {
       <section className="oop-center-column">
         <div className="oop-title-row"><span className="oop-title-line" /><h1>ATÖLYE OFİSİ</h1><span className="oop-title-line" /><button type="button" className="oop-mic-button" aria-label="Mikrofon simülasyonu" onClick={() => setNotice("Mikrofon bu izole önizlemede etkin değil.")}><span aria-hidden="true">♩</span><i /><i /><i /></button></div>
         <section className="oop-office-scene" id="office-map" aria-label="Atölye Ofisi bölümleri">
-          <AtolyeOffice3DScene selectedBrainId={selectedBrainId} onSelectBrain={selectWorker} />
+          <AtolyeOffice3DScene selectedBrainId={selectedBrainId} onSelectBrain={selectWorker} statuses={statuses} />
           {step && <div className="oop-scene-caption"><i /> ÖRNEK GÖREV · {step.room}</div>}
         </section>
         <section className="oop-floor-controls" aria-label="Örnek çalışma akışı">
