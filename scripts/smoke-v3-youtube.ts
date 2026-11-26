@@ -68,15 +68,15 @@ function main() {
     const asking = { ...episode, soru: "Why Did Caesar Cross the Rubicon?" } as Episode;
     const answer = JSON.stringify({ basliklar: ["Caesar Crosses the Rubicon", "Rome Panics"], kapak_basliklari: ["NO RETURN"], hashtagler: ["#history"], etiketler: ["why did caesar cross the rubicon", "julius caesar", "Rubicon"] });
     const p = readPackage(answer, asking, true);
-    assert.deepEqual(p.basliklar, ["Why Did Caesar Cross the Rubicon? #Shorts", "Caesar Crosses the Rubicon #Shorts", "Rome Panics #Shorts"]);
+    assert.deepEqual(p.basliklar, ["Why Did Caesar Cross the Rubicon? #Shorts", "Caesar Crosses the Rubicon #Shorts", "Rome Panics #Shorts"], "assert.deepEqual(p.basliklar, [\"Why Did Caesar Cross the Rubicon? #Shorts\", \"Caesar Crosses the Rubicon #Shorts\", \"Rome Panics #Shorts\"])");
     assert.equal(p.denetim?.baslik, "Why Did Caesar Cross the Rubicon? #Shorts", "the gate judges the title that goes out");
     assert.deepEqual(p.etiketler, ["why did caesar cross the rubicon", "why did caesar cross rubicon", "julius caesar", "Rubicon"], "the question's wordings first, the model's after, no repeat");
     const prompt = packagePrompt(asking, true);
     assert.ok(prompt.includes(`THE VIDEO'S QUESTION (its title, read out first): "Why Did Caesar Cross the Rubicon?"`) && prompt.includes("at least 5 of them are the question as viewers type it") && prompt.includes("answers the question in short"), prompt);
     // A long video, or a malformed question, keeps the package as before.
-    assert.deepEqual(readPackage(answer, asking).basliklar, ["Caesar Crosses the Rubicon", "Rome Panics"]);
-    assert.deepEqual(readPackage(answer, { ...asking, soru: "The Rubicon" } as Episode, true).basliklar[0], "Caesar Crosses the Rubicon #Shorts");
-    assert.ok(!packagePrompt(episode, true).includes("THE VIDEO'S QUESTION"));
+    assert.deepEqual(readPackage(answer, asking).basliklar, ["Caesar Crosses the Rubicon", "Rome Panics"], "assert.deepEqual(readPackage(answer, asking).basliklar, [\"Caesar Crosses the Rubicon\", \"Rome Panics\"])");
+    assert.deepEqual(readPackage(answer, { ...asking, soru: "The Rubicon" } as Episode, true).basliklar[0], "Caesar Crosses the Rubicon #Shorts", "assert.deepEqual(readPackage(answer, { ...asking, soru: \"The Rubicon\" } as Episode, true).basliklar[0], \"Caesar Crosses the Rubicon #Shorts\")");
+    assert.ok(!packagePrompt(episode, true).includes("THE VIDEO'S QUESTION"), "assert.ok(!packagePrompt(episode, true).includes(\"THE VIDEO'S QUESTION\"))");
   });
 
   scenario("B an unreadable answer still gives a title and a headline from the episode's own words", () => {
