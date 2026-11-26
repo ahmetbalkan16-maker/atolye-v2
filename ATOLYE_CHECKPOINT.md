@@ -1,3 +1,13 @@
+## 26 Kasım 2026 (7) — "Atölye" butonları yeni 3D ofisi açıyor (canlı 90db7935)
+
+Owner: "yeni ofis tasarımını canlıya al demiştim ama internetten ve telefondan girdiğimde eskisine girdi … ikisinden de yeni
+görünüme geçmek istiyorum". Canlı sunucu zaten ayas-live-4b2bbcbd'yi çalıştırıyordu; ofis yalnız `/studio/office-preview`'daydı,
+ana sayfa dock'u, durum rayı ve paylaşılan çalışma alanı dock'undaki "Atölye" hâlâ `/studio`'ya (eski pano) gidiyordu.
+- Üç href `/studio/office-preview` oldu (`AyasHomepage.tsx` DOCK + RAIL, `AyasWorkspaceFrame.tsx` WORKSPACE_DOCK); "Üretim" `/studio`'da kaldı.
+  Ana sayfa pini `smoke-ayas-owner-ui-v2.ts`'de tam bu iki değişimle genişletildi; `docs/AYAS_HOMEPAGE_POLICY.md` "Atölye office" bölümü.
+- Kanıt: owner-ui-v2 36, homepage-v2 13, pwa-manifest 8, access-gate 19, code-change-lane 12, grace-auto-approval 17 PASS; tsc, lint 0/0.
+- Canlı: `ayas-live-90db7935` (dış erişim healthy), geri dönüş ayas-live-4b2bbcbd; ayas-live-9a1ed298 ve b9d1616a hâlâ diskte (temizlik sahibin kararı).
+
 ## 26 Kasım 2026 (6) — Stalingrad Short incelemesi, 3 düzeltme, Cajamarca Short yayında (AUg7fzQL7vM)
 
 Owner: "hangisi daha çok izlenecekse ona başla … sürekli gerekirse müdahale et … son yüklenen videoyu incele gereken
