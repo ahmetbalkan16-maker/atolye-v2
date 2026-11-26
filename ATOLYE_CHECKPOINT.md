@@ -1,3 +1,11 @@
+## 26 Kasım 2026 (2) — Gelişim Merkezi kaynak ayrımı
+
+Owner, AYAS'ın kendi önerileri ile Atölye beyinlerinin Gelişim Merkezi akışının birlikte görünmesini özellikle belirtti. Kod okuması: `AyasDevelopmentCenter` AYAS owner önerilerini, yürütme bekleyen/onay bekleyen işleri ve AYAS geçmişini gösteriyor; `AtolyeBrainsPanel` ayrı V3 deposundan kurul tartışmasını, referans öğrenmelerini, boşta gelişim döngülerini ve beyin kod önerilerini okuyor. İkisi şu an Brain UI Gelişim Merkezi içinde dikey olarak art arda gösteriliyor, kaynak ve onay yolları karışık değil.
+- AYAS önerileri AYAS öneri/owner karar akışında kalacak. Atölye beyinlerinin yeni kod önerileri Atölye Beyinleri bölümüne gidecek. Owner'ın doğrudan istediği geliştirme ayrı istek/kuyruk yolunda kalacak.
+- Atölye beyinlerinin kod önerisi owner onayı olmadan kuyruğa alınmaz; geliştirme ve test ayrı kopyada yapılır; canlıya alma için ayrıca owner'ın `ONAYLA VE UYGULA` kararı gerekir. AYAS öneri akışında yalnız dar güvenli sabit-yama sınıfı için mevcut grace auto-approval istisnası bulunuyor.
+- Bağımsız denetçi beyinlerin her çıktıyı incelemesi istenen yeni yetenek; mevcut panelde bu uçtan uca denetim kaydı yok. Tasarımda ayrı denetim adımı olarak planlanacak, mevcut onay kapılarıyla birleştirilmeyecek.
+- Tasarım yönü: Gelişim Merkezi ana görünümünde belirgin `AYAS ÖNERİLERİ` ve `ATÖLYE BEYİNLERİ` alanları; Atölye içinde kurul, gelişim döngüsü ve kod önerileri; denetim kayıtları için ayrı görünüm. Homepage'e yeni kart eklenmeyecek. Kod değişmedi, test çalıştırılmadı. Sıradaki adım: bu ayrımı görsel taslakta gösterip owner onayı almak; ancak onaydan sonra uygulama planına geçmek.
+
 ## 26 Kasım 2026 — Atölye Ofisi: plan ve görsel taslak owner onayı bekliyor
 
 Owner yeni, hareketli 3D görünümlü Atölye Ofisi istedi; AYAS müdür, çalışanlar görevlerine göre yerleşecek ve her rolün sınır/kalite kuralları görünür olacak. Önce plan + görsel onayı, sonra ancak onaylı kapsamda uygulama. Bugün uygulama kodu, homepage, çalışan sistemi veya yetki kapıları değiştirilmedi.
