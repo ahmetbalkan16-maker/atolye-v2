@@ -67,38 +67,39 @@
 .oop-mic-button i:nth-of-type(2) { height:12px; }
 .oop-mic-button i:nth-of-type(3) { height:8px; }
 
-.oop-office-scene { position:relative; isolation:isolate; container-type:inline-size; overflow:hidden; width:100%; aspect-ratio:1.78/1; min-height:385px; max-height:calc(100vh - 214px); border:1px solid rgba(117,230,233,.48); border-radius:15px; background:#09232a; box-shadow:0 0 25px rgba(4,190,204,.18); }
-.oop-office-image { z-index:-2; object-fit:cover; object-position:center; }
-.oop-scene-shade { position:absolute; z-index:-1; inset:0; background:linear-gradient(180deg,rgba(1,15,24,.05),transparent 24%,transparent 68%,rgba(1,15,24,.1)),linear-gradient(90deg,rgba(1,13,23,.05),transparent 18%,transparent 82%,rgba(1,13,23,.05)); pointer-events:none; }
-.oop-page .oop-room-label { position:absolute; z-index:4; max-width:min(104px,16%); padding:2px 4px; transform:translate(-50%,-50%); border:1px solid rgba(195,238,227,.28); border-radius:4px; background:rgba(4,20,25,.66); color:#f2f9ee; box-shadow:0 2px 4px rgba(0,0,0,.13); text-align:center; font-size:clamp(6px,.46vw,7px); font-weight:800; line-height:1.05; letter-spacing:0; white-space:nowrap; backdrop-filter:blur(3px); }
-.oop-room-label:hover,.oop-room-label.is-active { border-color:#74fbef; color:white; box-shadow:0 0 13px rgba(40,225,226,.66); }
-.oop-flow-arrows { position:absolute; z-index:2; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
-.oop-flow-arrows path { fill:none; stroke:rgba(48,242,245,.93); stroke-width:.42; stroke-dasharray:1.7 1.15; filter:drop-shadow(0 0 1px #00c9e5); }
-.oop-flow-arrows marker path { fill:#55f5f3; stroke:none; }
-.oop-office-worker { position:absolute; z-index:3; display:block; aspect-ratio:1; padding:0; transform:translate(-50%,-96%); overflow:visible; border:0; border-radius:0; background:transparent; filter:drop-shadow(0 1px 3px rgba(0,0,0,.55)); animation-name:oop-worker-breathe; animation-timing-function:ease-in-out; animation-iteration-count:infinite; pointer-events:auto; }
-.oop-worker-sprite { display:block; width:100%; height:100%; background-image:url("/office-preview/office-worker-sprites.png"); background-repeat:no-repeat; background-size:300% 400%; background-position-x:0%; animation-name:oop-worker-frames; animation-timing-function:steps(2,end); animation-iteration-count:infinite; }
-.oop-worker-sprite[data-row="lounge"] { background-position-y:0%; }
-.oop-worker-sprite[data-row="work"] { background-position-y:33.333%; }
-.oop-worker-sprite[data-row="manager"] { background-position-y:66.667%; }
-.oop-worker-sprite[data-row="costume"] { background-position-y:100%; }
-.oop-office-worker:hover,.oop-office-worker:focus-visible { z-index:5; filter:drop-shadow(0 0 5px rgba(58,234,240,.78)); }
-.oop-office-worker.is-active { filter:drop-shadow(0 0 5px rgba(255,207,116,.9)); }
-.oop-office-worker.is-active .oop-worker-sprite { animation-duration:.9s !important; }
+.oop-office-scene { position:relative; overflow:hidden; width:100%; aspect-ratio:1.78/1; min-height:385px; max-height:calc(100vh - 214px); border:1px solid rgba(139,183,174,.72); border-radius:15px; background:#d5e0dc; box-shadow:0 12px 32px rgba(6,28,29,.2); }
+.oop-office-3d-mount { position:absolute; inset:0; overflow:hidden; }
+.oop-office-3d-mount[data-webgl="unavailable"] { display:grid; place-items:center; padding:24px; color:#203a38; font-size:14px; }
+.oop-office-3d-canvas { display:block; width:100%; height:100%; outline:none; cursor:grab; touch-action:pan-y; }
+.oop-office-3d-note { position:absolute; z-index:6; right:9px; bottom:8px; max-width:calc(100% - 24px); padding:4px 7px; border:1px solid rgba(77,101,88,.3); border-radius:6px; background:rgba(250,247,236,.88); color:#30413b; font-size:7px; font-weight:800; letter-spacing:.035em; }
+.oop-office-sr-list { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .oop-scene-caption { position:absolute; z-index:6; bottom:8px; left:9px; display:flex; align-items:center; gap:6px; padding:4px 7px; border-radius:6px; background:rgba(2,15,19,.7); color:#ebf8f3; font-size:8px; text-shadow:0 1px 4px #000; }
 .oop-scene-caption i { width:5px; height:5px; border-radius:50%; background:#e7c66d; box-shadow:0 0 7px rgba(231,198,109,.65); }
 
 .oop-rig { display:block; width:31px; height:38px; overflow:visible; color:#edf1e9; }
-.oop-rig--large { width:90px; height:108px; }
+.oop-rig--large { width:104px; height:128px; }
 .rig-shadow { fill:rgba(0,0,0,.35); }
-.rig-shell { fill:#e8ede4; stroke:#667c7a; stroke-width:1.1; }
-.rig-chest { fill:#183a42; stroke:#9eb6ae; stroke-width:.8; }
-.rig-core,.rig-antenna { fill:#ffc66c; filter:drop-shadow(0 0 2px rgba(255,194,83,.8)); }
-.rig-bone,.rig-neck { fill:none; stroke:#d4ded8; stroke-width:3.6; stroke-linecap:round; stroke-linejoin:round; }
-.rig-joint { fill:#7ce8e0; stroke:#173f46; stroke-width:1; }
-.rig-foot { fill:none; stroke:#abbdb3; stroke-width:3.3; stroke-linecap:round; }
-.rig-face { fill:#10232d; stroke:#b6d7d1; stroke-width:1.4; }
-.rig-eye { fill:#55f2fa; filter:drop-shadow(0 0 2px #40eaf3); }
-.rig-smile { fill:none; stroke:#64e8e5; stroke-width:1; stroke-linecap:round; }
+.rig-trouser,.rig-foot { fill:none; stroke:#344153; stroke-width:5.2; stroke-linecap:round; stroke-linejoin:round; }
+.rig-foot { stroke:#242524; stroke-width:4.2; }
+.rig-jacket,.rig-sleeve { fill:#526879; stroke:#415464; stroke-width:.65; stroke-linejoin:round; }
+.rig-sleeve { fill:none; stroke-width:5.2; stroke-linecap:round; }
+.oop-rig--manager .rig-jacket,.oop-rig--manager .rig-sleeve { fill:#26334b; stroke:#1e2a3d; }
+.oop-rig--accountant .rig-jacket,.oop-rig--accountant .rig-sleeve { fill:#414857; stroke:#303644; }
+.oop-rig--editor .rig-jacket,.oop-rig--editor .rig-sleeve { fill:#48566a; stroke:#36485c; }
+.oop-rig--tailor .rig-jacket,.oop-rig--tailor .rig-sleeve { fill:#7a5233; stroke:#644429; }
+.rig-shirt { fill:#eee8dc; stroke:#d7d0c3; stroke-width:.45; }
+.rig-tie { fill:#7a2630; }
+.rig-apron { fill:#8d6441; stroke:#704e33; stroke-width:.7; }
+.rig-hood { fill:none; stroke:#405466; stroke-width:3.3; stroke-linecap:round; }
+.rig-skin,.rig-neck { fill:none; stroke:#ddb18d; stroke-width:3.3; stroke-linecap:round; stroke-linejoin:round; }
+.rig-neck { stroke-width:2.5; }
+.rig-hand { fill:#ddb18d; }
+.rig-face { fill:#ddb18d; stroke:#c39271; stroke-width:.55; }
+.rig-hair { fill:#34271f; }
+.rig-beard { fill:#756c63; }
+.rig-eye { fill:#302721; }
+.rig-glasses { fill:none; stroke:#44372e; stroke-width:.8; }
+.rig-smile { fill:none; stroke:#8c574e; stroke-width:.7; stroke-linecap:round; }
 .rig-arm-left,.rig-arm-right,.rig-forearm-left,.rig-forearm-right,.rig-leg-left,.rig-leg-right,.rig-shin-left,.rig-shin-right,.rig-head { transform-box:view-box; }
 .rig-arm-left { transform-origin:25px 34px; }
 .rig-arm-right { transform-origin:47px 34px; }
@@ -136,7 +137,7 @@
 
 .oop-profile-panel { padding:11px; }
 .oop-profile-hero { display:grid; justify-items:center; padding:9px 8px 10px; border:1px solid rgba(48,193,218,.26); border-radius:12px; background:linear-gradient(145deg,rgba(4,42,55,.84),rgba(2,18,27,.94)); text-align:center; }
-.oop-profile-robot { display:grid; width:100%; min-height:105px; place-items:center; margin-bottom:7px; overflow:hidden; border:1px solid rgba(118,211,221,.5); border-radius:12px; background:radial-gradient(ellipse at 50% 42%,rgba(39,120,132,.35),rgba(4,18,28,.88) 70%); box-shadow:inset 0 0 16px rgba(45,185,201,.16); }
+.oop-profile-avatar { display:grid; width:100%; min-height:128px; place-items:center; margin-bottom:7px; overflow:hidden; border:1px solid rgba(118,211,221,.5); border-radius:12px; background:radial-gradient(ellipse at 50% 42%,rgba(39,120,132,.35),rgba(4,18,28,.88) 70%); box-shadow:inset 0 0 16px rgba(45,185,201,.16); }
 .oop-profile-hero h2 { max-width:100%; color:white; font-size:16px; }
 .oop-profile-hero p { margin-top:4px; color:#a9cbd0; font-size:10px; }
 .oop-profile-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin-top:8px; }
@@ -200,7 +201,6 @@
   .oop-profile-file { grid-row:3; }
   .oop-conversation-card { grid-row:4; }
   .oop-office-scene { aspect-ratio:1.73/1; min-height:0; max-height:none; }
-  .oop-page .oop-room-label { max-width:min(100px,15%); padding:2px 3px; font-size:6px; line-height:1.05; }
 }
 @media (max-width:720px) {
   .oop-page { padding:5px 6px 12px; }
@@ -229,12 +229,8 @@
   .oop-mic-button { width:40px; height:34px; margin-left:1px; gap:2px; }
   .oop-mic-button>span { width:21px; height:21px; font-size:11px; }
   .oop-office-scene { aspect-ratio:1.73/1; min-height:0; max-height:none; border-radius:11px; }
-  .oop-room-label { max-width:min(128px,36vw); padding:2px 3px; font-size:clamp(6px,1.6vw,7px); letter-spacing:0; line-height:1.05; white-space:nowrap; }
   .oop-map-agent { width:32px; }
   .oop-map-agent .oop-rig { width:27px; height:34px; }
-  .oop-office-worker { min-width:19px; }
-  .oop-page .oop-room-label { max-width:min(92px,22%); padding:2px 3px; font-size:clamp(5.5px,1.45vw,6.5px); }
-  .oop-flow-arrows path { stroke-width:.58; }
   .oop-floor-controls { padding:8px; }
   .oop-flow-heading { align-items:flex-start; flex-direction:column; }
   .oop-flow-actions { width:100%; }
@@ -242,7 +238,7 @@
   .oop-flow-actions .oop-reset-button { flex:0 0 30px; }
   .oop-profile-panel { grid-column:auto; grid-template-columns:minmax(0,1fr); padding:8px; }
   .oop-profile-hero { grid-row:auto; }
-  .oop-profile-robot { max-width:260px; }
+  .oop-profile-avatar { max-width:260px; }
   .oop-profile-tabs,.oop-profile-detail,.oop-profile-file,.oop-conversation-card { grid-column:auto; }
   .oop-profile-tabs,.oop-profile-detail,.oop-profile-file,.oop-conversation-card { grid-row:auto; }
   .oop-conversation-card { padding:10px; }
@@ -273,6 +269,4 @@
 }
 @media (prefers-reduced-motion:reduce) {
   .oop-page *, .oop-page *::before, .oop-page *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
-  .oop-page .oop-office-worker { animation-duration:4s !important; animation-iteration-count:infinite !important; }
-  .oop-page .oop-worker-sprite { animation-duration:3s !important; animation-iteration-count:infinite !important; }
 }

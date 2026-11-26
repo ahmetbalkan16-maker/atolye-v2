@@ -4,7 +4,7 @@ export const cirakBrain = {
   id: "cirak",
   name: "Çırak kod yazarı",
   department: "Geliştirme",
-  room: "Toplantı & Gelişim",
+  room: "Yazılım & Geliştirme",
   liveStatus: "koşullu",
   sourceRole: "DevApprentice / DevWriter",
   mission: "Readiness ve bütçe koşulları sağlanırsa onaylı işi ayrı çalışma alanında yazar ve sınar.",

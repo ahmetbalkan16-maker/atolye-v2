@@ -4,7 +4,7 @@ export const gelistiriciBrain = {
   id: "gelistirici",
   name: "Geliştirici beyin",
   department: "Geliştirme",
-  room: "Toplantı & Gelişim",
+  room: "Yazılım & Geliştirme",
   liveStatus: "mevcut",
   sourceRole: "gelistirici / DevBrain",
   mission: "Geçmiş değişikliklerden öğrenir, görev için olası dosya ve riskleri önceden tahmin eder.",

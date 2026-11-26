@@ -1,46 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getPreviewBrain } from "@/lib/office-preview/brains";
 import { PREVIEW_SCENARIOS, type PreviewDialogueStep, type PreviewScenarioId } from "@/lib/office-preview/scenarios";
 import type { PreviewBrainId, PreviewBrainProfile } from "@/lib/office-preview/roleTypes";
+import { AtolyeOffice3DScene } from "./AtolyeOffice3DScene";
 
 type Motion = "idle" | "walk" | "work" | "review";
 type ProfileTab = "mission" | "limits" | "reviewer";
-type OfficeWorkerRow = "lounge" | "work" | "manager" | "costume";
-
-const ROOMS: readonly { title: string; room: string; x: number; y: number; brain?: PreviewBrainId }[] = [
-  { title: "ARAŞTIRMA", room: "Araştırma", x: 27, y: 11, brain: "arastirma" },
-  { title: "KURGU & MİZAH", room: "Kurgu & Mizah", x: 51, y: 8, brain: "kurgu" },
-  { title: "KOSTÜM", room: "Kostüm", x: 76, y: 11, brain: "kostum" },
-  { title: "DİNLENME ODASI", room: "Dinlenme Odası", x: 11, y: 31 },
-  { title: "ORTAM & GÖRSEL", room: "Ortam & Görsel", x: 27, y: 28, brain: "ortam" },
-  { title: "AYAS YÖNETİM", room: "Yönetim", x: 50, y: 23, brain: "ayas" },
-  { title: "MUHASEBE", room: "Muhasebe", x: 72, y: 28, brain: "muhasebe" },
-  { title: "TOPLANTI & GELİŞİM", room: "Toplantı & Gelişim", x: 88, y: 30, brain: "gelistirici" },
-  { title: "SES STÜDYOSU", room: "Ses Stüdyosu", x: 36, y: 46, brain: "ses" },
-  { title: "DENETİM", room: "Denetim", x: 50, y: 45, brain: "denetci" },
-  { title: "MONTAJ & KALİTE", room: "Montaj & Kalite", x: 71, y: 46, brain: "kalite" },
-  { title: "OWNER ONAYI", room: "Owner Onayı", x: 50, y: 70, brain: "ayas" },
-];
-const OFFICE_WORKERS: readonly { key: string; id: PreviewBrainId; room: string; x: number; y: number; row: OfficeWorkerRow; size: number; delay: string; duration: string }[] = [
-  { key: "lounge-research", id: "arastirma", room: "Dinlenme Odası", x: 12.1, y: 48.4, row: "lounge", size: 4.6, delay: "-.8s", duration: "3.4s" },
-  { key: "lounge-costume", id: "kostum", room: "Dinlenme Odası", x: 20.5, y: 47.8, row: "lounge", size: 4.6, delay: "-2.1s", duration: "3.8s" },
-  { key: "research-desk", id: "arastirma", room: "Araştırma", x: 36.6, y: 28.1, row: "work", size: 3.5, delay: "-.4s", duration: "1.6s" },
-  { key: "editing-desk", id: "kurgu", room: "Kurgu & Mizah", x: 50.8, y: 22.2, row: "work", size: 3.4, delay: "-1.2s", duration: "1.9s" },
-  { key: "costume-desk", id: "kostum", room: "Kostüm", x: 68.4, y: 25.8, row: "costume", size: 3.7, delay: "-2.7s", duration: "1.5s" },
-  { key: "environment-desk", id: "ortam", room: "Ortam & Görsel", x: 31.7, y: 45.4, row: "work", size: 4.0, delay: "-1.9s", duration: "1.7s" },
-  { key: "ayas-desk", id: "ayas", room: "Yönetim", x: 50.7, y: 41.1, row: "manager", size: 5.2, delay: "-1.1s", duration: "2.8s" },
-  { key: "accounting-desk", id: "muhasebe", room: "Muhasebe", x: 68.8, y: 45.7, row: "work", size: 4.0, delay: "-2.4s", duration: "1.8s" },
-  { key: "meeting-research", id: "gelistirici", room: "Toplantı & Gelişim", x: 83.5, y: 48.0, row: "work", size: 4.2, delay: "-1.6s", duration: "2.1s" },
-  { key: "meeting-creator", id: "mizah", room: "Toplantı & Gelişim", x: 88.1, y: 47.5, row: "work", size: 4.2, delay: "-.7s", duration: "1.8s" },
-  { key: "meeting-reviewer", id: "cirak", room: "Toplantı & Gelişim", x: 92.6, y: 48.8, row: "work", size: 4.0, delay: "-2.2s", duration: "2.2s" },
-  { key: "sound-desk", id: "ses", room: "Ses Stüdyosu", x: 33.5, y: 59.0, row: "work", size: 4.5, delay: "-1.3s", duration: "1.9s" },
-  { key: "audit-left", id: "denetci", room: "Denetim", x: 47.7, y: 58.4, row: "work", size: 4.5, delay: "-.5s", duration: "1.6s" },
-  { key: "audit-right", id: "kalite", room: "Denetim", x: 55.0, y: 58.5, row: "work", size: 4.5, delay: "-2.5s", duration: "2.0s" },
-  { key: "montage-desk", id: "onarim", room: "Montaj & Kalite", x: 67.4, y: 60.0, row: "work", size: 4.6, delay: "-1.7s", duration: "1.7s" },
-];
 const MAIN_MENU = [["⬡","Sistem"],["▤","Bellek"],["⌘","Graphify"],["⌕","Araştırma"],["⬡","Atölye"],["⚙","Üretim"],["▥","Otonomi"],["▦","Görevler"],["◉","Onaylar"]] as const;
 const SHORTCUTS = ["Atölye","Bellek","Araştırma","Üretim","Otonom Gelir","Gelişim"] as const;
 const SHORTCUT_ICONS = ["⬡","▤","⌕","⚙","▥","▧"] as const;
@@ -66,17 +33,35 @@ function motionFor(step?: PreviewDialogueStep): Motion {
   return "idle";
 }
 
-/** Lightweight SVG skeleton rig: joint animation uses CSS transforms, without WebGL or a render loop. */
-function RobotRig({ motion = "idle", large = false }: { motion?: Motion; large?: boolean }) {
-  return <svg className={"oop-rig oop-rig--" + motion + (large ? " oop-rig--large" : "")} viewBox="0 0 72 88" aria-hidden="true">
+/** Human joint diagram for the selected profile; small CSS motion keeps the profile lightweight. */
+function HumanRig({ motion = "idle", large = false, brainId }: { motion?: Motion; large?: boolean; brainId: PreviewBrainId }) {
+  const isManager = brainId === "ayas";
+  const isAccountant = brainId === "muhasebe";
+  const isEditor = brainId === "kurgu" || brainId === "gelistirici";
+  const isTailor = brainId === "kostum";
+  const roleStyle = isManager ? "manager" : isAccountant ? "accountant" : isEditor ? "editor" : isTailor ? "tailor" : "staff";
+  return <svg className={"oop-rig oop-rig--human oop-rig--" + roleStyle + " oop-rig--" + motion + (large ? " oop-rig--large" : "")} viewBox="0 0 72 88" aria-hidden="true">
     <ellipse className="rig-shadow" cx="36" cy="83" rx="19" ry="4" />
-    <g className="rig-leg rig-leg-left"><path className="rig-bone" d="M31 55L29 68" /><g className="rig-shin rig-shin-left"><path className="rig-bone" d="M29 68L27 79" /><path className="rig-foot" d="M27 79L21 81" /></g></g>
-    <g className="rig-leg rig-leg-right"><path className="rig-bone" d="M41 55L43 68" /><g className="rig-shin rig-shin-right"><path className="rig-bone" d="M43 68L45 79" /><path className="rig-foot" d="M45 79L51 81" /></g></g>
-    <g className="rig-torso"><rect className="rig-shell" x="23" y="28" width="26" height="29" rx="9" /><path className="rig-chest" d="M29 38Q36 34 43 38L42 49Q36 52 30 49Z" /><circle className="rig-core" cx="36" cy="44" r="2.4" /></g>
-    <g className="rig-arm rig-arm-left"><path className="rig-bone" d="M25 34L16 44" /><g className="rig-forearm rig-forearm-left"><path className="rig-bone" d="M16 44L15 54" /><circle className="rig-joint" cx="15" cy="54" r="2.8" /></g></g>
-    <g className="rig-arm rig-arm-right"><path className="rig-bone" d="M47 34L56 44" /><g className="rig-forearm rig-forearm-right"><path className="rig-bone" d="M56 44L57 54" /><circle className="rig-joint" cx="57" cy="54" r="2.8" /></g></g>
+    <g className="rig-leg rig-leg-left"><path className="rig-trouser" d="M31 54L29 68" /><g className="rig-shin rig-shin-left"><path className="rig-trouser" d="M29 68L27 79" /><path className="rig-foot" d="M27 79L21 81" /></g></g>
+    <g className="rig-leg rig-leg-right"><path className="rig-trouser" d="M41 54L43 68" /><g className="rig-shin rig-shin-right"><path className="rig-trouser" d="M43 68L45 79" /><path className="rig-foot" d="M45 79L51 81" /></g></g>
+    <g className="rig-torso">
+      <path className="rig-jacket" d="M25 31Q29 27 34 27L36 33L39 27Q44 27 48 31L50 51Q43 57 36 56Q29 57 22 51Z" />
+      <path className="rig-shirt" d="M33 29L36 34L39 29L41 47L36 50L31 47Z" />
+      {isManager && <path className="rig-tie" d="M35 34L37 34L38 44L36 48L34 44Z" />}
+      {isTailor && <path className="rig-apron" d="M27 37L45 37L44 54L28 54Z" />}
+      {isEditor && <path className="rig-hood" d="M30 30Q36 23 42 30" />}
+    </g>
+    <g className="rig-arm rig-arm-left"><path className="rig-sleeve" d="M26 33L17 43" /><g className="rig-forearm rig-forearm-left"><path className="rig-skin" d="M17 43L15 53" /><circle className="rig-hand" cx="15" cy="54" r="2.2" /></g></g>
+    <g className="rig-arm rig-arm-right"><path className="rig-sleeve" d="M46 33L55 43" /><g className="rig-forearm rig-forearm-right"><path className="rig-skin" d="M55 43L57 53" /><circle className="rig-hand" cx="57" cy="54" r="2.2" /></g></g>
     <path className="rig-neck" d="M34 28L34 24M38 28L38 24" />
-    <g className="rig-head"><rect className="rig-face" x="24" y="7" width="24" height="18" rx="7" /><circle className="rig-eye" cx="31" cy="15" r="1.8" /><circle className="rig-eye" cx="41" cy="15" r="1.8" /><path className="rig-smile" d="M32 20Q36 22 40 20" /><circle className="rig-antenna" cx="36" cy="5" r="2" /></g>
+    <g className="rig-head">
+      <ellipse className="rig-face" cx="36" cy="16" rx="10" ry="12" />
+      <path className="rig-hair" d="M26 15Q25 4 36 4Q47 4 46 15L42 12L39 9L34 12L29 11Z" />
+      {isManager && <path className="rig-beard" d="M28 19Q36 22 44 19Q43 28 36 28Q29 27 28 19Z" />}
+      <circle className="rig-eye" cx="32.5" cy="15" r="1.1" /><circle className="rig-eye" cx="39.5" cy="15" r="1.1" />
+      {isAccountant && <><circle className="rig-glasses" cx="32.5" cy="15" r="3" /><circle className="rig-glasses" cx="39.5" cy="15" r="3" /><path className="rig-glasses" d="M35.5 15H36.5" /></>}
+      {!isManager && <path className="rig-smile" d="M33 21Q36 23 39 21" />}
+    </g>
   </svg>;
 }
 
@@ -91,7 +76,6 @@ export function AtolyeOfficePreview() {
   const scenario = PREVIEW_SCENARIOS.find(item => item.id === scenarioId) ?? PREVIEW_SCENARIOS[0]!;
   const step = stepIndex >= 0 ? scenario.steps[stepIndex] : undefined;
   const brain = getPreviewBrain(selectedBrainId);
-  const room = step?.room ?? brain.room;
   const motion = motionFor(step);
   const isFinished = stepIndex >= scenario.steps.length - 1;
   const visibleMessages = stepIndex >= 0 ? scenario.steps.slice(Math.max(0,stepIndex-3),stepIndex+1) : [];
@@ -119,10 +103,6 @@ export function AtolyeOfficePreview() {
     setPlaying(false);
     const next = Math.min(stepIndex + 1, scenario.steps.length - 1);
     setStepIndex(next); setSelectedBrainId(scenario.steps[next]?.brainId ?? selectedBrainId);
-  }
-  function selectRoom(brainId?: PreviewBrainId, name?: string) {
-    if (brainId) { setSelectedBrainId(brainId); setProfileTab("mission"); setNotice(getPreviewBrain(brainId).name + " profili açıldı."); }
-    else setNotice((name ?? "Bu alan") + " yalnızca ofis görselinde gösteriliyor.");
   }
   function selectWorker(brainId: PreviewBrainId) {
     const selected = getPreviewBrain(brainId);
@@ -154,12 +134,8 @@ export function AtolyeOfficePreview() {
       <section className="oop-center-column">
         <div className="oop-title-row"><span className="oop-title-line" /><h1>ATÖLYE OFİSİ</h1><span className="oop-title-line" /><button type="button" className="oop-mic-button" aria-label="Mikrofon simülasyonu" onClick={() => setNotice("Mikrofon bu izole önizlemede etkin değil.")}><span aria-hidden="true">♩</span><i /><i /><i /></button></div>
         <section className="oop-office-scene" id="office-map" aria-label="Atölye Ofisi bölümleri">
-          <Image src="/office-preview/office-floor-v2-clean-plate.png" alt="Cam bölmeli Atölye Ofisi; robot çalışanlar odalarında hareket ediyor" fill sizes="(max-width: 700px) 100vw, 70vw" priority unoptimized className="oop-office-image" />
-          <div className="oop-scene-shade" />
-          <svg className="oop-flow-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="oop-arrowhead" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5" /></marker></defs><path d="M50 46C50 52 50 56 50 60" markerEnd="url(#oop-arrowhead)" /><path d="M51 72C51 77 51 79 51 83" markerEnd="url(#oop-arrowhead)" /><path d="M46 64C43 61 41 57 39 52" markerEnd="url(#oop-arrowhead)" /><path d="M54 64C57 61 59 57 61 52" markerEnd="url(#oop-arrowhead)" /></svg>
-          {ROOMS.map(item => <button key={item.title} type="button" className={"oop-room-label" + (room === item.room ? " is-active" : "")} style={{left:String(item.x)+"%",top:String(item.y)+"%"}} onClick={() => selectRoom(item.brain,item.room)}>{item.title}</button>)}
-          {OFFICE_WORKERS.map(worker => <button key={worker.key} type="button" className={"oop-office-worker oop-office-worker--"+worker.row+(step?.brainId === worker.id ? " is-active" : "")} style={{left:worker.x+"%",top:worker.y+"%",width:`clamp(19px,${worker.size}cqw,${Math.round(worker.size*12)}px)`,animationDelay:worker.delay,animationDuration:"3.4s"}} aria-label={`${getPreviewBrain(worker.id).name}, ${worker.room}; profili aç`} onClick={() => selectWorker(worker.id)}><span className="oop-worker-sprite" data-row={worker.row} style={{animationDelay:worker.delay,animationDuration:worker.duration}} /></button>)}
-          <div className="oop-scene-caption"><i /> AYRI SANDBOX · {step ? "Şu an: "+room : "Hareket ve konuşma örneği"}</div>
+          <AtolyeOffice3DScene selectedBrainId={selectedBrainId} onSelectBrain={selectWorker} />
+          {step && <div className="oop-scene-caption"><i /> ÖRNEK GÖREV · {step.room}</div>}
         </section>
         <section className="oop-floor-controls" aria-label="Örnek çalışma akışı">
           <div className="oop-flow-heading"><div><p>AYAS GÖREV AKIŞI</p><strong>{step ? kindLabel(step.kind) : "ÖRNEK SİMÜLASYON"}</strong></div><div className="oop-flow-actions">
@@ -172,7 +148,7 @@ export function AtolyeOfficePreview() {
       </section>
 
       <aside className="oop-profile-panel" aria-label="Seçili beyin profili">
-        <section className="oop-profile-hero"><div className="oop-profile-robot"><RobotRig large motion={selectedBrainId === step?.brainId ? motion : "idle"} /></div><h2>{brain.name}</h2><p>{brain.department} · {statusLabel(brain.liveStatus)}</p></section>
+        <section className="oop-profile-hero"><div className="oop-profile-avatar"><HumanRig large brainId={selectedBrainId} motion={selectedBrainId === step?.brainId ? motion : "idle"} /></div><h2>{brain.name}</h2><p>{brain.department} · {statusLabel(brain.liveStatus)}</p></section>
         <div className="oop-profile-tabs" role="tablist" aria-label="Beyin bilgileri">
           <button type="button" role="tab" aria-selected={profileTab === "mission"} onClick={() => setProfileTab("mission")}><span aria-hidden="true">▤</span> GÖREVİ</button>
           <button type="button" role="tab" aria-selected={profileTab === "limits"} onClick={() => setProfileTab("limits")}><span aria-hidden="true">□</span> SINIRI</button>

@@ -4346,3 +4346,21 @@ Başarılı: TypeScript exit0; frozen script-structured-generation22/22; yeni ge
 Başarısız/kabul dışı: 13parçalı cutout rig görsel QA ayrık boyun/omuz/bacak ve komşu atlas bleed; yalnız geometri testleri PASS. Yeni skin filmde beat-4-shot-1 gerçek karede iki karakter üst üste, kol/elbise deformation; doğal kap handover görsel kabulü FAIL. StoryPASS fakat pacingFAIL:5 gerçek değişim /gerekli13, maxshot9.325s. Kod/medya varlığı başarı kabulü değildir. Owner içerik kabulü false. Genel automatic all-world üretim, yaşayan sivil sokak, phoneme, doğal kılıç/hand ownership,180s/30 gerçek değişim ve native admission tamamlanmadı. Başarısız adaylar canlıya alınmadı.
 
 Sıradaki iş: yeni video VISUAL_QA.json ve başarısız kareyi okuyup puppet sleeve/hand skinning ve cast spacing/prop ownership düzelt; gerçek hareket boyunca QA; yaşayan farklı sivil kadro; generic kapalı portable native binding; gerçek30/180s kanıtı; ücretli1USD toplam reservation eksiklerini tamamla. Korunan canlı c10d1e33/build1fTs5bb88rNOoNq20lo1u devam eder. Kapanış sonucu ve exactHEAD Git dışı SESSION_RECEIPT.json'a yazılır; Graphify/sağlık doğrulanmadan hazır raporu yok. Kullanıcının %3 dur emri sonrası yeni feature çalışması yapılmaz.
+
+## 26 Kasım 2026 — Atölye ofisi insan karakterleri ve renk/netlik revizyonu
+
+- İzole `/studio/office-preview` sahnesindeki çalışanları `yapayzekaofisi/kendi-ofisini-kur` deposunun procedural Three.js insan karakter yaklaşımına uyarladım: daha doğal gövde oranları, eklemli kapsül uzuvlar, saç/sakal, yüz ayrıntıları ve rol kıyafetleri. Sağ profil robotu da insan karakter portresine dönüştü.
+- Düz ve soluk görünen sahneyi sıcak meşe/ceviz mobilya, daha koyu doğal ahşap zemin, yeşil cam bölmeler, derin bitki tonları ve dengeli sıcak ışıkla güncelledim. Antialiasing etkin; render çözünürlüğü 1.25 DPR ve 25 fps ile düşük güç tercihi korundu.
+- Odaları aynı ızgaraya hizaladım, şeffaf tam yükseklikte cam bölmeler ve kapılar ekledim; ortam/araştırma, AYAS yönetim, muhasebe/onarım, dinlenme, ses/denetim ve toplantı alanlarını ayırdım. Kapı boşluklarını çalışanların hareket yollarına bağladım. Dinlenme koltuğunu öne basılan ayakların koltuk gövdesinden çıkacağı şekilde taşıdım ve AYAS masasını yönetim odasına aldım.
+- Kaynak depo MIT lisansı için `src/components/office-preview/THIRD_PARTY_NOTICES.md` eklendi. Canlı/ana sayfa etkisi yoktur; uzak push yapılmadı.
+- Doğrulama: TypeScript ve `git diff --check`.
+
+## 2026-11-26 — Unique office roster and lounge rotation
+
+- Removed the duplicate research and costume avatars from the lounge. The office now shows 13 distinct preview profiles once each, covering all nine V3 council IDs; `sef` is AYAS, so it does not get a second character. The other four cards are the developer, conditional code-writing apprentice, planned auditor, and planned accounting helper.
+- Added a fair queue for two lounge seats: each worker goes for a break after one sample task cycle, follows the room doors, sits briefly, and returns to their own desk. This is visual sandbox behavior only.
+- Moved DevBrain and DevApprentice/DevWriter into a dedicated software development room with desks; moved the meeting/audit table to its own room and separated accounting from assembly/repair signage. No live system connection was added.
+- Verified the local preview lists 13 unique profiles. `npm exec tsc -- --noEmit` and `git diff --check` pass. Git pull could not access shared worktree `FETCH_HEAD`; no push was made.
+## 2026-11-26 — Yerel ofis gerçekçilik ince ayarı
+
+Modüler halı dokusu, sınırlı yumuşak temas gölgeleri, daha tutarlı masa aksesuarları, bahçe ağacı biçimleri ve hafif karakter göz kırpması eklendi. Düşük güç / 25 FPS / 1.25 DPR ayarları korundu; fazla mesh oluşturan masa altı ayrıntıları kaldırıldı. Yalnız sandbox önizlemesi güncellendi; canlıya alınmadı. TypeScript ve diff kontrolü geçti. Son WebGL ekran görüntüsü araç zaman aşımına takıldı; owner'ın yerel görsel incelemesi gerekli.
