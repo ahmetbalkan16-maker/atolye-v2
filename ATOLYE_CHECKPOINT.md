@@ -13,6 +13,10 @@ ofiste Bekçi. Kendini geliştirme: ölçülmüş ihtiyaç → AYAS yarar/zarar 
   GitHub araçları (gitleaks vb.). İkisi bitince incelenip feature dalına alınacak, sonra toplu canlıya alma (owner: "önce
   beyni yap sonra hepsini canlıya al").
 - Canlıya almada: gözlemci uzun ömürlü süreç; yeni Bekçi turu için gözlemcinin bir kez yeniden başlaması gerekir.
+- **KARAR BEKLİYOR (owner: "gerçek sorunları kaydet, sonra yapalım karar verip"):** SMB 445 tüm arayüzlerde, NetBIOS 139
+  LAN adresinde dinliyor; güvenlik duvarında "Dosya ve Yazıcı Paylaşımı (SMB-Gelen / NB-Oturum-Gelen)" Ortak ağ profilinde
+  açık. Seçenekler: Ortak'ta kapat/Özel'e daralt, paylaşımı tamamen kapat, olduğu gibi bırak. Hiçbir şey değiştirilmedi;
+  Windows ayarı yalnız sahibin açık onayıyla.
 
 ## 26 Kasım 2026 (7) — "Atölye" butonları yeni 3D ofisi açıyor (canlı 90db7935)
 
