@@ -52,27 +52,27 @@ const timelineOf = (ep: Episode): EpisodeTimeline => {
 
 async function main() {
   await scenario("A a missing camera or effect in the first two scenes is a fault; the same gap in s5 only the warning row's", () => {
-    assert.equal(OPENING_SCENES, 2);
+    assert.equal(OPENING_SCENES, 2, "assert.equal(OPENING_SCENES, 2)");
     const ok = [full("s1"), full("s2"), full("s3"), full("s4"), full("s5")];
-    assert.equal(openingPlanCheck(ok).ok, true);
+    assert.equal(openingPlanCheck(ok).ok, true, "assert.equal(openingPlanCheck(ok).ok, true)");
     assert.match(openingPlanCheck(ok).text, /ilk 2 sahne\) kamera ve efekt: var/);
     // s1 without a camera: the fault row fails and names it.
     const noCam = [full("s1", { kamera: undefined }), ...ok.slice(1)];
     const fault = openingPlanCheck(noCam);
-    assert.equal(fault.ok, false);
-    assert.deepEqual(fault.eksik, [{ sahne: "s1", kamera: true, efekt: false }]);
+    assert.equal(fault.ok, false, "assert.equal(fault.ok, false)");
+    assert.deepEqual(fault.eksik, [{ sahne: "s1", kamera: true, efekt: false }], "assert.deepEqual(fault.eksik, [{ sahne: \"s1\", kamera: true, efekt: false }])");
     assert.match(fault.text, /EKSİK — kamera: s1 \(izleyici burada karar verir: rötuş turunda eklenir\)/);
     // s2 without an effect is a fault too; a map camera counts as a camera.
     const noFx = [full("s1", { kamera: undefined, harita: { kamera: [{}] } }), full("s2", { satirlar: [{ jest: "point" }] }), ...ok.slice(2)];
-    assert.deepEqual(openingPlanCheck(noFx).eksik, [{ sahne: "s2", kamera: false, efekt: true }]);
+    assert.deepEqual(openingPlanCheck(noFx).eksik, [{ sahne: "s2", kamera: false, efekt: true }], "assert.deepEqual(openingPlanCheck(noFx).eksik, [{ sahne: \"s2\", kamera: false, efekt: true }])");
     // s5 without a camera: no fault, only the plan row (a warning, as before).
     const late = [...ok.slice(0, 4), full("s5", { kamera: undefined })];
-    assert.equal(openingPlanCheck(late).ok, true);
-    assert.equal(scenePlanCheck(late).ok, false);
+    assert.equal(openingPlanCheck(late).ok, true, "assert.equal(openingPlanCheck(late).ok, true)");
+    assert.equal(scenePlanCheck(late).ok, false, "assert.equal(scenePlanCheck(late).ok, false)");
     assert.match(scenePlanCheck(late).text, /eksik — kamera: s5$/);
     // What the studio itself puts there fills the opening's gap (a Director cut, the Mixer's whoosh).
-    assert.equal(openingPlanCheck(noCam, { kamera: new Set(["s1"]) }).ok, true);
-    assert.equal(openingPlanCheck(noFx, { efekt: new Set(["s2"]) }).ok, true);
+    assert.equal(openingPlanCheck(noCam, { kamera: new Set(["s1"]) }).ok, true, "assert.equal(openingPlanCheck(noCam, { kamera: new Set([\"s1\"]) }).ok, true)");
+    assert.equal(openingPlanCheck(noFx, { efekt: new Set(["s2"]) }).ok, true, "assert.equal(openingPlanCheck(noFx, { efekt: new Set([\"s2\"]) }).ok, true)");
     assert.equal(openingPlanCheck(noFx, { efekt: new Set(["s5"]) }).ok, false, "a later scene's effect is not the opening's");
     // The plan row without `made` is the writer's plan, word for word as before.
     assert.match(scenePlanCheck(noCam).text, /^Sahne planı \(5 sahne\): eksik — kamera: s1$/);
@@ -92,11 +92,11 @@ async function main() {
     };
     const made = studioMade(plan, ep, tl);
     // A 4% drift is not a change; a cut is; a map moving to a new view is (its first key repeating the opening view is not).
-    assert.deepEqual([...made.kamera!].sort(), ["s2-march", "s3"]);
+    assert.deepEqual([...made.kamera!].sort(), ["s2-march", "s3"], "assert.deepEqual([...made.kamera!].sort(), [\"s2-march\", \"s3\"])");
     // A slide into s2 brings the Mixer's whoosh; a cut does not.
-    assert.equal(made.efekt!.has("s2-march"), false);
+    assert.equal(made.efekt!.has("s2-march"), false, "assert.equal(made.efekt!.has(\"s2-march\"), false)");
     const slid = { ...ep, sahneler: ep.sahneler.map((s) => (s.id === "s2-march" ? { ...s, gecis: "kaydir" as const } : s)) };
-    assert.equal(studioMade(plan, slid, tl).efekt!.has("s2-march"), true);
+    assert.equal(studioMade(plan, slid, tl).efekt!.has("s2-march"), true, "assert.equal(studioMade(plan, slid, tl).efekt!.has(\"s2-march\"), true)");
     assert.equal(studioMade(plan, slid, tl).efekt!.has("s1-hook"), false, "the whoosh just before s2 is s2's, not s1's");
   });
 
@@ -104,41 +104,41 @@ async function main() {
     const ep = shortEpisode();
     const tl = timelineOf(ep);
     const check = openingPlanCheck(ep.sahneler);
-    assert.deepEqual(check.eksik, [{ sahne: "s1-hook", kamera: true, efekt: true }, { sahne: "s2-march", kamera: true, efekt: true }]);
+    assert.deepEqual(check.eksik, [{ sahne: "s1-hook", kamera: true, efekt: true }, { sahne: "s2-march", kamera: true, efekt: true }], "assert.deepEqual(check.eksik, [{ sahne: \"s1-hook\", kamera: true, efekt: true }, { sahne: \"s2-march\", kamera: true, efekt: true }])");
     const fixes = openingFixes(ep, tl, check.eksik);
     // s1: Hannibal speaks at 3.3 s (scene time): the zoom comes half a second into his line; a pop on its first line.
     // s2: no character on stage — no camera fix (nothing to frame), but its sound.
     assert.deepEqual(fixes, [
       { sahne: "s1-hook", kamera: { tip: "zoom", t: 3.8, hedef: "hannibal" }, sfx: { satir: 0, sfx: "pop" } },
       { sahne: "s2-march", sfx: { satir: 0, sfx: "whoosh" } },
-    ]);
+    ], "assert.deepEqual(fixes, [\n      { sahne: \"s1-hook\", kamera: { tip: \"zoom\", t: 3.8, hedef: \"hannibal\" }, sfx: { satir: 0, sfx: \"pop\" } },\n      { sahne: \"s2-march\", sfx: { satir: 0, sfx: \"whoosh\" } },\n    ])");
     assert.match(openingFixLine(fixes[0]!), /s1-hook: kamera hannibal yakın çekime 3\.8\. sn'de; s1-hook#0: pop efekti/);
     const fixed = applyOpeningFixes(ep, fixes);
-    assert.deepEqual(fixed.sahneler[0]!.kamera, [{ tip: "zoom", t: 3.8, hedef: "hannibal" }]);
-    assert.equal(fixed.sahneler[1]!.satirlar[0]!.sfx, "whoosh");
+    assert.deepEqual(fixed.sahneler[0]!.kamera, [{ tip: "zoom", t: 3.8, hedef: "hannibal" }], "assert.deepEqual(fixed.sahneler[0]!.kamera, [{ tip: \"zoom\", t: 3.8, hedef: \"hannibal\" }])");
+    assert.equal(fixed.sahneler[1]!.satirlar[0]!.sfx, "whoosh", "assert.equal(fixed.sahneler[1]!.satirlar[0]!.sfx, \"whoosh\")");
     assert.deepEqual(applyOpeningFixes(fixed, fixes), fixed, "applied twice it changes nothing");
     assert.deepEqual(openingPlanCheck(fixed.sahneler).eksik, [{ sahne: "s2-march", kamera: true, efekt: false }], "what remains has no fix: no further round for it");
-    assert.deepEqual(openingFixes(fixed, tl, openingPlanCheck(fixed.sahneler).eksik), []);
+    assert.deepEqual(openingFixes(fixed, tl, openingPlanCheck(fixed.sahneler).eksik), [], "assert.deepEqual(openingFixes(fixed, tl, openingPlanCheck(fixed.sahneler).eksik), [])");
     // A map scene's camera is never written by the fix.
     const mapped = { ...ep, sahneler: ep.sahneler.map((s, i) => (i === 0 ? { ...s, harita: { merkez: [12, 43], genislik_km: 40 } } : s)) } as Episode;
-    assert.equal(openingFixes(mapped, tl, [{ sahne: "s1-hook", kamera: true, efekt: false }]).length, 0);
+    assert.equal(openingFixes(mapped, tl, [{ sahne: "s1-hook", kamera: true, efekt: false }]).length, 0, "assert.equal(openingFixes(mapped, tl, [{ sahne: \"s1-hook\", kamera: true, efekt: false }]).length, 0)");
 
     // The retouch brain opens a round for the opening alone, from the render step; never past the last round.
     const none = { likenesses: [], sets: [] };
-    assert.equal(planRetouch({ round: 0, ...none }), undefined);
+    assert.equal(planRetouch({ round: 0, ...none }), undefined, "assert.equal(planRetouch({ round: 0, ...none }), undefined)");
     const plan = planRetouch({ round: 0, ...none, acilis: fixes })!;
-    assert.equal(plan.tur, 1);
-    assert.equal(plan.adim, "render");
-    assert.deepEqual(plan.acilis, fixes);
+    assert.equal(plan.tur, 1, "assert.equal(plan.tur, 1)");
+    assert.equal(plan.adim, "render", "assert.equal(plan.adim, \"render\")");
+    assert.deepEqual(plan.acilis, fixes, "assert.deepEqual(plan.acilis, fixes)");
     assert.equal(planRetouch({ round: MAX_RETOUCH_ROUNDS, ...none, acilis: fixes }), undefined, "the last round delivers the best one");
     // With a set under the bar the round starts where the set is drawn, and still carries the opening's fixes.
     const withSet = planRetouch({ round: 0, likenesses: [], sets: [{ sahne: "s3", esikAlti: true }], acilis: fixes })!;
-    assert.equal(withSet.adim, "gorsel");
-    assert.deepEqual(withSet.acilis, fixes);
+    assert.equal(withSet.adim, "gorsel", "assert.equal(withSet.adim, \"gorsel\")");
+    assert.deepEqual(withSet.acilis, fixes, "assert.deepEqual(withSet.acilis, fixes)");
     // AYAS's line fixes join the same round (earlier step) and keep the opening's.
     const joined = withDirector(plan, 0, { duzeltmeler: [{ tur: "satir", sahne: "s3", satir: 0, talimat: "shorter", neden: "x" }], yeniden: [], ozet: "x" } as never)!;
-    assert.equal(joined.adim, "ses");
-    assert.deepEqual(joined.acilis, fixes);
+    assert.equal(joined.adim, "ses", "assert.equal(joined.adim, \"ses\")");
+    assert.deepEqual(joined.acilis, fixes, "assert.deepEqual(joined.acilis, fixes)");
     assert.match(retouchDebate(plan).map((d) => d.metin).join("\n"), /Short açılışında kamera\/efekt eksik: s1-hook kamera \(hannibal yakın çekim, 3\.8\. sn\), s1-hook#0 pop efekti · s2-march#0 whoosh efekti[^]*Short açılışına 2 sahnede kamera\/efekt eklenecek; üretim "render" adımından/);
   });
 

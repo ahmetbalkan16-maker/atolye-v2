@@ -539,7 +539,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     {"tur": "sayac", "satir": 2, "deger": 1000000, "etiket": "Gauls killed in eight years"}   // a number counting up
     {"tur": "guc", "satir": 1, "taraflar": [{"ad": "Romans", "renk": "#c0392b", "sayi": "86,000"}, {"ad": "Carthaginians", "renk": "#2c3e50", "sayi": "50,000"}]}
         // the two sides' armies, each bar growing to its number: whenever the narrator of a scene without a map gives
-        // both sides' numbers ("Rome fields 86,000 men. Hannibal? Only 50,000.") — numbers over standing puppets show nothing
+        // both sides' numbers ("Rome fields 86,000 men. Hannibal? Only 50,000.") — numbers over standing puppets show nothing;
+        // the same two bars compare two amounts ("They need 750 tons a day; the Luftwaffe brings 105." → {"ad": "They need",
+        // "sayi": "750 tons"}, {"ad": "Luftwaffe brings", "sayi": "105 tons"}), a "sayac" shows one ("48 kilometres")
   On a close battle map a card darkens the battle: give it before the first unit moves or after the last one, never
   on the lines where units move, fight or flee.
   Tell events ON the map as they happen, line by line, the way the history-with-maps channels do: an army marches, a

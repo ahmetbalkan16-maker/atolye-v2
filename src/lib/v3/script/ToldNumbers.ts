@@ -40,17 +40,20 @@ const NOT_PEOPLE =
 
 const lower = (s: string) => s.toLocaleLowerCase("tr-TR");
 
-/**
- * The numbers a sentence says, in digits ("86,000", "2.5 million") or in words ("eighty-six thousand", Turkish
- * "seksen altı bin" when the episode is Turkish — "on" and "bir" are English and Turkish words too). A plain four-digit
- * number without a grouping is a year and never counted; a number followed by a distance, money or a fleet is no army.
- */
-export function toldNumbers(sentence: string, dil: ScriptLanguage = "en"): ToldNumber[] {
+/** Every number a sentence says, before any is ruled out: its exact value, whether it reads as a year, its first word. */
+interface NumberRun extends ToldNumber {
+  readonly exact: number;
+  readonly year: boolean;
+  /** The first word after it, past any punctuation ("tons", "Snack" of "105. Snack-sized"). */
+  readonly unit?: string;
+}
+
+function numberRuns(sentence: string, dil: ScriptLanguage): NumberRun[] {
   const units = dil === "tr" ? TR_UNITS : EN_UNITS;
   const scales = dil === "tr" ? TR_SCALES : EN_SCALES;
   const tokens = [...sentence.matchAll(/\d+(?:[.,]\d{3})+|\d+(?:[.,]\d+)?|\p{L}+/gu)].map((m) => ({ text: m[0], at: m.index!, end: m.index! + m[0].length }));
   const numeric = (t: string) => /^\d/.test(t) || lower(t) in units || lower(t) in scales;
-  const out: ToldNumber[] = [];
+  const out: NumberRun[] = [];
   // A scale word starts a number only as "a thousand" (English) or alone as "bin"/"milyon" (Turkish; "yüz" is also "face").
   const startsAlone = (i: number) => (dil === "en" ? i > 0 && lower(tokens[i - 1]!.text) === "a" : lower(tokens[i]!.text) !== "yüz");
   for (let i = 0; i < tokens.length; i++) {
@@ -79,21 +82,80 @@ export function toldNumbers(sentence: string, dil: ScriptLanguage = "en"): ToldN
         current = 0;
       }
     }
-    const value = Math.round(total + current);
+    const exact = total + current;
     const start = run[0]!;
     const last = run[run.length - 1]!;
     i = j;
-    if (!Number.isFinite(value) || value < MIN_TOLD_ARMY) continue;
-    // "In 1389" is a year; "86,000", "86 thousand", "eighty-six thousand" and "8000 men" are counts.
-    if (run.length === 1 && /^\d{4}$/.test(start.text) && value <= 2100) continue;
     // Its words: up to the clause's end or the next number ("86,000 men and loses 50,000" → "men").
     const rest = sentence.slice(last.end).split(/[.!?;:,—–\d]|(?<!\p{L})(?:and|but|or|while|ve|ama|fakat)(?!\p{L})/iu)[0] ?? "";
     const words = rest.split(/[^\p{L}'’-]+/u).filter(Boolean);
     const unit = sentence.slice(last.end).split(/[^\p{L}]+/u).filter(Boolean)[0];
-    if (unit && NOT_PEOPLE.test(unit)) continue;
-    out.push({ value, index: start.at, end: last.end, after: words.slice(0, 4).join(" ") });
+    // "In 1389" is a year; "86,000", "86 thousand", "eighty-six thousand" and "8000 men" are counts.
+    const year = run.length === 1 && /^\d{4}$/.test(start.text) && exact <= 2100;
+    out.push({ value: Math.round(exact), exact, year, ...(unit ? { unit } : {}), index: start.at, end: last.end, after: words.slice(0, 4).join(" ") });
   }
   return out;
+}
+
+/**
+ * The numbers a sentence says, in digits ("86,000", "2.5 million") or in words ("eighty-six thousand", Turkish
+ * "seksen altı bin" when the episode is Turkish — "on" and "bir" are English and Turkish words too). A plain four-digit
+ * number without a grouping is a year and never counted; a number followed by a distance, money or a fleet is no army.
+ */
+export function toldNumbers(sentence: string, dil: ScriptLanguage = "en"): ToldNumber[] {
+  return numberRuns(sentence, dil)
+    .filter((n) => Number.isFinite(n.value) && n.value >= MIN_TOLD_ARMY && !n.year && !(n.unit && NOT_PEOPLE.test(n.unit)))
+    .map(({ value, index, end, after }) => ({ value, index, end, after }));
+}
+
+/** Measures a told amount is shown in (weights and distances): "750 tons", "48 kilometres", "300 miles". */
+const MEASURE = /^(?:tons?|tonnes?|km|kilomet(?:er|re)s?|met(?:er|re)s?|miles?|ton\p{L}*|kilometre\p{L}*|metre\p{L}*|mil)$/iu;
+
+/** Hedges between an amount's name and its number ("the Luftwaffe brings about 105"). */
+const HEDGE = new Set(["about", "only", "just", "some", "nearly", "around", "roughly", "barely", "almost", "over", "under", "yaklaşık", "sadece", "yalnızca", "ancak"]);
+
+/** The bars of an amount comparison: what was needed or had first, then what came (no side's colours: no armies). */
+export const AMOUNT_COLOURS = ["#c9b27c", "#c0392b"] as const;
+
+/** Up to three words naming an amount: its clause's words right before the number, hedges dropped ("They need"). */
+function amountName(text: string, at: number): string {
+  const clause = text.slice(0, at).split(/[.!?;:,—–()]/u).pop() ?? "";
+  const words = clause.split(/[^\p{L}\d'’-]+/u).filter(Boolean);
+  while (words.length && HEDGE.has(lower(words[words.length - 1]!))) words.pop();
+  const name = words.slice(-3).join(" ");
+  return name.length <= 30 ? name : words.slice(-2).join(" ");
+}
+
+/**
+ * The card for a narrator line that tells an amount by its measure, or none (the Stalingrad Short, 23 Nov 2026: "They
+ * need 750 tons daily; Luftwaffe brings 105." and "Manstein's rescue gets within 48 kilometres." were told over a still
+ * photo and scored 2–3/10 for showing what is said): two amounts, the second in the same measure or with none, each
+ * named by the words before it → the two bars (`guc`, "THEY NEED 750 tons / LUFTWAFFE BRINGS 105 tons"); else one
+ * amount → a counter (`sayac`, "48 — kilometres"). Years, decimals ("2.5 km" would count up to 3) and armies are not.
+ */
+export function toldAmountCard(text: string, line: number, dil: ScriptLanguage = "en"): SceneInfoCard | undefined {
+  const runs: (NumberRun & { readonly at: number })[] = [];
+  let offset = 0;
+  for (const s of text.split(/(?<=[.!?;])\s+/)) {
+    offset = text.indexOf(s, offset);
+    for (const n of numberRuns(s, dil)) if (!n.year && n.value >= 1) runs.push({ ...n, at: offset + n.index });
+    offset += s.length;
+  }
+  // The measure is the number's own clause's first word ("48. Miles later" measures nothing).
+  const measure = (n: NumberRun) => n.after.split(" ")[0] ?? "";
+  const i = runs.findIndex((n) => MEASURE.test(measure(n)) && Number.isInteger(n.exact));
+  if (i < 0) return undefined;
+  const a = runs[i]!;
+  const b = runs[i + 1];
+  const singular = (u: string) => lower(u).replace(/s$/, "");
+  // The next number is the same amount's other side when it says the same measure or ends its clause ("brings 105.").
+  if (b && Number.isInteger(b.exact) && (!b.after || singular(measure(b)) === singular(measure(a)))) {
+    const names = [amountName(text, a.at), amountName(text, b.at)];
+    const sayi = (n: NumberRun) => `${grouped(n.value)} ${measure(a)}`.slice(0, 24);
+    if (names[0] && names[1] && lower(names[0]) !== lower(names[1]))
+      return { tur: "guc", satir: line, taraflar: [{ ad: names[0], renk: AMOUNT_COLOURS[0], sayi: sayi(a) }, { ad: names[1], renk: AMOUNT_COLOURS[1], sayi: sayi(b) }] };
+  }
+  return { tur: "sayac", satir: line, deger: a.value, etiket: a.after.slice(0, 60) };
 }
 
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("en-US");
@@ -190,8 +252,8 @@ export function toldStrengthCard(text: string, line: number, sides: readonly [Si
 
 /**
  * The last resort after the script's rounds: in a scene without a map and without cards, the first narrator line that
- * counts armies gets its card (one per scene, so cards never overlap). Logged as fixes; a card that would break the
- * episode is not added.
+ * counts armies gets its card (one per scene, so cards never overlap); a scene that counts no army, the first line
+ * that tells an amount by its measure (toldAmountCard). Logged as fixes; a card that would break the episode is not added.
  */
 export function addToldStrengths(episode: Episode, dil: ScriptLanguage = "en"): { episode: Episode; fixes: string[] } {
   const narrators = new Set(episode.oyuncu_kadrosu.filter((c) => !c.gorunur).map((c) => c.id));
@@ -199,17 +261,19 @@ export function addToldStrengths(episode: Episode, dil: ScriptLanguage = "en"): 
   const fixes: string[] = [];
   const sahneler = episode.sahneler.map((s): EpisodeScene => {
     if (s.harita?.merkez || s.bilgi_kartlari?.length) return s;
-    for (const [i, l] of s.satirlar.entries()) {
-      if (!narrators.has(l.karakter)) continue;
-      const card = toldStrengthCard(l.metin, i, sides, dil);
-      if (!card) continue;
-      fixes.push(
-        card.tur === "guc"
-          ? `${s.id}: anlatıcı iki ordunun sayısını veriyor — güç kartı eklendi (${card.taraflar![0].ad} ${card.taraflar![0].sayi} / ${card.taraflar![1].ad} ${card.taraflar![1].sayi}, satır ${i})`
-          : `${s.id}: anlatıcı bir sayı veriyor — sayaç kartı eklendi (${grouped(card.deger!)} ${card.etiket}, satır ${i})`,
-      );
-      return { ...s, bilgi_kartlari: [card] };
-    }
+    for (const amounts of [false, true])
+      for (const [i, l] of s.satirlar.entries()) {
+        if (!narrators.has(l.karakter)) continue;
+        const card = amounts ? toldAmountCard(l.metin, i, dil) : toldStrengthCard(l.metin, i, sides, dil);
+        if (!card) continue;
+        const what = amounts ? ["iki miktarı karşılaştırıyor", "bir miktar veriyor"] : ["iki ordunun sayısını veriyor", "bir sayı veriyor"];
+        fixes.push(
+          card.tur === "guc"
+            ? `${s.id}: anlatıcı ${what[0]} — güç kartı eklendi (${card.taraflar![0].ad} ${card.taraflar![0].sayi} / ${card.taraflar![1].ad} ${card.taraflar![1].sayi}, satır ${i})`
+            : `${s.id}: anlatıcı ${what[1]} — sayaç kartı eklendi (${grouped(card.deger!)} ${card.etiket}, satır ${i})`,
+        );
+        return { ...s, bilgi_kartlari: [card] };
+      }
     return s;
   });
   if (!sahneler.some((s, i) => s !== episode.sahneler[i])) return { episode, fixes };
