@@ -1,3 +1,21 @@
+## 26 Kasım 2026 (6) — Stalingrad Short incelemesi, 3 düzeltme, Cajamarca Short yayında (AUg7fzQL7vM)
+
+Owner: "hangisi daha çok izlenecekse ona başla … sürekli gerekirse müdahale et … son yüklenen videoyu incele gereken
+düzeltmeyi yap"; "yükleme saatini yetişirse 21:00"; "kaliteden ödün verme gerekirse saat gecikebilir".
+- Stalingrad Short bolGvK1B9m0: 2 günde 918 izlenme / 16 beğeni (döndürülmüş Shorts 2–99) — dikey biçim tuttu. Bulunan:
+  soru ekranda yalnız sonda; başlık 290,000 / kart 270,556; son 11 sn yarısı siyah yatay sahne; 32–40 sn bulanık boş harita.
+- Düzeltmeler (canlı dalda): `OpeningQuestion` (Short sorusu 0–3,6 sn haritanın üstünde, Episode katmanı), `questionNumberClash`
+  + yazar kuralı (soru sayısı = büyük sayı kartı), `MapBuilder.worldDiveFloorKm` (geniş haritada kamera ilk genişliğin 1/5'inden
+  yakına inmez) + MapView'da derin dalışta bölge dolgusunun solması. Kanıt: smoke-v3-script 67, episode-director 90, remotion tsc,
+  `scripts/v3/acilis-onizleme.ts` kareleri.
+- Cajamarca Short (sipariş 20261126T161034, "How Did 168 Spaniards Capture an Emperor at Cajamarca in 1532?"): sayılar Wikipedia
+  bilgi kutusundan (106+62=168, 7.000 esir). Tur 0'da 10–24 sn tam sarı kadraj → düzeltme ana kopyaya verildi, rötuş turları yeni
+  kodla çizdi. Tur 2 teslim (Pizarro benzerliği 4→6/10, kurul 7/10, 6 eksik: süre 68,5 sn > 60, bazı sahnelerde kamera/efekt).
+  Yükleme 1080×1920, −14,4 LUFS; YouTube izni süresi dolmuştu, owner yeniden bağladı (19:12, 7 gün); 21:07'de hemen yayın:
+  https://youtu.be/AUg7fzQL7vM (public).
+- Açık: son sahne başında ~5 sn işaretsiz yakın harita; "Spanish losses: one paper cut" şakası (gerçek: 1 ölü köle, 1 yaralı);
+  Valverde kesitinde pusula/ölçek ayakların üstünde; Short süresi 60 sn'yi aşıyor.
+
 ## 26 Kasım 2026 (5) — Atölye Ofisi: Claude iyileştirmesi, 18 çalışan, oda sayfaları, canlı durum, AYAS sesli (codex/atolye-office-preview)
 
 Owner: Codex'in ofisi "çok içime sinmedi"; videolardaki gibi görüntü kalitesi, her ajana sınırlı yetki / rapor zinciri /
