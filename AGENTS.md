@@ -115,3 +115,13 @@ Bir yenileme sonrası SOURCE_HEAD, LAST_ANALYZED_HEAD ve GRAPH_BUILT_FROM aynı 
 Canonical repo D:\ÜRETİM\Atolye\atolye-v2. Yeni geliştirme, test, rapor, yedek ve arşiv D içinde oluşturulur. Her yerel geliştirme/test komutunda süreç TEMP/TMP D:\ÜRETİM\private\temp ve NPM_CONFIG_CACHE D:\ÜRETİM\private\npm-cache olarak ayarlanır; Windows User/Machine TEMP/TMP değişmez. Unicode generated PowerShell fixture sorunu olan mevcut Observer autostart suite'i yalnız test sürecinde ASCII D:\URETIM\private\temp bağlantısını kullanır; production Observer gerçek D temp yolu kullanır.
 
 Ollama'nın mevcut kullanıcı Startup/menu kısayolu scripts/ollama-production-hidden.vbs üzerinden aynı kurulu binary'yi D temp ile başlatır. Bu başlatıcı kendi TEMP/TMP/OLLAMA_TMPDIR ortamını sınırlar ve çalışan aynı GUI için ikinci instance başlatmaz. Kurulu Windows/program binary'leri taşınmaz, tarihsel authority/payload kimlikleri elle yeniden yazılmaz. C Temp temizliği yalnız envanter ve sınırlı sahiplik kanıtındaki AYAS/Atölye öğelerine uygulanır; bilinmeyen çalışmalar hash/readback ile D arşivinde korunur, reparse hedefleri takip edilmez.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
