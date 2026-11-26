@@ -317,7 +317,12 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
     continueRender(reliefWait);
   };
   // On the close battle map the states are only tinted: the ground, the walls and the houses must show through.
-  const fillK = map.close ? 0.35 : 0.9;
+  // A state's fill fades as the camera dives deep inside it (Cajamarca Short, 26 Nov 2026: a 1,200 km → 60 km dive into
+  // "Inca Empire" filled the whole tall frame with flat yellow for 14 s): up to 4× closer than the map's widest view the
+  // fill is unchanged; from 4× to 10× it eases down to a quarter, so the relief, rivers and marks show again.
+  const widest = Math.min(...(map.camera ?? []).map((key) => key.zoom).filter((z) => z > 0), cam.zoom);
+  const dive = widest > 0 ? cam.zoom / widest : 1;
+  const fillK = (map.close ? 0.35 : 0.9) * interpolate(dive, [4, 10], [1, 0.25], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const label = (text: string, x: number, y: number, size: number, opacity = 1) => (
     <text {...yer("yazi")} x={x} y={y} textAnchor="middle" dominantBaseline="middle" opacity={opacity} style={{ font: `900 ${size * k}px ${LABEL_FONT}`, letterSpacing: 1.5 * k }} fill="#ffffff" stroke={INK} strokeWidth={8 * k} paintOrder="stroke fill" strokeLinejoin="round">
       {text.toLocaleUpperCase("en-US")}

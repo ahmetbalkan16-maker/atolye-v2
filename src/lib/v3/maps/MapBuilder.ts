@@ -1835,6 +1835,19 @@ export function closeUnitStyle(env: Readonly<Record<string, string | undefined>>
   return env.ATOLYE_V3_BIRLIK_STILI?.trim().toLowerCase() === "blok" ? "blok" : "nokta";
 }
 
+/** How much closer than a wide map's first view its camera may dive (see worldDiveFloorKm). */
+export const MAX_WORLD_DIVE = 5;
+
+/**
+ * The narrowest camera stop a wide (not close) map may take: its first view's width / MAX_WORLD_DIVE (Cajamarca Short,
+ * 26 Nov 2026: a 1,200 km map dived to 60 km — the frame was one flat state colour, then blurry relief with no mark for
+ * 14 s; the town itself is the next scene's close map). A close map (≤ CLOSE_MAP_MAX_KM) is not limited.
+ */
+export function worldDiveFloorKm(map: SceneMap): number {
+  const first = map.genislik_km ?? 0;
+  return first > CLOSE_MAP_MAX_KM ? first / MAX_WORLD_DIVE : 0;
+}
+
 /**
  * The map a scene draws: its own view, or — with `kamera` keys — a world spanning every view (and a margin), at the
  * scale of the closest one, so the camera can move from region to region over one map. A tilted map (mapTilt) always
@@ -1848,7 +1861,8 @@ export function mapWorld(map: SceneMap, width: number, height: number, tilted = 
   // A tall frame (a native vertical Short) spans its first view to the map's marks (tallWidthKm) and each camera stop
   // the writer zoomed to at TALL_MAP_SPAN of its width; a 16:9 frame the writer's widths as before.
   const tall = height > width;
-  const keys = [{ view: mapView(map.merkez!, tall ? tallWidthKm(map) : map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), tall ? k.genislik_km * TALL_MAP_SPAN : k.genislik_km, width, height) }))];
+  const keyKm = (km: number) => Math.max(km, worldDiveFloorKm(map));
+  const keys = [{ view: mapView(map.merkez!, tall ? tallWidthKm(map) : map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), tall ? keyKm(k.genislik_km) * TALL_MAP_SPAN : keyKm(k.genislik_km), width, height) }))];
   const span = tilted ? TILT_WORLD_SPAN : undefined;
   if (keys.length === 1 && !span) {
     const v = keys[0]!.view;

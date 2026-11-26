@@ -26,7 +26,7 @@ import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, pullAshore, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { worldDiveFloorKm, MAX_WORLD_DIVE, backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, pullAshore, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
 import { badgeRoom, chapterOf, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, mapActionLines, mapLooksUsed, mapTilt, mapViews, MEDIUM_TILT_DEG, MEDIUM_TILT_MAX_KM, TILT_BADGE_TALL, TILT_WORLD_SPAN, tiltDegFor, withBothViews } from "../src/lib/v3/maps/MapBuilder";
@@ -3913,6 +3913,17 @@ async function main() {
     const pulsed = mapPulse([{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5, ease: "smooth" }], 400, 30);
     const at = (fr: number) => pulsed.find((k) => k.frame === fr)?.zoom;
     assert.deepEqual([at(0), at(66), at(90), at(156), at(180)], [1, 1, MAP_PULSE_ZOOM, MAP_PULSE_ZOOM, 1]);
+  });
+
+  await scenario("a wide map's camera dives at most MAX_WORLD_DIVE closer than its first view (Cajamarca Short, 26 Nov 2026: 1,200 km → 60 km was flat yellow, then blur)", () => {
+    const wide = { merkez: [-78.5, -7.2] as [number, number], genislik_km: 1200, kamera: [{ satir: 4, merkez: [-78.5, -7.2] as [number, number], genislik_km: 60 }] } as unknown as Parameters<typeof mapWorld>[0];
+    assert.equal(worldDiveFloorKm(wide), 1200 / MAX_WORLD_DIVE);
+    const dived = mapWorld(wide, 1080, 1920, false);
+    const floored = mapWorld({ ...wide, kamera: [{ satir: 4, merkez: [-78.5, -7.2], genislik_km: 1200 / MAX_WORLD_DIVE }] } as typeof wide, 1080, 1920, false);
+    assert.ok(Math.abs(dived.keys[1]!.view.spanLon - floored.keys[1]!.view.spanLon) < 1e-9, "the 60 km stop is drawn as the 240 km floor");
+    // A close map (≤ CLOSE_MAP_MAX_KM) keeps the writer's stop.
+    const close = { ...wide, genislik_km: 40, kamera: [{ satir: 1, merkez: [-78.5, -7.2], genislik_km: 3 }] } as typeof wide;
+    assert.equal(worldDiveFloorKm(close), 0);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
