@@ -7,7 +7,7 @@ import type { PreviewBrainId, PreviewBrainProfile } from "@/lib/office-preview/r
 import { AUTHORITY_LABEL, AYAS_VOICE_HREF, getRoom, getRosterEntry, roomHref } from "@/lib/office-preview/officeRoster";
 import { AtolyeOffice3DScene, type OfficeWorkerStatus } from "./AtolyeOffice3DScene";
 import { officeLiveFromCouncil, type OfficeLiveView } from "@/lib/office-preview/liveStatus";
-import { refreshAtolyeBrains } from "../../../app/brain/observerActions";
+import { readOfficeCouncil } from "../../../app/studio/office-preview/actions";
 
 const LIVE_REFRESH_MS = 30_000;
 
@@ -107,8 +107,8 @@ export function AtolyeOfficePreview() {
     let cancelled = false;
     const load = () => {
       if (document.hidden) return;
-      refreshAtolyeBrains()
-        .then(view => { if (!cancelled) { setLive(officeLiveFromCouncil(view.meclis)); setLiveFailed(false); } })
+      readOfficeCouncil()
+        .then(view => { if (!cancelled) { setLive(officeLiveFromCouncil(view)); setLiveFailed(false); } })
         .catch(() => { if (!cancelled) setLiveFailed(true); });
     };
     const first = window.setTimeout(load, 0);
