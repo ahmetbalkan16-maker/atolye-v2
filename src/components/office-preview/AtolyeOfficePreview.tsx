@@ -8,27 +8,39 @@ import type { PreviewBrainId, PreviewBrainProfile } from "@/lib/office-preview/r
 
 type Motion = "idle" | "walk" | "work" | "review";
 type ProfileTab = "mission" | "limits" | "reviewer";
+type OfficeWorkerRow = "lounge" | "work" | "manager" | "costume";
 
 const ROOMS: readonly { title: string; room: string; x: number; y: number; brain?: PreviewBrainId }[] = [
-  { title: "ARAŞTIRMA", room: "Araştırma", x: 30, y: 18, brain: "arastirma" },
-  { title: "KURGU & MİZAH", room: "Kurgu & Mizah", x: 51, y: 15, brain: "kurgu" },
-  { title: "KOSTÜM", room: "Kostüm", x: 73, y: 19, brain: "kostum" },
-  { title: "DİNLENME ODASI", room: "Dinlenme Odası", x: 15, y: 42 },
-  { title: "ORTAM & GÖRSEL", room: "Ortam & Görsel", x: 31, y: 43, brain: "ortam" },
-  { title: "AYAS YÖNETİM", room: "Yönetim", x: 50, y: 38, brain: "ayas" },
-  { title: "MUHASEBE", room: "Muhasebe", x: 68, y: 40, brain: "muhasebe" },
-  { title: "TOPLANTI & GELİŞİM", room: "Toplantı & Gelişim", x: 85, y: 42, brain: "gelistirici" },
-  { title: "SES STÜDYOSU", room: "Ses Stüdyosu", x: 38, y: 65, brain: "ses" },
-  { title: "DENETİM", room: "Denetim", x: 50, y: 61, brain: "denetci" },
-  { title: "MONTAJ & KALİTE", room: "Montaj & Kalite", x: 68, y: 66, brain: "kalite" },
-  { title: "OWNER ONAYI", room: "Owner Onayı", x: 50, y: 83, brain: "ayas" },
+  { title: "ARAŞTIRMA", room: "Araştırma", x: 27, y: 11, brain: "arastirma" },
+  { title: "KURGU & MİZAH", room: "Kurgu & Mizah", x: 51, y: 8, brain: "kurgu" },
+  { title: "KOSTÜM", room: "Kostüm", x: 76, y: 11, brain: "kostum" },
+  { title: "DİNLENME ODASI", room: "Dinlenme Odası", x: 11, y: 31 },
+  { title: "ORTAM & GÖRSEL", room: "Ortam & Görsel", x: 27, y: 28, brain: "ortam" },
+  { title: "AYAS YÖNETİM", room: "Yönetim", x: 50, y: 23, brain: "ayas" },
+  { title: "MUHASEBE", room: "Muhasebe", x: 72, y: 28, brain: "muhasebe" },
+  { title: "TOPLANTI & GELİŞİM", room: "Toplantı & Gelişim", x: 88, y: 30, brain: "gelistirici" },
+  { title: "SES STÜDYOSU", room: "Ses Stüdyosu", x: 36, y: 46, brain: "ses" },
+  { title: "DENETİM", room: "Denetim", x: 50, y: 45, brain: "denetci" },
+  { title: "MONTAJ & KALİTE", room: "Montaj & Kalite", x: 71, y: 46, brain: "kalite" },
+  { title: "OWNER ONAYI", room: "Owner Onayı", x: 50, y: 70, brain: "ayas" },
 ];
-const POINTS: Readonly<Record<string, { x: number; y: number }>> = {
-  "Yönetim": { x: 50, y: 43 }, "Araştırma": { x: 30, y: 27 }, "Kurgu & Mizah": { x: 51, y: 23 },
-  "Kostüm": { x: 73, y: 28 }, "Dinlenme Odası": { x: 17, y: 49 }, "Ortam & Görsel": { x: 32, y: 49 },
-  "Muhasebe": { x: 68, y: 47 }, "Toplantı & Gelişim": { x: 85, y: 49 }, "Ses Stüdyosu": { x: 39, y: 73 },
-  "Denetim": { x: 50, y: 66 }, "Montaj & Kalite": { x: 68, y: 73 }, "Owner Onayı": { x: 50, y: 87 },
-};
+const OFFICE_WORKERS: readonly { key: string; id: PreviewBrainId; room: string; x: number; y: number; row: OfficeWorkerRow; size: number; delay: string; duration: string }[] = [
+  { key: "lounge-research", id: "arastirma", room: "Dinlenme Odası", x: 12.1, y: 48.4, row: "lounge", size: 4.6, delay: "-.8s", duration: "3.4s" },
+  { key: "lounge-costume", id: "kostum", room: "Dinlenme Odası", x: 20.5, y: 47.8, row: "lounge", size: 4.6, delay: "-2.1s", duration: "3.8s" },
+  { key: "research-desk", id: "arastirma", room: "Araştırma", x: 36.6, y: 28.1, row: "work", size: 3.5, delay: "-.4s", duration: "1.6s" },
+  { key: "editing-desk", id: "kurgu", room: "Kurgu & Mizah", x: 50.8, y: 22.2, row: "work", size: 3.4, delay: "-1.2s", duration: "1.9s" },
+  { key: "costume-desk", id: "kostum", room: "Kostüm", x: 68.4, y: 25.8, row: "costume", size: 3.7, delay: "-2.7s", duration: "1.5s" },
+  { key: "environment-desk", id: "ortam", room: "Ortam & Görsel", x: 31.7, y: 45.4, row: "work", size: 4.0, delay: "-1.9s", duration: "1.7s" },
+  { key: "ayas-desk", id: "ayas", room: "Yönetim", x: 50.7, y: 41.1, row: "manager", size: 5.2, delay: "-1.1s", duration: "2.8s" },
+  { key: "accounting-desk", id: "muhasebe", room: "Muhasebe", x: 68.8, y: 45.7, row: "work", size: 4.0, delay: "-2.4s", duration: "1.8s" },
+  { key: "meeting-research", id: "gelistirici", room: "Toplantı & Gelişim", x: 83.5, y: 48.0, row: "work", size: 4.2, delay: "-1.6s", duration: "2.1s" },
+  { key: "meeting-creator", id: "mizah", room: "Toplantı & Gelişim", x: 88.1, y: 47.5, row: "work", size: 4.2, delay: "-.7s", duration: "1.8s" },
+  { key: "meeting-reviewer", id: "cirak", room: "Toplantı & Gelişim", x: 92.6, y: 48.8, row: "work", size: 4.0, delay: "-2.2s", duration: "2.2s" },
+  { key: "sound-desk", id: "ses", room: "Ses Stüdyosu", x: 33.5, y: 59.0, row: "work", size: 4.5, delay: "-1.3s", duration: "1.9s" },
+  { key: "audit-left", id: "denetci", room: "Denetim", x: 47.7, y: 58.4, row: "work", size: 4.5, delay: "-.5s", duration: "1.6s" },
+  { key: "audit-right", id: "kalite", room: "Denetim", x: 55.0, y: 58.5, row: "work", size: 4.5, delay: "-2.5s", duration: "2.0s" },
+  { key: "montage-desk", id: "onarim", room: "Montaj & Kalite", x: 67.4, y: 60.0, row: "work", size: 4.6, delay: "-1.7s", duration: "1.7s" },
+];
 const MAIN_MENU = [["⬡","Sistem"],["▤","Bellek"],["⌘","Graphify"],["⌕","Araştırma"],["⬡","Atölye"],["⚙","Üretim"],["▥","Otonomi"],["▦","Görevler"],["◉","Onaylar"]] as const;
 const SHORTCUTS = ["Atölye","Bellek","Araştırma","Üretim","Otonom Gelir","Gelişim"] as const;
 const SHORTCUT_ICONS = ["⬡","▤","⌕","⚙","▥","▧"] as const;
@@ -80,7 +92,6 @@ export function AtolyeOfficePreview() {
   const step = stepIndex >= 0 ? scenario.steps[stepIndex] : undefined;
   const brain = getPreviewBrain(selectedBrainId);
   const room = step?.room ?? brain.room;
-  const point = POINTS[room] ?? POINTS["Yönetim"]!;
   const motion = motionFor(step);
   const isFinished = stepIndex >= scenario.steps.length - 1;
   const visibleMessages = stepIndex >= 0 ? scenario.steps.slice(Math.max(0,stepIndex-3),stepIndex+1) : [];
@@ -113,6 +124,10 @@ export function AtolyeOfficePreview() {
     if (brainId) { setSelectedBrainId(brainId); setProfileTab("mission"); setNotice(getPreviewBrain(brainId).name + " profili açıldı."); }
     else setNotice((name ?? "Bu alan") + " yalnızca ofis görselinde gösteriliyor.");
   }
+  function selectWorker(brainId: PreviewBrainId) {
+    const selected = getPreviewBrain(brainId);
+    setSelectedBrainId(brainId); setProfileTab("mission"); setNotice(selected.name + " profili açıldı.");
+  }
   function sandboxNotice(label: string) { setNotice(label + ": canlı bağlantı bu önizlemede kapalı."); }
   const done = (kind: string) => scenario.steps.slice(0,stepIndex+1).some(item => item.kind === kind);
 
@@ -139,11 +154,11 @@ export function AtolyeOfficePreview() {
       <section className="oop-center-column">
         <div className="oop-title-row"><span className="oop-title-line" /><h1>ATÖLYE OFİSİ</h1><span className="oop-title-line" /><button type="button" className="oop-mic-button" aria-label="Mikrofon simülasyonu" onClick={() => setNotice("Mikrofon bu izole önizlemede etkin değil.")}><span aria-hidden="true">♩</span><i /><i /><i /></button></div>
         <section className="oop-office-scene" id="office-map" aria-label="Atölye Ofisi bölümleri">
-          <Image src="/office-preview/office-floor-v2.png" alt="Robot çalışanların bulunduğu geniş, cam bölmeli Atölye Ofisi" fill sizes="(max-width: 700px) 100vw, 70vw" priority unoptimized className="oop-office-image" />
+          <Image src="/office-preview/office-floor-v2-clean-plate.png" alt="Cam bölmeli Atölye Ofisi; robot çalışanlar odalarında hareket ediyor" fill sizes="(max-width: 700px) 100vw, 70vw" priority unoptimized className="oop-office-image" />
           <div className="oop-scene-shade" />
           <svg className="oop-flow-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="oop-arrowhead" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5" /></marker></defs><path d="M50 46C50 52 50 56 50 60" markerEnd="url(#oop-arrowhead)" /><path d="M51 72C51 77 51 79 51 83" markerEnd="url(#oop-arrowhead)" /><path d="M46 64C43 61 41 57 39 52" markerEnd="url(#oop-arrowhead)" /><path d="M54 64C57 61 59 57 61 52" markerEnd="url(#oop-arrowhead)" /></svg>
           {ROOMS.map(item => <button key={item.title} type="button" className={"oop-room-label" + (room === item.room ? " is-active" : "")} style={{left:String(item.x)+"%",top:String(item.y)+"%"}} onClick={() => selectRoom(item.brain,item.room)}>{item.title}</button>)}
-          {step && <button type="button" className={"oop-map-agent oop-map-agent--"+motion} style={{left:String(point.x)+"%",top:String(point.y)+"%"}} aria-label={brain.name+" profilini aç"} onClick={() => setProfileTab("mission")}><RobotRig motion={motion} /><span>{step.speakerLabel ?? brain.name.replace(" beyni","")}</span></button>}
+          {OFFICE_WORKERS.map(worker => <button key={worker.key} type="button" className={"oop-office-worker oop-office-worker--"+worker.row+(step?.brainId === worker.id ? " is-active" : "")} style={{left:worker.x+"%",top:worker.y+"%",width:`clamp(19px,${worker.size}cqw,${Math.round(worker.size*12)}px)`,animationDelay:worker.delay,animationDuration:"3.4s"}} aria-label={`${getPreviewBrain(worker.id).name}, ${worker.room}; profili aç`} onClick={() => selectWorker(worker.id)}><span className="oop-worker-sprite" data-row={worker.row} style={{animationDelay:worker.delay,animationDuration:worker.duration}} /></button>)}
           <div className="oop-scene-caption"><i /> AYRI SANDBOX · {step ? "Şu an: "+room : "Hareket ve konuşma örneği"}</div>
         </section>
         <section className="oop-floor-controls" aria-label="Örnek çalışma akışı">

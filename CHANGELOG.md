@@ -28,6 +28,11 @@
 - Crowns & Doodles goals (`content/v3/kanal-hedefleri.json`, one source; `ChannelGoals`, `VideoPerformanceStore`, `scripts/v3/kanal.ts`): Studio baseline, length-normalised Short targets (chose-to-view 58–60 %, average view 57.8–62.2 % of length), no long-video target until one is measured, never-pass for unmeasured numbers, targets that only rise, three series, a Short beat map handed to the writer, first-3-seconds and scene-plan QC rows, a channel-goal note in QC.md, post-publish records that teach the script brain, a balanced six-Short pilot.
 - AYAS web research and shared knowledge (`src/lib/ayas/research/`, `scripts/ayas-web-research.ts`): key-free official search (Wikipedia, GitHub, Hugging Face, arXiv, Hacker News) and link study (web page, GitHub repo, YouTube oEmbed; PDF/media recorded as not read) through `ayasSafePublicFetch`; a deduplicated, sourced knowledge store with cost classes, licence and non-commercial gates, injection flags and per-brain recall; a map of Atölye's real pipeline compared with the findings. First research (free/open video tools) in `docs/research/`.
 
+## 2026-11-26 — Atölye Ofisi worker motion preview
+
+- Replaced static worker figures in the isolated `/studio/office-preview` scene with 15 clickable robot sprite actors at the same workstations and lounge seats. Added slow CSS sprite-frame loops for lounge, AYAS, costume, and desk work; reduced room signage size and kept the owner-approval entry clear.
+- Preview only: no live workflow connection, no 3D renderer/dependency, and no room-to-room walking cycle. TypeScript and diff checks pass. Push withheld because pushed application commits are eligible for automatic live publication and the owner asked to review before going live.
+
 ## 2026-10-19 — A finished task goes live by itself
 
 - Owner decision: once a commit is pushed (HEAD equals its upstream on a clean tree) and changes application files the live snapshot lacks, the observer's update executor publishes it with the existing `scripts/ayas-publish-live.ps1 -Commit <sha> -Apply` (own snapshot build, refusal while the live app has a running job, health check, automatic rollback). It runs after the owner's own jobs and before the background update trials. New `AyasAutoLivePublish` decides and keeps the attempt record; `AyasUpdateApplyRunner.runAyasAutoLivePublish` runs the publish.

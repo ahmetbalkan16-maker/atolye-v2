@@ -1,3 +1,12 @@
+## 26 Kasım 2026 (4) — Hareketli Atölye Ofisi önizlemesi
+
+Owner'ın düzeltmesi: sahnedeki mevcut robot çalışanlar kendi yerlerinde hareket etmeli; ek küçük avatarlar istenmiyor. `L0h1h93ofrc` videosu ücretsiz, görsel olarak izlendi: izometrik ofiste düşük ayrıntılı karakterler odalar arasında yürüyor, masada durup çalışıyor; rol etiketleri karakterleri kaplamıyor.
+- `/studio/office-preview` içinde fotoğraftaki robotlar temiz arka planla değiştirildi, aynı koltuk/masa konumlarına 15 şeffaf robot kare dizisi yerleştirildi. Dinlenme ikilisi sohbet/çay hareketi, AYAS yönetim hareketi, kostüm beyni dikiş hareketi, diğer çalışanlar masa başı hareket kareleri kullanır. Robotlara tıklayınca ilgili beyin profili açılır. Tabelalar küçültüldü; owner onayı girişi kapatmıyor.
+- Hareket, üç kareli sprite atlası ve CSS ile çalışır; yeni 3D motor/kütüphane eklenmedi. İşletim sistemi `prefers-reduced-motion` ayarı sprite karelerini 0,01ms'ye indirdiği için yalnız robot karelerinin yavaş döngüsü korunur; diğer animasyonlar azaltılmış hareket ayarına uyar.
+- Önemli sınır: bu, yerel görsel önizlemedir; beyin iş kuyruğu/gerçek AI faaliyetine bağlı değildir ve Three.js/GLTF iskeletli 3D ya da odalar arası gerçek yürüme henüz yoktur. Bu iş için PixiJS sprite sheet ve Three.js skinning GitHub kaynakları incelendi; mevcut fotoğraf sahnesinde düşük yük için sprite yaklaşımı seçildi.
+- Kontrol: TypeScript `--noEmit` PASS, `git diff --check` PASS; tarayıcıda 15 worker görüldü, sprite karesi 1,7 sn içinde değişti ve Kostüm robotu tıklaması `kostum.ts` profilini açtı. Görsel varlıklar `public/office-preview/office-floor-v2-clean-plate.png` ve `public/office-preview/office-worker-sprites.png`.
+- İzole dal `codex/atolye-office-preview`. Push bu uygulama değişikliklerini otomatik canlıya alma kuralına sokacağından owner'ın “sonra canlıya alırız” talimatıyla push yapılmayacak; inceleme için yerel önizleme açık tutuldu.
+
 ## 26 Kasım 2026 (3) — Mobil arayüz taslağı ve beyin mimarisi denetimi
 
 Owner: masaüstü sol menüdeki tüm alt sayfaların aynı tasarım diliyle hazırlanmasını; şimdi öncelikle telefondaki görünümün gösterilmesini istedi. Dört telefonlu konsept üretildi: ana sayfa, tüm menü + komut çekmecesi, Atölye Ofisi beyin ayrıntısı ve kaynakları ayrı AYAS/Atölye Gelişim Merkezi. Görsel: `C:\Users\Metod\.codex\generated_images\01a216cb-933f-7b31-9fe8-668894cbde2a\exec-eb8f218a-a103-4d4d-9c5c-5b3e4002a474.png`. Kayıt/rol durumları mockup'ta gerçek veri gibi sunulmuyor; masaüstü sayfa panoları önceki checkpoint oturum notunda.
