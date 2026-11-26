@@ -17952,3 +17952,9 @@ Bu revizyon yalnız `/studio/office-preview` alanındadır; ana sayfa ve canlı 
 - Owner açıkça canlıya alınmamasını istedi. Değişiklikler yalnız yerel önizlemededir; canlı/deploy sistemi çalıştırılmadı.
 - Doğrulama: `npm exec tsc -- --noEmit` başarılı, `git diff --check` temiz (CHANGELOG CRLF uyarısı dışında). Tarayıcının erişilebilirlik ağacı ve 13 profilli önizleme alanı açıldı; WebGL ekran görüntüsü aracı zaman aşımına uğradığından bu turda son görsel kare doğrulanamadı. Yerel görsel inceleme hâlâ owner kontrolüne açık.
 - Git başlangıç durumu `codex/atolye-office-preview` dalında `origin`'den 1 commit ileride ve dirty idi. Oturum başındaki `git pull`, ortak worktree `FETCH_HEAD` erişim hatası nedeniyle tamamlanamadı; uzak push yapılmadı.
+
+## 2026-11-26 — Oturum sonu Git ve canlı durum
+
+- İlk sandbox `git pull` denemesi ortak worktree `FETCH_HEAD` izin hatası verdi; owner'ın AGENTS.md talimatı doğrultusunda yetkili tekrar `git pull --ff-only` başarılı oldu (`Already up to date`).
+- Yerel önizleme işi `b2ad7f01` WIP commit'i olarak yalnız `codex/atolye-office-preview` dalına gönderildi. Kapanış doğrulamasında worktree temizdi; local HEAD ve origin dalı aynı commit'teydi.
+- Production/deploy işlemi yapılmadı. Görsel son kontrol, WebGL ekran görüntüsü aracı zaman aşımına girdiği için owner'ın yerel önizlemede incelemesine bırakıldı.
