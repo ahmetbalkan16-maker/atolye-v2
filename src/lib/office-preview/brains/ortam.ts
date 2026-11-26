@@ -4,7 +4,7 @@ export const ortamBrain = {
   id: "ortam",
   name: "Ortam beyni",
   department: "Ortam",
-  room: "Üretim",
+  room: "Ortam & Görsel",
   liveStatus: "mevcut",
   sourceRole: "ortam",
   mission: "Mekân ve sahne görünümünü anlatılan zaman, yer ve olayla tutarlı tutar.",

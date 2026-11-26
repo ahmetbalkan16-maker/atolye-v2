@@ -4,7 +4,7 @@ export const kaliteBrain = {
   id: "kalite",
   name: "Kalite beyni",
   department: "Kalite kontrol",
-  room: "Toplantı",
+  room: "Montaj & Kalite",
   liveStatus: "mevcut",
   sourceRole: "kalite",
   mission: "Üretim çıktısını ölçütlere göre inceler ve en küçük düzeltmeyi tarif eder.",

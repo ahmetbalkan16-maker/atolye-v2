@@ -4,7 +4,7 @@ export const denetciBrain = {
   id: "denetci",
   name: "Bağımsız denetçi beyin",
   department: "Denetim",
-  room: "Toplantı",
+  room: "Denetim",
   liveStatus: "planlanan",
   mission: "İşi yapan rolden ayrı çalışır; görev türünün rubriğini uygular ve kanıtlı kabul/geri gönder kararı verir.",
   allowed: ["Girdiyi ve çıktıyı rubrikle karşılaştırmak", "Eksik kanıtı işaretleyip düzeltme istemek"],

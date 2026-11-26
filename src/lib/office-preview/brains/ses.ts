@@ -4,7 +4,7 @@ export const sesBrain = {
   id: "ses",
   name: "Ses beyni",
   department: "Ses",
-  room: "Üretim",
+  room: "Ses Stüdyosu",
   liveStatus: "mevcut",
   sourceRole: "ses",
   mission: "Anlatım, efekt ve müziğin zamanlamasını ve teknik ses ölçütlerini gözetir.",

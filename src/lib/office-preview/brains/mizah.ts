@@ -4,7 +4,7 @@ export const mizahBrain = {
   id: "mizah",
   name: "Mizah beyni",
   department: "Yazım",
-  room: "Toplantı",
+  room: "Kurgu & Mizah",
   liveStatus: "mevcut",
   sourceRole: "mizah",
   mission: "Anlatım tonuna uygun, olguyu bozmayan mizah önerileri üretir.",

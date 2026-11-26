@@ -4,7 +4,7 @@ export const muhasebeBrain = {
   id: "muhasebe",
   name: "Muhasebe yardımcısı",
   department: "Raporlama",
-  room: "Yönetim",
+  room: "Muhasebe",
   liveStatus: "planlanan",
   mission: "Bağlı gerçek kayıtlardan hak, maliyet ve kalan tutarı okur; bilinmeyeni bilinmiyor bırakır.",
   allowed: ["Salt okunur bütçe/harcama özeti hazırlamak", "Kayıt ile tahminleri ayrı göstermek"],
