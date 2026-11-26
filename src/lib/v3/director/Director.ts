@@ -1401,7 +1401,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       camera: geo
         ? ((c) => (input.short ? mapPulse(c, duration, fps) : c))(mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps)))
         : ((cam) => (input.short && !photo && start < f(OPENING_TEMPO_S) ? withOpeningBeats(cam, performers, inserts, duration, f(OPENING_TEMPO_S) - start, fps, shotLead) : cam))(
-            fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts), shotEventFrames(performers, titleCards, []), duration, fps),
+            fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts, inserts), shotEventFrames(performers, titleCards, []), duration, fps),
           ).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
@@ -1673,10 +1673,26 @@ export function noOpeningFlash(keys: readonly V3CameraKey[], fps: number): V3Cam
  * cut (or the scene's end) replaces that soon is dropped with the keys of its shot, so the shot before it holds on —
  * a listener's reaction instead of a flash. Cuts in `keep` (the wide shot over a march, the writer's own cut cue) stay;
  * an opening shot cut that soon becomes the opening (noOpeningFlash).
+ *
+ * A cut within OPENING_HOLD_S of a cutaway's edge is hidden under the picture (owner, 23 Nov 2026, the Stalingrad
+ * 19-minute's s5-payoff: the picture ended, one frame of the old view, then the cut — 0.03 s): the cut moves to the
+ * edge, so the new view is there when the picture goes and nothing flashes between them.
  */
-export function noShortShots(keys: readonly V3CameraKey[], duration: number, fps: number, keep: ReadonlySet<number> = new Set()): V3CameraKey[] {
+export function noShortShots(keys: readonly V3CameraKey[], duration: number, fps: number, keep: ReadonlySet<number> = new Set(), inserts: readonly Pick<V3Insert, "start" | "end">[] = []): V3CameraKey[] {
   const hold = Math.round(OPENING_HOLD_S * fps);
-  let out = [...keys];
+  const edges = inserts.flatMap((w) => [w.start, w.end]).filter((e) => e > 0 && e < duration);
+  const cutAt = new Map<number, V3CameraKey>();
+  const snapped = keys.map((k) => {
+    if (k.ease !== "cut" || k.frame <= 0 || keep.has(k.frame)) return k;
+    const edge = edges.filter((e) => Math.abs(e - k.frame) < hold).sort((a, b) => Math.abs(a - k.frame) - Math.abs(b - k.frame))[0];
+    if (edge === undefined || edge === k.frame) return k;
+    const moved = { ...k, frame: edge };
+    cutAt.set(edge, moved);
+    return moved;
+  });
+  // A cut wins over another key at the edge it moved to (normalizeCamera keeps the later instruction, which may be a
+  // smooth key written after it): the view must change exactly when the picture goes.
+  let out = normalizeCamera(snapped).map((k) => (k.ease !== "cut" && cutAt.has(k.frame) ? cutAt.get(k.frame)! : k));
   for (let guard = 0; guard <= keys.length; guard++) {
     const cuts = out.flatMap((k, i) => (k.ease === "cut" && k.frame > 0 ? [i] : []));
     const first = cuts[0] !== undefined ? out[cuts[0]]! : undefined;

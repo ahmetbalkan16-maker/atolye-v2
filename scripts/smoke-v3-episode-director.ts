@@ -253,6 +253,14 @@ async function main() {
     assert.deepEqual(noShortShots(reply, 400, 30, new Set([60])), reply, "a kept cut stays");
     assert.deepEqual(noShortShots([...reply, k(380, 1.1, "cut")], 400, 30).map((x) => x.frame), [0, 59, 90, 120, 149, 150, 300], "a last shot of 20 frames is dropped");
     assert.deepEqual(noShortShots([k(0, 1), k(9, 1.62, "cut"), k(30, 1.42, "cut"), k(200, 1.5)], 400, 30).map((x) => [x.frame, x.zoom, x.ease]), [[0, 1.42, "smooth"], [200, 1.5, "smooth"]], "two opening cuts within 1.5 s: the second opens");
+    // A cut within 1.5 s of a cutaway's edge is hidden under the picture (Stalingrad 19-minute, s5-payoff: the picture
+    // ended at 360, the old view showed for one frame, then the cut at 361 — 0.03 s). The cut moves to the edge.
+    const afterInsert = [k(0, 1), k(100, 1.2), k(201, 1.62, "cut"), k(400, 1.5)];
+    assert.deepEqual(noShortShots(afterInsert, 500, 30, new Set(), [{ start: 100, end: 200 }]).map((x) => [x.frame, x.zoom, x.ease]), [[0, 1, "smooth"], [100, 1.2, "smooth"], [200, 1.62, "cut"], [400, 1.5, "smooth"]], "a cut one frame after the picture moves under it");
+    assert.deepEqual(noShortShots([k(0, 1), k(99, 1.62, "cut"), k(400, 1.5)], 500, 30, new Set(), [{ start: 100, end: 300 }]).map((x) => x.frame), [0, 100, 400], "a cut one frame before the picture moves under it");
+    assert.deepEqual(noShortShots(afterInsert, 500, 30, new Set([201]), [{ start: 100, end: 200 }]).map((x) => x.frame), [0, 100, 201, 400], "a kept cut stays");
+    const s5 = { fps: 30, shots: [{ id: "s5-payoff", start: 0, duration: 500, camera: noShortShots([k(0, 1), k(100, 1.2), k(361, 1.42, "cut"), k(500, 1.5)], 500, 30, new Set(), [{ start: 100, end: 360 }]), inserts: [{ start: 100, end: 360 }] }] } as never;
+    assert.deepEqual(shortShots(s5), [], "the picture's edge and the cut are one change");
     // A map shot never cuts (a lone character's speaker cuts jumped the map 7–10% at 0.3 s and at each switch): the
     // opening cut opens, a later cut glides in MAP_GLIDE_S from where the camera was.
     const onMap = mapGlides([k(0, 1), k(8, 1), k(9, 1.42, "cut"), k(99, 1.5), k(149, 1.5), k(150, 1.18, "cut"), k(250, 1.2)], 30);
