@@ -100,7 +100,11 @@ async function main() {
     assert.ok(frozenHome.includes(anchor) && hero.test(frozenHome));
     const expectedHome = frozenHome
       .replace(anchor, `${anchor}import { AyasBrainCouncil } from "./AyasBrainCouncil";\n`)
-      .replace(hero, (_, open: string, inner: string, close: string) => `${open}          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}\n          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>\n${inner.replace(/^/gm, "  ").replace(/ {2}$/, "")}          </AyasBrainCouncil>\n${close}`);
+      .replace(hero, (_, open: string, inner: string, close: string) => `${open}          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}\n          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>\n${inner.replace(/^/gm, "  ").replace(/ {2}$/, "")}          </AyasBrainCouncil>\n${close}`)
+      // Second owner-instructed addition (2026-11-26, "Atölye office"): the dock's and the rail's Atölye open the
+      // 3D office; Üretim still opens /studio.
+      .replace('{ label: "Atölye", icon: "cube", href: "/studio", tone: "blue" }', '{ label: "Atölye", icon: "cube", href: "/studio/office-preview", tone: "blue" }')
+      .replace('{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio" }', '{ label: "Atölye", icon: "cube", domain: "atolye", href: "/studio/office-preview" }');
     assert.equal(lf(fs.readFileSync("src/components/homepage/AyasHomepage.tsx", "utf8")), expectedHome);
     // public/sw.js keeps its launch constants, precache and navigation handling byte-identical to 98c36b2. Its one
     // permitted addition (2026-10-19, owner-requested first-wake fix) is the wake asset cache that

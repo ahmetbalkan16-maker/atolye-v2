@@ -34,6 +34,18 @@ Explicit owner instruction about the homepage, 2026-11-03: "yardımcı beyinler 
 - `BrainCouncilFeed.ts` is `FORBIDDEN_AUTONOMOUS` in `BrainPatchSafety` and outside the V3 developer's allowed files (`DevQueue.forbiddenChanges`): no automatic process changes what the homepage says.
 - `scripts/smoke-ayas-owner-ui-v2.ts` still pins `AyasHomepage.tsx` to 98c36b2, now plus exactly this addition (the council's import and its wrapper around the hero's unchanged content); any other difference fails.
 
+## Atölye office (2026-11-26)
+
+Explicit owner instruction, 2026-11-26: "bizim yaptığımız yeni ofis tasarımını canlıya al demiştim ama internetten ve
+telefondan girdiğimde eskisine girdi … ikisinden de yeni görünüme geçmek istiyorum". The office had gone live at
+`/studio/office-preview`, but every "Atölye" entry still opened `/studio`.
+
+- The homepage dock's and status rail's "Atölye" and the shared workspace dock's "Atölye" now open `/studio/office-preview`.
+  Only those three hrefs changed; labels, icons, order and counts are unchanged.
+- "Üretim" (top navigation) still opens `/studio`, which keeps the original project dashboard and pipeline entry.
+- `scripts/smoke-ayas-owner-ui-v2.ts` pins `AyasHomepage.tsx` to 98c36b2 plus the 2026-11-03 council addition plus exactly
+  these two href replacements.
+
 ## Shared owner workspace (2026-10-07)
 
 The owner-approved shared `src/components/workspace/` frame applies only to subpages; `/` returns the existing central-brain composition. Explicit navigation is never generated from capabilities. The entire shared workspace directory and `scripts/smoke-ayas-owner-ui-v2.ts` are also FORBIDDEN_AUTONOMOUS, since the root layout imports its stylesheet. Automatic development cannot add homepage features through shared code.

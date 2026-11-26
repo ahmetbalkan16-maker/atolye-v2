@@ -43,7 +43,7 @@ const TOP_NAV = [
 ] as const;
 
 const DOCK = [
-  { label: "Atölye", icon: "cube", href: "/studio", tone: "blue" },
+  { label: "Atölye", icon: "cube", href: "/studio/office-preview", tone: "blue" },
   { label: "Bellek", icon: "memory", href: "/brain?panel=memory", tone: "violet" },
   { label: "Araştırma", icon: "search", href: "/brain?panel=research", tone: "cyan" },
   { label: "Üretim", icon: "gear", href: "/brain?panel=production", tone: "amber" },
@@ -155,7 +155,7 @@ const RAIL: readonly { label: string; icon: IconName; domain?: AyasCcDomainId; h
   { label: "Bellek", icon: "memory", domain: "memory", href: "/brain?panel=memory" },
   { label: "Graphify", icon: "graph", domain: "graphify", href: "/brain?panel=system" },
   { label: "Araştırma", icon: "search", domain: "research", href: "/brain?panel=research" },
-  { label: "Atölye", icon: "cube", domain: "atolye", href: "/studio" },
+  { label: "Atölye", icon: "cube", domain: "atolye", href: "/studio/office-preview" },
   { label: "Üretim", icon: "gear", domain: "capabilities", href: "/brain?panel=production" },
   { label: "Otonomi", icon: "growth", domain: "autonomy", href: "/brain?panel=autonomous" },
   { label: "Görevler", icon: "tasks", href: "/brain?panel=tasks" },

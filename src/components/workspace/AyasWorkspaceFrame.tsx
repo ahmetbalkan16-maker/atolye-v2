@@ -9,7 +9,7 @@ export const WORKSPACE_NAV = [
   ["Otonom Gelir", "/brain/revenue"],
 ] as const;
 export const WORKSPACE_DOCK = [
-  ["Atölye", "/studio", "blue"], ["Bellek", "/brain?panel=memory", "violet"],
+  ["Atölye", "/studio/office-preview", "blue"], ["Bellek", "/brain?panel=memory", "violet"],
   ["Araştırma", "/brain?panel=research", "cyan"], ["Üretim", "/brain?panel=production", "amber"],
   ["Otonom Gelir", "/brain/revenue", "green"], ["Gelişim", "/brain?panel=development", "pink"],
 ] as const;
