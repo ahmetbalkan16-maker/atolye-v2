@@ -75,8 +75,9 @@
 /* Room names and worker tags are projected from the 3D scene every frame (AtolyeOffice3DScene updateOverlay). */
 .oop-office-overlay { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
 .oop-room-tag,.oop-worker-tag { position:absolute; left:0; top:0; will-change:transform; white-space:nowrap; font-family:"Segoe UI",Inter,Arial,sans-serif; }
-.oop-room-tag { padding:3px 9px; border-radius:6px; background:rgba(255,255,255,.78); color:#4a4237; font-size:clamp(9px,.72vw,12px); font-weight:800; letter-spacing:.09em; box-shadow:0 1px 4px rgba(60,45,25,.12); }
-.oop-room-tag.is-gold { background:#1f2b45; color:#f1d27a; }
+.oop-office-overlay .oop-room-tag { pointer-events:auto; text-decoration:none; cursor:pointer; padding:3px 9px; border-radius:6px; background:rgba(255,255,255,.78); color:#4a4237; font-size:clamp(9px,.72vw,12px); font-weight:800; letter-spacing:.09em; box-shadow:0 1px 4px rgba(60,45,25,.12); }
+.oop-office-overlay .oop-room-tag.is-gold { background:#1f2b45; color:#f1d27a; }
+.oop-office-overlay .oop-room-tag:hover,.oop-office-overlay .oop-room-tag:focus-visible { background:#fff; outline:2px solid #4fd8e4; }
 .oop-office-overlay .oop-worker-tag { display:flex; align-items:center; gap:5px; padding:3px 8px 3px 6px; border:0; border-radius:999px; background:rgba(255,255,255,.95); color:#24282e; font:650 clamp(10px,.76vw,12.5px)/1.1 "Segoe UI",Inter,Arial,sans-serif; box-shadow:0 2px 7px rgba(30,30,30,.2); cursor:pointer; pointer-events:auto; }
 .oop-worker-tag i { width:.72em; height:.72em; flex:none; border-radius:50%; background:#9aa4ad; }
 .oop-worker-tag b { font-weight:750; }
@@ -291,3 +292,48 @@
 @media (prefers-reduced-motion:reduce) {
   .oop-page *, .oop-page *::before, .oop-page *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
 }
+
+/* Roster facts in the profile panel: report chain, authority, and the two ways out (real page, room page). */
+.oop-chain { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; margin:10px 0 0; font-size:12.5px; }
+.oop-chain dt { color:#7fc7d2; font-weight:700; }
+.oop-chain dd { margin:0; color:#eef6f6; }
+.oop-profile-links { display:flex; flex-wrap:wrap; gap:6px; margin:8px 2px 0; }
+.oop-profile-links a { flex:1 1 auto; padding:7px 10px; border:1px solid rgba(79,216,228,.5); border-radius:9px; color:#dff8fb; font-size:12px; font-weight:700; text-align:center; text-decoration:none; background:rgba(20,60,70,.55); }
+.oop-profile-links a:hover { background:rgba(40,110,120,.7); }
+.oop-profile-links .oop-open-real { background:#1d6f7c; border-color:#4fd8e4; }
+
+/* Room pages (/studio/office-preview/oda/<slug>). */
+.oop-room-page { max-width:1320px; margin:0 auto; padding:18px 20px 30px; }
+.oop-room-head { display:flex; align-items:center; gap:18px; padding:16px 20px; border:1px solid rgba(48,193,218,.4); border-radius:16px; background:var(--oop-panel); }
+.oop-room-head p { margin:0; color:#7fc7d2; font-size:11px; font-weight:800; letter-spacing:.16em; }
+.oop-room-head h1 { margin:2px 0 4px; color:#f4fcff; font-size:26px; }
+.oop-room-head span { color:#b9cfd3; font-size:14px; }
+.oop-room-head > div { flex:1; }
+.oop-room-back,.oop-room-real,.oop-agent-open { padding:8px 13px; border:1px solid rgba(79,216,228,.5); border-radius:10px; color:#dff8fb; font-size:13px; font-weight:700; text-decoration:none; white-space:nowrap; background:rgba(20,60,70,.55); }
+.oop-room-real,.oop-agent-open { background:#1d6f7c; border-color:#4fd8e4; }
+.oop-room-nav { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
+.oop-room-nav a { padding:5px 10px; border-radius:999px; color:#a9c4c8; font-size:12px; text-decoration:none; background:rgba(255,255,255,.04); border:1px solid rgba(95,181,197,.22); }
+.oop-room-nav a[aria-current="page"] { color:#041316; background:#4fd8e4; font-weight:800; }
+.oop-room-empty { color:#b9cfd3; }
+.oop-room-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); gap:12px; }
+.oop-agent-card { display:flex; flex-direction:column; gap:10px; padding:16px; border:1px solid rgba(48,193,218,.35); border-radius:14px; background:var(--oop-panel); color:#dce9eb; font-size:13px; }
+.oop-agent-card header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.oop-agent-card h2 { margin:0; color:#fff; font-size:18px; }
+.oop-live { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:800; }
+.oop-live--mevcut { background:#1f6b43; color:#d6ffe6; }
+.oop-live--koşullu { background:#6b5a1f; color:#fff3c9; }
+.oop-live--planlanan { background:#3c3f63; color:#e2e4ff; }
+.oop-agent-mission { margin:0; color:#eef6f6; line-height:1.45; }
+.oop-pipeline { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+.oop-pipeline li { display:flex; flex-direction:column; gap:2px; padding:8px 10px; border-left:3px solid #4fd8e4; border-radius:6px; background:rgba(255,255,255,.035); }
+.oop-pipeline li:nth-child(2) { border-color:#f2b630; }
+.oop-pipeline li:nth-child(3) { border-color:#a66cf0; }
+.oop-pipeline li:nth-child(4) { border-color:#34c472; }
+.oop-pipeline b { color:#fff; font-size:12.5px; }
+.oop-pipeline span { color:#b9cfd3; font-size:12.5px; }
+.oop-agent-limits { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.oop-agent-limits b { color:#ff9f8a; font-size:12px; }
+.oop-agent-limits div:nth-child(2) b { color:#f1d27a; }
+.oop-agent-limits ul { margin:4px 0 0; padding-left:16px; color:#c8d6d8; font-size:12.5px; }
+.oop-agent-open { align-self:flex-start; }
+.oop-office-legend .oop-legend-hint { color:#7a828c; font-weight:500; }

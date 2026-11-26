@@ -766,6 +766,25 @@ export function BrainCoreConsole({
     if (v.capability.stt && !v.listening) v.toggleListening();
   }, [dismissInterrupted]);
 
+  // Owner 2026-11-26 ("ayasa tıkladığımda sesli olacaksa konuşmanın aktif olmasını istiyorum"): the Atölye
+  // office links AYAS to `/brain?panel=chat&konus=1`. Once the voice platform has attached, start the SAME
+  // conversation path as the presence-card CTA, once, and drop the flag so a reload does not reopen the mic.
+  // Without a prior mic grant the browser may still ask; the mic button then works as usual.
+  const autoTalkDoneRef = useRef(false);
+  useEffect(() => {
+    if (autoTalkDoneRef.current || voice.initializing) return;
+    if (new URL(window.location.href).searchParams.get("konus") !== "1") return;
+    const timer = window.setTimeout(() => {
+      if (autoTalkDoneRef.current) return;
+      autoTalkDoneRef.current = true;
+      const url = new URL(window.location.href);
+      url.searchParams.delete("konus");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      startConversation();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [voice.initializing, startConversation]);
+
   // Every Control Center "open" action (Stage 11 tiles and owner-attention
   // items; formerly the separate Raporlar / Gelişim Merkezi cards). On mobile
   // `.bc-panel` (the command center) stacks far below the orb + Control Center,

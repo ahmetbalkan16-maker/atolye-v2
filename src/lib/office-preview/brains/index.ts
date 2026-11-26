@@ -12,6 +12,11 @@ import { muhasebeBrain } from "./muhasebe";
 import { onarimBrain } from "./onarim";
 import { ortamBrain } from "./ortam";
 import { sesBrain } from "./ses";
+import { tarihBrain } from "./tarih";
+import { yayinciBrain } from "./yayinci";
+import { analistBrain } from "./analist";
+import { gozcuBrain } from "./gozcu";
+import { radarBrain } from "./radar";
 
 export const PREVIEW_BRAINS: readonly PreviewBrainProfile[] = [
   ayasBrain,
@@ -27,6 +32,11 @@ export const PREVIEW_BRAINS: readonly PreviewBrainProfile[] = [
   cirakBrain,
   denetciBrain,
   muhasebeBrain,
+  tarihBrain,
+  yayinciBrain,
+  analistBrain,
+  gozcuBrain,
+  radarBrain,
 ];
 
 export const PREVIEW_BRAIN_BY_ID: Readonly<Record<PreviewBrainId, PreviewBrainProfile>> =

@@ -11,7 +11,12 @@ export type PreviewBrainId =
   | "gelistirici"
   | "cirak"
   | "denetci"
-  | "muhasebe";
+  | "muhasebe"
+  | "tarih"
+  | "yayinci"
+  | "analist"
+  | "gozcu"
+  | "radar";
 
 export type PreviewLiveStatus = "mevcut" | "koşullu" | "planlanan";
 

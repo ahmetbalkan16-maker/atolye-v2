@@ -1,3 +1,30 @@
+## 26 Kasım 2026 (5) — Atölye Ofisi: Claude iyileştirmesi, 18 çalışan, oda sayfaları, canlı durum, AYAS sesli (codex/atolye-office-preview)
+
+Owner: Codex'in ofisi "çok içime sinmedi"; videolardaki gibi görüntü kalitesi, her ajana sınırlı yetki / rapor zinciri /
+bağımsız denetçi + kalite beyni, gerekirse yeni ajanlar, oda tıklayınca alt sayfa (Gelişim Merkezi), AYAS'a tıklayınca
+sesli konuşma, boştayken masa/toplantı/dinlenme, çalışırken masada; "kaydetmeden önce bana göster". Gösterildi, owner
+"her şey tamamsa kaydet canlıya al" dedi.
+- Gerçek WebGL ekran görüntüsüyle bakıldı (Codex hiç bakamamıştı): koyu/çamurlu sahne, ters okunan 3D levhalar ("ONAY"→"JW"),
+  siyah çubuk gibi asılı lambalar, boş masalar, örnek akışın sahneye etkisizliği bulundu ve düzeltildi.
+- Görüntü: pastel oda zeminleri, dolu alt duvar + cam bölme, yumuşak gölge (PCFSoft 4096), RoomEnvironment ortam ışığı,
+  DPR≤2, 30 fps; ön/sağ dış duvar alçak eşik. Oda adları ve çalışan ad+durum etiketleri ekran üstü katman (her karede izdüşüm).
+  Tekerlek yakınlaştırma, sürükle-gez, çift tık genel görünüm; seçilen çalışana kamera kayar.
+- Kadro 13→18: Tarih Hakemi, Teknoloji Radarı, Yayıncı, Kanal Analisti, Gözcü (hepsi sistemde var olan parçalar).
+  `src/lib/office-preview/officeRoster.ts`: rapor zinciri, yetki seviyesi, sahip onayı isteyen işler, ajan başına bağımsız
+  denetçi soruları, kalite kapısı (kalite beyninin kendisine "ikinci göz"), tıklanınca açılan gerçek sayfa.
+- Oda sayfaları `/studio/office-preview/oda/<slug>` (`AtolyeOfficeRoom.tsx`): Yapar → denetçi sorgular → kalite ölçer → rapor
+  verilen karar verir. AYAS tıklaması `/brain?panel=chat&konus=1`; `BrainCoreConsole` bunu ses hazır olunca mevcut
+  `startConversation` yoluyla bir kez çalıştırıp parametreyi siler (gerçek mikrofonla denenmedi; izinsiz test tarayıcısında
+  "mikrofon izni reddedildi" ile yolun çalıştığı görüldü).
+- Davranış: boş döngü masa → ikili görüşme → toplantı masasında oturarak toplantı (6 sandalye, sırayla konuşma) → dinlenme;
+  iş verilen çalışan bulunduğu yeri bırakıp masasına döner. Kafa/yüz: büyük göz/kaş, AYAS kısa sakal, bilekten kıyafet, saç ense boşluğu kapandı.
+- Canlı durum: örnek akış oynamıyorken `refreshAtolyeBrains` (salt okunur) 30 sn'de bir; `liveStatus.ts` V3 meclis üyelerini
+  çalışanlara eşler (sef→AYAS). Diğer 8 çalışanın canlı kaydı yok → "bekliyor" (uydurma yok).
+- Kanıt: tsc PASS, lint-yerel 0/0 (Codex'ten kalan 3 lint hatası da düzeltildi), smoke brain-core-ui 43, homepage-v2 13,
+  owner-ui-v2 36, brain-control-center, development-center 64, access-gate 19 PASS. İzole next dev 127.0.0.1:3210 + başsız
+  Chromium ekran görüntüleri ve 46 sn tanıtım videosu `D:/ÜRETİM/private/temp/ofis-onizleme/atolye-ofis-tanitim.mp4`.
+- Sıradaki: owner yeni Shorts videosu hazırlamak istiyor.
+
 ## 26 Kasım 2026 (4) — Hareketli Atölye Ofisi önizlemesi
 
 Owner'ın düzeltmesi: sahnedeki mevcut robot çalışanlar kendi yerlerinde hareket etmeli; ek küçük avatarlar istenmiyor. `L0h1h93ofrc` videosu ücretsiz, görsel olarak izlendi: izometrik ofiste düşük ayrıntılı karakterler odalar arasında yürüyor, masada durup çalışıyor; rol etiketleri karakterleri kaplamıyor.

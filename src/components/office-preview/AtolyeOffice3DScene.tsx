@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { getPreviewBrain } from "@/lib/office-preview/brains";
+import { roomHref, type OfficeRoomSlug } from "@/lib/office-preview/officeRoster";
 import type { PreviewBrainId } from "@/lib/office-preview/roleTypes";
 
 type Props = {
@@ -10,9 +12,11 @@ type Props = {
   onSelectBrain: (id: PreviewBrainId) => void;
   /** Sample status per brain from the scripted flow; brains not listed are shown as "bekliyor". */
   statuses?: Partial<Record<PreviewBrainId, OfficeWorkerStatus>>;
+  /** Where the statuses come from (live system or the sample flow), shown in the scene corner. */
+  sourceLabel?: string;
 };
 
-type Stage = "work" | "rest" | "rise" | "walk-out" | "inspect" | "wait" | "talk" | "coffee" | "lounge" | "walk-back" | "sit";
+type Stage = "work" | "rest" | "rise" | "walk-out" | "inspect" | "wait" | "talk" | "coffee" | "lounge" | "meeting" | "walk-back" | "sit";
 type WorkerSpec = {
   key: string;
   brainId: PreviewBrainId;
@@ -59,7 +63,9 @@ type WorkerRig = {
   taskTripsSinceBreak: number;
   loungeQueued: boolean;
   loungeSeatIndex?: number;
-  tripKind: "task" | "lounge";
+  tripKind: "task" | "lounge" | "meeting";
+  meetingSeatIndex?: number;
+  meetingRoute?: THREE.Vector3[];
 };
 
 const FLOOR_Y = 0;
@@ -69,6 +75,13 @@ const PERIOD = 64;
 const PAIR_TALK_DISTANCE = 2.45;
 const TASK_TRIPS_BEFORE_BREAK = 2;
 const LOUNGE_BREAK_SECONDS = 12;
+// Owner 2026-11-26: idle workers "masasında oturabilir toplantı yapabilir yada dinlenebilir". The meeting room table
+// (addMeetingTable at 1.95, 5.25) has three chairs per side; a seated worker faces the table.
+const MEETING_SECONDS = 16;
+const MEETING_SEATS = [
+  { x: 0.65, z: 6.32, yaw: Math.PI }, { x: 1.95, z: 6.32, yaw: Math.PI }, { x: 3.25, z: 6.32, yaw: Math.PI },
+  { x: 0.65, z: 4.18, yaw: 0 }, { x: 1.95, z: 4.18, yaw: 0 }, { x: 3.25, z: 4.18, yaw: 0 },
+] as const;
 const LOUNGE_SEATS = [
   { x: -10.05, z: 5.05 },
   { x: -8.28, z: 5.05 },
@@ -88,6 +101,13 @@ const WORKERS: readonly WorkerSpec[] = [
   { key: "auditor", brainId: "denetci", x: -0.45, z: 5.05, deskX: -0.45, deskZ: 4.25, accent: "#70e4c0", pair: "sound-review", pairSlot: 1, firstMove: 23 },
   { key: "quality", brainId: "kalite", x: 5.85, z: -5.55, deskX: 5.85, deskZ: -6.25, accent: "#54d8ad", pair: "costume-review", pairSlot: 1, firstMove: 18 },
   { key: "repair", brainId: "onarim", x: 10, z: 1.25, deskX: 10, deskZ: 0.45, accent: "#f0a85f", focusX: 11.05, focusZ: 1.55, firstMove: 27 },
+  // Owner 2026-11-26 "yeni ajanlar eklemen gerekiyorsa ekle … gerekli odalara ekle": real parts of the system that
+  // had no seat yet — the history gate, the update radar, the publisher, the channel analyst and the observer.
+  { key: "historian", brainId: "tarih", x: 3.85, z: -5.55, deskX: 3.85, deskZ: -6.25, accent: "#c99a52", focusX: 4.9, focusZ: -4.4, firstMove: 31 },
+  { key: "radar", brainId: "radar", x: -7.0, z: -5.55, deskX: -7.0, deskZ: -6.25, accent: "#5fb8d8", focusX: -7.6, focusZ: -4.2, firstMove: 35 },
+  { key: "publisher", brainId: "yayinci", x: -3.4, z: -0.65, deskX: -3.4, deskZ: -1.5, accent: "#e8604a", focusX: -2.4, focusZ: 0.0, firstMove: 39 },
+  { key: "analyst", brainId: "analist", x: 3.3, z: -0.65, deskX: 3.3, deskZ: -1.5, accent: "#f0a060", focusX: 2.3, focusZ: 0.0, firstMove: 43 },
+  { key: "watcher", brainId: "gozcu", x: 7.2, z: 1.25, deskX: 7.2, deskZ: 0.45, accent: "#6f7fa6", focusX: 6.2, focusZ: 1.55, firstMove: 47 },
 ];
 
 /** Sample-only status shown above each worker; the preview page derives it from the scripted scenario step. */
@@ -102,6 +122,7 @@ export const OFFICE_STATUS_LABEL: Record<OfficeWorkerStatus, string> = {
 const SHORT_NAME: Record<PreviewBrainId, string> = {
   ayas: "AYAS", arastirma: "Araştırma", kurgu: "Kurgu", mizah: "Mizah", kostum: "Kostüm", ortam: "Ortam", ses: "Ses",
   kalite: "Kalite", onarim: "Onarım", gelistirici: "Geliştirici", cirak: "Çırak", denetci: "Denetçi", muhasebe: "Muhasebe",
+  tarih: "Tarih Hakemi", yayinci: "Yayıncı", analist: "Kanal Analisti", gozcu: "Gözcü", radar: "Radar",
 };
 const STATUS_COLOR: Record<OfficeWorkerStatus, string> = {
   bekliyor: "#9aa4ad",
@@ -113,18 +134,18 @@ const STATUS_COLOR: Record<OfficeWorkerStatus, string> = {
 
 // One floor colour and one floor-level name per room. Names are drawn as screen overlays (never mirrored, always
 // readable) at the room's front edge; floor tints follow the department accent so rooms read apart at a glance.
-const ROOMS: readonly { name: string; x: number; z: number; sx: number; sz: number; floor: string; gold?: boolean }[] = [
-  { name: "ARAŞTIRMA", x: -8.9, z: -5.3, sx: 5.75, sz: 5.15, floor: "#dbe7f1" },
-  { name: "KURGU & MİZAH", x: -1.7, z: -5.3, sx: 8.05, sz: 5.15, floor: "#f3e2cf" },
-  { name: "KOSTÜM & KALİTE", x: 7.2, z: -5.3, sx: 9.0, sz: 5.15, floor: "#f1dde2" },
-  { name: "ORTAM & GÖRSEL", x: -8.9, z: -0.25, sx: 5.75, sz: 4.3, floor: "#dcebdc" },
-  { name: "AYAS · YÖNETİM", x: -0.45, z: -0.25, sx: 10.65, sz: 4.3, floor: "#efe5c9", gold: true },
-  { name: "MUHASEBE", x: 8.45, z: -1.25, sx: 6.55, sz: 2.25, floor: "#ece5cc" },
-  { name: "MONTAJ & ONARIM", x: 8.45, z: 1.05, sx: 6.55, sz: 1.75, floor: "#e1e5e8" },
-  { name: "DİNLENME", x: -8.9, z: 5.05, sx: 5.75, sz: 5.8, floor: "#eee2cf" },
-  { name: "SES STÜDYOSU", x: -3.5, z: 5.05, sx: 4.55, sz: 5.8, floor: "#e4dff1" },
-  { name: "TOPLANTI & DENETİM", x: 1.95, z: 5.05, sx: 5.85, sz: 5.8, floor: "#e8e3d7" },
-  { name: "YAZILIM & GELİŞTİRME", x: 8.45, z: 5.05, sx: 6.55, sz: 5.8, floor: "#dce5f0" },
+const ROOMS: readonly { slug: OfficeRoomSlug; name: string; x: number; z: number; sx: number; sz: number; floor: string; gold?: boolean; labelDx?: number; labelDz?: number }[] = [
+  { slug: "arastirma", name: "ARAŞTIRMA", x: -8.9, z: -5.3, sx: 5.75, sz: 5.15, floor: "#dbe7f1" },
+  { slug: "kurgu-mizah", name: "KURGU & MİZAH", x: -1.7, z: -5.3, sx: 8.05, sz: 5.15, floor: "#f3e2cf" },
+  { slug: "kostum-kalite", name: "KOSTÜM & KALİTE", x: 7.2, z: -5.3, sx: 9.0, sz: 5.15, floor: "#f1dde2" },
+  { slug: "ortam-gorsel", name: "ORTAM & GÖRSEL", x: -8.9, z: -0.25, sx: 5.75, sz: 4.3, floor: "#dcebdc" },
+  { slug: "yonetim", name: "AYAS · YÖNETİM & YAYIN", x: -0.45, z: -0.25, sx: 10.65, sz: 4.3, floor: "#efe5c9", gold: true },
+  { slug: "muhasebe", name: "MUHASEBE", x: 8.45, z: -1.25, sx: 6.55, sz: 2.25, floor: "#ece5cc", labelDx: 1.9, labelDz: -0.9 },
+  { slug: "onarim-nobet", name: "ONARIM & NÖBET", x: 8.45, z: 1.05, sx: 6.55, sz: 1.75, floor: "#e1e5e8" },
+  { slug: "dinlenme", name: "DİNLENME", x: -8.9, z: 5.05, sx: 5.75, sz: 5.8, floor: "#eee2cf" },
+  { slug: "ses", name: "SES STÜDYOSU", x: -3.5, z: 5.05, sx: 4.55, sz: 5.8, floor: "#e4dff1" },
+  { slug: "toplanti", name: "TOPLANTI & DENETİM", x: 1.95, z: 5.05, sx: 5.85, sz: 5.8, floor: "#e8e3d7" },
+  { slug: "gelistirme", name: "GELİŞİM MERKEZİ", x: 8.45, z: 5.05, sx: 6.55, sz: 5.8, floor: "#dce5f0" },
 ];
 
 const PAIR_TARGETS: Record<string, readonly [readonly [number, number], readonly [number, number]]> = {
@@ -135,6 +156,8 @@ const PAIR_TARGETS: Record<string, readonly [readonly [number, number], readonly
   "sound-review": [[-2.8, 5.9], [-0.9, 5.9]],
 };
 
+const PARTITION_WALL = new THREE.MeshStandardMaterial({ color: "#f3eee5", roughness: 0.85 });
+const PARTITION_CAP = new THREE.MeshStandardMaterial({ color: "#b98f62", roughness: 0.55 });
 const mat = (color: THREE.ColorRepresentation, roughness = 0.78, metalness = 0) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness });
 
@@ -634,7 +657,10 @@ function addGlassDividerAlongX(
   const rightDoor = doorX + doorWidth / 2;
   const addPane = (fromX: number, toX: number) => {
     if (toX - fromX < 0.12) return;
-    box(parent, "glass room wall panel", (fromX + toX) / 2, 1.02, z, toX - fromX, 1.9, 0.075, glass);
+    // Solid lower wall + glass above, like a real office partition (also gives the scene depth and shadows).
+    box(parent, "partition lower wall", (fromX + toX) / 2, 0.45, z, toX - fromX, 0.9, 0.12, PARTITION_WALL);
+    box(parent, "partition wall cap", (fromX + toX) / 2, 0.915, z, toX - fromX, 0.03, 0.16, PARTITION_CAP);
+    box(parent, "glass room wall panel", (fromX + toX) / 2, 1.43, z, toX - fromX, 1.0, 0.05, glass);
   };
   addPane(startX, leftDoor);
   addPane(rightDoor, endX);
@@ -650,7 +676,9 @@ function addGlassDividerAlongZ(
   const farDoor = doorZ + doorWidth / 2;
   const addPane = (fromZ: number, toZ: number) => {
     if (toZ - fromZ < 0.12) return;
-    box(parent, "glass room wall panel", x, 1.02, (fromZ + toZ) / 2, 0.075, 1.9, toZ - fromZ, glass);
+    box(parent, "partition lower wall", x, 0.45, (fromZ + toZ) / 2, 0.12, 0.9, toZ - fromZ, PARTITION_WALL);
+    box(parent, "partition wall cap", x, 0.915, (fromZ + toZ) / 2, 0.16, 0.03, toZ - fromZ, PARTITION_CAP);
+    box(parent, "glass room wall panel", x, 1.43, (fromZ + toZ) / 2, 0.05, 1.0, toZ - fromZ, glass);
   };
   addPane(startZ, nearDoor);
   addPane(farDoor, endZ);
@@ -834,9 +862,11 @@ function makeHumanWorker(
   elliptical(head, "human face", 0, 0, 0, [0.155, 0.18, 0.145], skin);
   const hairBack = elliptical(head, "human hair at nape", 0, -0.045, -0.025, [0.16, 0.145, 0.14], hair);
   hairBack.name = "human hair";
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.166, 16, 12, 0, Math.PI * 2, 0, 1.25), hair);
+  // The cap is tilted back so it meets the nape hair; untilted, a strip of scalp showed between them from behind.
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.166, 18, 14, 0, Math.PI * 2, 0, 1.5), hair);
   hairCap.name = "human hairstyle";
   hairCap.position.set(0, 0.018, -0.005);
+  hairCap.rotation.x = -0.36;
   head.add(hairCap);
   if (index % 4 === 1) elliptical(head, "side-swept fringe", -0.055, 0.105, 0.094, [0.105, 0.055, 0.064], hair);
   if (index % 4 === 2) elliptical(head, "short side-part fringe", 0.065, 0.1, 0.09, [0.09, 0.05, 0.062], hair);
@@ -844,30 +874,31 @@ function makeHumanWorker(
   for (const side of [-1, 1]) elliptical(head, "short sideburn", side * 0.137, -0.035, 0.005, [0.028, 0.07, 0.1], hair);
   for (const side of [-1, 1]) elliptical(head, "human ear", side * 0.15, -0.012, 0, [0.023, 0.035, 0.026], skin);
   elliptical(head, "human nose", 0, -0.024, 0.139, [0.018, 0.022, 0.024], skin);
-  const eyeGeometry = new THREE.SphereGeometry(0.012, 10, 8);
+  // Eyes and brows are drawn a little larger than life so faces still read at office distance.
+  const eyeGeometry = new THREE.SphereGeometry(0.02, 12, 10);
   const eyes: THREE.Group[] = [];
   for (const eyeX of [-0.049, 0.049]) {
     const eyeGroup = new THREE.Group();
     eyeGroup.name = "blinking human eye";
-    eyeGroup.position.set(eyeX, 0.018, 0.13);
+    eyeGroup.position.set(eyeX, 0.018, 0.124);
     head.add(eyeGroup);
     const eyeWhite = new THREE.Mesh(eyeGeometry, eyesWhite);
     eyeWhite.name = "human eye white";
     eyeGroup.add(eyeWhite);
-    elliptical(eyeGroup, "human eye pupil", 0, 0, 0.013, [0.006, 0.008, 0.005], pupil);
-    elliptical(eyeGroup, "eye catchlight", -0.002, 0.004, 0.018, [0.0025, 0.003, 0.002], mat("#fff8e8", 0.22));
+    elliptical(eyeGroup, "human eye pupil", 0, 0, 0.017, [0.011, 0.013, 0.006], pupil);
+    elliptical(eyeGroup, "eye catchlight", -0.004, 0.005, 0.022, [0.004, 0.004, 0.002], mat("#fff8e8", 0.22));
     eyes.push(eyeGroup);
-    box(head, "human eyebrow", eyeX, 0.049, 0.137, 0.035, 0.008, 0.009, hair);
+    const brow = box(head, "human eyebrow", eyeX, 0.056, 0.135, 0.046, 0.013, 0.012, hair);
+    brow.rotation.z = eyeX < 0 ? 0.12 : -0.12;
   }
   for (const side of [-1, 1]) elliptical(head, "subtle cheek", side * 0.085, -0.043, 0.119, [0.033, 0.022, 0.012], mat(index % 2 ? "#d9a892" : "#dcae93", 0.84));
-  const mouth = box(head, "human mouth", 0, -0.078, 0.135, 0.039, 0.006, 0.006, mouthMaterial);
+  const mouth = box(head, "human mouth", 0, -0.074, 0.137, 0.046, 0.009, 0.008, mouthMaterial);
   if (spec.brainId === "ayas" || spec.brainId === "onarim") {
-    const beard = new THREE.Mesh(new THREE.SphereGeometry(0.151, 14, 10, 0, Math.PI * 2, 1.55, 1.42), spec.brainId === "ayas" ? mat("#827a71", 0.95) : hair);
-    beard.name = "short human beard";
-    beard.scale.set(0.98, 1.02, 0.98);
-    beard.position.z = 0.008;
-    head.add(beard);
-    elliptical(head, "human moustache", 0, -0.054, 0.135, [0.045, 0.014, 0.012], spec.brainId === "ayas" ? mat("#827a71", 0.95) : hair);
+    // A trimmed jaw beard below the mouth (the old half-sphere covered the whole lower face like a mask).
+    const beardMat = spec.brainId === "ayas" ? mat("#5e5650", 0.95) : hair;
+    elliptical(head, "trimmed chin beard", 0, -0.112, 0.07, [0.1, 0.055, 0.08], beardMat);
+    for (const side of [-1, 1]) elliptical(head, "trimmed jaw beard", side * 0.1, -0.075, 0.045, [0.04, 0.06, 0.07], beardMat);
+    elliptical(head, "human moustache", 0, -0.055, 0.137, [0.044, 0.012, 0.012], beardMat);
   }
   if (["muhasebe", "arastirma", "denetci", "kalite"].includes(spec.brainId)) {
     const frame = mat("#392f2a", 0.42, 0.08);
@@ -889,8 +920,9 @@ function makeHumanWorker(
     const elbow = new THREE.Group();
     elbow.position.set(0, -0.28, 0);
     arm.add(elbow);
-    elliptical(elbow, "human elbow", 0, 0, 0, [0.052, 0.052, 0.052], skin);
-    capsule(elbow, "human forearm", 0, -0.115, 0, 0.047, 0.13, skin);
+    // Sleeves run to the wrist; only the hands show skin.
+    elliptical(elbow, "jacket elbow", 0, 0, 0, [0.056, 0.056, 0.056], jacket);
+    capsule(elbow, "jacket forearm sleeve", 0, -0.115, 0, 0.05, 0.13, jacket);
     box(elbow, "shirt cuff", 0, -0.205, 0.008, 0.095, 0.045, 0.098, shirt);
     elliptical(elbow, "human hand", 0, -0.25, 0.025, [0.047, 0.06, 0.036], skin);
     for (let finger = -1; finger <= 1; finger += 1) capsule(elbow, "human finger", finger * 0.022, -0.31, 0.04, 0.012, 0.035, skin);
@@ -1107,6 +1139,17 @@ function setPose(worker: WorkerRig, stage: Stage, progress: number, now: number,
     worker.rightArm.rotation.x = -0.95 + Math.sin(now * 1.5) * 0.08;
     worker.rightElbow.rotation.x = -0.82;
     worker.head.rotation.x = Math.sin(now * 1.2 + worker.gait) * 0.08;
+  } else if (stage === "meeting") {
+    sitPose(worker, 1);
+    // Seated discussion: speakers take turns; the speaker gestures and talks, the others nod.
+    const speaking = Math.floor((now + worker.gait * 3.1) / 2.6) % 3 === 0;
+    worker.body.rotation.x = speaking ? 0.05 : 0.02;
+    worker.head.rotation.x = Math.sin(now * (speaking ? 3 : 1.1) + worker.gait) * (speaking ? 0.08 : 0.05);
+    worker.leftArm.rotation.x = -0.75 + (speaking ? Math.sin(now * 3.4 + worker.gait) * 0.3 : 0);
+    worker.rightArm.rotation.x = -0.7 + (speaking ? Math.sin(now * 3 + worker.gait + 1.2) * 0.28 : 0);
+    worker.leftElbow.rotation.x = -0.45;
+    worker.rightElbow.rotation.x = -0.5;
+    worker.mouth.scale.y = speaking ? 1 + Math.abs(Math.sin(now * 7 + worker.gait)) * 3 : 1;
   } else if (stage === "lounge") {
     sitPose(worker, 1);
     worker.body.rotation.x = 0.07 + Math.sin(now * 0.55 + worker.gait) * 0.012;
@@ -1118,7 +1161,7 @@ function setPose(worker: WorkerRig, stage: Stage, progress: number, now: number,
   }
   const seatOffset = worker.spec.seatOffset ?? 0.01;
   if (stage === "lounge") worker.root.position.y = FLOOR_Y + 0.105;
-  else if (stage === "rest" || stage === "work") worker.root.position.y = FLOOR_Y + seatOffset;
+  else if (stage === "rest" || stage === "work" || stage === "meeting") worker.root.position.y = FLOOR_Y + seatOffset;
   else if (stage === "rise") worker.root.position.y = FLOOR_Y + seatOffset * (1 - ease(progress));
   else if (stage === "sit") worker.root.position.y = FLOOR_Y + seatOffset * ease(progress);
   else worker.root.position.y = FLOOR_Y;
@@ -1187,6 +1230,29 @@ function loungePortals(spec: WorkerSpec): readonly (readonly [number, number])[]
   return [];
 }
 
+/** Doors from a worker's desk to the meeting table seat (reverse it to walk back). */
+function meetingRoute(spec: WorkerSpec, seat: { x: number; z: number }): THREE.Vector3[] {
+  const pts: [number, number][] = [];
+  const near = seat.z < 5.25;
+  if (spec.z > 2.05) {
+    // Front row: the development room and the sound studio open straight into the meeting room.
+    const side = spec.x >= 5 ? 4.4 : -0.5;
+    pts.push(spec.x >= 5 ? [5, 5.1] : [-1.1, 5.9], [side, spec.x >= 5 ? 5.1 : 5.9], [side, near ? 3.4 : 6.95]);
+  } else {
+    if (spec.z < -2.55) {
+      if (spec.x < -5.9) pts.push([-8.85, -2.55], [-8.85, AISLE_Z], [-5.9, AISLE_Z]);
+      else if (spec.x < 2.5) pts.push([-1.7, -2.55], [-1.7, AISLE_Z]);
+      else pts.push([7.2, -2.55], [6.1, 0.05], [5, AISLE_Z]);
+    } else if (spec.x < -5.9) pts.push([spec.x, AISLE_Z], [-5.9, AISLE_Z]);
+    else if (spec.x < 5) pts.push([spec.x, AISLE_Z]);
+    else pts.push(...(spec.z < 0.05 ? [[6.1, 0.05] as [number, number]] : []), [5, AISLE_Z]);
+    pts.push([0.75, AISLE_Z], [0.75, 2.05], [0.75, 3.4]);
+    if (!near) pts.push([-0.5, 3.4], [-0.5, 6.95]);
+  }
+  pts.push([seat.x, near ? 3.4 : 6.95]);
+  return pts.map(([x, z]) => new THREE.Vector3(x, FLOOR_Y, z));
+}
+
 function pathViaLounge(from: THREE.Vector3, to: THREE.Vector3, spec: WorkerSpec, returning = false): THREE.Vector3[] {
   const portals = [...loungePortals(spec)];
   if (returning) portals.reverse();
@@ -1234,19 +1300,40 @@ function buildOfficeScene(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#e9ede6");
   const camera = new THREE.OrthographicCamera(-12, 12, 6.75, -6.75, 0.1, 120);
-  camera.position.set(18, 25, 25);
-  camera.lookAt(0, 0.6, -0.2);
+  // The camera looks at `viewTarget` from a fixed iso offset; wheel zoom and drag panning move only these two.
+  const CAMERA_OFFSET = new THREE.Vector3(18, 25, 25);
+  const HOME_VIEW = new THREE.Vector3(0, 0.6, -0.9);
+  const viewTarget = HOME_VIEW.clone();
+  // Goals the camera glides toward each frame (wheel, worker focus, double-click reset).
+  const viewGoal = HOME_VIEW.clone();
+  let zoomGoal = 1;
+  const aimCamera = () => {
+    camera.position.copy(viewTarget).add(CAMERA_OFFSET);
+    camera.lookAt(viewTarget);
+    camera.updateMatrixWorld();
+  };
+  aimCamera();
   // Bright, soft daylight: the key light sits on the camera side so the faces we see are lit, not the backs.
   scene.add(new THREE.HemisphereLight("#fffaf0", "#b9ad98", 1.75));
-  const keyLight = new THREE.DirectionalLight("#fff1dc", 1.55);
+  const keyLight = new THREE.DirectionalLight("#fff1dc", 1.7);
   keyLight.position.set(14, 26, 12);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(4096, 4096);
+  Object.assign(keyLight.shadow.camera, { left: -17, right: 17, top: 14, bottom: -14, near: 1, far: 80 });
+  keyLight.shadow.bias = -0.0004;
+  keyLight.shadow.normalBias = 0.02;
+  keyLight.shadow.radius = 4;
   scene.add(keyLight);
   const fillLight = new THREE.DirectionalLight("#dfe9ff", 0.55);
   fillLight.position.set(-14, 12, 6);
   scene.add(fillLight);
 
   const renderer = new THREE.WebGLRenderer({ alpha: false, antialias: true, powerPreference: "low-power", depth: true, stencil: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  // Owner 2026-11-26: "görüntü kalitesini arttır gerçekçi gözüksün … linkteki gibi": full device resolution (max 2),
+  // soft real-time shadows and an image-based environment so materials pick up soft reflections.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
@@ -1256,6 +1343,11 @@ function buildOfficeScene(
   const overlay = document.createElement("div");
   overlay.className = "oop-office-overlay";
   container.replaceChildren(renderer.domElement, overlay);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  scene.environment = environment;
+  scene.environmentIntensity = 0.42;
 
   const box = makeBoxFactory();
   const sphere = makeSphereFactory();
@@ -1279,11 +1371,13 @@ function buildOfficeScene(
 
   // Room names sit on the floor at each room's front edge (projected every frame into the overlay).
   const roomTags = ROOMS.map((item) => {
-    const tag = document.createElement("span");
+    // A room name is a link to that room's page (its workers, their limits and auditors).
+    const tag = document.createElement("a");
+    tag.href = roomHref(item.slug);
     tag.className = "oop-room-tag" + (item.gold ? " is-gold" : "");
     tag.textContent = item.name;
     overlay.append(tag);
-    return { tag, at: new THREE.Vector3(item.x, 0.05, item.z + item.sz / 2 - 0.42) };
+    return { tag, at: new THREE.Vector3(item.x + (item.labelDx ?? 0), 0.05, item.z + item.sz / 2 - 0.42 + (item.labelDz ?? 0)) };
   });
 
   addDesk(box, room, -9, -6.15, "#6dd7ff", { wide: true });
@@ -1299,6 +1393,11 @@ function buildOfficeScene(
   addDesk(box, room, -0.45, 4.15, "#70e4c0");
   addDesk(box, room, 5.85, -6.15, "#54d8ad");
   addDesk(box, room, 10, 0.35, "#f0a85f", { wide: true });
+  addDesk(box, room, 3.85, -6.15, "#c99a52", { ledgers: true });
+  addDesk(box, room, -7.0, -6.15, "#5fb8d8");
+  addDesk(box, room, -3.4, -1.5, "#e8604a");
+  addDesk(box, room, 3.3, -1.5, "#f0a060");
+  addDesk(box, room, 7.2, 0.35, "#6f7fa6");
   addContactShadow(room, -9.15, 4.65, 4.2, 1.65);
   addSofa(box, room, -9.15, 4.65);
   addRug(room, -9.15, 5.15, 2.7, 1.95, "#92785e");
@@ -1378,6 +1477,14 @@ function buildOfficeScene(
       place(entry.tag, headPoint, width, height);
     }
   };
+  // Everything standing on the floor casts a shadow; floors, rugs, flat labels and glows only receive them.
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const name = object.name;
+    const flat = /floor|carpet|rug|aisle|path|shadow|glow|ring|glass|slab|trim/i.test(name);
+    object.castShadow = !flat;
+    object.receiveShadow = true;
+  });
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const selectable = workers.map((worker) => worker.root);
@@ -1420,7 +1527,29 @@ function buildOfficeScene(
     }
   };
 
+  const meetingAssignments = new Map<number, WorkerRig>();
   const makeTrip = (worker: WorkerRig, now: number) => {
+    // Second idle trip of a cycle: join the meeting table when a chair is free.
+    const freeSeat = MEETING_SEATS.findIndex((_, index) => !meetingAssignments.has(index));
+    // Half of the staff (odd first-move) meet on their first idle trip, the rest on their second, so the meeting
+    // room is in use soon after the page opens rather than only after a minute and a half.
+    const meetingTrip = worker.spec.firstMove % 2 === 1 ? 0 : 1;
+    if (worker.loungeSeatIndex === undefined && worker.taskTripsSinceBreak === meetingTrip && freeSeat >= 0) {
+      const seat = MEETING_SEATS[freeSeat]!;
+      meetingAssignments.set(freeSeat, worker);
+      worker.meetingSeatIndex = freeSeat;
+      worker.meetingRoute = meetingRoute(worker.spec, seat);
+      worker.destination = new THREE.Vector3(seat.x, FLOOR_Y, seat.z);
+      worker.tripKind = "meeting";
+      const points = [worker.root.position.clone(), ...worker.meetingRoute, worker.destination.clone()];
+      worker.path = points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
+      worker.pathIndex = 1;
+      worker.stage = "rise";
+      worker.stageAt = now;
+      worker.talkStarted = false;
+      if (worker.chair) worker.chair.visible = true;
+      return;
+    }
     const loungeSeatIndex = worker.loungeSeatIndex;
     const isLoungeTrip = loungeSeatIndex !== undefined && loungeAssignments.get(loungeSeatIndex) === worker;
     const pair = worker.spec.pair;
@@ -1444,6 +1573,14 @@ function buildOfficeScene(
 
   const beginReturn = (worker: WorkerRig, now: number) => {
     const home = new THREE.Vector3(worker.spec.x, FLOOR_Y, worker.spec.z);
+    if (worker.tripKind === "meeting") {
+      const points = [worker.root.position.clone(), ...[...(worker.meetingRoute ?? [])].reverse(), home];
+      worker.path = points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
+      worker.pathIndex = 1;
+      worker.stage = "walk-back";
+      worker.stageAt = now;
+      return;
+    }
     worker.path = worker.tripKind === "lounge"
       ? pathViaLounge(worker.root.position, home, worker.spec, true)
       : pathBetween(worker.root.position, home, worker.spec);
@@ -1477,6 +1614,14 @@ function buildOfficeScene(
   };
 
   const updateWorker = (worker: WorkerRig, now: number, dt: number) => {
+    // Work given to a worker away from its desk (meeting, break, chat) calls it straight back to the desk.
+    const called = statusRef.current[worker.spec.brainId];
+    if ((called === "calisiyor" || called === "denetliyor" || called === "yonetiyor")
+      && (worker.stage === "meeting" || worker.stage === "lounge" || worker.stage === "talk" || worker.stage === "wait"
+        || worker.stage === "inspect" || worker.stage === "coffee")) {
+      beginReturn(worker, now);
+      return;
+    }
     if (worker.stage === "work" || worker.stage === "rest") {
       const status = statusRef.current[worker.spec.brainId];
       if (status === "calisiyor" || status === "denetliyor" || status === "yonetiyor") {
@@ -1515,13 +1660,24 @@ function buildOfficeScene(
       const arrived = moveOnPath(worker, dt);
       setPose(worker, "walk-out", 1, now, worker.gait);
       if (arrived) {
-        if (worker.tripKind === "lounge") {
+        if (worker.tripKind === "meeting") {
+          const seat = MEETING_SEATS[worker.meetingSeatIndex ?? 0]!;
+          worker.stage = "meeting";
+          worker.stageAt = now;
+          worker.root.position.set(seat.x, FLOOR_Y, seat.z);
+          worker.root.rotation.y = seat.yaw;
+        } else if (worker.tripKind === "lounge") {
           worker.stage = "lounge";
           worker.stageAt = now;
           worker.root.rotation.y = 0;
         } else if (worker.spec.pair) startPairTalk(worker, now);
         else { worker.stage = "inspect"; worker.stageAt = now; }
       }
+      return;
+    }
+    if (worker.stage === "meeting") {
+      setPose(worker, "meeting", 1, now, 0);
+      if (now - worker.stageAt > MEETING_SECONDS) beginReturn(worker, now);
       return;
     }
     if (worker.stage === "lounge") {
@@ -1569,7 +1725,12 @@ function buildOfficeScene(
       setPose(worker, "walk-back", 1, now, worker.gait);
       if (arrived) {
         worker.root.rotation.y = worker.spec.homeYaw ?? Math.PI;
-        if (worker.tripKind === "lounge") {
+        if (worker.tripKind === "meeting") {
+          if (worker.meetingSeatIndex !== undefined) meetingAssignments.delete(worker.meetingSeatIndex);
+          worker.meetingSeatIndex = undefined;
+          worker.meetingRoute = undefined;
+          worker.taskTripsSinceBreak += 1;
+        } else if (worker.tripKind === "lounge") {
           if (worker.loungeSeatIndex !== undefined) loungeAssignments.delete(worker.loungeSeatIndex);
           worker.loungeSeatIndex = undefined;
           worker.taskTripsSinceBreak = 0;
@@ -1593,9 +1754,22 @@ function buildOfficeScene(
     }
   };
 
+  const onDoubleClick = () => { viewGoal.copy(HOME_VIEW); zoomGoal = 1; };
+  const glideCamera = () => {
+    const zoomStep = (zoomGoal - camera.zoom) * 0.14;
+    const moved = viewTarget.distanceToSquared(viewGoal) > 1e-6;
+    if (Math.abs(zoomStep) > 1e-4) { camera.zoom += zoomStep; camera.updateProjectionMatrix(); }
+    if (moved && !drag?.moved) { viewTarget.lerp(viewGoal, 0.1); aimCamera(); }
+  };
   const updateSelection = () => {
     if (selectedRef.current === lastSelected) return;
     lastSelected = selectedRef.current;
+    // The camera glides to the newly selected worker so the owner sees who is acting.
+    const focus = workers.find((worker) => worker.spec.brainId === lastSelected);
+    if (focus) {
+      viewGoal.set(focus.root.position.x, 0.6, focus.root.position.z);
+      zoomGoal = Math.max(zoomGoal, 1.9);
+    }
     for (const worker of workers) {
       const active = worker.spec.brainId === lastSelected;
       worker.selectedRing.visible = active;
@@ -1609,7 +1783,39 @@ function buildOfficeScene(
     const hits = raycaster.intersectObjects(selectable, true);
     renderer.domElement.style.cursor = hits.length ? "pointer" : "grab";
   };
+  // Wheel zooms toward detail (1×–3.5×); dragging pans across the floor. A drag never counts as a click.
+  let drag: { x: number; y: number; moved: boolean } | null = null;
+  let suppressClick = false;
+  const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  const onWheel = (event: WheelEvent) => {
+    event.preventDefault();
+    zoomGoal = THREE.MathUtils.clamp(zoomGoal * (event.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 3.5);
+  };
+  const onPointerDown = (event: PointerEvent) => { drag = { x: event.clientX, y: event.clientY, moved: false }; };
+  const onPointerUp = () => { suppressClick = drag?.moved ?? false; drag = null; renderer.domElement.style.cursor = "grab"; };
+  const onDragMove = (event: PointerEvent) => {
+    if (!drag || (event.buttons & 1) === 0) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    renderer.domElement.style.cursor = "grabbing";
+    const rect = renderer.domElement.getBoundingClientRect();
+    const unitsPerPx = (camera.right - camera.left) / camera.zoom / Math.max(1, rect.width);
+    right.setFromMatrixColumn(camera.matrixWorld, 0);
+    up.setFromMatrixColumn(camera.matrixWorld, 1);
+    viewTarget.addScaledVector(right, -dx * unitsPerPx).addScaledVector(up, dy * unitsPerPx);
+    viewTarget.x = THREE.MathUtils.clamp(viewTarget.x, -12, 12);
+    viewTarget.z = THREE.MathUtils.clamp(viewTarget.z, -9, 9);
+    viewTarget.y = 0.6;
+    viewGoal.copy(viewTarget);
+    aimCamera();
+  };
   const onClick = (event: MouseEvent) => {
+    if (suppressClick) { suppressClick = false; return; }
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
@@ -1620,17 +1826,23 @@ function buildOfficeScene(
     if (brainId) onSelectRef.current(brainId);
   };
   renderer.domElement.addEventListener("pointermove", onPointerMove);
+  renderer.domElement.addEventListener("pointermove", onDragMove);
+  renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointerup", onPointerUp);
+  renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
   renderer.domElement.addEventListener("click", onClick);
+  renderer.domElement.addEventListener("dblclick", onDoubleClick);
 
   const animate = (timestamp: number) => {
     if (stopped) return;
     frame = requestAnimationFrame(animate);
     if (!visible || document.hidden) return;
-    if (timestamp - previous < 40) return;
+    if (timestamp - previous < 33) return;
     const dt = Math.min(0.06, previous ? (timestamp - previous) / 1000 : 1 / 30);
     previous = timestamp;
     const now = (performance.now() - clockStart) / 1000;
     updateSelection();
+    glideCamera();
     dispatchLoungeBreaks(now);
     for (const worker of workers) updateWorker(worker, now, dt);
     renderer.render(scene, camera);
@@ -1644,7 +1856,12 @@ function buildOfficeScene(
     resizeObserver.disconnect();
     intersectionObserver.disconnect();
     renderer.domElement.removeEventListener("pointermove", onPointerMove);
+    renderer.domElement.removeEventListener("pointermove", onDragMove);
+    renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+    window.removeEventListener("pointerup", onPointerUp);
+    renderer.domElement.removeEventListener("wheel", onWheel);
     renderer.domElement.removeEventListener("click", onClick);
+    renderer.domElement.removeEventListener("dblclick", onDoubleClick);
     scene.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
         object.geometry?.dispose?.();
@@ -1653,6 +1870,7 @@ function buildOfficeScene(
       }
     });
     for (const texture of textures) texture.dispose();
+    environment.dispose();
     renderer.dispose();
     renderer.domElement.remove();
     container.replaceChildren();
@@ -1661,7 +1879,7 @@ function buildOfficeScene(
 
 const LEGEND: readonly OfficeWorkerStatus[] = ["calisiyor", "denetliyor", "yonetiyor", "bitti", "bekliyor"];
 
-export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses = {} }: Props) {
+export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses = {}, sourceLabel = "ÖRNEK" }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selectedBrainId);
   const onSelectRef = useRef(onSelectBrain);
@@ -1685,8 +1903,8 @@ export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses =
   return <>
     <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; beyinler görev alanlarına yürür, boşta kaldıklarında sırayla dinlenme odasını kullanır ve masalarına döner." />
     <div className="oop-office-legend" aria-label="Durum renkleri">{LEGEND.map((status) =>
-      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}</div>
-    <div className="oop-office-3d-note">ÖRNEK · {new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · CANLI SİSTEME BAĞLI DEĞİL</div>
+      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek: yakınlaş · sürükle: gez · çift tık: genel görünüm</span></div>
+    <div className="oop-office-3d-note">{new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · {sourceLabel}</div>
     <div className="oop-office-sr-list" aria-label="Ofisteki çalışan profilleri">{WORKERS.map((worker) => {
       const profile = getPreviewBrain(worker.brainId);
       return <button key={worker.key} type="button" onClick={() => onSelectBrain(worker.brainId)}>{profile.name} — {worker.key}</button>;
