@@ -46,6 +46,24 @@ telefondan girdiğimde eskisine girdi … ikisinden de yeni görünüme geçmek 
 - `scripts/smoke-ayas-owner-ui-v2.ts` pins `AyasHomepage.tsx` to 98c36b2 plus the 2026-11-03 council addition plus exactly
   these two href replacements.
 
+## Atölye office in the homepage (2026-11-26)
+
+Explicit owner instruction about the homepage, 2026-11-26: "ama ben ana sayfada görmek istiyorum eski beyni değil, solda
+yine eskisi gibi butonlar olsun ya da altta; telefondan nasıl gözüküyor onu kontrol et".
+
+- The hero shows the 3D Atölye office (`src/components/homepage/AyasHomeOffice.tsx` around the existing
+  `AtolyeOffice3DScene`) in place of the central brain and the 3 Nov brain council. The header, the left status rail,
+  the command panel with chat and voice, and the six-item dock are unchanged.
+- Truth: worker states come from the same read-only council view (`refreshAtolyeBrains`, every 30 s while visible),
+  mapped by `officeLiveFromCouncil`; a worker without a record is shown waiting. Under the office: the AYAS state line,
+  the selected worker's recorded work and room link, and the council's latest three words.
+- Clicking AYAS starts the homepage's own voice conversation (`onStartConversation`); clicking another worker shows what
+  it does. Nothing decides, approves or runs.
+- On a phone the office keeps its full width in view (the camera widens for narrow frames); the order stays header,
+  office, command panel, rail, dock.
+- `scripts/smoke-ayas-homepage-v2.ts` checks the office and its read-only source; `scripts/smoke-ayas-owner-ui-v2.ts`
+  pins the shell to 98c36b2 plus exactly this hero change and the Atölye hrefs.
+
 ## Shared owner workspace (2026-10-07)
 
 The owner-approved shared `src/components/workspace/` frame applies only to subpages; `/` returns the existing central-brain composition. Explicit navigation is never generated from capabilities. The entire shared workspace directory and `scripts/smoke-ayas-owner-ui-v2.ts` are also FORBIDDEN_AUTONOMOUS, since the root layout imports its stylesheet. Automatic development cannot add homepage features through shared code.

@@ -261,3 +261,23 @@ html:has(.ah-home), body:has(.ah-home) { background: #020810; }
 @media (prefers-reduced-motion: reduce) {
   .ah-home *, .ah-home *::before, .ah-home *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* The Atölye office in the hero (owner's homepage instruction, 26 Nov 2026). */
+.ah-office { width: 100%; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ah-office-scene { position: relative; overflow: hidden; width: 100%; aspect-ratio: 1.5; max-height: calc(100svh - 300px); min-height: 320px; border: 1px solid #1d4a63; border-radius: 16px; background: #d5e0dc; box-shadow: 0 0 28px #0b9dd833; }
+.ah-office-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; min-width: 0; }
+.ah-office-bar .ah-state { padding: 0; }
+.ah-office-hint, .ah-office-pick { margin: 0; flex: 1 1 260px; min-width: 0; font-size: 12px; color: var(--ah-muted); overflow-wrap: anywhere; }
+.ah-office-pick b { color: #e8f6ff; }
+.ah-office-pick a, .ah-office-full { color: #71d9fa; }
+.ah-office-full { font-size: 12px; white-space: nowrap; min-height: 32px; display: inline-flex; align-items: center; }
+.ah-office-feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 11px; }
+.ah-office-feed li { display: grid; grid-template-columns: 74px minmax(0, max-content) minmax(0, 1fr); gap: 8px; align-items: baseline; min-width: 0; }
+.ah-office-feed time { color: var(--ah-muted); }
+.ah-office-feed b { font-weight: 600; white-space: nowrap; }
+.ah-office-feed span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #b9cfde; }
+@media (max-width: 640px) {
+  .ah-office-scene { aspect-ratio: 1.05; min-height: 0; max-height: none; border-radius: 12px; }
+  .ah-office .oop-office-legend, .ah-office .oop-legend-hint { display: none; }
+  .ah-office-feed li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ah-office-feed span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}

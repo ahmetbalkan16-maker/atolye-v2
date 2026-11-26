@@ -90,17 +90,21 @@ async function main() {
     for (const token of ["fetch(", "setInterval(", "requestAnimationFrame(", "useEffect("]) assert.ok(!source.includes(token));
     assert.equal(manifest().start_url, "/"); assert.equal(manifest().scope, "/"); assert.equal(manifest().id, "/brain");
     assert.equal(execFileSync("git", ["diff", "98c36b2", "--", "app/manifest.ts"], { encoding: "utf8" }), "");
-    // The homepage shell is 98c36b2's plus exactly one owner-instructed addition (2026-11-03, docs/AYAS_HOMEPAGE_POLICY.md
-    // "Atölye brain council"): the council's import and its wrapper around the hero's unchanged content. Any other
-    // difference fails.
+    // The homepage shell is 98c36b2's plus exactly the owner-instructed changes listed in docs/AYAS_HOMEPAGE_POLICY.md
+    // (the 3 Nov council, since replaced by the 26 Nov office; the 26 Nov Atölye hrefs). Any other difference fails.
     const lf = (s: string) => s.replace(/\r\n/g, "\n");
     const frozenHome = lf(execFileSync("git", ["show", "98c36b2:src/components/homepage/AyasHomepage.tsx"], { encoding: "utf8" }));
     const anchor = 'import { buildAyasControlCenterView, type AyasCcDomainId } from "@/lib/brain/ui/AyasControlCenterModel";\n';
     const hero = /(<section className="ah-hero" aria-label="AYAS canlı beyin">\n)((?: {10}\S.*\n)+?)( {8}<\/section>)/;
     assert.ok(frozenHome.includes(anchor) && hero.test(frozenHome));
+    // Third owner-instructed change (2026-11-26, "Atölye office in the homepage"): the office replaces the central brain
+    // and its state line (which moved into the office bar); the 3 Nov council wrapper went with it. The error and
+    // voice-recovery lines, and everything outside the hero, are unchanged.
+    const brainAndState = '          <AyasBrainHero state={props.coreState} />\n          <div className="ah-state" role="status"><span className="ah-dot" aria-hidden="true" /><strong>{info.tr}</strong><span>{info.label}</span></div>\n';
+    assert.ok(frozenHome.includes(brainAndState), "sanity: the frozen hero holds the brain and its state line");
     const expectedHome = frozenHome
-      .replace(anchor, `${anchor}import { AyasBrainCouncil } from "./AyasBrainCouncil";\n`)
-      .replace(hero, (_, open: string, inner: string, close: string) => `${open}          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}\n          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>\n${inner.replace(/^/gm, "  ").replace(/ {2}$/, "")}          </AyasBrainCouncil>\n${close}`)
+      .replace(anchor, `${anchor}import { AyasHomeOffice } from "./AyasHomeOffice";\n`)
+      .replace(hero, (_, open: string, inner: string, close: string) => `${open.replace('aria-label="AYAS canlı beyin"', 'aria-label="Atölye ofisi"')}${inner.replace(brainAndState, "          {/* The Atölye office in place of the central brain: the owner's explicit homepage instruction of 26 Nov 2026. */}\n          <AyasHomeOffice initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains} stateLabel={info.tr} stateDetail={info.label} onTalk={props.onStartConversation} />\n")}${close}`)
       // Second owner-instructed addition (2026-11-26, "Atölye office"): the dock's and the rail's Atölye open the
       // 3D office; Üretim still opens /studio.
       .replace('{ label: "Atölye", icon: "cube", href: "/studio", tone: "blue" }', '{ label: "Atölye", icon: "cube", href: "/studio/office-preview", tone: "blue" }')

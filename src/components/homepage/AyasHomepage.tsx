@@ -7,7 +7,7 @@ import type { BrainConsoleViewProps } from "../brain/BrainConsoleView";
 import type { AyasControlCenterInputs } from "../brain/AyasControlCenter";
 import { describeBrainCoreState } from "../brain/brainCore";
 import { buildAyasControlCenterView, type AyasCcDomainId } from "@/lib/brain/ui/AyasControlCenterModel";
-import { AyasBrainCouncil } from "./AyasBrainCouncil";
+import { AyasHomeOffice } from "./AyasHomeOffice";
 
 type IconName = "home" | "cube" | "memory" | "search" | "growth" | "gear" | "graph" | "tasks" | "check" | "chat" | "mic" | "arrow";
 
@@ -82,14 +82,11 @@ export function AyasHomepage(props: HomepageProps) {
           <div className="ah-rail-foot"><Link href="/brain">Kontrol Merkezi <span aria-hidden="true">↗</span></Link><button type="button" onClick={props.onRefresh} disabled={!props.onRefresh || props.refreshing} aria-label="Sistem durumunu yenile" data-testid="bc-refresh">{props.refreshing ? "Okunuyor…" : "Yenile"}</button></div>
         </aside>
 
-        <section className="ah-hero" aria-label="AYAS canlı beyin">
-          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}
-          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>
-            <AyasBrainHero state={props.coreState} />
-            <div className="ah-state" role="status"><span className="ah-dot" aria-hidden="true" /><strong>{info.tr}</strong><span>{info.label}</span></div>
-            {props.snapshot.errors.length > 0 && <p className="ah-error" role="alert">Durum okunamadı. <Link href="/brain?panel=system">Ayrıntıları incele →</Link></p>}
-            {voice?.recovering && <p className="ah-notice" role="status">Ses bağlantısı toparlanıyor.</p>}
-          </AyasBrainCouncil>
+        <section className="ah-hero" aria-label="Atölye ofisi">
+          {/* The Atölye office in place of the central brain: the owner's explicit homepage instruction of 26 Nov 2026. */}
+          <AyasHomeOffice initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains} stateLabel={info.tr} stateDetail={info.label} onTalk={props.onStartConversation} />
+          {props.snapshot.errors.length > 0 && <p className="ah-error" role="alert">Durum okunamadı. <Link href="/brain?panel=system">Ayrıntıları incele →</Link></p>}
+          {voice?.recovering && <p className="ah-notice" role="status">Ses bağlantısı toparlanıyor.</p>}
         </section>
 
         <section className="ah-command ah-glass" id="bc-command-center" aria-label="AYAS komut merkezi">

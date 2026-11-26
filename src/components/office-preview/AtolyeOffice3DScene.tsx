@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { getPreviewBrain } from "@/lib/office-preview/brains";
 import { roomHref, type OfficeRoomSlug } from "@/lib/office-preview/officeRoster";
 import type { PreviewBrainId } from "@/lib/office-preview/roleTypes";
@@ -161,52 +162,116 @@ const PARTITION_CAP = new THREE.MeshStandardMaterial({ color: "#b98f62", roughne
 const mat = (color: THREE.ColorRepresentation, roughness = 0.78, metalness = 0) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness });
 
-function makeCarpetTileTexture(): THREE.CanvasTexture {
+/** Owner 2026-11-26 ("yerler parke"): oak plank parquet, staggered boards with grain, one tile = 2.4 m square. */
+function makeParquetTexture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 512;
   const context = canvas.getContext("2d");
   if (context) {
-    const tileSize = 128;
-    const tileColors = ["#f3f0e8", "#f5f2eb", "#f1eee6", "#f4f1e9"];
-    context.fillStyle = "#f3f0e8";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    for (let row = 0; row < 4; row += 1) {
-      for (let column = 0; column < 4; column += 1) {
-        const tileX = column * tileSize;
-        const tileY = row * tileSize;
-        context.fillStyle = tileColors[(row * 3 + column) % tileColors.length]!;
-        context.fillRect(tileX, tileY, tileSize, tileSize);
-        for (let fiber = 0; fiber < 80; fiber += 1) {
-          const x = tileX + ((fiber * 37 + row * 17 + column * 29) % tileSize);
-          const y = tileY + ((fiber * 61 + row * 31 + column * 11) % tileSize);
-          context.strokeStyle = fiber % 3 === 0 ? "rgba(110, 101, 87, 0.055)" : "rgba(255, 255, 255, 0.14)";
+    const boardHeight = 32;
+    const boardLength = 192;
+    const tones = ["#c99a68", "#bf8f5d", "#d0a474", "#c4945f", "#b98955", "#cc9d6b"];
+    for (let row = 0; row < canvas.height / boardHeight; row += 1) {
+      const shift = (row * 71) % boardLength;
+      for (let start = -shift; start < canvas.width; start += boardLength) {
+        const y = row * boardHeight;
+        const tone = tones[(row * 5 + Math.floor((start + shift) / boardLength) * 3) % tones.length]!;
+        context.fillStyle = tone;
+        context.fillRect(start, y, boardLength, boardHeight);
+        // Grain: long thin streaks along the board.
+        for (let streak = 0; streak < 7; streak += 1) {
+          const sy = y + 3 + ((streak * 11 + row * 7) % (boardHeight - 6));
+          context.strokeStyle = streak % 2 ? "rgba(92, 58, 28, 0.13)" : "rgba(255, 236, 200, 0.12)";
           context.lineWidth = 1;
           context.beginPath();
-          context.moveTo(x, y);
-          context.lineTo(x + 3 + (fiber % 6), y + ((fiber % 3) - 1));
+          context.moveTo(start + 4, sy);
+          context.bezierCurveTo(start + boardLength * 0.3, sy + 1.5, start + boardLength * 0.7, sy - 1.5, start + boardLength - 4, sy);
           context.stroke();
         }
+        context.strokeStyle = "rgba(70, 44, 22, 0.42)";
+        context.lineWidth = 1.2;
+        context.strokeRect(start + 0.5, y + 0.5, boardLength - 1, boardHeight - 1);
       }
-    }
-    context.strokeStyle = "rgba(104, 94, 78, 0.16)";
-    context.lineWidth = 1.5;
-    for (let seam = 0; seam <= 4; seam += 1) {
-      const offset = seam * tileSize;
-      context.beginPath();
-      context.moveTo(offset, 0);
-      context.lineTo(offset, canvas.height);
-      context.moveTo(0, offset);
-      context.lineTo(canvas.width, offset);
-      context.stroke();
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
+/** Owner 2026-11-26 ("karşı duvar tuğla örme"): running-bond red brick with light mortar; one tile = 1.2 m × 0.6 m. */
+function makeBrickTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#d8cfc2";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const rows = 8;
+    const brickHeight = canvas.height / rows;
+    const brickWidth = canvas.width / 4;
+    const mortar = 5;
+    const tones = ["#a4533b", "#9a4a34", "#b05f43", "#8f4530", "#a85a3e", "#9d5039", "#b4664a"];
+    for (let row = 0; row < rows; row += 1) {
+      const offset = row % 2 ? brickWidth / 2 : 0;
+      for (let column = -1; column < 5; column += 1) {
+        const x = column * brickWidth + offset;
+        const y = row * brickHeight;
+        context.fillStyle = tones[(row * 3 + column * 5 + 14) % tones.length]!;
+        context.fillRect(x + mortar / 2, y + mortar / 2, brickWidth - mortar, brickHeight - mortar);
+        // A little speckle and a darker lower edge so each brick reads as fired clay.
+        for (let dot = 0; dot < 18; dot += 1) {
+          context.fillStyle = dot % 2 ? "rgba(60, 25, 15, 0.16)" : "rgba(255, 210, 180, 0.12)";
+          context.fillRect(x + 4 + ((dot * 37 + row * 13 + column * 7) % (brickWidth - 10)), y + 4 + ((dot * 17 + column * 5) % (brickHeight - 10)), 2, 2);
+        }
+        context.fillStyle = "rgba(50, 20, 10, 0.18)";
+        context.fillRect(x + mortar / 2, y + brickHeight - mortar / 2 - 3, brickWidth - mortar, 3);
+      }
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+/** City facade: one bay = one window with a sill on a light wall (tinted per building by the material colour). */
+function makeFacadeTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#f4f2ee";
+    context.fillRect(0, 0, 128, 128);
+    const glassGradient = context.createLinearGradient(0, 30, 0, 98);
+    glassGradient.addColorStop(0, "#5f7d93");
+    glassGradient.addColorStop(1, "#2f4252");
+    context.fillStyle = "#9a958c";
+    context.fillRect(26, 26, 76, 76);
+    context.fillStyle = glassGradient;
+    context.fillRect(30, 30, 68, 68);
+    context.fillStyle = "rgba(255, 255, 255, 0.28)";
+    context.fillRect(34, 34, 18, 60);
+    context.fillStyle = "#9a958c";
+    context.fillRect(62, 30, 4, 68);
+    context.fillStyle = "#d4cfc6";
+    context.fillRect(22, 100, 84, 7);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
   return texture;
 }
 
@@ -286,15 +351,17 @@ function addRoomPanel(
   x: number, z: number, sx: number, sz: number, color: string,
 ) {
   box(parent, "soft department floor base", x, FLOOR_Y + 0.012, z, sx, 0.024, sz, mat(color, 0.97));
-  const carpet = carpetTexture.clone();
-  carpet.repeat.set(sx / 4.8, sz / 4.8);
-  carpet.needsUpdate = true;
-  textures.push(carpet);
+  const parquet = carpetTexture.clone();
+  parquet.repeat.set(sx / 2.4, sz / 2.4);
+  parquet.needsUpdate = true;
+  textures.push(parquet);
+  // Wood everywhere; the department colour is only a faint tint so rooms still read apart.
+  const tint = new THREE.Color("#ffffff").lerp(new THREE.Color(color), 0.3);
   const surface = new THREE.Mesh(
     new THREE.PlaneGeometry(sx, sz),
-    new THREE.MeshStandardMaterial({ color, map: carpet, roughness: 0.98, metalness: 0 }),
+    new THREE.MeshStandardMaterial({ color: tint, map: parquet, roughness: 0.62, metalness: 0 }),
   );
-  surface.name = "textured modular office carpet";
+  surface.name = "oak parquet office floor";
   surface.rotation.x = -Math.PI / 2;
   surface.position.set(x, FLOOR_Y + 0.027, z);
   parent.add(surface);
@@ -580,9 +647,6 @@ function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.O
 function addPlantAndWindows(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D) {
   const frame = mat("#5b4c3e", 0.5, 0.14);
   const glass = new THREE.MeshStandardMaterial({ color: "#98b8aa", transparent: true, opacity: 0.38, roughness: 0.26, metalness: 0.08 });
-  box(parent, "soft garden view outside the windows", 0, 2.1, -8.38, 24.2, 4.2, 0.08, mat("#a9c0b5", 0.98));
-  box(parent, "garden hedge beyond the windows", 0, 0.82, -8.32, 24.1, 1.25, 0.08, mat("#6f8b67", 0.95));
-  box(parent, "distant garden path", 0, 0.33, -8.28, 24.1, 0.12, 0.08, mat("#b8a58a", 0.96));
   for (let i = 0; i < 7; i += 1) {
     const x = -10.6 + i * 3.5;
     const foliage = mat(i % 2 ? "#75966d" : "#5e815f", 0.96);
@@ -591,13 +655,39 @@ function addPlantAndWindows(box: ReturnType<typeof makeBoxFactory>, parent: THRE
     crown.position.set(x, 1.55 + (i % 2) * 0.2, -8.22);
     parent.add(crown);
   }
-  for (let i = 0; i < 6; i += 1) {
-    const x = -10 + i * 4;
-    box(parent, "office window glass", x, 2.02, -8.1, 3.8, 4.04, 0.12, glass);
-    box(parent, "window frame upright", x - 1.95, 2.02, -8.02, 0.12, 4.12, 0.2, frame);
-    box(parent, "window frame upright", x + 1.95, 2.02, -8.02, 0.12, 4.12, 0.2, frame);
-    box(parent, "window frame crossbar", x, 2.1, -8.02, 3.9, 0.1, 0.2, frame);
+  // Owner 2026-11-26 ("karşı duvar tuğla örme"): the far wall is laid brick with four framed windows on the garden.
+  const brick = makeBrickTexture();
+  const brickWall = (name: string, x: number, y: number, sx: number, sy: number) => {
+    const map = brick.clone();
+    map.repeat.set(sx / 1.2, sy / 0.6);
+    map.needsUpdate = true;
+    box(parent, name, x, y, -8.1, sx, sy, 0.24, new THREE.MeshStandardMaterial({ map, roughness: 0.9, metalness: 0 }));
+  };
+  const wallFrom = -11.98;
+  const wallTo = 11.98;
+  const wallHeight = 4.04;
+  const sillY = 0.95;
+  const headY = 3.25;
+  const windows = [-8.4, -2.8, 2.8, 8.4];
+  const windowWidth = 3.1;
+  let cursor = wallFrom;
+  for (const wx of windows) {
+    const left = wx - windowWidth / 2;
+    const right = wx + windowWidth / 2;
+    brickWall("brick wall pier", (cursor + left) / 2, wallHeight / 2, left - cursor, wallHeight);
+    brickWall("brick wall under window", wx, sillY / 2, windowWidth, sillY);
+    brickWall("brick wall over window", wx, (headY + wallHeight) / 2, windowWidth, wallHeight - headY);
+    box(parent, "office window glass", wx, (sillY + headY) / 2, -8.1, windowWidth, headY - sillY, 0.05, glass);
+    box(parent, "window frame upright", left + 0.06, (sillY + headY) / 2, -8.0, 0.12, headY - sillY, 0.16, frame);
+    box(parent, "window frame upright", right - 0.06, (sillY + headY) / 2, -8.0, 0.12, headY - sillY, 0.16, frame);
+    box(parent, "window frame mullion", wx, (sillY + headY) / 2, -8.0, 0.08, headY - sillY, 0.14, frame);
+    box(parent, "window frame crossbar", wx, 2.45, -8.0, windowWidth, 0.08, 0.14, frame);
+    box(parent, "window frame head", wx, headY - 0.05, -8.0, windowWidth, 0.1, 0.16, frame);
+    box(parent, "window stone sill", wx, sillY + 0.03, -7.93, windowWidth + 0.2, 0.07, 0.26, mat("#cfc6b6", 0.7));
+    cursor = right;
   }
+  brickWall("brick wall pier", (cursor + wallTo) / 2, wallHeight / 2, wallTo - cursor, wallHeight);
+  brick.dispose();
 }
 
 function addCourtyardDecoration(
@@ -702,6 +792,256 @@ function addGlassEnclosureWallAlongZ(
   box(parent, "perimeter glass base rail", x, 0.06, (startZ + endZ) / 2, 0.14, 0.12, endZ - startZ, frame);
 }
 
+/** A perimeter of framed glass along x (at `at` = z) or along z (at `at` = x), with an optional door gap. */
+function addFramedGlassWall(
+  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, axis: "x" | "z", at: number, from: number, to: number,
+  door: number | null, doorWidth: number, glass: THREE.Material, frame: THREE.Material,
+) {
+  const height = 1.7;
+  const piece = (name: string, center: number, length: number, y: number, sy: number, depth: number, material: THREE.Material) => {
+    if (axis === "x") box(parent, name, center, y, at, length, sy, depth, material);
+    else box(parent, name, at, y, center, depth, sy, length, material);
+  };
+  const runs: [number, number][] = door === null ? [[from, to]] : [[from, door - doorWidth / 2], [door + doorWidth / 2, to]];
+  for (const [start, end] of runs) {
+    piece("perimeter glass base rail", (start + end) / 2, end - start, 0.06, 0.12, 0.16, frame);
+    piece("perimeter framed glass", (start + end) / 2, end - start, height / 2 + 0.06, height - 0.1, 0.04, glass);
+    piece("perimeter glass top rail", (start + end) / 2, end - start, height, 0.08, 0.14, frame);
+    const panels = Math.max(1, Math.round((end - start) / 2));
+    for (let i = 0; i <= panels; i += 1) piece("perimeter glass mullion", start + ((end - start) * i) / panels, 0.07, height / 2, height, 0.12, frame);
+  }
+  if (door !== null) {
+    for (const post of [door - doorWidth / 2, door + doorWidth / 2]) piece("entrance door post", post, 0.12, 1.1, 2.2, 0.16, frame);
+    piece("entrance door header", door, doorWidth + 0.12, 2.2, 0.12, 0.16, frame);
+    piece("entrance mat", door, doorWidth - 0.2, 0.012, 0.02, 0.9, mat("#4d4a45", 0.95));
+  }
+}
+
+/** A small hatchback/sedan, length along local x. Wheels, glass cabin, lights. */
+function makeCar(box: ReturnType<typeof makeBoxFactory>, color: string): THREE.Group {
+  const car = new THREE.Group();
+  car.name = "car";
+  const paint = mat(color, 0.32, 0.45);
+  const glassDark = mat("#26323b", 0.15, 0.6);
+  const tyre = mat("#1d1e20", 0.9);
+  const rim = mat("#b9bcc0", 0.35, 0.7);
+  box(car, "car body", 0, 0.5, 0, 3.9, 0.55, 1.7, paint);
+  box(car, "car cabin", -0.2, 1.0, 0, 2.1, 0.5, 1.5, glassDark);
+  box(car, "car roof", -0.2, 1.27, 0, 1.9, 0.06, 1.46, paint);
+  box(car, "car bumper", 1.97, 0.38, 0, 0.08, 0.22, 1.66, mat("#2b2d30", 0.6));
+  box(car, "car bumper", -1.97, 0.38, 0, 0.08, 0.22, 1.66, mat("#2b2d30", 0.6));
+  for (const side of [-0.6, 0.6]) {
+    box(car, "car headlight", 1.96, 0.6, side, 0.05, 0.13, 0.32, mat("#fff8dc", 0.2));
+    box(car, "car tail light", -1.96, 0.6, side, 0.05, 0.13, 0.3, mat("#c8282a", 0.3));
+  }
+  const wheel = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14);
+  const hub = new THREE.CylinderGeometry(0.17, 0.17, 0.25, 10);
+  for (const wx of [-1.25, 1.25]) for (const wz of [-0.78, 0.78]) {
+    const t = new THREE.Mesh(wheel, tyre);
+    t.name = "car tyre";
+    t.rotation.x = Math.PI / 2;
+    t.position.set(wx, 0.34, wz);
+    car.add(t);
+    const h = new THREE.Mesh(hub, rim);
+    h.name = "car wheel rim";
+    h.rotation.x = Math.PI / 2;
+    h.position.set(wx, 0.34, wz);
+    car.add(h);
+  }
+  return car;
+}
+
+/**
+ * Owner 2026-11-26 ("dışına yol otopark araba falan, daha gerçekçi olur"): lawn around the building, a street with
+ * a sidewalk in front, a striped car park on the right with parked cars, and cars driving along the street.
+ * Returns the moving cars; the frame loop drives them.
+ */
+/**
+ * Bakes every mesh of a still group into one mesh per material (positions in the group's frame). The merged mesh
+ * keeps the first part's name, so the shadow rules that read names still apply.
+ */
+function mergeStaticMeshes(group: THREE.Group): THREE.Group {
+  group.updateMatrixWorld(true);
+  const toGroup = new THREE.Matrix4().copy(group.matrixWorld).invert();
+  const buckets = new Map<THREE.Material, { name: string; parts: THREE.BufferGeometry[] }>();
+  group.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || Array.isArray(object.material)) return;
+    const geometry = (object.geometry as THREE.BufferGeometry).clone();
+    geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toGroup, object.matrixWorld));
+    const bucket = buckets.get(object.material) ?? { name: object.name, parts: [] };
+    bucket.parts.push(geometry.index ? geometry.toNonIndexed() : geometry);
+    if (geometry.index) geometry.dispose();
+    buckets.set(object.material, bucket);
+  });
+  const merged = new THREE.Group();
+  merged.name = group.name;
+  for (const [material, bucket] of buckets) {
+    const geometry = mergeGeometries(bucket.parts, false);
+    for (const part of bucket.parts) part.dispose();
+    if (!geometry) continue;
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = bucket.name;
+    merged.add(mesh);
+  }
+  return merged;
+}
+
+function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THREE.Object3D) {
+  const parent = new THREE.Group();
+  parent.name = "city site";
+  const lawn = new THREE.Mesh(new THREE.PlaneGeometry(120, 90), mat("#93ad7c", 0.98));
+  lawn.name = "site lawn ground";
+  lawn.rotation.x = -Math.PI / 2;
+  lawn.position.set(4, -0.02, 4);
+  parent.add(lawn);
+  const asphalt = mat("#4d5156", 0.9);
+  const lotAsphalt = mat("#5b5f64", 0.92);
+  const paint = mat("#f2f0e6", 0.7);
+  const yellow = mat("#e9c14c", 0.7);
+  const curb = mat("#c9c6be", 0.85);
+  // Owner 2026-11-26 ("diğer tarafına da yol yap, ofis şehir içindeymiş hissi versin"): the building sits on a city
+  // block — streets on all four sides with crossings, and city blocks beyond them (tall behind and on the left, low
+  // shops on the two sides facing the camera so nothing hides the office).
+  const ROAD_FROM = -48;
+  const ROAD_TO = 52;
+  const xRoads = [12.4, -12.8];
+  const zRoads = [-16.6, 25.6];
+  const roadX = (z: number) => {
+    box(parent, "street asphalt road", (ROAD_FROM + ROAD_TO) / 2, 0.01, z, ROAD_TO - ROAD_FROM, 0.02, 3.6, asphalt);
+    for (const side of [-1, 1]) box(parent, "street sidewalk", (ROAD_FROM + ROAD_TO) / 2, 0.03, z + side * 2.4, ROAD_TO - ROAD_FROM, 0.06, 1.2, curb);
+    for (let x = ROAD_FROM + 1; x <= ROAD_TO - 1; x += 3) {
+      if (zRoads.some((rx) => Math.abs(x - rx) < 3.2)) continue;
+      box(parent, "street lane stripe", x, 0.025, z, 1.6, 0.01, 0.12, paint);
+    }
+  };
+  const roadZ = (x: number) => {
+    box(parent, "street asphalt road", x, 0.012, (ROAD_FROM + ROAD_TO) / 2, 3.6, 0.02, ROAD_TO - ROAD_FROM, asphalt);
+    for (const side of [-1, 1]) box(parent, "street sidewalk", x + side * 2.4, 0.031, (ROAD_FROM + ROAD_TO) / 2, 1.2, 0.06, ROAD_TO - ROAD_FROM, curb);
+    for (let z = ROAD_FROM + 1; z <= ROAD_TO - 1; z += 3) {
+      if (xRoads.some((rz) => Math.abs(z - rz) < 3.2)) continue;
+      box(parent, "street lane stripe", x, 0.027, z, 0.12, 0.01, 1.6, paint);
+    }
+  };
+  for (const z of xRoads) roadX(z);
+  for (const x of zRoads) roadZ(x);
+  // Zebra crossings on every side of each corner.
+  for (const rz of xRoads) for (const rx of zRoads) {
+    for (const dir of [-1, 1]) {
+      for (let i = -3; i <= 3; i += 1) {
+        box(parent, "zebra crossing stripe", rx + dir * 3.6, 0.03, rz + i * 0.5, 1.4, 0.01, 0.28, paint);
+        box(parent, "zebra crossing stripe", rx + i * 0.5, 0.03, rz + dir * 3.6, 0.28, 0.01, 1.4, paint);
+      }
+    }
+  }
+  // City blocks: a facade texture of window rows, tinted per building; deterministic so every visit looks the same.
+  const facade = makeFacadeTexture();
+  const roofMat = mat("#6f7275", 0.85);
+  const unitMat = mat("#a9adb0", 0.6, 0.3);
+  const tones = ["#e9e1d3", "#d8c6ad", "#c9d3da", "#e3d2c2", "#bfc8bf", "#d9b9a4", "#cfd6e3", "#efe8dc"];
+  let seed = 7;
+  const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const building = (x: number, z: number, sx: number, sz: number, height: number) => {
+    const map = facade.clone();
+    map.repeat.set(Math.max(1, Math.round(sx / 1.6)), Math.max(1, Math.round(height / 1.4)));
+    map.needsUpdate = true;
+    box(parent, "city building", x, height / 2, z, sx, height, sz, new THREE.MeshStandardMaterial({ color: tones[Math.floor(rand() * tones.length)]!, map, roughness: 0.82 }));
+    box(parent, "city building roof", x, height + 0.06, z, sx + 0.12, 0.12, sz + 0.12, roofMat);
+    if (sx > 3 && sz > 3) box(parent, "rooftop unit", x + (rand() - 0.5) * sx * 0.4, height + 0.4, z + (rand() - 0.5) * sz * 0.4, 1.1, 0.6, 0.9, unitMat);
+  };
+  // A row of buildings along x (between z0..z1) or along z (between x0..x1), from..to, skipping the cross streets.
+  const rowAlongX = (z0: number, z1: number, from: number, to: number, minH: number, maxH: number) => {
+    for (let x = from; x < to;) {
+      const width = 4 + rand() * 5;
+      const end = Math.min(to, x + width);
+      if (!zRoads.some((rx) => end > rx - 3.2 && x < rx + 3.2) && end - x > 2) {
+        building((x + end) / 2, (z0 + z1) / 2 + (rand() - 0.5) * 0.8, end - x - 0.5, z1 - z0 - rand() * 1.5, minH + rand() * (maxH - minH));
+      }
+      x = end + 0.3;
+    }
+  };
+  const rowAlongZ = (x0: number, x1: number, from: number, to: number, minH: number, maxH: number) => {
+    for (let z = from; z < to;) {
+      const depth = 4 + rand() * 5;
+      const end = Math.min(to, z + depth);
+      if (!xRoads.some((rz) => end > rz - 3.2 && z < rz + 3.2) && end - z > 2) {
+        building((x0 + x1) / 2 + (rand() - 0.5) * 0.8, (z + end) / 2, x1 - x0 - rand() * 1.5, end - z - 0.5, minH + rand() * (maxH - minH));
+      }
+      z = end + 0.3;
+    }
+  };
+  rowAlongX(-24.5, -16.6, -46, 50, 5, 15); // behind the back street: tall
+  rowAlongZ(-27, -20, -9.4, 9.2, 4, 13); // beyond the left street: tall
+  rowAlongX(16.6, 22, -46, 50, 1.8, 3.2); // across the front street: low shops
+  rowAlongZ(29.4, 35, -9.4, 9.2, 1.8, 3.4); // beyond the right street: low
+  // Street trees on the back and left sidewalks.
+  const bark = mat("#5f4a37", 0.95);
+  const leaf = mat("#5f8a52", 0.95);
+  for (let x = -12; x <= 22; x += 4.5) {
+    box(parent, "street tree trunk", x, 0.7, -10.25, 0.16, 1.4, 0.16, bark);
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.75, 10, 7), leaf);
+    crown.name = "street tree crown";
+    crown.position.set(x, 1.75, -10.25);
+    parent.add(crown);
+  }
+  facade.dispose();
+  // Car park on the right, its driveway joining the street.
+  box(parent, "car park asphalt", 18.6, 0.012, -0.4, 9.2, 0.02, 16.4, lotAsphalt);
+  box(parent, "car park driveway asphalt", 20.9, 0.011, 9.4, 4.6, 0.02, 3.2, lotAsphalt);
+  box(parent, "car park curb", 14.0, 0.06, -0.4, 0.16, 0.12, 16.4, curb);
+  const stallWidth = 2.6;
+  const stalls = 6;
+  const firstZ = -7.6;
+  for (let i = 0; i <= stalls; i += 1) box(parent, "car park stall stripe", 16.6, 0.026, firstZ + i * stallWidth, 4.8, 0.01, 0.1, paint);
+  box(parent, "car park stall end stripe", 14.25, 0.026, firstZ + (stalls * stallWidth) / 2, 0.1, 0.01, stalls * stallWidth, paint);
+  for (let i = 0; i < 3; i += 1) box(parent, "car park arrow stripe", 21.2, 0.026, -5 + i * 4.2, 0.12, 0.01, 1.6, yellow);
+  const parkedColors = ["#c43d3a", "#e8e8e6", "#2f5f8f", "#3c3f44", "#7f8c8d"];
+  const taken = [0, 1, 3, 4, 5];
+  taken.forEach((stall, index) => {
+    const car = makeCar(box, parkedColors[index % parkedColors.length]!);
+    car.position.set(16.7, 0.02, firstZ + stall * stallWidth + stallWidth / 2);
+    car.rotation.y = index % 2 ? Math.PI : 0;
+    parent.add(car);
+  });
+  // Street lamps along the sidewalk.
+  const pole = mat("#3d4248", 0.5, 0.4);
+  for (const x of [-12, -4, 6, 16]) {
+    box(parent, "street lamp pole", x, 1.6, 9.55, 0.1, 3.2, 0.1, pole);
+    box(parent, "street lamp arm", x, 3.15, 9.85, 0.08, 0.08, 0.7, pole);
+    box(parent, "street lamp head", x, 3.08, 10.2, 0.3, 0.1, 0.42, mat("#fff4d0", 0.3));
+  }
+  // Traffic: cars on all four streets, keeping to their lane, looping along the street.
+  const traffic: { axis: "x" | "z"; lane: number; dir: 1 | -1; speed: number; offset: number; color: string }[] = [
+    { axis: "x", lane: 11.55, dir: 1, speed: 3.4, offset: 0, color: "#d9a238" },
+    { axis: "x", lane: 13.25, dir: -1, speed: 2.8, offset: 30, color: "#4b7a5a" },
+    { axis: "x", lane: 11.55, dir: 1, speed: 3.0, offset: 55, color: "#8e3b57" },
+    { axis: "x", lane: -13.65, dir: -1, speed: 3.1, offset: 12, color: "#e6e6e3" },
+    { axis: "x", lane: -11.95, dir: 1, speed: 2.6, offset: 64, color: "#2f6ea5" },
+    { axis: "z", lane: -15.75, dir: 1, speed: 3.2, offset: 20, color: "#c0392b" },
+    { axis: "z", lane: -17.45, dir: -1, speed: 2.9, offset: 70, color: "#34383d" },
+    { axis: "z", lane: 24.75, dir: 1, speed: 2.7, offset: 45, color: "#7d8c4a" },
+    { axis: "z", lane: 26.45, dir: -1, speed: 3.3, offset: 5, color: "#b7b9bc" },
+  ];
+  const moving = traffic.map((item) => {
+    const car = mergeStaticMeshes(makeCar(box, item.color));
+    // Local +x is the car's front: +x → 0, −x → π, +z → −π/2, −z → π/2.
+    car.rotation.y = item.axis === "x" ? (item.dir > 0 ? 0 : Math.PI) : (item.dir > 0 ? -Math.PI / 2 : Math.PI / 2);
+    car.position.set(item.axis === "x" ? 0 : item.lane, 0.02, item.axis === "x" ? item.lane : 0);
+    scenePart.add(car);
+    return { ...item, car };
+  });
+  // Everything above stands still: merged per material into a few meshes (hundreds of boxes cost a phone its frames).
+  scenePart.add(mergeStaticMeshes(parent));
+  const span = ROAD_TO - ROAD_FROM - 4;
+  return (now: number) => {
+    for (const item of moving) {
+      const travelled = (now * item.speed + item.offset) % span;
+      const along = item.dir > 0 ? ROAD_FROM + 2 + travelled : ROAD_TO - 2 - travelled;
+      if (item.axis === "x") item.car.position.x = along;
+      else item.car.position.z = along;
+    }
+  };
+}
+
 function addFloorAndZones(
   box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, textures: THREE.Texture[], carpetTexture: THREE.Texture,
 ) {
@@ -732,11 +1072,12 @@ function addFloorAndZones(
   // Doll-house cut: the far (left) side keeps full-height glass; the two sides facing the camera are low sills so
   // nothing tall stands between the viewer and the people inside.
   addGlassEnclosureWallAlongZ(box, parent, -11.92, -8.05, 8.05, glass, frame);
-  const sill = mat("#e7dfd0", 0.7);
-  box(parent, "front low sill", 0, 0.28, 8.05, 23.84, 0.56, 0.16, sill);
-  box(parent, "right low sill", 11.92, 0.28, 0, 0.16, 0.56, 16.1, sill);
-  box(parent, "front sill cap", 0, 0.575, 8.05, 23.9, 0.05, 0.24, frame);
-  box(parent, "right sill cap", 11.92, 0.575, 0, 0.24, 0.05, 16.16, frame);
+  // Owner 2026-11-26 ("diğer yerler cam çerçeve"): the two sides facing the camera are framed glass. Kept lower than
+  // the far side (1.7 m) and very clear so the people inside stay visible; the front has the entrance doors.
+  const frontGlass = new THREE.MeshStandardMaterial({ color: "#cfe6ec", transparent: true, opacity: 0.16, roughness: 0.08, metalness: 0.1, depthWrite: false });
+  const darkFrame = mat("#3b4148", 0.45, 0.35);
+  addFramedGlassWall(box, parent, "x", 8.05, -11.98, 11.98, 0, 1.8, frontGlass, darkFrame);
+  addFramedGlassWall(box, parent, "z", 11.92, -8.05, 8.05, null, 0, frontGlass, darkFrame);
   // A clear cross-shaped aisle is reserved for walking routes.
   const aisle = mat("#cdbfa6", 0.94);
   box(parent, "main walking aisle", 0, 0.008, 1.1, 23.6, 0.015, 1.28, aisle);
@@ -1352,7 +1693,7 @@ function buildOfficeScene(
   const box = makeBoxFactory();
   const sphere = makeSphereFactory();
   const textures: THREE.Texture[] = [];
-  const carpetTexture = makeCarpetTileTexture();
+  const carpetTexture = makeParquetTexture();
   textures.push(carpetTexture);
   const addContactShadow = makeContactShadowFactory(textures);
   const room = new THREE.Group();
@@ -1360,6 +1701,7 @@ function buildOfficeScene(
   addFloorAndZones(box, room, textures, carpetTexture);
   addPlantAndWindows(box, room);
   addCourtyardDecoration(box, sphere, room);
+  const driveStreet = addSiteAndStreet(box, room);
 
   // One level only: low open partitions, an uncluttered walking aisle, and a bright window line.
   const plantPositions = [
@@ -1481,7 +1823,7 @@ function buildOfficeScene(
   scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const name = object.name;
-    const flat = /floor|carpet|rug|aisle|path|shadow|glow|ring|glass|slab|trim/i.test(name);
+    const flat = /floor|carpet|rug|aisle|path|shadow|glow|ring|glass|slab|trim|lawn|asphalt|stripe|sidewalk|curb|mat$/i.test(name);
     object.castShadow = !flat;
     object.receiveShadow = true;
   });
@@ -1499,7 +1841,8 @@ function buildOfficeScene(
     const width = Math.max(1, container.clientWidth);
     const height = Math.max(1, container.clientHeight);
     const aspect = width / height;
-    const frustumHeight = 16.9;
+    // A narrow (phone) frame keeps the whole office width in view instead of cutting its sides off.
+    const frustumHeight = Math.max(16.9, 25.4 / aspect);
     camera.left = (-frustumHeight * aspect) / 2;
     camera.right = (frustumHeight * aspect) / 2;
     camera.top = frustumHeight / 2;
@@ -1790,7 +2133,7 @@ function buildOfficeScene(
   const up = new THREE.Vector3();
   const onWheel = (event: WheelEvent) => {
     event.preventDefault();
-    zoomGoal = THREE.MathUtils.clamp(zoomGoal * (event.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 3.5);
+    zoomGoal = THREE.MathUtils.clamp(zoomGoal * (event.deltaY < 0 ? 1.15 : 1 / 1.15), 0.5, 3.5);
   };
   const onPointerDown = (event: PointerEvent) => { drag = { x: event.clientX, y: event.clientY, moved: false }; };
   const onPointerUp = () => { suppressClick = drag?.moved ?? false; drag = null; renderer.domElement.style.cursor = "grab"; };
@@ -1808,8 +2151,8 @@ function buildOfficeScene(
     right.setFromMatrixColumn(camera.matrixWorld, 0);
     up.setFromMatrixColumn(camera.matrixWorld, 1);
     viewTarget.addScaledVector(right, -dx * unitsPerPx).addScaledVector(up, dy * unitsPerPx);
-    viewTarget.x = THREE.MathUtils.clamp(viewTarget.x, -12, 12);
-    viewTarget.z = THREE.MathUtils.clamp(viewTarget.z, -9, 9);
+    viewTarget.x = THREE.MathUtils.clamp(viewTarget.x, -22, 22);
+    viewTarget.z = THREE.MathUtils.clamp(viewTarget.z, -18, 18);
     viewTarget.y = 0.6;
     viewGoal.copy(viewTarget);
     aimCamera();
@@ -1841,6 +2184,7 @@ function buildOfficeScene(
     const dt = Math.min(0.06, previous ? (timestamp - previous) / 1000 : 1 / 30);
     previous = timestamp;
     const now = (performance.now() - clockStart) / 1000;
+    driveStreet(now);
     updateSelection();
     glideCamera();
     dispatchLoungeBreaks(now);
@@ -1903,7 +2247,7 @@ export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses =
   return <>
     <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; beyinler görev alanlarına yürür, boşta kaldıklarında sırayla dinlenme odasını kullanır ve masalarına döner." />
     <div className="oop-office-legend" aria-label="Durum renkleri">{LEGEND.map((status) =>
-      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek: yakınlaş · sürükle: gez · çift tık: genel görünüm</span></div>
+      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek: yakınlaş/uzaklaş · sürükle: gez · çift tık: genel görünüm</span></div>
     <div className="oop-office-3d-note">{new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · {sourceLabel}</div>
     <div className="oop-office-sr-list" aria-label="Ofisteki çalışan profilleri">{WORKERS.map((worker) => {
       const profile = getPreviewBrain(worker.brainId);

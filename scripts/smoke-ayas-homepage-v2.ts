@@ -90,24 +90,32 @@ async function main() {
       akis: Array.from({ length: 7 }, (_, i) => ({ tarih: new Date(Date.UTC(2026, 10, 3, 14, 30 - i)).toISOString(), kim: i % 2 ? "kostum" : "sef", ...(i === 0 ? { rol: "Tarihçi", kime: "AYAS" } : {}), metin: `satır ${i}` })) as AtolyeBrainsView["meclis"]["akis"],
     };
     const view: AtolyeBrainsView = { connected: true, referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, kararlar: [], kuyruk: [], meclis };
+    // Since 26 Nov 2026 (owner: "ana sayfada görmek istiyorum eski beyni değil") the same council view drives the
+    // Atölye office in the hero: who works is live, the latest three words sit under it.
     const html = render({ atolyeBrains: view });
-    assert.ok(html.includes('data-testid="ayas-brain-council"'));
-    assert.equal((html.match(/class="ah-council-node"/g) ?? []).length, 4);
-    assert.equal((html.match(/data-durum="calisiyor"/g) ?? []).length, 2);
-    assert.ok(html.includes("Çalışıyor — kostüm adımında") && html.includes("henüz kaydı yok"));
-    assert.ok(html.includes("Caesar") && html.includes("kostüm adımı (2/9)"));
-    assert.equal((html.match(/<time dateTime=/g) ?? []).length, 5, "the latest five words only");
-    assert.ok(html.includes("Kostüm beyni") && html.includes("AYAS (yönetmen) (Tarihçi) → AYAS"));
-    assert.ok(!html.includes("data-speaking"), "nobody is shown speaking before the browser knows the time");
-    // The central brain, its states and the fixed navigation are where they were.
+    assert.ok(html.includes('data-testid="ayas-home-office"'));
+    assert.ok(!html.includes('data-testid="ayas-brain-council"') && !html.includes("ah-brain-image"), "the old central brain is gone");
+    assert.ok(html.includes("CANLI · ") && html.includes("kostüm adımı (2/9)"), "the running production is named on the scene");
+    assert.equal((html.match(/<time dateTime=/g) ?? []).length, 3, "the latest three words only");
+    assert.ok(html.includes("AYAS (yönetmen)") && html.includes("satır 0"));
+    // The state line, the rail, the command panel and the fixed navigation are where they were.
     assert.ok(html.includes('aria-label="AYAS — ') && html.includes('class="ah-state"'));
+    assert.ok(html.includes('class="ah-rail ') && html.includes('id="bc-command-center"'));
     assert.equal(((html.match(/<nav class="ah-dock"[\s\S]*?<\/nav>/)?.[0] ?? "").match(/<a /g) ?? []).length, 6);
     assert.ok(!html.includes("bc-dev__"), "development cards stay on subpage");
     // No view yet, an unreadable store, an empty one: each says so, nothing is invented.
-    assert.ok(render().includes("kayıtları okunuyor"));
-    assert.equal((render().match(/class="ah-council-node"/g) ?? []).length, 0);
+    assert.ok(render().includes("CANLI VERİ OKUNUYOR"));
+    assert.equal((render().match(/<time dateTime=/g) ?? []).length, 0);
     assert.ok(render({ atolyeBrains: { ...view, connected: false, error: "EACCES" } }).includes("Kayıtlar okunamadı: EACCES"));
-    assert.ok(render({ atolyeBrains: { ...view, meclis: { beyinler: [], akis: [] } } }).includes("Henüz bir beyin konuşması kaydedilmedi"));
+    assert.equal((render({ atolyeBrains: { ...view, meclis: { beyinler: [], akis: [] } } }).match(/<time dateTime=/g) ?? []).length, 0);
+  });
+  check("homepage office is read-only: no fetch, no action module, refresh only while visible", () => {
+    const source = fs.readFileSync("src/components/homepage/AyasHomeOffice.tsx", "utf8");
+    assert.ok(!/\bfetch\s*\(|dangerouslySetInnerHTML/.test(source));
+    assert.ok(!/from ["'][^"']*(?:actions|execution|Approval|ProductionExecution|MutationRegistry|DevQueue|Developer)["']/.test(source));
+    assert.ok(/import type \{ AtolyeBrainsView \}/.test(source) && !/from ["']@\/lib\/v3\/council\/(?!BrainsReport)/.test(source));
+    assert.ok(source.includes("REFRESH_MS = 30_000") && source.includes('document.visibilityState !== "visible"'));
+    assert.ok(fs.readFileSync("docs/AYAS_HOMEPAGE_POLICY.md", "utf8").includes("## Atölye office in the homepage (2026-11-26)"));
   });
   check("brain council is read-only and its source cannot be rewritten automatically", () => {
     const source = fs.readFileSync("src/components/homepage/AyasBrainCouncil.tsx", "utf8");
