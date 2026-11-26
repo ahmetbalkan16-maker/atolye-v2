@@ -1,3 +1,14 @@
+## 26 Kasım 2026 — Atölye Ofisi: plan ve görsel taslak owner onayı bekliyor
+
+Owner yeni, hareketli 3D görünümlü Atölye Ofisi istedi; AYAS müdür, çalışanlar görevlerine göre yerleşecek ve her rolün sınır/kalite kuralları görünür olacak. Önce plan + görsel onayı, sonra ancak onaylı kapsamda uygulama. Bugün uygulama kodu, homepage, çalışan sistemi veya yetki kapıları değiştirilmedi.
+- Mevcut ilgili commit `a5ce4f88` yalnız V3 dikey Short haritasında kesitin altındaki kamera kesimini kenara taşıyor; ofis işi değil. Branch oturum başında origin'den bir commit ilerideydi.
+- Gerçek başlangıç noktası: `AyasBrainCouncil` ve `BrainCouncilFeed` mevcut beyin rollerini üretim logları/raporlarından salt okunur gösteriyor; Brain UI V2 ana sayfası owner sabitidir. `/studio/characters` tarihî video karakter kitaplığıdır; ofis çalışanı değildir. Mevcut ekip: AYAS/yönetmen, araştırma, kurgu, mizah, kostüm, ortam, ses, kalite, hata onarım ve geliştirici beyni. Ofis rol/states bu gerçek kayıtlara bağlanmalı; yeni rol ancak iş açığı gösterilirse eklenmeli.
+- Kullanıcı üç YouTube referansı verdi: QWFHDcvX7y8, L0h1h93ofrc, -rpV4FFfaT0. Ücretsiz incelemede yalnız kapaklar alındı: izometrik mini-ofis, ayrı departman odaları ve küçük karakterler. Web sayfaları cache miss; YouTube altyazı isteği HTTP 429 verdi. Kullanıcı ücretsiz kaynak seçti; ücretli sahne analizi (25 kredi/video, toplam 75) denenmedi.
+- Sohbette imagegen ile `/studio/office` için koyu kabuk + sıcak izometrik ofis taslak ekranı üretildi ve owner incelemesine sunuldu. Bu yalnız mockup; gerçek UI/aktivite/metrik değildir.
+- Hareketli 8 sn önizleme varsayılan MiniMax H3/768p ile 60 vidIQ kredisi; bağlı hesap bakiyesi 0. Üretim başlatılmadı.
+- Önerilen yön: ayrı `/studio/office` sayfası; AYAS merkezi yönetici, gerçek üretim beyinleri departman masalarında. Çalışıyor/bekliyor/onay bekliyor/hata/kayıt yok durumları gerçek kaynaklardan gelir; hareket görsel sunumdur, onay/çalışma uydurmaz. Her çalışan kartında görev, yetkili girdiler/araçlar, yapamayacakları, kalite ölçütü ve owner onay eşiği tanımlanır. Homepage değişikliği yok.
+- Sıradaki adım: owner taslak görsel ve rol/yerleşim planını onaylasın veya düzeltme istesin. Onaydan sonra mimari/erişim analizi ve kapsamlı UI planı; kodlama ancak owner onayından sonra. Referans tam video içeriği halen incelenmedi.
+
 ## 23 Kasım 2026 (3) — Knowledgia incelemesi: dikey Short, soru başlık, 60 sn, %90 harita, 3 sn tempo (claude/short-dikey-harita)
 
 Owner: "@Knowledgia … shorts videolarını izle … kapak fotoğraflarından hesap ayarlarına kadar analiz et … plan çıkar",
