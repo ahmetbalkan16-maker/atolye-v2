@@ -5,6 +5,7 @@ Owner, AYAS'ın kendi önerileri ile Atölye beyinlerinin Gelişim Merkezi akı�
 - Atölye beyinlerinin kod önerisi owner onayı olmadan kuyruğa alınmaz; geliştirme ve test ayrı kopyada yapılır; canlıya alma için ayrıca owner'ın `ONAYLA VE UYGULA` kararı gerekir. AYAS öneri akışında yalnız dar güvenli sabit-yama sınıfı için mevcut grace auto-approval istisnası bulunuyor.
 - Bağımsız denetçi beyinlerin her çıktıyı incelemesi istenen yeni yetenek; mevcut panelde bu uçtan uca denetim kaydı yok. Tasarımda ayrı denetim adımı olarak planlanacak, mevcut onay kapılarıyla birleştirilmeyecek.
 - Tasarım yönü: Gelişim Merkezi ana görünümünde belirgin `AYAS ÖNERİLERİ` ve `ATÖLYE BEYİNLERİ` alanları; Atölye içinde kurul, gelişim döngüsü ve kod önerileri; denetim kayıtları için ayrı görünüm. Homepage'e yeni kart eklenmeyecek. Kod değişmedi, test çalıştırılmadı. Sıradaki adım: bu ayrımı görsel taslakta gösterip owner onayı almak; ancak onaydan sonra uygulama planına geçmek.
+- Revize edilmiş Gelişim Merkezi konsepti üretildi ve sohbette gösterildi: `C:\Users\Metod\.codex\generated_images\01a216cb-933f-7b31-9fe8-668894cbde2a\exec-82228c14-f671-475d-8e5b-baa7586602d4.png`. Taslak, iki mevcut kaynağı ayrı panellerde ve bağımsız denetçi beynini henüz aktif olmayan yeni akış olarak gösteriyor; gerçek sistem kaydı veya uygulanmış UI değildir.
 
 ## 26 Kasım 2026 — Atölye Ofisi: plan ve görsel taslak owner onayı bekliyor
 
