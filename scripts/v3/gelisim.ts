@@ -21,7 +21,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { knowledgeFromStudy, linkRequestsDue, listLinkRequests, listSearchRequests, saveLinkRequest } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { saveKnowledge } from "../../src/lib/ayas/research/AyasSharedKnowledge";
-import { researchTopic, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
+import { researchTopic, safeFetchText, studyLink } from "../../src/lib/ayas/research/AyasWebResearch";
 import { brainBudget, brainVision, steadyJudge, writerBudget } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
 import { apprenticePolicy, examCandidates, examCapUsd, examDayDue, examSpendToday, writeExam } from "../../src/lib/v3/council/DevApprentice";
@@ -33,6 +33,7 @@ import { learnFromCommits, researchQueue, runDevJob } from "../../src/lib/v3/cou
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
 import { localEmbedder } from "../../src/lib/v3/council/MeaningCache";
 import { mergeParaphrasedProposals } from "../../src/lib/v3/council/ProposalMerge";
+import { graceApproveTechnologyProposals, technologyWatchRound } from "../../src/lib/v3/council/TechnologyJobs";
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, studyAttempts, type StudyRequest, studyRequestsDue, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, EXAMPLES_TRIAL_EVERY_DAYS, examplesTrialDue, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
@@ -296,6 +297,9 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
   }
   if (task === "oneriler") {
     let yeni = 0, tekrar = 0;
+    // The technology watch's waiting proposals first (owner 2026-11-27): one whose grace passed is approved before the
+    // paraphrase merge below could count it on another want.
+    const techApproved = await graceApproveTechnologyProposals(paths.workRoot, process.env).catch((e: Error) => (log(`  teknoloji önerileri onaylanamadı: ${e.message.slice(0, 120)}`), []));
     // Only recent productions: an old report's wants were mostly built since (Kosovo, Rome… in October 2026).
     for (const o of orders) {
       if (!o.cikti || Date.now() - Date.parse(o.bitis ?? o.olusturuldu) > HARVEST_DAYS * 86_400_000) continue;
@@ -306,7 +310,12 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     // The same want in other words is counted on the earlier one (owner, 6 Nov 2026: "onaya bir şey düşmüyor").
     const merged = meaning ? await mergeParaphrasedProposals(paths.workRoot, meaning).catch((e: Error) => (log(`  öneriler anlamca birleştirilemedi: ${e.message.slice(0, 120)}`), undefined)) : undefined;
     const mergedLine = merged?.birlesen ? `; ${merged.birlesen} öneri anlamca öncekiyle birleşti` : "";
-    return yeni || tekrar || merged?.birlesen ? ok(`${yeni} yeni öneri, ${tekrar} tekrar eden istek${mergedLine}`) : skip("yeni rapor yok");
+    // Technology watch (owner 2026-11-27: "sistemin teknoloji ilerledikçe internetten onlara bakıp kendisine uyarlayıp geliştirmesini istemiştim"):
+    // a failed update trial or a release note about an API we use becomes an "AYAS ÖNERİYOR · Teknoloji izleme" proposal.
+    const tech = await technologyWatchRound({ repoRoot: paths.repoRoot, workRoot: paths.workRoot, env: process.env, fetchText: safeFetchText }).catch((e: Error) => ({ satir: `teknoloji izleme hata: ${e.message.slice(0, 160)}`, yeni: 0, onaylanan: 0 }));
+    const techLine = `${tech.satir}${techApproved.length ? `; ${techApproved.length} öneri itirazsız onaylandı` : ""}`;
+    log(`  ${techLine}`);
+    return yeni || tekrar || merged?.birlesen || tech.yeni || techApproved.length ? ok(`${yeni} yeni öneri, ${tekrar} tekrar eden istek${mergedLine}; ${techLine}`) : skip(`yeni rapor yok; ${techLine}`);
   }
   if (task === "benzer") {
     // The studio's own learning (owner, 2 Nov 2026: "don't wait for my links"): a recent episode's topic first, else
