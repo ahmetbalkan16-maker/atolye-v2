@@ -66,6 +66,7 @@ export function SecurityWatchPanel() {
               Şifre taraması: {report.scanner.tool === "gitleaks" ? `Gitleaks ${report.scanner.version ?? ""} (tüm Git geçmişi) + yerleşik desenler` : `yalnız yerleşik desenler — ${report.scanner.reason ?? "Gitleaks çalışmadı"}`}
             </p>
           )}
+          {report.sharedNetwork && <p className="bc-security-watch__meta" data-testid="bc-security-shared-network">{report.sharedNetwork}</p>}
           {report.research && (
             <details className="bc-security-watch__cases" data-testid="bc-security-research">
               <summary>Güvenlik araştırması: {report.research.components} bileşen, {report.research.advisories} tavsiye okundu, {report.research.affecting === 0 ? "bizi etkileyen yok" : `${report.research.affecting} tanesi bizi etkiliyor`} ({when(report.research.checkedAt)})</summary>

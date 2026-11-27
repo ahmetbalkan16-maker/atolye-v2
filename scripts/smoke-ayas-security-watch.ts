@@ -45,7 +45,8 @@ try {
       ports: { value: [{ port: 445, address: "0.0.0.0", process: "System" }, { port: 3000, address: "0.0.0.0", process: "node" }], at: "x" },
       secrets: { value: [{ file: "src/a.ts", kind: "OpenAI anahtarı" }], at: "x" },
     }, "2026-11-26T12:00:00.000Z");
-    assert.deepEqual(found.map((f) => f.id), ["sir:git", "port:3000", "port:445"], "assert.deepEqual(found.map((f) => f.id), [\"sir:git\", \"port:3000\", \"port:445\"])");
+    // SMB 445 is the owner's accepted shared-office setup since 2026-11-27 ("bekçide bununla ilgili uyarı kalmasın"): no finding.
+    assert.deepEqual(found.map((f) => f.id), ["sir:git", "port:3000"], "assert.deepEqual(found.map((f) => f.id), [\"sir:git\", \"port:3000\"])");
     assert.ok(found.every((f) => f.ownerAction), "closing ports and rotating keys are the owner's");
   });
 
@@ -95,7 +96,7 @@ try {
 
   await check("the case library records a finding when seen and when gone", () => {
     const root = fs.mkdtempSync(path.join(temp, "cases-"));
-    const a = evaluateSecurityWatch({ ...CLEAN_FACTS, ports: { value: [{ port: 445, address: "0.0.0.0", process: "System" }], at: "x" } }, "2026-11-26T12:00:00.000Z");
+    const a = evaluateSecurityWatch({ ...CLEAN_FACTS, ports: { value: [{ port: 3000, address: "0.0.0.0", process: "node" }], at: "x" } }, "2026-11-26T12:00:00.000Z");
     assert.equal(recordSecurityCases([], a, "2026-11-26T12:00:00.000Z", root).length, 1, "assert.equal(recordSecurityCases([], a, \"2026-11-26T12:00:00.000Z\", root).length, 1)");
     assert.equal(recordSecurityCases(a, a, "2026-11-26T12:15:00.000Z", root).length, 0, "a lasting finding is not re-recorded");
     assert.equal(recordSecurityCases(a, [], "2026-11-26T13:00:00.000Z", root)[0]?.event, "gitti", "assert.equal(recordSecurityCases(a, [], \"2026-11-26T13:00:00.000Z\", root)[0]?.event, \"gitti\")");

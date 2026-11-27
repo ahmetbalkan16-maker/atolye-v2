@@ -39,7 +39,7 @@ function readPublishedLiveRoot(repoRoot: string): string {
   return path.resolve(selector.applicationRoot);
 }
 import {
-  evaluateSecurityWatch, runSecurityExam, vetLearnedChecks, WATCHED_PORTS,
+  evaluateSecurityWatch, publicShieldLine, runSecurityExam, vetLearnedChecks, WATCHED_PORTS,
   type FirewallAllowRule, type ListeningPort, type Measured, type SecretHit, type SecretScannerFacts, type SecurityExamResult, type SecurityFinding, type SecurityWatchFacts, type VulnerabilityCount,
 } from "../src/lib/brain/security/SecurityWatchModel";
 import { LEARNED_SECURITY_CHECKS } from "../src/lib/security-watch/LearnedChecks";
@@ -302,6 +302,7 @@ async function main(): Promise<void> {
     schemaVersion: 1 as const, checkedAt: nowIso, findings, measuredAt, learned, ...(exam ? { exam } : {}),
     ...(facts.research.value ? { research: summarizeResearch(facts.research.value, facts.research.at) } : {}),
     ...(facts.secretScanner.value ? { scanner: facts.secretScanner.value } : {}),
+    sharedNetwork: publicShieldLine(facts.publicShield),
   };
   writeSecurityWatchReport(report, root);
   // Self-improvement: measured needs → AYAS's review → Gelişim Merkezi ("AYAS ÖNERİYOR · Bekçi'den") → grace approval.

@@ -133,11 +133,21 @@ export interface SecurityWatchFacts {
   readonly publicShield?: Measured<{ readonly blocksAllInbound: boolean; readonly defaultInbound: string }>;
 }
 
-/** Owner 2026-11-27: the shared office network stays Public; the fix is the Public profile's block-all switch. */
-export const PUBLIC_SHIELD_ADVICE = "Ofis ağı Ortak kalmak zorunda (sahibin kararı). Yönetici PowerShell'de: Set-NetFirewallProfile -Profile Public -DefaultInboundAction Block -AllowInboundRules False — internete çıkış, telefon tüneli, AnyDesk/Chrome Uzak Masaüstü internetten çalışmaya devam eder; yalnız aynı ağdakiler bu bilgisayara bağlanamaz.";
+/**
+ * Owner 2026-11-27: "ortak ağ kullanmak zorundayım … ortak dosyalara giriyorum, yazıcıyı kullanıyorum … bekçide bununla
+ * ilgili uyarı kalmasın". The shared office network, its file/printer sharing and the Public-profile rules are the
+ * owner's accepted setup: they are never a finding. Their only protection is the Public profile's block-all switch,
+ * which the report and the Güvenlik panel show as plain information (`publicShieldLine`), never as a warning.
+ */
+export const LAN_ONLY_PORTS: ReadonlySet<number> = new Set([445, 139, 3389]);
 
-/** Ports only a machine on the same network could reach (the app and Ollama must bind 127.0.0.1 anyway). */
-const LAN_ONLY_PORTS: ReadonlySet<number> = new Set([445, 139, 3389]);
+/** The Güvenlik panel's information line about the shared network (not a finding). */
+export function publicShieldLine(shield: SecurityWatchFacts["publicShield"]): string {
+  if (!shield?.value) return "Ortak ağ kalkanı: ölçülemedi";
+  return shield.value.blocksAllInbound
+    ? "Ortak ağ kalkanı: açık — aynı ağdakiler bu bilgisayara bağlanamaz; internet, ortak dosyalar ve yazıcı çalışır"
+    : "Ortak ağ kalkanı: kapalı — açmak için yönetici PowerShell'de: Set-NetFirewallProfile -Profile Public -DefaultInboundAction Block -AllowInboundRules False";
+}
 
 /** Ports that must never face a network the owner does not control: the app, SMB/NetBIOS, RDP, Ollama. */
 export const WATCHED_PORTS: Readonly<Record<number, string>> = { 3000: "AYAS uygulaması", 445: "dosya paylaşımı (SMB)", 139: "NetBIOS", 3389: "uzak masaüstü", 11434: "Ollama" };
@@ -246,25 +256,18 @@ export function evaluateSecurityWatch(facts: SecurityWatchFacts, nowIso: string,
     else if (key.length < 16) out.push({ id: "anahtar:kisa", severity: "orta", title: "Giriş şifresi kısa", evidence: `${key.length} karakter (önerilen en az 16)`, advice: "Daha uzun bir şifreye geç; kaba kuvvet süresi katlanarak uzar.", ownerAction: true });
   }
 
-  // Ports listening on all interfaces. With the Public profile shielded, the LAN-only services are unreachable from the
-  // shared office network (the owner's decision 2026-11-27), so they are no finding.
-  const shielded = facts.publicShield?.value?.blocksAllInbound === true;
+  // Ports listening on all interfaces: only the app and Ollama, which must bind 127.0.0.1 on any network. The LAN-only
+  // services (file and printer sharing, NetBIOS, RDP) and the Public-profile rules are the owner's accepted shared-office
+  // setup (2026-11-27) and are never a finding; see publicShieldLine.
   const ports = facts.ports.value;
   if (ports) {
     for (const [portText, label] of Object.entries(WATCHED_PORTS)) {
       const port = Number(portText);
-      if (shielded && LAN_ONLY_PORTS.has(port)) continue;
+      if (LAN_ONLY_PORTS.has(port)) continue;
       const open = ports.filter((p) => p.port === port && !isLoopback(p.address));
       if (open.length === 0) continue;
-      const severity: SecuritySeverity = port === 3000 || port === 11434 ? "yuksek" : "orta";
-      out.push({ id: `port:${port}`, severity, title: `${label} (port ${port}) bütün ağlara açık dinliyor`, evidence: open.map((p) => `${p.address}:${p.port} (${p.process})`).join(", "), advice: port === 3000 || port === 11434 ? "Yalnız 127.0.0.1'de dinlemeli; dış erişim zaten tünelden geliyor." : `Aynı ağdaki biri bu hizmete ulaşabilir. ${PUBLIC_SHIELD_ADVICE}`, ownerAction: true });
+      out.push({ id: `port:${port}`, severity: "yuksek", title: `${label} (port ${port}) bütün ağlara açık dinliyor`, evidence: open.map((p) => `${p.address}:${p.port} (${p.process})`).join(", "), advice: "Yalnız 127.0.0.1'de dinlemeli; dış erişim zaten tünelden geliyor.", ownerAction: true });
     }
-  }
-
-  // Firewall allow rules on the Public profile (ineffective while the profile blocks every inbound connection).
-  const rules = facts.firewall.value;
-  if (rules && rules.length > 0 && !shielded) {
-    out.push({ id: "guvenlik-duvari:ortak-ag", severity: "orta", title: "Güvenlik duvarı Ortak ağda izlenen portlara izin veriyor", evidence: rules.slice(0, 6).map((r) => `${r.name} [${r.ports.join(",")}] ${r.profiles}`).join("; "), advice: PUBLIC_SHIELD_ADVICE, ownerAction: true });
   }
 
   // Secrets in Git.
@@ -320,7 +323,7 @@ export function evaluateSecurityWatch(facts: SecurityWatchFacts, nowIso: string,
   }
 
   for (const [id, what, m] of [
-    ["giris", "Giriş kayıtları", facts.login], ["port", "Açık portlar", facts.ports], ["guvenlik-duvari", "Güvenlik duvarı", facts.firewall],
+    ["giris", "Giriş kayıtları", facts.login], ["port", "Açık portlar", facts.ports],
     ["sir", "Şifre taraması", facts.secrets], ["acik", "Paket açıkları", facts.vulnerabilities], ["canli", "Canlı sürüm bütünlüğü", facts.liveIntegrity],
     ["rota", "Rota koruması", facts.openSensitiveRoutes], ["anahtar", "Giriş şifresi", facts.accessKey],
     ["arastirma", "Güvenlik araştırması (internet)", facts.research], ["tarayici", "Şifre tarayıcısı", facts.secretScanner],
@@ -346,6 +349,8 @@ export interface SecurityWatchReport {
   readonly research?: SecurityResearchSummary;
   /** Which secret scanner ran last. */
   readonly scanner?: SecretScannerFacts;
+  /** The shared-network information line (publicShieldLine): shown in the panel, never a finding (owner 2026-11-27). */
+  readonly sharedNetwork?: string;
 }
 
 /** Turkish one-line status for the rail / Control Center. */
@@ -416,13 +421,11 @@ export const SECURITY_EXAM_CASES: readonly SecurityExamCase[] = [
   { name: "kaba kuvvet kilidi", facts: { login: ok({ failuresLastHour: 75, failuresLastDay: 80, lastFailureAt: at, lockedUntil: "2026-11-26T13:00:00.000Z", locksLastDay: 1 }) }, expect: "giris:kilitli" },
   { name: "yoğun deneme", facts: { login: ok({ failuresLastHour: 25, failuresLastDay: 25, lastFailureAt: at, lockedUntil: null, locksLastDay: 0 }) }, expect: "giris:yogun-deneme" },
   { name: "uygulama tüm ağlarda", facts: { ports: ok([{ port: 3000, address: "0.0.0.0", process: "node" }]) }, expect: "port:3000" },
-  { name: "SMB açık", facts: { ports: ok([{ port: 445, address: "0.0.0.0", process: "System" }]) }, expect: "port:445" },
-  { name: "Ortak ağ kuralı", facts: { firewall: ok([{ name: "Node.js", ports: ["3000"], profiles: "Public" }]) }, expect: "guvenlik-duvari:ortak-ag" },
-  // Owner 2026-11-27: the office network stays Public; once its profile blocks every inbound connection, SMB and its
-  // allow rule are unreachable from the shared network and must stay quiet — but the app on all interfaces still counts.
-  { name: "Ortak ağ kalkanı açık: SMB sessiz", facts: { publicShield: ok({ blocksAllInbound: true, defaultInbound: "Block" }), ports: ok([{ port: 445, address: "0.0.0.0", process: "System" }]), firewall: ok([{ name: "SMB-Gelen", ports: ["445"], profiles: "Public" }]) }, expect: null, forbid: "port:445" },
-  { name: "Ortak ağ kalkanı açık: izin kuralı etkisiz", facts: { publicShield: ok({ blocksAllInbound: true, defaultInbound: "Block" }), firewall: ok([{ name: "SMB-Gelen", ports: ["445"], profiles: "Public" }]) }, expect: null, forbid: "guvenlik-duvari:ortak-ag" },
-  { name: "Ortak ağ kalkanı açık: uygulama yine sayılır", facts: { publicShield: ok({ blocksAllInbound: true, defaultInbound: "Block" }), ports: ok([{ port: 3000, address: "0.0.0.0", process: "node" }]) }, expect: "port:3000" },
+  // Owner 2026-11-27 ("bekçide bununla ilgili uyarı kalmasın"): the shared office network's file/printer sharing and its
+  // Public-profile rules are accepted and must stay quiet, shield on or off; the app on all interfaces still counts.
+  { name: "ortak ağ: SMB sessiz", facts: { ports: ok([{ port: 445, address: "0.0.0.0", process: "System" }, { port: 139, address: "192.168.2.74", process: "System" }]) }, expect: null, forbid: "port:445" },
+  { name: "ortak ağ: izin kuralı sessiz", facts: { firewall: ok([{ name: "SMB-Gelen", ports: ["445"], profiles: "Public" }]), publicShield: ok({ blocksAllInbound: false, defaultInbound: "Block" }) }, expect: null, forbid: "guvenlik-duvari:ortak-ag" },
+  { name: "ortak ağ: güvenlik duvarı ölçülemese de sessiz", facts: { firewall: { value: null, at, error: "erişim engellendi" } }, expect: null, forbid: "olculemedi:guvenlik-duvari" },
   { name: "Git'te anahtar", facts: { secrets: ok([{ file: "src/x.ts", kind: "OpenAI anahtarı" }]) }, expect: "sir:git" },
   { name: "kritik paket açığı", facts: { vulnerabilities: ok({ critical: 1, high: 0, moderate: 0, low: 0, topIds: ["GHSA-x"] }) }, expect: "acik:kritik" },
   { name: "canlı dosya değişmiş", facts: { liveIntegrity: ok({ snapshot: "ayas-live-abc", modified: ["app/page.tsx"], headMatches: true }) }, expect: "canli:degismis" },
