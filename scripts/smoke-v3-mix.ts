@@ -14,7 +14,7 @@ import { armsOf } from "../src/lib/v3/episode/Period";
 import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps/MapBuilder";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
-import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
+import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles, writerMusicMood, HOOK_STING, CUT_IMPACT, SFX_LEAD_S } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, longerRequest, MIN_PIECE_REQUEST_S, periodInstruments, PIECE_PAUSE_KEEP_S, pieceProblems, pieceShapeFilter, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, HIT_SECONDS, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodHitRequest, periodSfxPrompt, repeatFilter, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
@@ -24,6 +24,8 @@ import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcp
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
+/** The older scenarios below describe a normal video: no Short's hook sting or cut impacts (those have their own scenarios). */
+const LONG = { short: false } as const;
 async function scenario(name: string, fn: () => void | Promise<void>) {
   try {
     await fn();
@@ -102,7 +104,7 @@ async function main() {
         { sceneIndex: 1, lineIndex: 1, start: 6.3, end: 8 },
       ],
     } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["davul", 0.3], ["whoosh", 3.88], ["pop", 4.3], ["basari", 6.3]]);
+    assert.deepEqual(sfxCues(ep, tl, LONG).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["davul", 0], ["whoosh", 3.88], ["pop", 4.3], ["basari", 6.3]]);
   });
 
   await scenario("E2 automatic effects: a thud under a word card, steps on an entrance, a whoosh on a run, a boing on a question", () => {
@@ -132,7 +134,7 @@ async function main() {
         { sceneIndex: 1, lineIndex: 1, start: 8.5, end: 11 },
       ],
     } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, c.t]), [["adim", 0.2], ["dusus", 2], ["para", 2], ["boing", 4], ["whoosh", 6.2], ["basari", 8.5]]);
+    assert.deepEqual(sfxCues(ep, tl, LONG).map((c) => [c.id, c.t]), [["adim", 0.2], ["para", 1.7], ["dusus", 2], ["boing", 4], ["whoosh", 6.2], ["basari", 8.5]]);
     // Owner, 22 Oct 2026 (no meaningless sound): what happens is heard — the legion's march and the water as it wades
     // in, Caesar's splash into the Rubicon, a drum as an army sets off on the map, swords where a battle flashes.
     const rubicon = {
@@ -153,7 +155,7 @@ async function main() {
         { sceneIndex: 1, lineIndex: 2, start: 8, end: 11 },
       ],
     } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
+    assert.deepEqual(sfxCues(rubicon, tl2, LONG).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
     // 1453 on the map: the battle has cannon fire too, the fleet sets out with the sea, the guns are heard as they
     // pound; the tokens' fight is swords as they meet and with every token that falls (owner: "swords in the back").
     const siege = {
@@ -177,7 +179,7 @@ async function main() {
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
     // The token lost on the last line falls inside the 4-second scene (owner, 12 Nov 2026: Cannae's falls came after the
     // cut): its sword, 2.4 s in, used to ring at 4.4 s, after the scene; pressed in, it joins the battle's opening clash.
-    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["top_atisi", 4.6]]);
+    assert.deepEqual(sfxCues(siege, tlSiege, LONG).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["top_atisi", 4.6]]);
     // The losses keep their pace when they fit the scene and are pressed together when they do not, always ending before it.
     assert.deepEqual(fitLossDelaysS([2.4, 3.4], 10), [2.4, 3.4], "room enough: as before");
     assert.deepEqual(fitLossDelaysS([2.4, 3.4], undefined), [2.4, 3.4]);
@@ -185,17 +187,71 @@ async function main() {
     assert.equal(pressed.length, 5);
     assert.ok(pressed.every((d, i) => i === 0 || d > pressed[i - 1]!), "still one after another");
     assert.ok(pressed[4]! <= 3 - LOSS_TAIL_S + 1e-9, `the last falls before the cut: ${pressed[4]}`);
-    assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
+    assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege, LONG).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
     // A 20th-century battle has no swords: the marker and a falling token are shells.
-    const somme = sfxCues({ ...siege, donem: "1916" } as Episode, tlSiege);
+    const somme = sfxCues({ ...siege, donem: "1916" } as Episode, tlSiege, LONG);
     assert.ok(!somme.some((c) => c.id === "kilic") && somme.some((c) => c.id === "top_atisi"), JSON.stringify(somme));
     // A fleet broken (the Belgrade trial): each ship lost splashes down at the tokens' pace; a lost gun is a blast.
     const sunk = { ...siege, sahneler: [{ ...siege.sahneler[0]!, harita: { merkez: [20.45, 44.82], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 4, konum: [20.44, 44.83], satir: 0, kayip: 2, kayip_satir: 1 }, { tur: "top", renk: "#c0392b", konum: [20.43, 44.81], satir: 0, kayip: 1, kayip_satir: 1 }] } }] } as unknown as Episode;
-    assert.deepEqual(sfxCues(sunk, tlSiege).filter((c) => c.id === "su" || c.id === "top_atisi").map((c) => [c.id, Math.round(c.t * 10) / 10]), [["su", 4.4], ["top_atisi", 4.4], ["su", 5.4]]);
+    assert.deepEqual(sfxCues(sunk, tlSiege, LONG).filter((c) => c.id === "su" || c.id === "top_atisi").map((c) => [c.id, Math.round(c.t * 10) / 10]), [["su", 4.4], ["top_atisi", 4.4], ["su", 5.4]]);
     // In a living set a run is feet, not a cartoon whoosh; the same effect twice within a second is one.
     const run = { sahneler: [{ ...rubicon.sahneler[1]!, kalabalik: [], satirlar: [{ karakter: "a", metin: "Run!", duygu: "korkmus", hareket: "kos" }, { karakter: "b", metin: "Wait!", duygu: "korkmus", hareket: "yuru" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] }] } as unknown as Episode;
     const tl3 = { ...tl2, scenes: [{ sceneIndex: 0, start: 0, end: 8 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 0.6 }, { sceneIndex: 0, lineIndex: 1, start: 0.5, end: 3 }, { sceneIndex: 0, lineIndex: 2, start: 3, end: 6 }] } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(run, tl3).map((c) => c.id), ["adim", "basari"], "running feet, and the walk 0.5 s later does not double them");
+    assert.deepEqual(sfxCues(run, tl3, LONG).map((c) => c.id), ["adim", "basari"], "running feet, and the walk 0.5 s later does not double them");
+  });
+
+  await scenario("E3 film sound for a Short (owner, 27 Nov 2026, Gaugamela): a hook hit at 0, charges and routs heard, the writer's effect ahead of its line, no effect three times in 6 s, a hard cut that would be silent is punched", () => {
+    // (the closing subscribe sting under the last line is not under test here)
+    const at = (cues: readonly { t: number; id: string }[]) => cues.filter((c) => c.id !== "basari").map((c) => [c.id, Math.round(c.t * 100) / 100]);
+    const scene = (id: string, gecis: string, lines: readonly Record<string, unknown>[], extra: Record<string, unknown> = {}) => ({ id, gecis, satirlar: lines.map((l) => ({ karakter: "anlatici", metin: "x", duygu: "notr", ...l })), ...extra });
+    const tlOf = (duration: number, scenes: readonly [number, number][], lines: readonly [number, number, number][]) => ({ duration, scenes: scenes.map(([start, end], sceneIndex) => ({ sceneIndex, start, end })), lines: lines.map(([sceneIndex, start, end], i) => ({ sceneIndex, lineIndex: lines.slice(0, i).filter((l) => l[0] === sceneIndex).length, start, end })) }) as unknown as EpisodeTimeline;
+
+    // 1. The hook: a Short opens on a drum hit at the first frame; a long video and an opening that already has an impact do not.
+    const plain = { sahneler: [scene("a", "kes", [{}, {}])] } as unknown as Episode;
+    const tlPlain = tlOf(10, [[0, 10]], [[0, 0.3, 3], [0, 3.2, 6]]);
+    assert.deepEqual(at(sfxCues(plain, tlPlain, { short: true })), [[HOOK_STING, 0]]);
+    assert.deepEqual(at(sfxCues(plain, tlPlain)), [], "off unless the mix step says it is a Short (other readers of the cues keep their meaning)");
+    assert.deepEqual(at(sfxCues(plain, tlPlain, LONG)), [], "a normal video has no hook sting");
+    const own = { sahneler: [scene("a", "kes", [{ sfx: "davul" }, {}])] } as unknown as Episode;
+    assert.deepEqual(at(sfxCues(own, tlPlain, { short: true })), [["davul", 0]], "the writer's own drum is the hook, not doubled");
+
+    // 2. Units that charge, envelop or break are heard on their line (the Gaugamela charges were silent but for swords).
+    const army = (yerler: readonly Record<string, unknown>[]) => ({ donem: "331 BC", sahneler: [scene("m", "kes", [{}, {}, {}, {}], { harita: { merkez: [43, 36], genislik_km: 40, birlikler: [{ taraf: "A", renk: "#c00", amblem: "kartal", sayi: 3, yerler }] } })] }) as unknown as Episode;
+    const tl4 = tlOf(20, [[0, 20]], [[0, 0.3, 4], [0, 5, 9], [0, 10, 14], [0, 15, 19]]);
+    assert.deepEqual(at(sfxCues(army([{ satir: 1, kume: [43, 36], hareket: "hucum" }]), tl4, LONG)), [["kalabalik", 5.2], ["davul", 5.4]], "a charge: the roar and a drum");
+    assert.deepEqual(at(sfxCues(army([{ satir: 2, kume: [43, 36], hareket: "kusat" }]), tl4, LONG)), [["kalabalik", 10.2]], "an envelopment: the roar");
+    assert.deepEqual(at(sfxCues(army([{ satir: 3, kume: [43, 36], bozgun: true }]), tl4, LONG)), [["kalabalik", 15.2]], "a rout: the crowd breaking");
+    assert.deepEqual(at(sfxCues(army([{ satir: 1, kume: [43, 36], hareket: "ilerle" }]), tl4, LONG)), [], "an advance stays quiet");
+
+    // 3. The writer's effect leads its line by SFX_LEAD_S; inside a scene only, never before 0.
+    const lead = { sahneler: [scene("a", "kes", [{ sfx: "pop" }]), scene("b", "kes", [{ sfx: "pop" }, { sfx: "zil" }])] } as unknown as Episode;
+    const tlLead = tlOf(12, [[0, 4], [4, 12]], [[0, 0.3, 3], [1, 4.1, 6], [1, 7, 9]]);
+    assert.deepEqual(at(sfxCues(lead, tlLead, LONG)), [["pop", 0.0], ["pop", 4], ["zil", Math.round((7 - SFX_LEAD_S) * 100) / 100]], "ahead of the line, held inside its scene");
+
+    // 4. No effect more than twice within 6 s; takes played in turn (swords) are exempt.
+    const thud = { sahneler: [scene("a", "kes", [{ sfx: "dusus" }, { sfx: "dusus" }, { sfx: "dusus" }, { sfx: "dusus" }, { sfx: "dusus" }])] } as unknown as Episode;
+    const tlThud = tlOf(30, [[0, 30]], [[0, 2.3, 4], [0, 4.1, 6], [0, 6.2, 8], [0, 8.3, 10], [0, 10.4, 12]]);
+    assert.deepEqual(at(sfxCues(thud, tlThud, LONG)), [["dusus", 2], ["dusus", 3.8], ["dusus", 8], ["dusus", 10.1]], "the third within 6 s is dropped, the later ones come back");
+    const swords = { sahneler: [scene("a", "kes", Array.from({ length: 5 }, () => ({ sfx: "kilic" })))] } as unknown as Episode;
+    const tlSwords = tlOf(10, [[0, 10]], [0, 1, 2, 3, 4].map((i) => [0, 0.3 + i * 1.5, 1.5 + i * 1.5] as [number, number, number]));
+    assert.equal(sfxCues(swords, tlSwords, LONG).length, 5, "swords have many takes: all stay");
+
+    // 5. A hard cut in a Short is punched unless something already sounds there; a slide has its whoosh instead.
+    const cuts = { sahneler: [scene("a", "kes", [{}]), scene("b", "kes", [{}]), scene("c", "kes", [{ sfx: "pop" }]), scene("d", "kaydir", [{}])] } as unknown as Episode;
+    const tlCuts = tlOf(20, [[0, 5], [5, 10], [10, 15], [15, 20]], [[0, 0.3, 4], [1, 5.3, 9], [2, 10.3, 14], [3, 15.3, 19]]);
+    assert.deepEqual(at(sfxCues(cuts, tlCuts, { short: true })), [[HOOK_STING, 0], [CUT_IMPACT, 5], ["pop", 10], ["whoosh", 14.88]], "b's cut is punched; c's writer effect already sounds; d has its whoosh");
+    assert.deepEqual(at(sfxCues(cuts, tlCuts, LONG)), [["pop", 10], ["whoosh", 14.88]], "a normal video keeps its silent cuts");
+
+    // 6. The writer's music mood wins over the scene's duygu when it names a mood the library knows.
+    assert.equal(sceneMusicMood("komik", "zafer"), "epic", "a king's defeat is not comedic");
+    assert.equal(sceneMusicMood("gerilim", "hüzünlü"), "calm");
+    assert.equal(sceneMusicMood("komik", "playful"), "comedic");
+    assert.equal(sceneMusicMood("zafer", "epik"), "epic");
+    assert.equal(sceneMusicMood("komik", "hafif"), "comedic", "an unknown text keeps today's duygu mapping");
+    assert.equal(sceneMusicMood("gerilim", ""), "tense");
+    assert.equal(sceneMusicMood(undefined, "hafif"), "dramatic");
+    assert.equal(writerMusicMood("hafif"), undefined);
+    assert.equal(writerMusicMood("dramatik"), "dramatic");
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {
@@ -224,7 +280,7 @@ async function main() {
     // A dissolve is soft: no whoosh under it (a slide, an iris and a flash keep theirs).
     const ep = { sahneler: [{ id: "a", satirlar: [] }, { id: "b", gecis: "cozul", satirlar: [] }, { id: "c", gecis: "kaydir", satirlar: [] }] } as unknown as Episode;
     const tl = { duration: 9, scenes: [{ sceneIndex: 0, start: 0, end: 3 }, { sceneIndex: 1, start: 3, end: 6 }, { sceneIndex: 2, start: 6, end: 9 }], lines: [] } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["whoosh", 5.88]]);
+    assert.deepEqual(sfxCues(ep, tl, LONG).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["whoosh", 5.88]]);
   });
 
   await scenario("F2 every bed gives way under the effects; the ambience stays steady under speech; no link left open", () => {

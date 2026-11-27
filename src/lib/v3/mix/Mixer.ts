@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
-import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
+import { type Episode, SCENE_MOODS, type SceneMood, type SfxId } from "../episode/EpisodeTypes";
 import { armsOf } from "../episode/Period";
 import { fitLossDelaysS, unitLossDelaysS } from "../maps/MapBuilder";
 import { readWavPcm16 } from "../lipsync/LipSync";
@@ -35,7 +35,32 @@ const SCENE_TO_MUSIC: Readonly<Record<SceneMood, MusicMood>> = {
   merak: "historical",
 };
 
+/** Lower-cased, Turkish letters folded to ASCII ("hüzün" → "huzun") for comparing the writer's free text. */
+const foldMood = (text: string): string => text.toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * The music bucket a writer's free `muzik_ruh_hali` names, or undefined when it names none the library knows (empty,
+ * "hafif", "mutlu"…): a scene-mood word ("zafer" → epic, "huzun" → calm), a library mood or one of its hints. The
+ * library's own fallback ("dramatic" for anything unknown) is not a name, so it is not taken for one.
+ */
+export function writerMusicMood(freeText: string | undefined): MusicMood | undefined {
+  const text = foldMood(freeText ?? "").trim();
+  if (!text) return undefined;
+  const scene = SCENE_MOODS.find((m) => text.includes(m));
+  if (scene) return SCENE_TO_MUSIC[scene];
+  const mood = normalizeMusicMood(text);
+  return mood !== "dramatic" || /dramat|emotional|duygusal|cinematic|sinematik|orchestr|orkestra/.test(text) ? mood : undefined;
+}
+
+/**
+ * The bed's mood for a scene. The writer's own `muzik_ruh_hali` wins when it names a mood the library knows (27 Nov
+ * 2026, Gaugamela Short: a king's defeat and murder played under "comedic" music because the scene's `duygu` said
+ * "komik" although the writer had asked "zafer"); an unknown text keeps the old way: `duygu`, else the library's
+ * reading of the text.
+ */
 export function sceneMusicMood(duygu: SceneMood | undefined, freeText?: string): MusicMood {
+  const writer = writerMusicMood(freeText);
+  if (writer) return writer;
   return duygu ? SCENE_TO_MUSIC[duygu] : normalizeMusicMood(freeText);
 }
 
@@ -82,6 +107,28 @@ export interface SfxCue {
   readonly id: SfxId;
 }
 
+export interface SfxCueOptions {
+  /** Whether the video is a vertical Short (Format.isShorts of its ordered length); default false. */
+  readonly short?: boolean;
+}
+
+/** How far before its line the writer's effect sounds, so the narrator's first word does not cover it. */
+export const SFX_LEAD_S = 0.3;
+/** An effect id sounds at most twice within this many seconds. */
+export const SFX_REPEAT_WINDOW_S = 6;
+/** Effects with several recorded takes or period variants (the mixer plays them in turn): twelve falls are twelve swords. */
+const TAKES_IN_TURN: ReadonlySet<SfxId> = new Set<SfxId>(["kilic", "top_atisi"]);
+/** A Short's opening hit: the library's drum (no sting exists; see sfxCues). */
+export const HOOK_STING: SfxId = "davul";
+/** Another impact within this long of the start already is the hook; none is added. */
+const HOOK_QUIET_S = 0.7;
+const HOOK_LIKE: ReadonlySet<SfxId> = new Set<SfxId>(["davul", "yumruk", "top_atisi", "kilic", "dusus", "cekic"]);
+/** What a hard cut in a Short that would pass in silence gets: a punch. */
+export const CUT_IMPACT: SfxId = "yumruk";
+/** A cut counts as sounded when an effect lands within this long before it or after it. */
+const CUT_QUIET_BEFORE_S = 0.4;
+const CUT_QUIET_AFTER_S = 0.6;
+
 /** Relative level of each effect under the dialogue. */
 const SFX_GAIN: Readonly<Record<SfxId, number>> = { whoosh: 0.45, pop: 0.55, boing: 0.55, kilic: 0.6, top_atisi: 0.85, davul: 0.6, kalabalik: 0.3, cekic: 0.55, dalga: 0.35, su: 0.55, zil: 0.45, yumruk: 0.6, dusus: 0.6, adim: 0.4, kapi: 0.5, para: 0.5, kagit: 0.45, basari: 0.4, hata: 0.4 };
 
@@ -115,13 +162,23 @@ export function sfxLibraryFiles(sfxDir: string, id: SfxId): string[] {
  * a one-word card, footsteps when someone walks in, a
  * whoosh when someone runs, a pop on a surprise or an exclamation mark over the head, a boing on a question mark, and
  * the success sting under the closing subscribe invitation. A line's own effect replaces its automatic one.
+ *
+ * Film-like sound (owner, 27 Nov 2026, Gaugamela Short: "Shorts should sound like a film"): a writer's effect sounds
+ * SFX_LEAD_S before its line so the narrator's first word does not mask it; a unit's charge and a rout are heard; no
+ * effect repeats more than twice within SFX_REPEAT_WINDOW_S (except those with several recorded takes); and in a
+ * Short (`opts.short`: the mix step passes Format.isShorts of the ordered length; off by default so the other readers of
+ * these cues, e.g. OpeningRetouch.studioMade, keep their meaning) a drum hit opens the video and a hard cut
+ * (`gecis: "kes"`) that would pass in silence gets a short impact.
  */
-export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
+export function sfxCues(episode: Episode, timeline: EpisodeTimeline, opts: SfxCueOptions = {}): SfxCue[] {
   const cues: SfxCue[] = [];
+  const cuts: number[] = [];
+  const short = opts.short === true;
   const lastScene = episode.sahneler.length - 1;
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si];
     if (si > 0 && st && scene.gecis && scene.gecis !== "kes" && scene.gecis !== "cozul") cues.push({ t: Math.max(0, st.start - 0.12), id: "whoosh" });
+    if (si > 0 && st && scene.gecis === "kes") cuts.push(st.start);
     const lineAt = (li: number) => timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li);
     const sceneEnd = si === lastScene ? timeline.duration : (timeline.scenes[si + 1]?.start ?? timeline.duration);
     for (const card of scene.yazi_karti ?? []) {
@@ -131,7 +188,9 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
     scene.satirlar.forEach((line, li) => {
       const lt = lineAt(li);
       if (!lt) return;
-      if (line.sfx) cues.push({ t: lt.start, id: line.sfx });
+      // The writer's effect leads its line by SFX_LEAD_S, never before the scene it belongs to (a slide's whoosh and the
+      // previous scene's last words sit before it) nor before 0.
+      if (line.sfx) cues.push({ t: Math.max(st?.start ?? 0, 0, lt.start - SFX_LEAD_S), id: line.sfx });
       else if (si === lastScene && li === scene.satirlar.length - 1) cues.push({ t: lt.start, id: "basari" });
       else if (line.jest === "sasir" || line.efekt === "unlem") cues.push({ t: lt.start, id: "pop" });
       else if (line.efekt === "soru") cues.push({ t: lt.start, id: "boing" });
@@ -174,6 +233,12 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
     for (const u of scene.harita?.birlikler ?? []) {
       let alive = Math.max(1, Math.min(24, Math.round(u.sayi)));
       for (const y of [...u.yerler].sort((a, b) => a.satir - b.satir)) {
+        // A charge and an envelopment roar with a drum under them (as a crowd's charge does); a rout is the crowd breaking.
+        const move = y.hareket === "hucum" || y.hareket === "kusat" || y.bozgun ? lineAt(y.satir) : undefined;
+        if (move) {
+          cues.push({ t: move.start + 0.2, id: "kalabalik" });
+          if (y.hareket === "hucum") cues.push({ t: move.start + 0.4, id: "davul" });
+        }
         const lost = Math.min(alive, Math.max(0, Math.round(y.kayip ?? 0)));
         alive -= lost;
         const lt = lost > 0 ? lineAt(y.satir) : undefined;
@@ -195,9 +260,20 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       if (sunk) cues.push(...unitLossDelaysS(lost).map((d) => ({ t: sunk.start + d, id: down })));
     }
   });
+  if (short) {
+    // The hard cuts that would pass in silence get a short impact (a punch, the library's period-checked impact).
+    for (const t of cuts) if (!cues.some((c) => c.t > t - CUT_QUIET_BEFORE_S && c.t < t + CUT_QUIET_AFTER_S)) cues.push({ t, id: CUT_IMPACT });
+    // The hook: a drum hit on the first frame. The library has no sting; a drum is the one existing effect that is an
+    // impact and fits every age (a cannon is wrong before gunpowder, a punch or a thud reads as a joke).
+    if (!cues.some((c) => c.t < HOOK_QUIET_S && HOOK_LIKE.has(c.id))) cues.push({ t: 0, id: HOOK_STING });
+  }
   // The same effect twice within a second is one sound (two footstep runs 0.2 s apart doubled into a clatter).
   const sorted = cues.sort((a, b) => a.t - b.t);
-  return sorted.filter((c, i) => !sorted.slice(0, i).some((p) => p.id === c.id && c.t - p.t < 1));
+  const apart = sorted.filter((c, i) => !sorted.slice(0, i).some((p) => p.id === c.id && c.t - p.t < 1));
+  // And no effect more than twice within SFX_REPEAT_WINDOW_S: the same thud on three lines in a row was heard as a loop.
+  const kept: SfxCue[] = [];
+  for (const c of apart) if (TAKES_IN_TURN.has(c.id) || kept.filter((p) => p.id === c.id && c.t - p.t < SFX_REPEAT_WINDOW_S).length < 2) kept.push(c);
+  return kept;
 }
 
 /** Adds `src` (mono, SAMPLE_RATE) into `dst` at `at` seconds with `gain`; samples past the end are dropped. */
