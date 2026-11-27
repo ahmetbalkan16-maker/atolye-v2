@@ -362,7 +362,7 @@ export const CLEAN_FACTS: SecurityWatchFacts = {
   openSensitiveRoutes: ok([]),
   accessKey: ok({ length: 32, enforced: true }),
   research: ok(examResearch({})),
-  secretScanner: ok({ tool: "gitleaks", version: "8.30.1", mode: "artimli" }),
+  secretScanner: ok({ tool: "gitleaks", version: "8.30.1", mode: "tam" }),
 };
 
 /**

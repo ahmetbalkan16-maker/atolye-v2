@@ -6,18 +6,24 @@
  * Run by the AYAS observer every tick (5 min) as an arm's-length child; it does real work only when a check is due:
  *   every 15 min  login records, passcode/gate, route protection
  *   hourly        listening ports, Windows firewall allow rules on the Public profile, live snapshot integrity
- *   on new HEAD   credential-shaped strings and tracked .env files in Git (at least daily)
+ *   on new HEAD   credential-shaped strings and tracked .env files in Git (at least daily); plus Gitleaks over the
+ *                 whole history when the pinned, hash-checked program is installed (scripts/ayas-security-tools-install.ts)
  *   daily         known vulnerabilities of the shipped packages (osv.dev, names and versions only, via the existing CLI)
+ *   daily/new HEAD the security research child (scripts/ayas-security-research.ts: GitHub advisories, Node.js
+ *                 security-wg, release notes), never in the same round as the vulnerability audit (240 s round limit)
  *   weekly        the exam (seeded incidents must be caught, a clean machine must stay quiet)
  *
  * Local measurements only: no port scan, no LAN access, nothing sent anywhere except the daily osv.dev query the
- * existing vulnerability CLI already makes. It changes nothing on the machine; the only automatic defence (the
+ * existing vulnerability CLI already makes and the research child's GETs (package names and versions only, fixed
+ * public hosts). It changes nothing on the machine; the only automatic defence (the
  * brute-force login lock) lives in the login route. Writes data/brain/security/{report,watch-state}.json and appends
  * the case library. Prints one JSON line.
  */
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { isProtectedPath, resolveAccessGate } from "../src/lib/auth/accessGate";
@@ -34,13 +40,14 @@ function readPublishedLiveRoot(repoRoot: string): string {
 }
 import {
   evaluateSecurityWatch, runSecurityExam, vetLearnedChecks, WATCHED_PORTS,
-  type FirewallAllowRule, type ListeningPort, type Measured, type SecretHit, type SecurityExamResult, type SecurityFinding, type SecurityWatchFacts, type VulnerabilityCount,
+  type FirewallAllowRule, type ListeningPort, type Measured, type SecretHit, type SecretScannerFacts, type SecurityExamResult, type SecurityFinding, type SecurityWatchFacts, type VulnerabilityCount,
 } from "../src/lib/brain/security/SecurityWatchModel";
 import { LEARNED_SECURITY_CHECKS } from "../src/lib/security-watch/LearnedChecks";
 import { deriveSecurityNeeds, graceApproveSecurityProposals, proposeSecurityImprovements } from "../src/lib/brain/security/SecurityWatchImprovement";
 import { resolveV3Paths } from "../src/lib/v3/V3Paths";
 import { readLoginFacts, readSecurityCases, readSecurityResearchState, readSecurityWatchReport, readWatchState, recordSecurityCases, writeSecurityWatchReport, writeWatchState } from "../src/lib/brain/security/SecurityWatchStore";
-import { researchFactsFromState, type SecurityResearchFacts } from "../src/lib/brain/security/SecurityResearch";
+import { researchChildDue, researchFactsFromState, summarizeResearch, type ResearchChildRecord, type SecurityResearchFacts } from "../src/lib/brain/security/SecurityResearch";
+import { GITLEAKS, gitleaksConfigToml, parseGitleaksReport, toolInstallDir, toolRunDecision } from "../src/lib/brain/security/SecurityTools";
 
 const root = process.cwd();
 const MIN = 60_000;
@@ -72,7 +79,9 @@ interface WatchState {
   readonly secretsHead?: string;
   readonly vulnsAt?: string;
   readonly examAt?: string;
-  readonly cache?: Partial<Pick<SecurityWatchFacts, "ports" | "firewall" | "liveIntegrity" | "secrets" | "vulnerabilities">>;
+  readonly cache?: Partial<Pick<SecurityWatchFacts, "ports" | "firewall" | "liveIntegrity" | "secrets" | "vulnerabilities" | "secretScanner">>;
+  /** The last research child this round started (2026-11-27). */
+  readonly research?: ResearchChildRecord;
   readonly exam?: SecurityExamResult;
 }
 
@@ -146,6 +155,45 @@ function measureSecrets(at: string): Measured<readonly SecretHit[]> {
   } catch (error) { return failed(at, error); }
 }
 
+/**
+ * Gitleaks over the whole Git history (owner 2026-11-27: "GitHub'ta bir şey varsa entegre edebilirsin"). Full scans
+ * only: 1651 commits took 18 s on this machine, so an incremental mode is not worth its edge cases. The program is
+ * hashed before every run and never executed when the hash differs from the pin; the report is read for file, rule,
+ * line and commit only (`--redact`), written to a fresh temp folder that is removed afterwards.
+ */
+function runGitleaks(): { readonly hits: readonly SecretHit[]; readonly scanner: SecretScannerFacts } {
+  const exe = path.join(root, ...toolInstallDir(GITLEAKS).split("/"), GITLEAKS.exe);
+  const exists = fs.existsSync(exe);
+  const decision = toolRunDecision(GITLEAKS, { exists, ...(exists ? { sha256: createHash("sha256").update(fs.readFileSync(exe)).digest("hex") } : {}) });
+  if (!decision.run) return { hits: [], scanner: { tool: "yerlesik", version: null, reason: decision.reason } };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bekci-gitleaks-"));
+  try {
+    const config = path.join(dir, "gitleaks.toml");
+    const report = path.join(dir, "report.json");
+    fs.writeFileSync(config, gitleaksConfigToml());
+    execFileSync(exe, ["git", ".", "--config", config, "--report-format", "json", "--report-path", report, "--redact", "--no-banner", "--exit-code", "0", "--log-level", "error"], { cwd: root, windowsHide: true, timeout: 90_000, maxBuffer: 4_000_000, stdio: ["ignore", "ignore", "pipe"] });
+    const hits = parseGitleaksReport(JSON.parse(fs.readFileSync(report, "utf8")) as unknown)
+      .map((h): SecretHit => ({ file: h.file, kind: h.rule, ...(h.line !== null ? { line: h.line } : {}), ...(h.commit ? { commit: h.commit } : {}) }));
+    return { hits, scanner: { tool: "gitleaks", version: GITLEAKS.version, mode: "tam" } };
+  } catch (error) {
+    const reason = `Gitleaks çalışırken hata: ${(error instanceof Error ? error.message : String(error)).split(/\r?\n/)[0]!.slice(0, 160)}`;
+    return { hits: [], scanner: { tool: "yerlesik", version: null, reason } };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** The research child (scripts/ayas-security-research.ts): it decides itself whether a run is due; 150 s limit. */
+function runResearchChild(): { readonly ok: boolean; readonly summary: string } {
+  const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
+  try {
+    const out = execFileSync(process.execPath, [tsxCli, path.join(root, "scripts", "ayas-security-research.ts")], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 150_000, maxBuffer: 4_000_000, stdio: ["ignore", "pipe", "pipe"] });
+    return { ok: true, summary: out.trim().split(/\r?\n/).at(-1) ?? "" };
+  } catch (error) {
+    return { ok: false, summary: (error instanceof Error ? error.message : String(error)).split(/\r?\n/)[0]!.slice(0, 200) };
+  }
+}
+
 function measureVulnerabilities(at: string): Measured<VulnerabilityCount> {
   try {
     const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
@@ -179,9 +227,26 @@ async function main(): Promise<void> {
     ran.push("port", "guvenlik-duvari", "canli");
   }
   const secretsDue = force || due(state.secretsAt, DAILY_MS, nowMs) || state.secretsHead !== head;
-  if (secretsDue) { cache.secrets = measureSecrets(nowIso); ran.push("sir"); }
+  if (secretsDue) {
+    // The built-in patterns see the working tree, Gitleaks the whole history; both together, Gitleaks reported apart.
+    const builtIn = measureSecrets(nowIso);
+    const gitleaks = runGitleaks();
+    cache.secrets = builtIn.value ? { value: [...builtIn.value, ...gitleaks.hits], at: nowIso } : builtIn;
+    cache.secretScanner = { value: gitleaks.scanner, at: nowIso };
+    ran.push("sir");
+  }
   const vulnsDue = force || due(state.vulnsAt, DAILY_MS, nowMs);
   if (vulnsDue) { cache.vulnerabilities = measureVulnerabilities(nowIso); ran.push("acik"); }
+  // Internet research (owner 2026-11-27: "internete bağla, araştırsın sürekli"), never in the round of the slow audit.
+  let researchChild: ResearchChildRecord = state.research ?? {};
+  let researchSummary: string | undefined;
+  const researchGate = researchChildDue({ state: (() => { try { return readSecurityResearchState(root); } catch { return null; } })(), child: researchChild, head, heavyRoundAlready: vulnsDue && !force, nowMs });
+  if (researchGate.due) {
+    const r = runResearchChild();
+    researchChild = { startedAt: nowIso, ok: r.ok, head, ...(r.ok ? {} : { error: r.summary }) };
+    researchSummary = r.summary;
+    ran.push("arastirma");
+  }
   const examDue = force || due(state.examAt, WEEKLY_MS, nowMs);
   const exam = examDue ? runSecurityExam(nowIso) : state.exam;
   if (examDue) ran.push("sinav");
@@ -200,13 +265,18 @@ async function main(): Promise<void> {
     liveIntegrity: cache.liveIntegrity ?? notYet(),
     secrets: cache.secrets ?? notYet(),
     vulnerabilities: cache.vulnerabilities ?? notYet(),
-    // WIP (2026-11-27): the research child is not started from this round yet; its stored state is read if present.
+    // The research child's stored answer; a child that crashed or timed out is reported as its own unmeasured source
+    // until a later one succeeds (the cached lists stay, so a known threat does not vanish).
     research: (() => {
-      try { const s = readSecurityResearchState(root); return s ? { value: researchFactsFromState(s, nowMs), at: s.lastAttemptAt } : notYet<SecurityResearchFacts>(); }
-      catch (error) { return failed<SecurityResearchFacts>(nowIso, error); }
+      try {
+        const s = readSecurityResearchState(root);
+        if (!s) return researchChild.ok === false ? failed<SecurityResearchFacts>(nowIso, `araştırma süreci: ${researchChild.error ?? "başarısız"}`) : notYet<SecurityResearchFacts>();
+        const f = researchFactsFromState(s, nowMs);
+        const child = researchChild.ok === false ? [{ id: "cocuk" as const, ok: false, at: researchChild.startedAt ?? nowIso, error: researchChild.error ?? "başarısız" }] : [];
+        return { value: { ...f, sources: [...f.sources, ...child] }, at: s.lastAttemptAt };
+      } catch (error) { return failed<SecurityResearchFacts>(nowIso, error); }
     })(),
-    // WIP: Gitleaks is installed and verified by scripts/ayas-security-tools-install.ts but not yet run from this round.
-    secretScanner: { value: { tool: "yerlesik" as const, version: null, reason: "Gitleaks bu turdan henüz çalıştırılmıyor (geliştirme sürüyor)" }, at: nowIso },
+    secretScanner: cache.secretScanner ?? notYet(),
   };
   const findings = evaluateSecurityWatch(facts, nowIso, LEARNED_SECURITY_CHECKS);
   const learned = vetLearnedChecks(LEARNED_SECURITY_CHECKS).verdicts;
@@ -214,7 +284,11 @@ async function main(): Promise<void> {
   try { previous = readSecurityWatchReport(root)?.findings ?? []; } catch { previous = []; }
   const cases = recordSecurityCases(previous, findings, nowIso, root);
   const measuredAt = Object.fromEntries(Object.entries(facts).map(([k, m]) => [k, (m as Measured<unknown>).at])) as Record<keyof SecurityWatchFacts, string>;
-  const report = { schemaVersion: 1 as const, checkedAt: nowIso, findings, measuredAt, learned, ...(exam ? { exam } : {}) };
+  const report = {
+    schemaVersion: 1 as const, checkedAt: nowIso, findings, measuredAt, learned, ...(exam ? { exam } : {}),
+    ...(facts.research.value ? { research: summarizeResearch(facts.research.value, facts.research.at) } : {}),
+    ...(facts.secretScanner.value ? { scanner: facts.secretScanner.value } : {}),
+  };
   writeSecurityWatchReport(report, root);
   // Self-improvement: measured needs → AYAS's review → Gelişim Merkezi ("AYAS ÖNERİYOR · Bekçi'den") → grace approval.
   let improvement: unknown = null;
@@ -233,9 +307,9 @@ async function main(): Promise<void> {
     secretsAt: secretsDue ? nowIso : state.secretsAt, secretsHead: secretsDue ? head : state.secretsHead,
     vulnsAt: vulnsDue ? nowIso : state.vulnsAt,
     examAt: examDue ? nowIso : state.examAt,
-    cache, ...(exam ? { exam } : {}),
+    cache, ...(exam ? { exam } : {}), research: researchChild,
   } satisfies WatchState, root);
-  console.log(JSON.stringify({ status: "WATCHED", ran, findings: findings.length, serious: findings.filter((f) => f.severity === "kritik" || f.severity === "yuksek").length, newCases: cases.length, improvement, exam: exam ? `${exam.passed}/${exam.total}` : null }));
+  console.log(JSON.stringify({ status: "WATCHED", ran, findings: findings.length, serious: findings.filter((f) => f.severity === "kritik" || f.severity === "yuksek").length, newCases: cases.length, improvement, exam: exam ? `${exam.passed}/${exam.total}` : null, scanner: facts.secretScanner.value?.tool ?? null, research: researchSummary ? researchSummary.slice(0, 300) : researchGate.reason }));
 }
 
 main().catch((error: unknown) => {

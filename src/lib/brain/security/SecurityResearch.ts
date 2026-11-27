@@ -487,6 +487,31 @@ export function researchDue(state: SecurityResearchState | null, currentInventor
   return nowMs - oldest >= RESEARCH_EVERY_MS ? { due: true, reason: "günlük araştırma" } : { due: false, reason: "bugün araştırıldı" };
 }
 
+/** What the watch round remembers about the research children it started (`watch-state.json`). */
+export interface ResearchChildRecord {
+  readonly startedAt?: string;
+  readonly ok?: boolean;
+  readonly head?: string;
+  readonly error?: string;
+}
+
+/**
+ * Whether the watch round starts the research child this round. The child reads the real inventory (programs too)
+ * and decides with `researchDue` itself; the round only gates how often it is started: never within an hour of the
+ * last start, three hours after a child that crashed or timed out (so a broken child is not retried every 15 minutes),
+ * never in a round that already ran the slow vulnerability audit (the observer gives the whole round 240 s), and
+ * otherwise on a new HEAD (the packages may have changed) or when the stored state says research is due.
+ */
+export function researchChildDue(input: { readonly state: SecurityResearchState | null; readonly child: ResearchChildRecord; readonly head: string; readonly heavyRoundAlready: boolean; readonly nowMs: number }): { readonly due: boolean; readonly reason: string } {
+  const { state, child, head, nowMs } = input;
+  const since = child.startedAt ? nowMs - Date.parse(child.startedAt) : Number.POSITIVE_INFINITY;
+  if (!(since >= RESEARCH_MIN_GAP_MS)) return { due: false, reason: "araştırma bir saatten yeni başlatıldı" };
+  if (child.ok === false && since < RESEARCH_RETRY_MS) return { due: false, reason: "son araştırma süreci başarısızdı; 3 saat beklenir" };
+  if (input.heavyRoundAlready) return { due: false, reason: "bu turda paket açığı taraması çalıştı; araştırma sonraki tura kaldı" };
+  if (head && child.head !== head) return { due: true, reason: "yeni HEAD" };
+  return researchDue(state, state?.inventoryHash ?? "", nowMs);
+}
+
 /** The stored state → the model's facts: cached lists stay (a failed day does not make a threat vanish) but a failed or stale source is reported. */
 export function researchFactsFromState(state: SecurityResearchState, nowMs: number): SecurityResearchFacts {
   const sources: ResearchSourceStatus[] = [];
