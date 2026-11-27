@@ -79,7 +79,7 @@ interface WatchState {
   readonly secretsHead?: string;
   readonly vulnsAt?: string;
   readonly examAt?: string;
-  readonly cache?: Partial<Pick<SecurityWatchFacts, "ports" | "firewall" | "liveIntegrity" | "secrets" | "vulnerabilities" | "secretScanner">>;
+  readonly cache?: Partial<Pick<SecurityWatchFacts, "ports" | "firewall" | "liveIntegrity" | "secrets" | "vulnerabilities" | "secretScanner" | "publicShield">>;
   /** The last research child this round started (2026-11-27). */
   readonly research?: ResearchChildRecord;
   readonly exam?: SecurityExamResult;
@@ -113,6 +113,18 @@ function measureFirewall(at: string): Measured<readonly FirewallAllowRule[]> {
       `$ports = $pf[$_.Name]; if ($ports | Where-Object { $_ -in @(${watched}) }) { [pscustomobject]@{ n = $_.DisplayName; p = @($ports | ForEach-Object { [string]$_ }); f = [string]$_.Profile } } } | ConvertTo-Json -Compress`,
     );
     return { value: rows.map((r) => ({ name: r.n, ports: Array.isArray(r.p) ? r.p : [r.p], profiles: r.f })), at };
+  } catch (error) { return failed(at, error); }
+}
+
+/**
+ * The Public profile's effective block-all switch (owner 2026-11-27: the office network stays Public, nobody on it may
+ * see this machine). Read from the active store, so a group policy counts too; needs no admin rights.
+ */
+function measurePublicShield(at: string): Measured<{ blocksAllInbound: boolean; defaultInbound: string }> {
+  try {
+    const [row] = powershellJson<{ a: string; d: string }>("Get-NetFirewallProfile -Profile Public -PolicyStore ActiveStore | ForEach-Object { [pscustomobject]@{ a = [string]$_.AllowInboundRules; d = [string]$_.DefaultInboundAction } } | ConvertTo-Json -Compress");
+    if (!row) throw new Error("Ortak profil okunamadı");
+    return { value: { blocksAllInbound: row.a === "False", defaultInbound: row.d }, at };
   } catch (error) { return failed(at, error); }
 }
 
@@ -223,6 +235,7 @@ async function main(): Promise<void> {
   if (hourly) {
     cache.ports = measurePorts(nowIso);
     cache.firewall = measureFirewall(nowIso);
+    cache.publicShield = measurePublicShield(nowIso);
     cache.liveIntegrity = measureLiveIntegrity(nowIso);
     ran.push("port", "guvenlik-duvari", "canli");
   }
@@ -262,6 +275,7 @@ async function main(): Promise<void> {
     openSensitiveRoutes: { value: SENSITIVE_ROUTES.filter((r) => !isProtectedPath(r)), at: nowIso },
     ports: cache.ports ?? notYet(),
     firewall: cache.firewall ?? notYet(),
+    ...(cache.publicShield ? { publicShield: cache.publicShield } : {}),
     liveIntegrity: cache.liveIntegrity ?? notYet(),
     secrets: cache.secrets ?? notYet(),
     vulnerabilities: cache.vulnerabilities ?? notYet(),
