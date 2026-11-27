@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DrawnSetBack, DrawnSetFront, flameBox, lightSpots, type SetCover, torchSpots } from "../remotion-v3/src/scene/DrawnSet";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
-import { COLUMN_S, FLARE_S, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, onLand, raidOf, searchlights, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, waterColumn } from "../remotion-v3/src/scene/mapEffects";
+import { bankOf, COLUMN_S, FLARE_S, flakAt, flakWindow, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, muzzleFx, oilSlick, onLand, planeSlot, raidOf, searchlights, shellOutcome, shipTargeted, SHIP_SINK_S, sinkPose, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoDropAt, torpedoStart, torpedoTarget, waterColumn, WRECK_S, wreckSmoke } from "../remotion-v3/src/scene/mapEffects";
 import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
 import { FOG_IN_S, FOG_LIFT_S, FOG_LIFT_SPREAD_S, fogBanksAt, MapFog } from "../remotion-v3/src/scene/MapFog";
@@ -36,6 +36,8 @@ const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 // MapCloseGround.tsx imports "remotion" too: loaded at run time like MapUnits.
 type CloseGroundProps = { close: NonNullable<V3GeoMap["close"]>; frame: number; fps: number; era: V3GeoMap["era"]; label: (text: string, size: number) => unknown; k: number; up?: (x: number, y: number, node: unknown) => unknown; layer?: "ground" | "upright"; keep?: (text: string, size: number, x: number, y: number, mx: number, my: number) => { x: number; y: number; alpha: number } };
 const MAP_CLOSE_GROUND: string = "../remotion-v3/src/scene/MapCloseGround";
+// MapVehicles.tsx imports "remotion" too: loaded at run time like MapUnits.
+const MAP_VEHICLES: string = "../remotion-v3/src/scene/MapVehicles";
 
 const FPS = 30;
 const FRAMES = 420;
@@ -1154,6 +1156,91 @@ async function main() {
     assert.ok(drawn.indexOf('data-veil="fog"') > 0 && drawn.indexOf('data-veil="fog"') < drawn.indexOf('data-name="Roman camp"'), "the fog under the camp's name");
     const upright = renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close, frame: 30, fps: 30, era: "antik", label, k: 1, veil, layer: "upright", up: (_x: number, _y: number, n: unknown) => n })));
     assert.ok(!upright.includes("data-veil") && upright.includes("Roman camp"), "the upright layer carries the names only");
+  });
+
+  await scenario("AA naval and air battles (owner, 27 Nov 2026: \"gemi savaşlarını, uçak savaşlarını daha kaliteli yap — konumlandırmaları, efektleri, hareketleri\"): planes fly in a V and bank, torpedo planes hold off their ship under flak, shells strike or splash, a hit ship burns, lists and settles into the sea and leaves smoke and a slick", async () => {
+    const S = 30;
+    const sea = "M4000 4000 L6000 4000 L6000 6000 L4000 6000 Z";
+    const ship = { x: 900, y: 500 };
+    const raidStart = { x: 100, y: 500 };
+    const planes = { kind: "ucak", color: "#3a7e6b", count: 6, start: 0, path: [raidStart, { x: 900, y: 500 }], moveStart: 0 };
+    const ships = { kind: "gemi", color: "#b3263a", count: 1, start: 0, path: [ship], lossStart: 150, losses: [0] };
+    const map = (vehicles: unknown[], era = "modern") => ({ era, land: sea, cities: [], vehicles }) as unknown as V3GeoMap;
+    const mv = (await import(MAP_VEHICLES)) as { MapVehicles: unknown };
+    const draw = (m: V3GeoMap, frame: number) => renderToStaticMarkup(createElement("svg", null, createElement(mv.MapVehicles as never, { map: m, frame, fps: FPS, k: 1, travelS: () => 4 })));
+    // A plane's body (the icon's first path tells it from a ship): translate(x y) rotate(deg) scale(size sizeY) at full opacity; its shadow is a quarter.
+    const bodies = (html: string) => [...html.matchAll(/<g transform="translate\(([-\d.]+) ([-\d.]+)\) rotate\(([-\d.]+)\) scale\(([\d.]+) ([\d.]+)\)" opacity="1"><g><path d="M-0.95 0 Q-0.7/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]), deg: Number(m[3]), sx: Number(m[4]), sy: Number(m[5]) }));
+
+    // Planes: a V behind the leader (never one file), wings clear of each other, heading along the route.
+    for (let i = 1; i < 6; i++) assert.notEqual(planeSlot(i).across, 0, "every follower flies off to a side");
+    const slots = Array.from({ length: 6 }, (_, i) => planeSlot(i));
+    for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) assert.ok(Math.hypot(slots[i]!.back - slots[j]!.back, slots[i]!.across - slots[j]!.across) >= 2.2, `planes ${i} and ${j} clear of each other`);
+    assert.deepEqual([planeSlot(1).across, planeSlot(2).across], [1.6, -1.6], "one each side");
+    const flying = bodies(draw(map([planes]), 24));
+    assert.equal(flying.length, 6);
+    assert.ok(new Set(flying.map((b) => Math.round(b.y))).size >= 5, `a V, not a file: ${flying.map((b) => Math.round(b.y)).join(",")}`);
+    assert.ok(flying.every((b) => b.sx === S && Math.abs(b.deg) < 1 && b.sy === S), "flying straight: no bank");
+    const lead = flying.reduce((a, b) => (b.x > a.x ? b : a));
+    assert.ok(flying.every((b) => b === lead || b.x < lead.x), "the leader is in front");
+    // A turn banks the wings (the plane's span foreshortens).
+    const turning = bodies(draw(map([{ ...planes, path: [raidStart, { x: 500, y: 500 }, { x: 500, y: 900 }] }]), 30));
+    assert.ok(turning.some((b) => b.sy < S), "banking in the turn");
+    assert.ok(Math.abs(bankOf(0, 0.25) - 0.5) < 1e-9 && bankOf(0, 2) === 1 && bankOf(2, 0) === -1 && Math.abs(bankOf(3.1, -3.1)) < 0.2, "bank: half a radian is half a bank, clamped, wrapping at pi");
+
+    // Torpedo planes hold off the ship they attack (3.5 sizes) instead of stopping on top of it, and flak bursts round them.
+    const attack = [{ ...planes, target: ship, fireStart: 40 }, { kind: "gemi", color: "#b3263a", count: 3, start: 0, path: [ship] }];
+    const arrived = bodies(draw(map(attack), 140));
+    assert.ok(Math.max(...arrived.map((b) => b.x)) < ship.x - 3 * S, `held off the ship: ${Math.max(...arrived.map((b) => b.x))}`);
+    assert.deepEqual(flakWindow(map(attack), 0, FPS), { from: 0, to: 40 + 7 * FPS }, "flak opens 3 s before the attack and lasts 7 s after it (not before the planes are on the map)");
+    assert.deepEqual(flakWindow(map([{ ...attack[0]!, fireStart: 200 }, attack[1]!]), 0, FPS), { from: 200 - 3 * FPS, to: 200 + 7 * FPS });
+    assert.ok(draw(map(attack), 60).includes("#2b2d31"), "flak puffs over the raid");
+    assert.ok(!draw(map(attack), 40 + 8 * FPS).includes("#2b2d31"), "none after the raid");
+    assert.ok(!draw(map([attack[0]!]), 60).includes("#2b2d31"), "no ship to fire: no flak");
+    assert.ok(!draw(map(attack, "antik"), 60).includes("#2b2d31"), "none before gunpowder");
+    assert.equal(flakWindow(map(attack), 1, FPS), undefined, "ships have no raid");
+    assert.deepEqual(flakAt(1.3, 7), flakAt(1.3, 7), "a pure function of time");
+    assert.equal(flakAt(2, 1).length, 5);
+    assert.ok(flakAt(2, 1).every((b) => b.age >= 0 && b.age < 1) && flakAt(-1, 1).length === 0);
+    assert.notDeepEqual(flakAt(0.2, 3)[0], flakAt(1.2, 3)[0], "each burst stands somewhere new");
+    const drop = torpedoDropAt(0.15, { x: 0, y: 0 }, { x: 100, y: 40 })!;
+    assert.ok(drop.x > 0 && drop.x < 50 && torpedoDropAt(0.3, { x: 0, y: 0 }, { x: 1, y: 1 }) === undefined && torpedoDropAt(-0.1, { x: 0, y: 0 }, { x: 1, y: 1 }) === undefined, "the torpedo falls from the plane to the water in 0.3 s");
+
+    // Gunnery: the flash stays as smoke, a shell at a ship strikes it four times in ten and else splashes beside it.
+    assert.ok(muzzleFx(0).flash === 1 && muzzleFx(0.35).flash === 0 && muzzleFx(1).smoke !== undefined && muzzleFx(1.6).smoke === undefined && muzzleFx(-1).flash === 0, "flash, then smoke for 1.6 s");
+    assert.ok(muzzleFx(1).smoke!.rise > muzzleFx(0.2).smoke!.rise, "the smoke climbs");
+    const shells = Array.from({ length: 400 }, (_, i) => shellOutcome(i));
+    const hits = shells.filter((o) => o.hit).length / 400;
+    assert.ok(hits > 0.3 && hits < 0.5, `about four in ten strike: ${hits}`);
+    assert.ok(shells.filter((o) => !o.hit).every((o) => Math.hypot(o.dx, o.dy / 0.6) >= 1.4 - 1e-9 && Math.hypot(o.dx, o.dy) <= 2.6 + 1e-9) && shells.filter((o) => o.hit).every((o) => Math.hypot(o.dx, o.dy) < 0.5), "misses fall 1.4-2.6 beside, hits on the ship");
+    assert.deepEqual(shellOutcome(5), shellOutcome(5));
+    const duel = [{ kind: "gemi", color: "#2e4a7d", count: 2, start: 0, path: [{ x: 300, y: 500 }], target: ship, fireStart: 30 }, { kind: "gemi", color: "#b3263a", count: 2, start: 0, path: [ship] }];
+    assert.ok(shipTargeted(map(duel), 0, 6 * S) && !shipTargeted(map(duel), 1, 6 * S), "a gun at a ship is a shot at a ship");
+    const volleys = Array.from({ length: 150 }, (_, k) => draw(map(duel), 40 + k));
+    assert.ok(volleys.some((h) => h.includes("#d9d4cc")), "the muzzle smoke");
+    assert.ok(volleys.some((h) => h.includes("#f4f8fb")), "a shell falling short throws up a column of sea");
+    const shorePound = [{ ...duel[0]!, target: { x: 5050, y: 5030 } }];
+    assert.ok(!Array.from({ length: 150 }, (_, k) => draw(map(shorePound), 40 + k)).some((h) => h.includes("#f4f8fb")), "a shell on land bursts, it does not splash");
+
+    // A ship that is hit: burning on deck, heeling, settling below a clip at the waterline, then its smoke and slick.
+    const pose = [0, 0.25, 0.5, 0.75, 1].map(sinkPose);
+    assert.ok(pose[0]!.list === 0 && pose[0]!.drop === 0 && pose[0]!.fire === 1, "level and burning at the start");
+    assert.ok(pose.every((p, i) => i === 0 || (p.list >= pose[i - 1]!.list && p.drop >= pose[i - 1]!.drop)), "she only heels and settles further");
+    assert.ok(pose[2]!.list > 20 && pose[4]!.drop >= 1.15 && pose[4]!.fade < 0.01 && sinkPose(0.9).fire < 1 && pose[4]!.fire === 0, "listing 24 degrees, all hull under water at the end, the fire out");
+    const downF = 150;
+    const mid = draw(map([ships]), downF + Math.round(FPS * SHIP_SINK_S * 0.4));
+    assert.ok(mid.includes('clip-path="url(#v3-sink-') && mid.includes("#ff7b1c") && mid.includes("#59626b"), "a ship still afloat: clipped at the sea, burning");
+    assert.ok(!draw(map([ships]), downF - 5).includes("v3-sink"), "no clip while she floats");
+    const under = draw(map([ships]), downF + Math.round(FPS * (SHIP_SINK_S + 0.5)));
+    assert.ok(!under.includes("#59626b") && under.includes("#3a3d42") && under.includes("#14181d"), "the hull is gone, the smoke column and the oil slick stay");
+    assert.ok(draw(map([ships]), downF + Math.round(FPS * (WRECK_S - 1))).includes("#3a3d42"), "smoke for WRECK_S seconds");
+    assert.ok(!draw(map([ships]), downF + Math.round(FPS * (WRECK_S + 1))).includes("#3a3d42"), "then clean sea");
+    assert.deepEqual(wreckSmoke(-1, 1), []);
+    assert.equal(wreckSmoke(2, 1).length, 6);
+    assert.deepEqual(wreckSmoke(3, 5), wreckSmoke(3, 5), "a pure function of time");
+    assert.ok(oilSlick(0) === undefined && oilSlick(SHIP_SINK_S) !== undefined && oilSlick(WRECK_S) === undefined && oilSlick(5)!.r > oilSlick(2.5)!.r, "the slick spreads once she is under");
+    // A ship under way leaves its wake: the bow wave, foam arms and a long faint pair.
+    const sailing = draw(map([{ kind: "gemi", color: "#b3263a", count: 1, start: 0, path: [{ x: 100, y: 500 }, { x: 700, y: 500 }], moveStart: 0 }]), 20);
+    assert.ok(sailing.includes('stroke-opacity="0.22"') && sailing.includes('stroke-opacity="0.55"'), "a wake of two layers behind a moving ship");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

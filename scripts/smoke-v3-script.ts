@@ -22,7 +22,7 @@ import { knownRemedy } from "../src/lib/v3/council/RepairBrain";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
-import { aimPlanesAtShips, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
+import { aimPlanesAtShips, aimShipsAtEnemy, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
 import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
@@ -2172,6 +2172,39 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal((night.value as Episode).sahneler[0]!.harita!.zaman, "gece");
     assert.ok(night.fixes.includes(`sahneler[0].harita.zaman "night" → gece`), night.fixes.join(" | "));
     assert.ok(validateEpisode(night.value).ok);
+  });
+
+  await scenario("a fleet battle's ships fire at each other (owner, 27 Nov 2026: \"gemi savaşlarını … daha kaliteli yap\"; the Guadalcanal night battle had seven ships and no gun firing): each warship with no target aims at the nearest ship of the other side, from the line both are on", async () => {
+    const line = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const base = episode();
+    const us = { tur: "gemi" as const, renk: "#2e4a7d", sayi: 5, konum: [159.95, -9.15] as [number, number], satir: 0 };
+    const jp = { tur: "gemi" as const, renk: "#b3263a", sayi: 2, konum: [160.0, -9.1] as [number, number], satir: 1, kayip: 1, kayip_satir: 2 };
+    const far = { tur: "gemi" as const, renk: "#b3263a", sayi: 1, konum: [160.05, -9.12] as [number, number], satir: 0 };
+    const scene = { ...base.sahneler[0]!, id: "s4-mayhem", satirlar: [line("The fleets collide."), line("Guns roar."), line("Hiei burns.")], harita: { merkez: [160, -9.1] as [number, number], genislik_km: 20, araclar: [us, jp, far] } };
+    const ep = { ...base, donem: "1942", sahneler: [scene] } as unknown as Episode;
+    const fired = aimShipsAtEnemy(ep);
+    const a = fired.episode.sahneler[0]!.harita!.araclar!;
+    assert.deepEqual(a[0]!.hedef, [160.0, -9.1], "the nearest enemy group, not the far one");
+    assert.equal(a[0]!.ates_satir, 1, "from the line both groups are on");
+    assert.deepEqual([a[1]!.hedef, a[2]!.hedef], [[159.95, -9.15], [159.95, -9.15]], "each of the other side's groups answers our fleet");
+    assert.deepEqual(a[1]!.ates_satir, 1);
+    assert.equal(fired.fixes.length, 3);
+    assert.ok(validateEpisode(fired.episode).ok);
+    assert.equal(aimShipsAtEnemy(fired.episode).fixes.length, 0, "a second pass changes nothing: every ship has a target");
+    // What is left alone: the writer's own target, the same side, a lone fleet, planes and submarines, an age without guns.
+    const own = { ...us, hedef: [160.2, -9.0] as [number, number] };
+    assert.deepEqual(aimShipsAtEnemy({ ...ep, sahneler: [{ ...scene, harita: { ...scene.harita, araclar: [own, jp] } }] } as unknown as Episode).episode.sahneler[0]!.harita!.araclar![0]!.hedef, [160.2, -9.0]);
+    const alone = (araclar: unknown[], donem = "1942") => aimShipsAtEnemy({ ...ep, donem, sahneler: [{ ...scene, harita: { ...scene.harita, araclar } }] } as unknown as Episode).fixes.length;
+    assert.equal(alone([us, { ...jp, renk: "#2E4A7D" }]), 0, "same side (colour compared without case)");
+    assert.equal(alone([us]), 0, "no enemy on the map");
+    assert.equal(alone([us, { ...jp, konum: [160.4, -9.1] as [number, number] }]), 0, "out of a gun's range (about 45 km)");
+    assert.equal(aimShipsAtEnemy({ ...ep, sahneler: [{ ...scene, harita: { ...scene.harita, genislik_km: 110 } }] } as unknown as Episode).fixes.length, 0, "on a wide map the fleets are specks: no duel drawn");
+    assert.equal(alone([us, { ...jp, tur: "ucak" as const }]), 0, "planes are no ships for the guns (aimPlanesAtShips aims them)");
+    assert.equal(alone([{ ...us, tur: "denizalti" as const }, jp]), 1, "only the surface ship fires: the submarine's torpedo is its own story");
+    assert.equal(alone([us, jp], "1296"), 0, "no guns before gunpowder");
+    assert.equal(alone([{ ...us, tur: "kadirga" as const }, { ...jp, tur: "kadirga" as const }], "1571"), 2, "Lepanto's galleys carried cannon");
+    // The map built from it: both groups fire at each other's drawn position and the Mixer hears the guns.
+    assert.ok(directBattleMaps(ep).fixes.some((f) => f.includes("en yakın düşman gemisine ateş eder")));
   });
 
   await scenario("the Baghdad Short's two greens (owner, 13 Nov 2026, \"haritada ülkelerin rengi aynı\"): a side too close to another shown with it is recoloured everywhere, a side keeps one colour and its shades", () => {
