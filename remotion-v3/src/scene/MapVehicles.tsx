@@ -4,7 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { Burst } from "./MapUnits";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
-import { COLUMN_S, flaresAt, isNightMap, landRings, raidOf, TORPEDO_EVERY_S, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoStart, torpedoTarget, WATER_KINDS, waterColumn } from "./mapEffects";
+import { bankOf, COLUMN_S, flakAt, flakWindow, flaresAt, isNightMap, landRings, muzzleFx, oilSlick, onLand, planeSlot, raidOf, shellOutcome, shipTargeted, SHIP_SINK_S, sinkPose, TORPEDO_EVERY_S, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoDropAt, torpedoStart, torpedoTarget, WATER_KINDS, waterColumn, WRECK_S, wreckSmoke } from "./mapEffects";
 
 /**
  * Vehicles on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map narration): galleys rowing,
@@ -263,6 +263,53 @@ function TorpedoWake({ from, hit, since, S }: { from: P; hit: P; since: number; 
   );
 }
 
+/** Flames on a hit ship's deck, in the icon's box (facing right): three tongues flickering on their own beat. */
+function DeckFire({ frame, power }: { frame: number; power: number }) {
+  if (power <= 0) return null;
+  return (
+    <g opacity={power}>
+      {[-0.35, 0.05, 0.5].map((x, i) => {
+        const h = (0.34 + 0.16 * Math.sin(frame * 0.9 + i * 2.3)) * (i === 1 ? 1.2 : 1);
+        return (
+          <g key={i}>
+            <path d={`M${x - 0.13} -0.05 Q${x - 0.14} ${-h * 0.6} ${x + 0.02 + 0.05 * Math.sin(frame * 0.7 + i)} ${-h - 0.06} Q${x + 0.14} ${-h * 0.5} ${x + 0.13} -0.05 Z`} fill="#ff7b1c" />
+            <path d={`M${x - 0.06} -0.05 Q${x - 0.06} ${-h * 0.45} ${x} ${-h * 0.7} Q${x + 0.07} ${-h * 0.4} ${x + 0.06} -0.05 Z`} fill="#ffd166" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** A ship's wake: the bow wave, foam arms that widen and thin out astern, and the churned water between them. */
+function Wake({ x, y, d, S }: { x: number; y: number; d: P; S: number }) {
+  const [ox, oy] = [x - d.x * S * 0.9, y + S * 0.28];
+  const [bx, by] = [x + d.x * S * 1.0, y + S * 0.26];
+  // A line from (px, py) going back `len` along the course and out `spread` to the side (`side` ±1).
+  const back = (px: number, py: number, len: number, spread: number, side: number) => `M${px} ${py} l${-d.x * S * len - d.y * S * spread * side} ${-d.y * S * len + d.x * S * spread * side}`;
+  return (
+    <g fill="none" stroke="#ffffff" strokeLinecap="round">
+      <path d={back(ox, oy, 1.4, 0.5, 1) + back(ox, oy, 1.4, 0.5, -1)} strokeOpacity={0.55} strokeWidth={S * 0.08} />
+      <path d={back(ox, oy, 3.0, 1.2, 1) + back(ox, oy, 3.0, 1.2, -1)} strokeOpacity={0.22} strokeWidth={S * 0.05} />
+      <path d={back(ox, oy, 2.4, 0, 1)} strokeOpacity={0.3} strokeWidth={S * 0.16} strokeDasharray={`${S * 0.12} ${S * 0.3}`} />
+      <path d={back(bx, by, 0.5, 0.35, 1) + back(bx, by, 0.5, 0.35, -1)} strokeOpacity={0.5} strokeWidth={S * 0.06} />
+    </g>
+  );
+}
+
+/** What a ship leaves where she went down: the smoke column drifting up from her, and the oil slick spreading on the sea. */
+function Wreck({ x, y, S, since, seed }: { x: number; y: number; S: number; since: number; seed: number }) {
+  const slick = oilSlick(since);
+  return (
+    <g>
+      {slick ? <ellipse cx={x} cy={y + S * 0.05} rx={S * slick.r} ry={S * slick.r * 0.32} fill="#14181d" opacity={slick.a} /> : null}
+      {wreckSmoke(since, seed).map((c, k) => (
+        <circle key={k} cx={x + c.dx * S} cy={y + c.dy * S} r={S * c.r} fill="#3a3d42" opacity={c.a} />
+      ))}
+    </g>
+  );
+}
+
 /** A flare at night under its little parachute, lighting the sea round it (`glow` 0..1). */
 function Flare({ x, y, S, glow, light }: { x: number; y: number; S: number; glow: number; light: string }) {
   return (
@@ -296,9 +343,18 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         const plane = v.kind === "ucak";
         // Planes sent at a ship drop torpedoes (Taranto, 11 Nov 2026): a wake runs to it instead of a bomb falling.
         const torpedo = plane && torpedoTarget(map, vi, S * 6);
+        // Shells and bombs at a ship: some strike it, the rest fall in the sea beside it (shellOutcome).
+        const shipShot = !torpedo && shipTargeted(map, vi, S * 6);
         const travel = v.moveStart === undefined ? 0 : travelS(route, v.moveStart) * (plane ? 0.6 : 1);
         const { p, heading, moving, t } = placeAt(v, route, frame, fps, travel);
         const dir = { x: Math.cos(heading), y: Math.sin(heading) };
+        // Torpedo planes hold off the ship they attack and drop from there (Taranto, 27 Nov 2026 audit: the group came to a stop
+        // on top of the battleships it was attacking), easing back as they arrive; the others are where the route puts them.
+        const course = headingAt(route, t);
+        const standoff = torpedo ? S * 3.5 * (t * t * (3 - 2 * t)) : 0;
+        const lead = { x: p.x - Math.cos(course) * standoff, y: p.y - Math.sin(course) * standoff };
+        // A plane banks into a turn.
+        const bank = plane && moving ? bankOf(headingAt(route, Math.max(0, t - 0.05)), headingAt(route, Math.min(1, t + 0.05))) : 0;
         // Waiting or arrived, a small group stands in a wedge behind the first. Under way the others follow in single
         // file along the route (owner, 23 Oct 2026: the fleet hauled over the hill must read as a column on its way),
         // further apart when they are hauled, for the team pulling each.
@@ -306,6 +362,12 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         const gap = v.moveStart !== undefined && length > 0 ? (S * (v.overland?.length ? 3.6 : 2.4)) / length : 0;
         const span = 1 + (v.count - 1) * gap;
         const members = Array.from({ length: v.count }, (_, i) => {
+          // Planes fly abreast in a V behind their leader, waiting, under way or arrived — not in the one file ships keep
+          // (27 Nov 2026 audit: the Swordfish crossed the map nose to tail like a train, then piled on the ships).
+          if (plane) {
+            const slot = planeSlot(i);
+            return { x: lead.x - dir.x * slot.back * S - dir.y * slot.across * S, y: lead.y - dir.y * slot.back * S + dir.x * slot.across * S, heading, hauled: false, going: moving, bank };
+          }
           const ti = gap ? t * span - i * gap : t;
           const f = Math.max(0, Math.min(1, ti));
           const q = gap ? along(route, f) : p;
@@ -315,9 +377,10 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
           const side = i === 0 ? 0 : i % 2 ? 1 : -1;
           const w = !gap || ti <= 0 || ti >= 1 ? 1 : Math.max(0, 1 - Math.min(ti, 1 - ti) / 0.08);
           const hauled = (v.overland ?? []).some((o) => f > o.from && f < o.to) && f > 0 && f < 1;
-          return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving };
+          return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving, bank: 0 };
         });
         const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * (FIRE_S + (torpedo ? TORPEDO_RUN_S + COLUMN_S : 0))) && !moving;
+        const flak = plane && gun ? flakWindow(map, vi, fps) : undefined;
         // The frame a member is lost at: the group's last ones first.
         const downAt = (mi: number) => {
           const j = v.count - 1 - mi;
@@ -339,35 +402,52 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
             })}
             {members.map((m, mi) => {
               const left = Math.cos(m.heading) < 0;
-              // Lost (MapBuilder.unitLossDelaysS, the tokens' timing): a ship heels over and sinks in its splashes, a
-              // gun, rider or tank bursts and tips over, a plane falls trailing smoke.
+              // Lost (MapBuilder.unitLossDelaysS, the tokens' timing): a ship burns, heels over and settles into the sea
+              // (SHIP_SINK_S) and leaves a smoke column and an oil slick, a gun, rider or tank bursts and tips over, a
+              // plane falls trailing smoke.
               const down = downAt(mi);
-              const q = down === undefined ? 0 : interpolate(frame, [down, down + Math.round(fps * SINK_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.quad) });
-              if (q >= 1) return null;
               const water = WATER.has(v.kind);
+              const sinkS = water ? SHIP_SINK_S : SINK_S;
+              const q = down === undefined ? 0 : interpolate(frame, [down, down + Math.round(fps * sinkS)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", ...(water ? {} : { easing: Easing.in(Easing.quad) }) });
               const lost = down !== undefined && frame >= down;
+              const since = lost ? (frame - down!) / fps : 0;
+              // A ship under water leaves its wreck's smoke and slick for a few seconds; the others are gone.
+              if (q >= 1 && !(water && since < WRECK_S)) return null;
+              const waterline = { x: m.x, y: m.y + S * 0.25 };
+              const md = { x: Math.cos(m.heading), y: Math.sin(m.heading) };
+              if (q >= 1) return <Wreck key={mi} x={waterline.x} y={waterline.y} S={S} since={since} seed={vi * 53 + mi * 7} />;
               // A ship sunk while another side's planes or submarine are on the map: their torpedo's wake runs into it and
               // a water column stands up where it strikes (Taranto, 11 Nov 2026: the ship went down with nothing hitting it).
-              const waterline = { x: m.x, y: m.y + S * 0.25 };
               const attacker = water && down !== undefined ? torpedoAttacker(map, vi, down) : undefined;
               const torpedoIn = attacker ? { from: torpedoStart(waterline, attacker, S * 5, land), since: (frame - down!) / fps + TORPEDO_RUN_S } : undefined;
               // Afloat a ship bobs; hauled it bumps over the rollers.
               const bob = m.hauled ? Math.sin(frame * 0.5 + mi * 2) * 0.6 : water ? Math.sin(frame * 0.12 + mi) : 0;
-              const fall = { y: (water ? 0.5 : 0) * q * S, turn: (water ? 28 : 80) * q, fade: 1 - Math.max(0, (q - 0.35) / 0.65) };
+              const pose = water && lost ? sinkPose(q) : undefined;
+              const fall = pose ? { y: pose.drop * S, turn: pose.list * (mi % 2 ? -1 : 1) * (left ? -1 : 1), fade: pose.fade } : { y: 0, turn: 80 * q, fade: 1 - Math.max(0, (q - 0.35) / 0.65) };
+              const clipId = `v3-sink-${vi}-${mi}-${Math.round(m.x)}-${Math.round(m.y)}`;
               const body = plane ? (
-                <g transform={`translate(${m.x} ${m.y + q * S * 3}) rotate(${(m.heading * 180) / Math.PI + q * 70}) scale(${S * appear})`} opacity={fall.fade}>
+                <g transform={`translate(${m.x} ${m.y + q * S * 3}) rotate(${(m.heading * 180) / Math.PI + q * 70}) scale(${S * appear} ${S * appear * (1 - 0.3 * Math.abs(m.bank))})`} opacity={fall.fade}>
                   <VehicleIcon kind={v.kind} color={v.color} frame={frame} moving={m.going} />
                 </g>
               ) : (
+                <g {...(pose ? { clipPath: `url(#${clipId})` } : {})}>
                 <g transform={`translate(${m.x} ${m.y + bob * S * 0.04 + fall.y}) rotate(${bob * 2.5 + fall.turn}) scale(${(left ? -1 : 1) * S * appear} ${S * appear})`} opacity={fall.fade}>
                   {m.hauled ? <Haul frame={frame + mi * 5} color={v.color} /> : null}
                   <VehicleIcon kind={v.kind} color={v.color} frame={frame + mi * 7} moving={m.going && !m.hauled && !lost} />
+                  {pose ? <DeckFire frame={frame + mi * 11} power={pose.fire} /> : null}
+                </g>
                 </g>
               );
-              const md = { x: Math.cos(m.heading), y: Math.sin(m.heading) };
-              const since = lost ? (frame - down!) / fps : 0;
               return (
                 <g key={mi}>
+                  {pose ? (
+                    <defs>
+                      {/* The sea's surface: what has settled below it is not drawn. */}
+                      <clipPath id={clipId}>
+                        <rect x={m.x - S * 4} y={m.y - S * 6} width={S * 8} height={S * 6.3} />
+                      </clipPath>
+                    </defs>
+                  ) : null}
                   {lost ? (
                     <g>
                       {/* The hit, then rings of splashes round a sinking ship, or smoke behind a falling plane. */}
@@ -381,19 +461,21 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
                       {plane ? [0, 1, 2].map((j) => <circle key={j} cx={m.x - md.x * S * j * 0.6} cy={m.y + q * S * 3 - S * (0.4 + j * 0.5)} r={S * (0.22 + j * 0.1)} fill="#55595e" opacity={0.5 * fall.fade} />) : null}
                     </g>
                   ) : null}
+                  {lost && water ? <Wreck x={waterline.x} y={waterline.y} S={S} since={since} seed={vi * 53 + mi * 7} /> : null}
                   {/* Wake behind a ship under way; dust behind cavalry, elephants, tanks and a hauled ship. */}
-                  {m.going && !lost && WATER.has(v.kind) && !m.hauled ? (
-                    <path d={`M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 - md.y * S * 0.5} ${-md.y * S * 1.4 + md.x * S * 0.5} M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 + md.y * S * 0.5} ${-md.y * S * 1.4 - md.x * S * 0.5}`} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={S * 0.08} strokeLinecap="round" fill="none" />
-                  ) : null}
+                  {m.going && !lost && WATER.has(v.kind) && !m.hauled ? <Wake x={m.x} y={m.y} d={md} S={S} /> : null}
                   {m.going && !lost && (!WATER.has(v.kind) || m.hauled) && !plane
                     ? [0, 1, 2].map((j) => {
                         const tt = ((frame * 0.05 + j / 3 + mi * 0.17) % 1 + 1) % 1;
                         return <circle key={j} cx={m.x - md.x * S * (0.8 + tt * 1.2)} cy={m.y + S * (0.2 - tt * 0.3)} r={S * (0.18 + tt * 0.3)} fill="#c9b48a" opacity={0.5 * (1 - tt)} />;
                       })
                     : null}
-                  {/* A plane's shadow on the ground below it. */}
+                  {/* A plane's contrail behind it while it flies, and its shadow on the ground below it. */}
+                  {plane && m.going && !lost
+                    ? [0, 1, 2].map((j) => <path key={`c${j}`} d={`M${m.x - md.x * S * (1 + j * 1.3)} ${m.y - md.y * S * (1 + j * 1.3)} L${m.x - md.x * S * (2.3 + j * 1.3)} ${m.y - md.y * S * (2.3 + j * 1.3)}`} stroke="#ffffff" strokeWidth={S * 0.14} strokeLinecap="round" opacity={0.32 - j * 0.1} />)
+                    : null}
                   {plane ? (
-                    <g transform={`translate(${m.x + S * 0.5} ${m.y + S * 0.9}) rotate(${(m.heading * 180) / Math.PI}) scale(${S * appear * 0.9})`} opacity={0.25}>
+                    <g transform={`translate(${m.x + S * (0.5 + 0.2 * Math.abs(m.bank))} ${m.y + S * 0.9}) rotate(${(m.heading * 180) / Math.PI}) scale(${S * appear * 0.9})`} opacity={0.25}>
                       <path d="M-0.95 0 L0.9 0 M0 -0.95 L-0.3 0 L0 0.95" stroke="#000000" strokeWidth={0.35} strokeLinecap="round" />
                     </g>
                   ) : null}
@@ -413,14 +495,18 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
                   if (torpedo && local - since >= FIRE_S) return null;
                   const muzzle = { x: m.x + dir.x * S * 1.05, y: m.y + dir.y * S * 1.05 - (plane ? 0 : S * 0.35) };
                   const aim = torpedo ? 0.45 : 1;
-                  const spread = { x: (rand(vi * 31 + mi * 7 + shot) - 0.5) * S * 2.2 * aim, y: (rand(vi * 17 + mi * 3 + shot) - 0.5) * S * 1.4 * aim };
+                  // A shot at a ship strikes it or falls short or over beside it (shellOutcome); at the shore it falls where it falls.
+                  const outcome = shipShot ? shellOutcome(vi * 101 + mi * 11 + shot) : undefined;
+                  const spread = outcome ? { x: outcome.dx * S, y: outcome.dy * S } : { x: (rand(vi * 31 + mi * 7 + shot) - 0.5) * S * 2.2 * aim, y: (rand(vi * 17 + mi * 3 + shot) - 0.5) * S * 1.4 * aim };
                   const hit = { x: v.target!.x + spread.x, y: v.target!.y + spread.y };
                   if (torpedo) {
                     // Dropped short of the ship, the torpedo runs in; where it strikes, a burst and a water column.
                     const from = torpedoStart(hit, muzzle, S * 5, land);
                     const impact = torpedoAt(since, from, hit)?.impact;
+                    const drop = torpedoDropAt(since, muzzle, from);
                     return (
                       <g key={`f${mi}`}>
+                        {drop ? <ellipse cx={drop.x} cy={drop.y} rx={S * 0.2} ry={S * 0.07} fill={INK} transform={`rotate(${(Math.atan2(from.y - muzzle.y, from.x - muzzle.x) * 180) / Math.PI} ${drop.x} ${drop.y})`} /> : null}
                         <TorpedoWake from={from} hit={hit} since={since} S={S} />
                         {impact !== undefined ? <Burst x={hit.x} y={hit.y} r={S * 0.9} p={impact / 0.8} era={map.era} seed={vi * 101 + mi * 11 + shot} /> : null}
                         {impact !== undefined ? <WaterColumn x={hit.x} y={hit.y} S={S} impact={impact} /> : null}
@@ -428,19 +514,47 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
                     );
                   }
                   const fly = since / SHOT_FLIGHT_S;
-                  // The shot arcs over (a bomb falls straight), then bursts where it lands.
+                  // The shot arcs over (a bomb falls straight), then bursts where it lands, or throws up a column of sea.
                   const arc = plane ? 0 : Math.hypot(hit.x - muzzle.x, hit.y - muzzle.y) * 0.25;
                   const ball = fly < 1 ? { x: muzzle.x + (hit.x - muzzle.x) * fly, y: muzzle.y + (hit.y - muzzle.y) * fly - Math.sin(fly * Math.PI) * arc } : undefined;
+                  const landed = (since - SHOT_FLIGHT_S) / 0.9;
+                  const splash = land.length > 0 && !outcome?.hit && !onLand(land, hit);
+                  // The gun's flash, and its smoke staying and climbing after it (this shot's and the one before).
+                  const puffs = gun && !plane ? [0, 1].flatMap((k) => (shot - k >= 0 ? [muzzleFx(since + k * every)] : [])) : [];
                   return (
                     <g key={`f${mi}`}>
-                      {gun && !plane && since < 0.35 ? (
-                        <g opacity={1 - since / 0.35}>
-                          <circle cx={muzzle.x} cy={muzzle.y} r={S * (0.25 + since)} fill="#ffd166" />
-                          <circle cx={muzzle.x - dir.x * S * 0.2} cy={muzzle.y - S * 0.1} r={S * (0.35 + since * 1.4)} fill="#d9d4cc" opacity={0.7} />
+                      {puffs.map((fx, k) => (
+                        <g key={`m${k}`}>
+                          {fx.flash > 0 ? (
+                            <g opacity={fx.flash}>
+                              <circle cx={muzzle.x} cy={muzzle.y} r={S * (0.25 + since)} fill="#ffd166" />
+                            </g>
+                          ) : null}
+                          {fx.smoke ? <circle cx={muzzle.x - dir.x * S * 0.2} cy={muzzle.y - S * (0.1 + fx.smoke.rise)} r={S * fx.smoke.r} fill="#d9d4cc" opacity={fx.smoke.a} /> : null}
                         </g>
-                      ) : null}
+                      ))}
                       {ball ? <circle cx={ball.x} cy={ball.y} r={S * 0.1} fill={INK} /> : null}
-                      <Burst x={hit.x} y={hit.y} r={S * 0.9} p={(since - SHOT_FLIGHT_S) / 0.9} era={map.era} seed={vi * 101 + mi * 11 + shot} />
+                      {splash ? (
+                        <g>
+                          <WaterColumn x={hit.x} y={hit.y} S={S * 0.55} impact={landed} />
+                          {landed > 0 && landed < 1 ? <ellipse cx={hit.x} cy={hit.y} rx={S * (0.2 + landed * 0.9)} ry={S * (0.08 + landed * 0.35)} fill="none" stroke="#ffffff" strokeWidth={S * 0.05} opacity={0.7 * (1 - landed)} /> : null}
+                        </g>
+                      ) : (
+                        <Burst x={hit.x} y={hit.y} r={S * 0.9} p={landed} era={map.era} seed={vi * 101 + mi * 11 + shot} />
+                      )}
+                    </g>
+                  );
+                })
+              : null}
+            {/* Anti-aircraft fire bursts round an air raid on a fleet: a flash, then a black puff that swells and fades. */}
+            {flak && frame >= flak.from && frame < flak.to
+              ? flakAt((frame - flak.from) / fps, vi * 41 + 3).map((b, k) => {
+                  const edge = Math.min(1, (frame - flak.from) / (fps * 0.5), (flak.to - frame) / fps);
+                  const [bx, by] = [lead.x + b.dx * S, lead.y + b.dy * S];
+                  return (
+                    <g key={`k${k}`} opacity={edge}>
+                      {b.age < 0.2 ? <circle cx={bx} cy={by} r={S * (0.25 + b.age * 2)} fill="#ffb703" opacity={1 - b.age / 0.2} /> : null}
+                      <circle cx={bx} cy={by} r={S * (0.28 + 0.4 * b.age)} fill="#2b2d31" opacity={0.62 * (1 - b.age)} />
                     </g>
                   );
                 })

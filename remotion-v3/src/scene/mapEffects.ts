@@ -43,11 +43,16 @@ function unit(from: P, to: P, fallback: P): P {
   return d > 1e-6 ? { x: (to.x - from.x) / d, y: (to.y - from.y) / d } : fallback;
 }
 
+/** Does a vehicle group's target lie on a ship (a ship of another vehicle group within `reach`)? */
+export function shipTargeted(map: V3GeoMap, vi: number, reach: number): boolean {
+  const v = map.vehicles?.[vi];
+  if (!v || !v.target) return false;
+  return (map.vehicles ?? []).some((o, oi) => oi !== vi && WATER_KINDS.has(o.kind) && o.path.some((q) => Math.hypot(q.x - v.target!.x, q.y - v.target!.y) <= reach));
+}
+
 /** Does a plane's target lie on a ship (a ship of another vehicle group within `reach`)? Then it drops torpedoes. */
 export function torpedoTarget(map: V3GeoMap, vi: number, reach: number): boolean {
-  const v = map.vehicles?.[vi];
-  if (!v || v.kind !== "ucak" || !v.target) return false;
-  return (map.vehicles ?? []).some((o, oi) => oi !== vi && WATER_KINDS.has(o.kind) && o.path.some((q) => Math.hypot(q.x - v.target!.x, q.y - v.target!.y) <= reach));
+  return map.vehicles?.[vi]?.kind === "ucak" && shipTargeted(map, vi, reach);
 }
 
 /**
@@ -167,4 +172,129 @@ export function searchlights(map: V3GeoMap, view: { x0: number; y0: number; x1: 
   const from = found.length ? found : [{ x: view.x0 + w * 0.2, y: view.y1 - h * 0.06 }, { x: view.x0 + w * 0.8, y: view.y1 - h * 0.06 }];
   const t = frame / fps;
   return from.map((q, i) => ({ x: q.x, y: q.y, angle: -Math.PI / 2 + (i % 2 ? 0.35 : -0.35) + Math.sin(t * (0.45 + i * 0.12) + i * 1.9) * 0.75 }));
+}
+
+/**
+ * Naval and air battle effects (owner, 27 Nov 2026: "gemi savaşlarını, uçak savaşlarını daha kaliteli yap —
+ * konumlandırmaları, efektleri, hareketleri"). Every function is a pure function of seconds or frames (Remotion renders
+ * frames in any order); offsets are in units of a vehicle's size.
+ */
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+/**
+ * A plane's place in its group's V (the leader's frame: `back` behind it along its course, `across` to its right):
+ * planes fly abreast of each other, never in the one file the ships keep, and the wings (a plane is two units across) never
+ * touch. Slot 0 is the leader, then one each side, row by row.
+ */
+export function planeSlot(i: number): { back: number; across: number } {
+  if (i <= 0) return { back: 0, across: 0 };
+  const row = Math.ceil(i / 2);
+  return { back: 1.6 * row, across: (i % 2 ? 1 : -1) * 1.6 * row };
+}
+
+/** How far a plane banks (−1..1, the sign is the side) going from heading `h0` to `h1` (radians): a half radian is a full bank. */
+export function bankOf(h0: number, h1: number): number {
+  let d = h1 - h0;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return Math.max(-1, Math.min(1, d / 0.5));
+}
+
+/** How long a lost ship takes to go down on screen (seconds): it lists, settles into the sea and goes under. */
+export const SHIP_SINK_S = 3;
+/** How long a wreck's smoke column and oil slick stay on the sea after the ship has gone under. */
+export const WRECK_S = 8;
+
+/**
+ * A sinking ship's pose at `p` (0..1 of SHIP_SINK_S): `list` the heel in degrees, `drop` how far the hull has settled into
+ * the sea (units: 1.15 is all of it), `fade` the last moment's fade, `fire` the burning on deck (up until it settles).
+ */
+export function sinkPose(p: number): { list: number; drop: number; fade: number; fire: number } {
+  const c = clamp01(p);
+  const heel = clamp01(c / 0.5);
+  return {
+    list: 24 * heel * heel * (3 - 2 * heel),
+    drop: 1.15 * Math.pow(clamp01((c - 0.2) / 0.8), 1.4),
+    fade: c > 0.92 ? 1 - (c - 0.92) / 0.08 : 1,
+    fire: c < 0.75 ? 1 : Math.max(0, 1 - (c - 0.75) / 0.25),
+  };
+}
+
+/**
+ * The smoke column over a wreck, `since` seconds after the ship was hit: puffs rising and drifting down wind, thickening
+ * while the ship burns and thinning to nothing by WRECK_S. Each puff is a pure function of `since` (a cycle's phase).
+ */
+export function wreckSmoke(since: number, seed: number): { dx: number; dy: number; r: number; a: number }[] {
+  if (since < 0 || since >= WRECK_S) return [];
+  const life = Math.min(1, since / 0.6) * Math.min(1, (WRECK_S - since) / 2.5);
+  return Array.from({ length: 6 }, (_, j) => {
+    const t = (((since * 0.3 + j / 6) % 1) + 1) % 1;
+    return { dx: 0.15 * Math.sin(seed + j * 2.1) + t * 1.3, dy: -(0.5 + t * 3.2), r: 0.22 + t * 0.5, a: 0.55 * (1 - t) * life };
+  });
+}
+
+/** The oil slick spreading over the sea where a ship went down: radius (units) and opacity; none before she is under. */
+export function oilSlick(since: number): { r: number; a: number } | undefined {
+  const from = SHIP_SINK_S * 0.6;
+  if (since < from || since >= WRECK_S) return undefined;
+  const g = (since - from) / (WRECK_S - from);
+  return { r: 0.8 + 1.6 * Math.sqrt(g), a: 0.3 * Math.min(1, g * 6) * (1 - g) };
+}
+
+/**
+ * A gun's firing `since` seconds after the shot: the flash (1..0, gone in 0.35 s) and the smoke puff that stays and
+ * climbs for 1.6 s (radius and opacity; `rise` in units), where it was a flash of 0.35 s and nothing after.
+ */
+export function muzzleFx(since: number): { flash: number; smoke?: { r: number; a: number; rise: number } } {
+  if (since < 0) return { flash: 0 };
+  const t = since / 1.6;
+  return { flash: since < 0.35 ? 1 - since / 0.35 : 0, ...(t < 1 ? { smoke: { r: 0.35 + t * 1.1, a: 0.6 * (1 - t), rise: t * 0.8 } } : {}) };
+}
+
+/**
+ * Where a shell aimed at a ship comes down (units, from the aim point): four in ten strike it, the others fall short or
+ * over in a splash 1.4–2.6 units off (the ship's guns did not score a hit with every shot). `seed` is the shot's.
+ */
+export function shellOutcome(seed: number): { hit: boolean; dx: number; dy: number } {
+  if (rand(seed * 3.1 + 0.7) < 0.4) return { hit: true, dx: (rand(seed + 5) - 0.5) * 0.8, dy: (rand(seed + 9) - 0.5) * 0.5 };
+  const a = rand(seed + 13) * 2 * Math.PI;
+  const d = 1.4 + rand(seed + 17) * 1.2;
+  return { hit: false, dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.6 };
+}
+
+/** Anti-aircraft fire: how long before an attack it opens up and how long after, in seconds. */
+export const FLAK_LEAD_S = 3;
+export const FLAK_TAIL_S = 7;
+
+/**
+ * The frames an air raid draws flak in (Taranto: the battleships' guns fired at the torpedo planes and not one burst
+ * stood round them): a plane group's raid on a map where a ship of another side floats, from FLAK_LEAD_S before the
+ * attack to FLAK_TAIL_S after. Undefined: no flak (no raid, or no ship to fire).
+ */
+export function flakWindow(map: V3GeoMap, vi: number, fps: number): { from: number; to: number } | undefined {
+  const v = map.vehicles?.[vi];
+  const raid = raidOf(map, vi, fps);
+  if (!v || !raid || !(map.vehicles ?? []).some((o) => WATER_KINDS.has(o.kind) && o.color !== v.color)) return undefined;
+  return { from: Math.max(v.start, raid.frame - Math.round(FLAK_LEAD_S * fps)), to: raid.frame + Math.round(FLAK_TAIL_S * fps) };
+}
+
+/**
+ * The flak bursts round a plane group `t` seconds into the barrage: five at a time, each a flash then a black puff that
+ * swells and fades over a second, somewhere within a few units of the group (`age` 0..1; offsets in units).
+ */
+export function flakAt(t: number, seed: number): { dx: number; dy: number; age: number }[] {
+  if (t < 0) return [];
+  return Array.from({ length: 5 }, (_, i) => {
+    const phase = t * 1.1 + i / 5;
+    const cycle = Math.floor(phase);
+    return { dx: (rand(seed + cycle * 17 + i * 5) - 0.5) * 9, dy: (rand(seed + cycle * 29 + i * 11) - 0.5) * 6, age: phase - cycle };
+  });
+}
+
+/** A torpedo's drop `since` seconds after it leaves the plane at `from`, falling to the water at `to` in 0.3 s (undefined after). */
+export function torpedoDropAt(since: number, from: P, to: P): P | undefined {
+  if (since < 0 || since >= 0.3) return undefined;
+  const e = (since / 0.3) ** 2;
+  return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
 }

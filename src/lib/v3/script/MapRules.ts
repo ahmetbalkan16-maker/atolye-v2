@@ -391,6 +391,40 @@ export function aimPlanesAtShips(episode: Episode): { episode: Episode; fixes: s
   return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
+/**
+ * Warships of a fleet battle fire at each other (owner, 27 Nov 2026: "gemi savaşlarını … daha kaliteli yap"; Guadalcanal's
+ * night surface battle had seven ships sailing and sinking among each other and not one gun fired): in a gunpowder age a
+ * ship group the writer gave no "hedef" fires at the nearest ship of another side on the same map, from the line both
+ * are on it. A group that went down with "kayip" still fires first (it goes down on its own line). Planes, a target the
+ * writer gave and ships with no enemy on the map are left alone. Logged as a fix.
+ */
+/** The widest map (km) and the longest range (km) at which warships are drawn firing at each other. */
+const SHIP_DUEL_MAP_KM = 40;
+const SHIP_GUN_RANGE_KM = 15;
+
+export function aimShipsAtEnemy(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const year = typeof episode.donem === "string" ? periodEndYear(episode.donem) : undefined;
+  if (year !== undefined && year < 1450) return { episode, fixes };
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    // Only on a battle-sized map, and at a gun's range: on a wide map the fleets are a speck apart.
+    if (!h?.araclar?.length || !h.genislik_km || h.genislik_km > SHIP_DUEL_MAP_KM) return s;
+    let changed = false;
+    const araclar = h.araclar.map((a, i) => {
+      if (!SHIP_KINDS.has(a.tur) || a.tur === "denizalti" || a.hedef) return a;
+      const foes = h.araclar!.filter((o, oi) => oi !== i && SHIP_KINDS.has(o.tur) && o.renk.toLowerCase() !== a.renk.toLowerCase() && distanceKm(a.konum, o.konum) <= SHIP_GUN_RANGE_KM);
+      const foe = foes.sort((x, y) => distanceKm(a.konum, x.konum) - distanceKm(a.konum, y.konum))[0];
+      if (!foe) return a;
+      changed = true;
+      fixes.push(`${s.id}: araclar[${i}] (${a.tur}) en yakın düşman gemisine ateş eder`);
+      return { ...a, hedef: [foe.konum[0], foe.konum[1]] as [number, number], ates_satir: Math.max(a.satir, foe.satir) };
+    });
+    return changed ? { ...s, harita: { ...h, araclar } } : s;
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
 /** The words a narrator names a vehicle group by (ships are named on every naval line, so they are not looked for). */
 const TOLD_VEHICLE: Partial<Record<string, RegExp>> = {
   ucak: /(?:^|[^\p{L}])(?:(?:bi)?planes?|aircraft|air\s?planes?|bombers?|fighters?|dive[- ]bombers?|torpedo[- ]bombers?|uçak\p{L}*)(?!\p{L})/iu,
@@ -531,8 +565,9 @@ export function directBattleMaps(episode: Episode): { episode: Episode; fixes: s
   const settled = settleFallMarks(battle.episode);
   const told = vehiclesOnToldLine(settled.episode);
   const aimed = aimPlanesAtShips(told.episode);
-  const opened = openOpeningMap(aimed.episode);
-  return { episode: opened.episode, fixes: [...battle.fixes, ...settled.fixes, ...told.fixes, ...aimed.fixes, ...opened.fixes] };
+  const fired = aimShipsAtEnemy(aimed.episode);
+  const opened = openOpeningMap(fired.episode);
+  return { episode: opened.episode, fixes: [...battle.fixes, ...settled.fixes, ...told.fixes, ...aimed.fixes, ...fired.fixes, ...opened.fixes] };
 }
 
 /** A wound told: wounded, injured, carried off (English and Turkish stems). */

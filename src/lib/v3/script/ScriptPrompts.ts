@@ -595,7 +595,11 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // is drawn as the period's ship). A ship whose route crosses land is HAULED over it on rollers by its crew (the
         // 1453 fleet over the hill behind Galata): give the real land route and the camera follows. "kayip" of them are
         // lost on line "kayip_satir", one by one: ships sink, guns and riders are blown up — a fleet battle is told with
-        // both fleets sailing at each other, firing, and the beaten side's ships lost (not with land tokens).
+        // both fleets sailing at each other, firing, and the beaten side's ships lost (not with land tokens). Planes
+        // ("sayi" 3–6) fly abreast in a V and bank in turns; planes with "hedef" ON a ship torpedo it from a short way off
+        // (the group holds off the ship, flak bursts round it), and that ship's "kayip" is on the line it is hit. Warships
+        // with no "hedef" fire at the nearest enemy ship by themselves; the guns' flash, smoke and the shells' splashes,
+        // a hit ship's fire, listing and sinking, its smoke and oil slick are drawn — never ask for them in words.
 CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's fall, cut from the wide map to a close map of
   that place: "genislik_km" 4–60, "kamera" keys 3–30 km (the painted battle maps of the history channels). The usual flow:
   wide map (the march there) → close map (the field or the walls, the armies, the guns, the ships) → a character scene
