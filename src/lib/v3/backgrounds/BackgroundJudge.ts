@@ -83,6 +83,21 @@ const VERDICT_SCHEMA = {
 
 const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons", openverse: "Openverse (openly licensed collections)", aic: "the Art Institute of Chicago", cleveland: "the Cleveland Museum of Art" };
 
+/**
+ * A story of our own times (owner's 2026 Iran war Short, 27 Nov 2026): the period IS the modern world, so an archive
+ * judge that scores "modern elements" 0–3 threw out the US military's own Operation Epic Fury photo (period 0/10) and a
+ * Khamenei photo (subject 9, period 3) — every real picture was lost. From this year on, a photo taken in the period is a
+ * period picture, its equipment and clothes are not "modern", and the modern flag alone fails nothing.
+ */
+export const PRESENT_DAY_FROM = 1990;
+
+export function presentDay(donem: string): boolean {
+  const year = periodEndYear(donem);
+  return year !== undefined && year >= PRESENT_DAY_FROM;
+}
+
+const PRESENT_DAY_NOTE = (donem: string) => `THIS STORY HAPPENS IN OUR OWN TIMES (${donem}): a photograph taken in ${donem} of the person, place or event named IS a period picture and scores 9–10 on "donem"; the aircraft, ships, weapons, cars, buildings and clothes of ${donem} are NOT modern elements here. Score "donem" low only for an image clearly from a different time (an old archive photo from decades earlier, a historical painting) and set "modern" true only for things newer than ${donem}.`;
+
 /** Both scores at or above the bar and nothing modern in the picture. */
 /**
  * Both scores at the bar and nothing modern. `allowModern`: a subject photo of today (ruins, a site) always shows a
@@ -238,7 +253,7 @@ Look at the image and score 0–10:
 - "donem" (period): does it show the subject as it was in ${scene.donem}? 9–10 an artwork, manuscript, map, engraving or photograph made in that period; 7–8 a later painting or engraving of that period with nothing modern in it; 4–6 a later depiction that mixes in later things; 0–3 a photo taken long after the period (the place as it stands today), or anything with modern elements (cars, asphalt, power lines, modern buildings, ferries or boats with engines, people in modern clothes, signs, logos), a reconstruction for tourists, a watermark.
 - "modern": true if anything modern is visible at all.
 - "tur": eser (painting, miniature, engraving, mosaic, manuscript), harita, fotograf, cizim (plan, diagram), diger.
-Judge the image, not the file name.
+${presentDay(scene.donem) ? `${PRESENT_DAY_NOTE(scene.donem)}\n` : ""}Judge the image, not the file name.
 ${answer}`;
 }
 
@@ -554,7 +569,7 @@ export async function pickBackground<T extends JudgeCandidate>(
       v = { title: c.title, puan: 0, gosterilen: "", sorun: "değerlendirilemedi" };
     }
     verdicts.push(v);
-    if (passes(v, opts.mode === "konu") && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
+    if (passes(v, opts.mode === "konu" || ((opts.mode ?? "arsiv") === "arsiv" && presentDay(scene.donem))) && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
   }
   return best ? { chosen: best.c, verdict: best.v, verdicts } : { verdicts };
 }

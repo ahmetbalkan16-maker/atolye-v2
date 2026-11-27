@@ -11,7 +11,7 @@ import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, MAX_SET_EXAMPLES, momentDesign, periodLook, periodNavyLook, periodNegatives, periodRewritePrompt, periodShipLook, readPeriodRewrite, rememberSetExample, setExamples, setRewriteKind } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, looksEnglish, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, namedSubjectCheck, namedSubjects, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, earlierShipQuestion, englishTitle, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, looksEnglish, namedPlaceCheck, namedPlaces, namedShipCheck, namedShips, namedSubjectCheck, namedSubjects, parseLaterEra, parseVerdict, passes, periodFallback, presentDay, PRESENT_DAY_FROM, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, EXTMETADATA, freeLocalFile, politeFetch, stripHtml, USER_AGENT, userAgentFor, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -356,6 +356,18 @@ async function main() {
     const judge2 = new FakeJudge({ morroni: JSON.stringify({ puan: 10, donem: 9, modern: true, tur: "fotograf", gosterilen: "Corfinium kalıntıları", sorun: "-" }) });
     assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "konu" })).chosen?.title, "File:morroni.jpg");
     assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "a period image must have nothing modern");
+  });
+
+  await scenario("P1 a story of our own times: a photo taken in 2026 is a period picture, its jets and clothes are not modern (2026 Iran war Short)", async () => {
+    const war: SceneForJudge = { ...SCENE, konu: "2026 Iran war", donem: "2026", mekan: "Persian Gulf", tr: "Epic Fury", en: "US jets launch Operation Epic Fury" };
+    const p = judgePrompt(war, candidate("epic-fury"), "arsiv");
+    assert.ok(p.includes("THIS STORY HAPPENS IN OUR OWN TIMES (2026)") && p.includes("are NOT modern elements here"));
+    assert.ok(!judgePrompt(SCENE, candidate("x"), "arsiv").includes("OUR OWN TIMES"), "an older period keeps its rubric");
+    assert.ok(presentDay("2026") && presentDay("1991") && !presentDay("1942") && !presentDay("49 BC") && !presentDay(""));
+    assert.equal(PRESENT_DAY_FROM, 1990);
+    const judge = new FakeJudge({ "epic-fury": JSON.stringify({ puan: 8, donem: 9, modern: true, tur: "fotograf", gosterilen: "uçak gemisinde jetler", sorun: "-" }), "beirut": JSON.stringify({ puan: 2, donem: 9, modern: true, tur: "fotograf", gosterilen: "enkaz", sorun: "başka yer" }) });
+    assert.equal((await pickBackground(["beirut", "epic-fury"].map(candidate), war, judge, preview, () => {}, { mode: "arsiv" })).chosen?.title, "File:epic-fury.jpg", "the modern flag alone fails nothing in our own times");
+    assert.equal((await pickBackground(["beirut"].map(candidate), war, judge, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "an unrelated photo still never passes");
   });
 
   await scenario("P2 no set passes: a drawing of the right period stands in, never a modern, later-era or unrelated one (owner, 22 Oct 2026)", () => {
