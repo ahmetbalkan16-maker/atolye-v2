@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     await scenario("a DEEP with nothing owed still reads the tracked release feeds, and only those", async () => {
       const root = tempRoot();
       const result = await tickAyasResearchScheduler(deps(root));
-      assert.equal(result.outcome, "DEEP");
+      assert.equal(result.outcome, "DEEP", "assert.equal(result.outcome, \"DEEP\")");
       const tried = result.deep!.sourceErrors.map((e) => e.sourceId);
       assert.deepEqual(tried, ["react", "nextjs"], JSON.stringify(result.deep!.sourceErrors));
       assert.equal(result.state.pendingDeepSourceIds, undefined, "a failed tracked feed is not carried as owed");
@@ -58,8 +58,8 @@ async function main(): Promise<void> {
       const store = createAyasResearchSchedulerStateStore({ rootDir: root });
       store.write({ ...store.read(), pendingDeepSourceIds: ["stub-untracked", "nextjs"] });
       const result = await tickAyasResearchScheduler(deps(root));
-      assert.equal(result.outcome, "DEEP");
-      assert.deepEqual(result.deep!.sourceErrors.map((e) => e.sourceId), ["stub-untracked", "nextjs", "react"]);
+      assert.equal(result.outcome, "DEEP", "assert.equal(result.outcome, \"DEEP\")");
+      assert.deepEqual(result.deep!.sourceErrors.map((e) => e.sourceId), ["stub-untracked", "nextjs", "react"], "assert.deepEqual(result.deep!.sourceErrors.map((e) => e.sourceId), [\"stub-untracked\", \"nextjs\", \"react\"])");
     });
 
     await scenario("when the budget runs out, only the owed sources are carried to the next tick, never the ride-along feeds", async () => {
@@ -72,21 +72,21 @@ async function main(): Promise<void> {
       let reads = 0;
       const now = () => new Date(t0 + 60_000 * reads++).toISOString();
       const result = await tickAyasResearchScheduler({ ...deps(root), now, deadlineAt: new Date(t0 + 90_000).toISOString(), deep: { ...deps(root).deep, now } });
-      assert.equal(result.outcome, "DEEP");
-      assert.deepEqual([...result.deep!.deferredSourceIds].sort(), ["nextjs", "react", "stub-untracked"]);
-      assert.deepEqual(result.state.pendingDeepSourceIds, ["stub-untracked"]);
+      assert.equal(result.outcome, "DEEP", "assert.equal(result.outcome, \"DEEP\")");
+      assert.deepEqual([...result.deep!.deferredSourceIds].sort(), ["nextjs", "react", "stub-untracked"], "assert.deepEqual([...result.deep!.deferredSourceIds].sort(), [\"nextjs\", \"react\", \"stub-untracked\"])");
+      assert.deepEqual(result.state.pendingDeepSourceIds, ["stub-untracked"], "assert.deepEqual(result.state.pendingDeepSourceIds, [\"stub-untracked\"])");
     });
 
     await scenario("a LIGHT cycle reads no tracked feed in depth (the ride-along is DEEP-only)", async () => {
       const root = tempRoot();
       const t0 = Date.now();
       const first = await tickAyasResearchScheduler({ ...deps(root), now: () => new Date(t0).toISOString() });
-      assert.equal(first.outcome, "DEEP");
+      assert.equal(first.outcome, "DEEP", "assert.equal(first.outcome, \"DEEP\")");
       // 2.5 h later: LIGHT (every 2 h) is due, DEEP (every 3 h) is not.
       const later = () => new Date(t0 + 150 * 60_000).toISOString();
       const second = await tickAyasResearchScheduler({ ...deps(root), now: later });
-      assert.equal(second.outcome, "LIGHT");
-      assert.equal(second.deep, undefined);
+      assert.equal(second.outcome, "LIGHT", "assert.equal(second.outcome, \"LIGHT\")");
+      assert.equal(second.deep, undefined, "assert.equal(second.deep, undefined)");
     });
   } finally {
     for (const r of roots) fs.rmSync(r, { recursive: true, force: true });
