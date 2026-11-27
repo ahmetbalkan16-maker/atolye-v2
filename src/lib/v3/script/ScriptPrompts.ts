@@ -617,8 +617,12 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   A SIEGE'S CLOSE MAP IS THE REAL SIEGE, as the sources tell it: the besiegers' camp ("yerlesimler" "ordugah") where it
   really stood, behind their lines opposite the main gate or the breach; on the first close map of the place the
   besiegers' main unit's "cephe" just outside the wall along its whole length (the siege line, 3–6 points) and the
-  defenders' just inside it, on the wall; the guns before the wall with "hedef" on the breach; the breach ("gedik") ON the
-  named wall where it really broke, and the assault's tokens through it; the fleet where it really lay and, when the
+  defenders' just inside it, on the wall; the guns OUTSIDE the wall, 0.3–0.6 km before the stretch they pound (never
+  inside the walls, never a mile off), with "hedef" on the breach and "ates_satir" on the line that tells the
+  bombardment; the breach ("gedik") ON the named wall where it really broke, on that line or after it (the wall breaks
+  under the guns, so never before they fire), and the assault's tokens through it; a town that burns when it falls gets
+  "yanma_satir" on the line of its fall (the fire starts at the breach and the smoke rises over the town); the fleet
+  where it really lay and, when the
   sources tell ships hauled over land, their "yol" over that land; a leader's "x_satir" on the line that tells his death
   or capture, after his own last words — never for one only wounded.
   The assault scene, in short:

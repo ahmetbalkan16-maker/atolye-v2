@@ -273,6 +273,12 @@ export function fillSiegeMap(map: SceneMap, first: boolean, fits?: (m: SceneMap)
     return undefined;
   };
   const centres = (side: string | undefined) => units.filter((u) => u.taraf === side).flatMap((u) => ((y) => (y ? [centreOf(y)].filter((p): p is Ll => Boolean(p)) : []))(firstStep(u)));
+  // Guns inside the walls, on the wall or a mile off stand where guns pounding that wall stood: outside it, in range.
+  const battery = placeBattery(h, { P, L, inside, outward, inFrame, defenderColour: units.find((u) => u.taraf === defenders)?.renk });
+  if (battery.fixes.length) {
+    h = battery.map;
+    fixes.push(...battery.fixes);
+  }
   // The besiegers' camp behind their lines (else their guns), opposite the breach (or the wall nearest them), in the frame.
   const guns = (h.araclar ?? []).filter((a) => a.tur === "top" && !inside(a.konum)).map((a) => a.konum);
   const attackersAt = attackers ? centres(attackers) : units.length ? [] : guns;
@@ -317,6 +323,48 @@ export function fillSiegeMap(map: SceneMap, first: boolean, fits?: (m: SceneMap)
     if (!fits || fits(tried.map)) return { map: tried.map, fixes: [...fixes, ...tried.fixes] };
   }
   return { map: h, fixes };
+}
+
+/** How far in front of its wall a siege gun stands at most (km): a bombard's real range was a few hundred metres. */
+const BATTERY_KM = 0.45;
+/** A gun this far from its target (km) is out of range of it: moved up to the battery. */
+const BATTERY_FAR_KM = 0.9;
+/** A gun this near the wall line (km) stands ON it. */
+const ON_WALL_KM = 0.1;
+/** Guns of one battery stand this far apart along the wall (km). */
+const BATTERY_GAP_KM = 0.14;
+
+/**
+ * Siege guns where guns stood (owner, 27 Nov 2026: "şehir, kale kuşatmalarını daha kaliteli yap — konumlandırmaları"):
+ * the Baghdad Short's three guns stood INSIDE the ring they were pounding, and a writer's gun a mile from its wall is out
+ * of range. A gun with a target that stands inside the walls, on the wall line or further than `BATTERY_FAR_KM` from its
+ * target is set outside the wall before it, `back` km (about BATTERY_KM, by the map's width) from the stretch it pounds,
+ * along the wall's outward normal; several side by side along the wall. A gun the writer hauls (`yol`),
+ * the defenders' own (their colour: they fire from inside) and one already outside and in range stay. Pure; only the guns' own `konum` changes.
+ */
+function placeBattery(
+  h: SceneMap,
+  c: { P: ReturnType<typeof plane>; L: Xy[]; inside: (p: Ll) => boolean; outward: (q: Xy) => Xy | undefined; inFrame: (q: Xy, share: number) => boolean; defenderColour?: string },
+): { map: SceneMap; fixes: string[] } {
+  const { P, L, inside, outward, inFrame, defenderColour } = c;
+  const fixes: string[] = [];
+  const faulty = (a: NonNullable<SceneMap["araclar"]>[number]) => a.tur === "top" && a.hedef !== undefined && !a.yol?.length && a.renk !== defenderColour && (inside(a.konum) || nearest(L, P.to(a.konum)).km < ON_WALL_KM || kmBetween(a.konum, a.hedef) > BATTERY_FAR_KM);
+  const guns = (h.araclar ?? []).flatMap((a, i) => (faulty(a) ? [i] : []));
+  if (!guns.length) return { map: h, fixes };
+  const back = Math.max(0.35, Math.min(BATTERY_KM + 0.15, (h.genislik_km ?? 8) * 0.05));
+  const araclar = (h.araclar ?? []).map((a, i) => {
+    const slot = guns.indexOf(i);
+    if (slot < 0) return a;
+    const n = nearest(L, P.to(a.hedef!));
+    const out = outward(n.at);
+    if (!out) return a;
+    const side = (slot - (guns.length - 1) / 2) * BATTERY_GAP_KM;
+    const q: Xy = [n.at[0] + out[0] * back + n.dir[0] * side, n.at[1] + out[1] * back + n.dir[1] * side];
+    if (inside(P.from(q)) || !inFrame(q, 0.85)) return a;
+    fixes.push(`araclar[${i}] topları ${inside(a.konum) ? "surun içindeydi" : kmBetween(a.konum, a.hedef!) > BATTERY_FAR_KM ? "menzilin dışındaydı" : "surun üstündeydi"}: hedeflerinin ${Math.round(back * 100) / 100} km önüne, surun dışına kuruldu`);
+    return { ...a, konum: P.from(q) };
+  });
+  return fixes.length ? { map: { ...h, araclar }, fixes } : { map: h, fixes };
 }
 
 /** The main fronts along `run` (plane km): the besiegers just outside the wall, the defenders on it. */

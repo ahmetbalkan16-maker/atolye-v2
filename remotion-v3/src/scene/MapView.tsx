@@ -12,6 +12,7 @@ import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
 import { badgeEdgeFits, badgeExtent, type HudCards, hudBoxes, labelSpot, nameInFrame } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
+import { SiegeSmoke, SiegeWorks } from "./MapSiege";
 import { MapNight } from "./MapNight";
 import { MapFog } from "./MapFog";
 import { isNightMap } from "./mapEffects";
@@ -783,7 +784,7 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings —
             and over them the fog where the story tells it (on the ground, under the names, the armies and the badges). */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keep={keepName} gid={id} clouds={isNightMap(map) ? undefined : world} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} veil={map.fog && !upright ? <MapFog fog={map.fog} frame={frame} fps={fps} gid={id} /> : null} /> : map.fog ? G(<MapFog fog={map.fog} frame={frame} fps={fps} gid={id} />) : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} keep={keepName} gid={id} clouds={isNightMap(map) ? undefined : world} vehicles={map.vehicles} {...(up && tilt ? { up, layer: tilt.kind, room } : {})} veil={map.fog && !upright ? <MapFog fog={map.fog} frame={frame} fps={fps} gid={id} /> : null} /> : map.fog ? G(<MapFog fog={map.fog} frame={frame} fps={fps} gid={id} />) : null}
         {map.cities.map((c, i) =>
           relief || upright ? null : (
             <g key={`c${i}`}>
@@ -968,7 +969,9 @@ function MapPicture({ map, width: W, height: H, cast, accessories, duration, see
         {isNightMap(map) && !upright ? <MapNight map={map} frame={frame} fps={fps} k={k} id={id} view={shownWorld} /> : null}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
         <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} avoid={labelAvoid} {...(up && tilt ? { up, layer: tilt.kind, room, viewAt } : {})} />
+        {G(<SiegeWorks map={map} frame={frame} fps={fps} k={k} />)}
         {G(<MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />)}
+        {G(<SiegeSmoke map={map} frame={frame} fps={fps} k={k} />)}
         {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
         <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} {...(up && tilt ? { up, layer: tilt.kind } : {})} />
         {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}

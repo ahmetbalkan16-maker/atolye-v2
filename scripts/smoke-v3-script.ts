@@ -2250,6 +2250,12 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal(questionNumberClash({ ...ep, soru: "Why Did Stalingrad Become a Trap?" }), undefined);
   });
 
+  await scenario("I8 the writer is told where siege guns stand and when a wall breaks (owner, 27 Nov 2026: 'kuşatmaları daha kaliteli yap — konumlandırmaları'): outside the wall in range, the breach on or after the line that fires them, the burning town from its breach", () => {
+    const prompt = writingPrompt({ konu: "Fall of Constantinople", donem: "1453", hedefSureSn: 150, ton: "mizahi", dil: "en" }, CATALOG);
+    const flat = prompt.split(/[ \n]+/).join(" ");
+    for (const want of ["the guns OUTSIDE the wall, 0.3–0.6 km before the stretch they pound", "never inside the walls, never a mile off", '"ates_satir" on the line that tells the bombardment', "never before they fire", '"yanma_satir" on the line of its fall']) assert.ok(flat.includes(want), want);
+  });
+
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);
 }
 

@@ -28,7 +28,7 @@ import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { worldDiveFloorKm, MAX_WORLD_DIVE, backgroundStates, buildGeoMap, type Polygon, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, pullAshore, badgesBesideArmies, faceEnemy, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
-import { landTest, shipStarts, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
+import { landTest, shipStarts, siegeAfterShots, withShipsAfloat } from "../src/lib/v3/maps/MapBuilder";
 import { badgeRoom, chapterOf, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle, mapActionLines, mapLooksUsed, mapTilt, mapViews, MEDIUM_TILT_DEG, MEDIUM_TILT_MAX_KM, TILT_BADGE_TALL, TILT_WORLD_SPAN, tiltDegFor, withBothViews } from "../src/lib/v3/maps/MapBuilder";
 import { TILT_GLIDE_S, TILT_WORLD_PAST, tiltAt, tiltProject, tiltSeen, tiltShare } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
@@ -1158,6 +1158,130 @@ async function main() {
     assert.deepEqual(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [fall] }).episode.sahneler[0]!.harita!.rozetler!.map((r) => r.x_satir), [6, undefined], "in the director's pass");
     const slain = scene("k", { ...whole, rozetler: [{ karakter: "lazar", konum: [28.925, 41.018], x_satir: 1 }] }, [line("Lazar leads the charge.", "lazar"), line("Lazar is wounded, captured and executed.")]);
     assert.equal(settleFallMarks({ ...ep, oyuncu_kadrosu: cast, sahneler: [slain] }).fixes.length, 0, "an X after his last words on the line of his death stays");
+  });
+
+  await scenario("O13d siege guns stand outside the wall in range of it, the wall gives way to the guns, a town burns from its breach (owner, 27 Nov 2026: 'kuşatmaları daha kaliteli yap — konumlandırmaları, efektleri'; the Baghdad Short's guns stood inside the ring they pounded, the Constantinople wall opened before its first shot)", () => {
+    const OTT = { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal" as const };
+    const BYZ = { taraf: "Byzantines", renk: "#6a3d8f", amblem: "kartal" as const };
+    type Gun = NonNullable<SceneMap["araclar"]>[number];
+    const gun = (konum: [number, number], hedef: [number, number], extra: Partial<Gun> = {}): Gun => ({ tur: "top", renk: OTT.renk, sayi: 3, konum, satir: 0, hedef, ates_satir: 0, ...extra });
+    // A walled city as a closed ring (Baghdad's), its west wall broken at [28.94, 41.015]; the besiegers camp outside it.
+    const ring: [number, number][] = [[28.94, 41.03], [28.97, 41.03], [28.97, 41.0], [28.94, 41.0], [28.94, 41.03]];
+    const breach: [number, number] = [28.94, 41.015];
+    const walled: SceneMap = {
+      merkez: [28.955, 41.015],
+      genislik_km: 10,
+      surlar: [{ ad: "City Walls", noktalar: ring, gedik: { konum: breach, satir: 1 } }],
+      yerlesimler: [{ tur: "sehir", ad: "City", konum: [28.955, 41.015], km: 2, sur_ici: true }],
+      birlikler: [
+        { ...OTT, ad: "Army", tur: "kilicli", kanat: "merkez", sayi: 8, yerler: [{ satir: 0, cephe: [[28.93, 41.022], [28.93, 41.008]] }] },
+        { ...BYZ, ad: "Defenders", tur: "kilicli", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[28.945, 41.02], [28.945, 41.01]] }] },
+      ],
+    };
+    const gunsOf = (map: SceneMap, araclar: Gun[]) => fillSiegeMap({ ...map, araclar }, false);
+    const outside = (p: readonly [number, number]) => p[0] < 28.94 - 0.002;
+    // A gun inside the walls (the Baghdad Short: three guns in the ring) is set outside, a few hundred metres before the breach.
+    const filled = gunsOf(walled, [gun([28.955, 41.017], breach)]);
+    const inside = filled.map.araclar![0]!;
+    assert.ok(outside(inside.konum), "outside the wall: " + JSON.stringify(inside.konum));
+    const range = kmBetween(inside.konum, breach);
+    assert.ok(range >= 0.3 && range <= 0.7, "in range of the breach: " + range);
+    assert.equal(filled.fixes.filter((f) => f.includes("surun içindeydi")).length, 1, JSON.stringify(filled.fixes));
+    // A gun already outside and in range stays (the Constantinople Short's, 0.4 km before the wall).
+    const fine = gun([28.935, 41.016], breach);
+    assert.deepEqual(gunsOf(walled, [fine]).map.araclar![0]!.konum, fine.konum, "a gun in range stays where the writer put it");
+    // The defenders' own guns fire from inside the walls, and a gun the writer hauls (yol) is where its route puts it: both stay.
+    const theirs = gun([28.955, 41.017], [28.92, 41.015], { renk: BYZ.renk });
+    assert.deepEqual(gunsOf(walled, [theirs]).map.araclar![0]!.konum, theirs.konum, "the defenders' gun stays inside");
+    const hauled = gun([28.955, 41.017], breach, { yol: [[28.945, 41.017]], yol_satir: 1 });
+    assert.deepEqual(gunsOf(walled, [hauled]).map.araclar![0]!.konum, hauled.konum, "a hauled gun stays");
+    // Several guns of a battery stand side by side along the wall, not on one point.
+    const pair = gunsOf(walled, [gun([28.955, 41.016], breach), gun([28.956, 41.019], breach)]).map.araclar!;
+    assert.ok(pair.every((g) => outside(g.konum)) && kmBetween(pair[0]!.konum, pair[1]!.konum) >= 0.1, "a battery's guns apart: " + kmBetween(pair[0]!.konum, pair[1]!.konum));
+    // A gun a mile and more off an open wall is brought up (the Theodosian land wall, the besiegers west of it).
+    const real: [number, number][] = [[28.9205, 41.04], [28.921, 41.02], [28.9205, 41.0], [28.93, 40.98]];
+    const open: SceneMap = { merkez: [28.94, 41.012], genislik_km: 10, surlar: [{ ad: "Theodosian Walls", noktalar: real, gedik: { konum: [28.921, 41.0175], satir: 1 } }], birlikler: walled.birlikler!.map((u) => ({ ...u, yerler: [{ satir: 0, cephe: u.taraf === "Ottomans" ? [[28.915, 41.022], [28.915, 41.016]] : [[28.9235, 41.021], [28.9235, 41.017]] }] })) as MapUnits[] };
+    const far = gunsOf(open, [gun([28.88, 41.017], [28.921, 41.0175])]).map.araclar![0]!;
+    assert.ok(kmBetween(far.konum, [28.921, 41.0175]) <= 0.7 && far.konum[0] < 28.92, "brought into range: " + JSON.stringify(far.konum));
+    const near = gun([28.912, 41.018], [28.921, 41.0175]);
+    assert.deepEqual(gunsOf(open, [near]).map.araclar![0]!.konum, near.konum, "0.7 km off is in range");
+
+    // The wall gives way to the guns: never before the first shot lands; a town burns from where it broke, no sooner.
+    const close = {
+      unit: 12,
+      wallUnit: 9,
+      ground: [],
+      roads: [],
+      walls: [{ points: [{ x: 0, y: 0 }, { x: 0, y: 400 }], towers: [], gates: [], breach: { x: 0, y: 200, start: 272 } }],
+      settlements: [{ kind: "sehir" as const, x: 100, y: 200, start: 0, burn: 9, burnFrom: { x: 0, y: 200 }, items: [] }],
+      buildings: [],
+    };
+    const shooter = (fireStart: number, at = { x: 0, y: 200 }) => ({ kind: "top" as const, color: "#3fae3a", count: 3, start: 0, path: [{ x: -150, y: 200 }], target: at, fireStart });
+    const opensAt = (told: Parameters<typeof siegeAfterShots>[4], vehicles = [shooter(330)], scene?: number) => siegeAfterShots(close, vehicles, 30, scene, told).walls[0]!.breach!.start;
+    assert.equal(opensAt(undefined), 330 + 30 + 12, "after the first shot has landed, not 2 s before it was fired");
+    assert.equal(siegeAfterShots(close, [shooter(330)], 30).settlements[0]!.burn, 330 + 30 + 12, "the town catches where the wall broke, when it broke");
+    assert.equal(opensAt(undefined, [shooter(330)], 407), 407 - 45, "seen before the short scene ends");
+    assert.equal(opensAt({ breachAt: () => 500 }), 500, "on the word that tells it, later than the shot");
+    assert.equal(opensAt({ breachAt: () => 500, crossAt: () => 400 }), 400 - 9, "never after the column set off through it");
+    assert.equal(opensAt({ crossAt: () => 300 }), 300 - 9, "the column told first opens it first");
+    assert.equal(opensAt({ crossAt: () => 272 }), 272, "but never before the line that tells the breach");
+    assert.equal(opensAt(undefined, [shooter(100)]), 272, "guns that fired long before: the wall breaks on the writer's line");
+    assert.equal(opensAt(undefined, [shooter(272 + 300)]), 272, "guns firing long after: the writer's order stands");
+    assert.equal(opensAt(undefined, [shooter(330, { x: 0, y: 3000 })]), 272, "guns firing elsewhere do not hold it");
+    assert.equal(opensAt(undefined, []), 272, "no guns: as the writer put it");
+    assert.equal(opensAt({ breachAt: () => 100 }, []), 272, "a word before its line is not before the line");
+    assert.equal(siegeAfterShots(close, [], 30).settlements[0]!.burn, 272, "a town does not burn from a breach that is not open");
+    assert.equal(siegeAfterShots(close, [], 30, undefined, { burnAt: () => 600 }).settlements[0]!.burn, 600, "a town burns on the word that tells its fire");
+    assert.equal(siegeAfterShots(close, [], 30, undefined, { burnAt: () => 100 }).settlements[0]!.burn, 272, "never before its line, nor before the wall opens");
+    const noBurn = { ...close, settlements: [{ ...close.settlements[0]!, burn: undefined, burnFrom: undefined }] };
+    assert.equal(siegeAfterShots(noBurn, [], 30), noBurn, "nothing to move: the same object");
+  });
+
+  await scenario("O13e a siege happens one event after another in the order the narration tells it, each on its own word or line, and what is not told yet waits (owner, 27 Nov 2026: 'bunların hepsinin anlatılanla konumlandırmaları, taktik becerileri anlatılanla senkronize olacak'; 'aynı anda değil, anlatılana göre hareket edip konumlanacak')", () => {
+    const FPS_ = 30;
+    // The narrator's lines with a word every 0.35 s; each line starts at its own second.
+    const texts = ["The Ottomans make camp before the walls.", "Cannons blast a breach. Janissaries pour in.", "The wall cracks, and the city burns.", "A village beyond the hills burns too."];
+    const starts = [0, 5, 11, 16];
+    const timed = texts.map((t, i) => ({ start: starts[i]!, words: t.split(" ").map((w, j) => ({ text: w, start: j * 0.35 })) }));
+    const frameOf = (line: number | undefined, word: RegExp) => ((s) => (s === undefined ? undefined : Math.round(s * FPS_)))(toldWordAt(timed as never, line, word));
+    const lineStart = (i: number | undefined) => Math.round((starts[i ?? 0] ?? 0) * FPS_);
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
+    const wall: [number, number][] = [[28.92, 41.04], [28.92, 41.0]];
+    const OTT = { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal" as const };
+    const siege = (breachLine: number, gunLine: number): SceneMap => ({
+      merkez: [28.94, 41.02],
+      genislik_km: 10,
+      surlar: [{ ad: "Walls", noktalar: wall, gedik: { konum: [28.92, 41.02], satir: breachLine } }],
+      yerlesimler: [
+        { tur: "sehir", ad: "City", noktalar: [[28.925, 41.035], [28.96, 41.035], [28.96, 41.005], [28.925, 41.005]], yanma_satir: 2 },
+        { tur: "koy", ad: "Village", konum: [28.99, 41.03], km: 0.8, yanma_satir: 3 },
+      ],
+      araclar: [{ tur: "top", renk: OTT.renk, sayi: 3, konum: [28.905, 41.02], satir: 0, hedef: [28.92, 41.02], ates_satir: gunLine }],
+      birlikler: [{ ...OTT, ad: "Janissaries", tur: "kilicli", sayi: 6, yerler: [{ satir: 0, cephe: [[28.905, 41.03], [28.905, 41.01]] }, { satir: 1, kume: [28.935, 41.02] }] }],
+    });
+    const build = (map: SceneMap) => buildGeoMap(map, data, 1920, 1080, lineStart, { era: "erken-modern", year: 1453, fps: FPS_, toldAt: frameOf, lineEnd: (i) => lineStart(i + 1) - 1, sceneFrames: 21 * FPS_ });
+
+    // One line tells the bombardment and the breach and the assault: the guns fire on "Cannons", the wall opens once the
+    // first shot has landed and the breach is told, and the column sets off after it — in that order, not together.
+    const geo = build(siege(1, 1));
+    const fire = geo.vehicles![0]!.fireStart!;
+    const opens = geo.close!.walls[0]!.breach!.start;
+    const column = geo.units![0]!.steps[1]!;
+    assert.equal(fire, frameOf(1, TOLD_WORDS.ates), "the guns fire on the word that tells the bombardment");
+    assert.ok(column.via && column.through?.length, "the column goes through the breach");
+    assert.ok(opens >= fire + 30 && opens >= frameOf(1, TOLD_WORDS.gedik)! && opens < column.start, `fire ${fire} → shot lands ${fire + 30} → wall opens ${opens} → column ${column.start}`);
+    assert.ok(column.start >= frameOf(1, /^Janissaries$/i)!, "the column sets off on the word that names it");
+    // The city burns on the word of its own line, from where the wall broke; the village on its later line: each waits.
+    const [city, village] = geo.close!.settlements;
+    assert.equal(city!.burn, frameOf(2, TOLD_WORDS.yangin), "the city burns on the word that tells it");
+    assert.ok(city!.burn! > opens && city!.burn! >= lineStart(2), "not while the wall still stands");
+    assert.equal(village!.burn, frameOf(3, TOLD_WORDS.yangin), "the village waits for its own line");
+    assert.ok(village!.burn! > city!.burn!, "one after the other");
+    // The wall breaks on the line that tells it, never before: told on line 2 (the guns fired on line 1), it holds until then.
+    const later = build(siege(2, 1));
+    const laterOpens = later.close!.walls[0]!.breach!.start;
+    assert.ok(laterOpens >= frameOf(2, TOLD_WORDS.gedik)! && laterOpens >= lineStart(2) && laterOpens > later.vehicles![0]!.fireStart! + 30, `the wall opens on its own line: ${laterOpens}`);
   });
 
   await scenario("O13c an ambush's close map (owner, 20 Nov 2026, the Lake Trasimene Short after Historia Civilis' video): fog planned and validated, land units kept out of the lake unless driven into it, the ambush's road, column and named ambushers asked", () => {

@@ -2,6 +2,7 @@ import React from "react";
 import { interpolate } from "remotion";
 import type { V3GeoMap, V3LabelSpot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Burst } from "./MapUnits";
+import { BreachRuin, breachDamage, FirePall, nearestWallPoint, outsideSide, pallAnchors, WallDamage } from "./MapSiege";
 import { cloudShadowsAt, FIELD_TONES, fieldLayout, WOOD_TONES, woodLayout } from "./mapNature";
 import type { TiltLayer, Up } from "./tilt";
 
@@ -305,6 +306,7 @@ export function CloseGround({
   nameShown,
   gid,
   clouds,
+  vehicles,
   up,
   layer,
   room,
@@ -323,6 +325,8 @@ export function CloseGround({
   gid?: string;
   /** The world's size, over which cloud shadows drift; none without it (and none on a night map). */
   clouds?: { width: number; height: number };
+  /** The map's vehicles: the guns that pound a wall crack it before it gives way (MapSiege.breachDamage). */
+  vehicles?: V3GeoMap["vehicles"];
   /** A tilted map's layer (MapView): the place names stand upright over the tilted ground; absent, drawn as they are. */
   up?: Up;
   /** Which of a tilted map's layers this is: the upright one carries only the upright names (the ground is drawn once). */
@@ -457,6 +461,8 @@ export function CloseGround({
                   <rect x={-u * 0.3} y={-u * 0.95} width={u * 0.6} height={u * 1.9} fill="#2b231b" />
                 </g>
               ))}
+              {/* The pounded wall cracks before it gives way (the guns' first shot to the breach's frame). */}
+              {w.breach && !broken && vehicles ? <WallDamage x={w.breach.x} y={w.breach.y} angle={nearestWallPoint([w], w.breach)?.angle ?? 0} u={u} p={breachDamage(close, vehicles, wi, fps, frame)} out={outsideSide(close, vehicles, wi)} seed={wi * 41 + 5} /> : null}
             </g>
             {broken ? (
               <g>
@@ -464,6 +470,7 @@ export function CloseGround({
                   <rect key={j} x={w.breach!.x + (rand(wi * 50 + j) - 0.5) * u * 2.4} y={w.breach!.y + (rand(wi * 50 + j + 20) - 0.5) * u * 1.6} width={u * (0.2 + rand(j + 3) * 0.25)} height={u * (0.18 + rand(j + 9) * 0.2)} fill={j % 2 ? STONE : "#9b907a"} stroke={STONE_DARK} strokeWidth={u * 0.04} transform={`rotate(${rand(j + 7) * 90} ${w.breach!.x} ${w.breach!.y})`} />
                 ))}
                 <Burst x={w.breach!.x} y={w.breach!.y} r={u * 2.2} p={(frame - w.breach!.start) / (fps * 1.6)} era={era} seed={wi + 77} />
+                <BreachRuin x={w.breach!.x} y={w.breach!.y} angle={nearestWallPoint([w], w.breach!)?.angle ?? 0} u={u} age={(frame - w.breach!.start) / fps} out={outsideSide(close, vehicles ?? [], wi)} seed={wi * 29 + 3} />
               </g>
             ) : null}
           </g>
@@ -482,6 +489,8 @@ export function CloseGround({
           </g>
         );
       })}
+      {/* The smoke over a town that burns, rising from where the fire started and from the houses it reached. */}
+      {close.settlements.map((s, si) => (s.burn !== undefined && frame >= s.burn ? <FirePall key={`pall${si}`} anchors={pallAnchors(s)} u={u} since={(frame - s.burn) / fps} seed={si * 13 + 1} /> : null))}
       {clouds ? <CloudShadows frame={frame} fps={fps} world={clouds} u={u} gid={gradId} /> : null}
       {veil}
       {names}

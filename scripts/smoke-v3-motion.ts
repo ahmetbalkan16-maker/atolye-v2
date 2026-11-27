@@ -36,8 +36,30 @@ const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 // MapCloseGround.tsx imports "remotion" too: loaded at run time like MapUnits.
 type CloseGroundProps = { close: NonNullable<V3GeoMap["close"]>; frame: number; fps: number; era: V3GeoMap["era"]; label: (text: string, size: number) => unknown; k: number; up?: (x: number, y: number, node: unknown) => unknown; layer?: "ground" | "upright"; keep?: (text: string, size: number, x: number, y: number, mx: number, my: number) => { x: number; y: number; alpha: number } };
 const MAP_CLOSE_GROUND: string = "../remotion-v3/src/scene/MapCloseGround";
+// MapSiege.tsx imports "remotion" as well: loaded at run time.
+type SiegeVehicle = NonNullable<V3GeoMap["vehicles"]>[number];
+interface MapSiegeModule {
+  GUN_SIZE: number;
+  SHOT_EVERY_S: number;
+  SHOT_FLIGHT_S: number;
+  FIRE_S: number;
+  gunShots(v: SiegeVehicle, vi: number, fps: number): { mi: number; shot: number; fired: number; lands: number }[];
+  battery(v: SiegeVehicle, S: number): { members: { x: number; y: number; heading: number }[]; heading: number } | undefined;
+  batteries(map: V3GeoMap): { vi: number }[];
+  breachDamage(close: NonNullable<V3GeoMap["close"]>, vehicles: readonly SiegeVehicle[], wi: number, fps: number, frame: number): number;
+  outsideSide(close: NonNullable<V3GeoMap["close"]>, vehicles: readonly SiegeVehicle[], wi: number): number;
+  pallAnchors(s: NonNullable<V3GeoMap["close"]>["settlements"][number]): { x: number; y: number; delay: number }[];
+  SiegeSmoke: (p: { map: V3GeoMap; frame: number; fps: number; k: number }) => unknown;
+  SiegeWorks: (p: { map: V3GeoMap; frame: number; fps: number; k: number }) => unknown;
+  WallDamage: (p: { x: number; y: number; angle: number; u: number; p: number; out: number; seed: number }) => unknown;
+  BreachRuin: (p: { x: number; y: number; angle: number; u: number; age: number; out: number; seed: number }) => unknown;
+  FirePall: (p: { anchors: readonly { x: number; y: number; delay: number }[]; u: number; since: number; seed: number }) => unknown;
+}
+const MAP_SIEGE: string = "../remotion-v3/src/scene/MapSiege";
 
 const FPS = 30;
+/** A battery fires for 6 s (MapVehicles' FIRE_S) from its first frame. */
+const FIRE_WINDOW = 6 * FPS;
 const FRAMES = 420;
 
 let scenarios = 0;
@@ -1154,6 +1176,98 @@ async function main() {
     assert.ok(drawn.indexOf('data-veil="fog"') > 0 && drawn.indexOf('data-veil="fog"') < drawn.indexOf('data-name="Roman camp"'), "the fog under the camp's name");
     const upright = renderToStaticMarkup(createElement("svg", null, createElement(CloseGround as never, { close, frame: 30, fps: 30, era: "antik", label, k: 1, veil, layer: "upright", up: (_x: number, _y: number, n: unknown) => n })));
     assert.ok(!upright.includes("data-veil") && upright.includes("Roman camp"), "the upright layer carries the names only");
+  });
+
+  await scenario("Z3 a siege's sight (owner, 27 Nov 2026: 'kuşatmaları daha kaliteli yap — efektleri, hareketleri'): the guns' earthwork, powder smoke over the battery, dust and chips where a shot lands on the wall, the wall cracking until it gives way, the breach's rubble and dust, smoke over the burning town — all pure functions of the frame, none without their cause", async () => {
+    const fs = await import("node:fs");
+    const siege = (await import(MAP_SIEGE)) as MapSiegeModule;
+    // The timing is MapVehicles' own: pinned to its source, so the dust lands with the vehicles' bursts.
+    const vehiclesSource = fs.readFileSync("remotion-v3/src/scene/MapVehicles.tsx", "utf8");
+    const num = (name: string) => Number(new RegExp(`const ${name} = ([0-9.]+)`).exec(vehiclesSource)?.[1]);
+    assert.equal(siege.SHOT_EVERY_S, num("SHOT_EVERY_S"));
+    assert.equal(siege.SHOT_FLIGHT_S, num("SHOT_FLIGHT_S"));
+    assert.equal(siege.FIRE_S, num("FIRE_S"));
+    assert.equal(siege.GUN_SIZE, num("SIZE"));
+    assert.ok(vehiclesSource.includes("mi * 0.37 - rand(vi * 13 + mi) * 0.3") && vehiclesSource.includes("Math.sin(seed * 12.9898) * 43758.5453"), "the members' offsets and the random are the same");
+    const wiring = fs.readFileSync("remotion-v3/src/scene/MapView.tsx", "utf8");
+    assert.ok(wiring.indexOf("<SiegeWorks") > 0 && wiring.indexOf("<SiegeWorks") < wiring.indexOf("<MapVehicles") && wiring.indexOf("<MapVehicles") < wiring.indexOf("<SiegeSmoke") && wiring.includes("vehicles={map.vehicles}"), "earthwork under the guns, smoke over them; the ground gets the vehicles");
+
+    // A wall running down the map with a breach in it; three guns to its west aimed at the breach, firing from frame 330.
+    const gun: SiegeVehicle = { kind: "top", color: "#3fae3a", count: 3, start: 0, path: [{ x: -200, y: 200 }], target: { x: 0, y: 200 }, fireStart: 330 };
+    const close: NonNullable<V3GeoMap["close"]> = {
+      unit: 12,
+      wallUnit: 9,
+      ground: [],
+      roads: [],
+      walls: [{ points: [{ x: 0, y: 0 }, { x: 0, y: 400 }], towers: [], gates: [], breach: { x: 0, y: 200, start: 420 } }],
+      settlements: [{ kind: "sehir", x: 150, y: 200, start: 0, burn: 420, burnFrom: { x: 0, y: 200 }, items: [{ x: 40, y: 150, angle: 0, seed: 1 }, { x: 90, y: 220, angle: 0, seed: 2 }, { x: 200, y: 260, angle: 0, seed: 3 }, { x: 260, y: 120, angle: 0, seed: 4 }] }],
+      buildings: [],
+    };
+    const map = { land: "", lakes: "", rivers: "", territories: [], cities: [], armies: [], arrows: [], era: "erken-modern", close, vehicles: [gun] } as unknown as V3GeoMap;
+    const markup = (node: unknown) => renderToStaticMarkup(createElement("svg", null, node as never));
+    const smokeAt = (frame: number, m: V3GeoMap = map) => markup(createElement(siege.SiegeSmoke as never, { map: m, frame, fps: FPS, k: 1 }));
+
+    // The shots: each gun a little after the last, one every 1.1 s for 6 s, landing 0.7 s after; the same every time.
+    const shots = siege.gunShots(gun, 0, FPS);
+    assert.ok(shots.length >= 15 && shots.every((x) => x.fired >= 330 && x.fired < 330 + FIRE_WINDOW && x.lands - x.fired === 21), shots.length + " shots");
+    assert.deepEqual(shots, siege.gunShots({ ...gun }, 0, FPS), "pure");
+    const first = shots.filter((x) => x.mi === 0);
+    assert.ok(first.slice(1).every((x, i) => x.fired - first[i]!.fired === 33), "a gun fires every 1.1 s");
+    assert.equal(siege.gunShots({ ...gun, fireStart: undefined }, 0, FPS).length, 0, "no fire, no shots");
+    // A standing battery faces its target, the others behind the leader; one that moves has none.
+    const stand = siege.battery(gun, 30)!;
+    assert.ok(stand.members.length === 3 && Math.abs(stand.heading) < 0.01 && stand.members[0]!.x === -200 && stand.members[1]!.x < -200, JSON.stringify(stand));
+    assert.equal(siege.battery({ ...gun, moveStart: 100 }, 30), undefined, "a gun under way has no emplacement");
+    // Which guns pound a wall: this one; one aimed at a camp far from any wall is none.
+    assert.equal(siege.batteries(map).length, 1);
+    assert.equal(siege.batteries({ ...map, vehicles: [{ ...gun, target: { x: -600, y: 200 } }] } as V3GeoMap).length, 0, "guns firing in the open strike no wall");
+    // The wall cracks from the first landing to the breach: nothing before, rising, 1 once it is open.
+    const dmg = (f: number, v: readonly SiegeVehicle[] = [gun]) => siege.breachDamage(close, v, 0, FPS, f);
+    const land = 330 + 21;
+    assert.equal(dmg(land - 1), 0);
+    assert.ok(dmg(land + 20) > 0 && dmg(land + 20) < dmg(land + 40) && dmg(land + 40) < 1, "the damage grows: " + [dmg(land + 20), dmg(land + 40)]);
+    assert.equal(dmg(420), 1);
+    assert.equal(dmg(400, []), 0, "no guns on it, no damage");
+    assert.equal(dmg(300, [{ ...gun, fireStart: 500 }]), 0, "the wall opened before the guns fired: no crack to show");
+    assert.equal(siege.outsideSide(close, [gun], 0), 1, "the guns' side is the outside (left normal of a wall running down)");
+    assert.equal(siege.outsideSide(close, [], 0), 1, "with no guns, away from the town is the same side");
+
+    // The sight: smoke over the battery and dust at the wall while the guns fire, none before or long after.
+    assert.ok(!smokeAt(300).includes("<circle"), "nothing before the first shot");
+    const mid = smokeAt(land + 15);
+    assert.ok((mid.match(/<circle/g) ?? []).length >= 8 && mid.includes("#d9d4cc") && mid.includes("#cfc2a4") && mid.includes("<rect"), mid.slice(0, 300));
+    assert.equal(mid, smokeAt(land + 15), "the same frame draws the same");
+    assert.notEqual(mid, smokeAt(land + 30), "and the next draws something else");
+    assert.ok(!/blur|filter/.test(mid), "no blur filter");
+    assert.ok(!smokeAt(land + 15, { ...map, era: "orta" } as V3GeoMap).includes("#d9d4cc"), "no powder smoke before gunpowder");
+    assert.ok(smokeAt(land + 15, { ...map, era: "orta" } as V3GeoMap).includes("#cfc2a4"), "the stones still raise dust where they land");
+    assert.ok(!smokeAt(330 + FIRE_WINDOW + 200).includes("<circle"), "the smoke thins out and is gone");
+    // The earthwork under the guns: only for a battery that stands.
+    const works = markup(createElement(siege.SiegeWorks as never, { map, frame: 100, fps: FPS, k: 1 }));
+    assert.ok((works.match(/<circle/g) ?? []).length >= 5 && works.includes("#c4a06a"), works.slice(0, 200));
+    assert.equal(markup(createElement(siege.SiegeWorks as never, { map: { ...map, vehicles: [{ ...gun, moveStart: 100 }] }, frame: 100, fps: FPS, k: 1 })), "<svg></svg>", "no bank for a gun on the move");
+
+    // The wall's damage and the breach's ruin grow; the breach's dust thins and is gone.
+    const dmgMarks = (p: number) => markup(createElement(siege.WallDamage as never, { x: 0, y: 200, angle: Math.PI / 2, u: 9, p, out: -1, seed: 5 }));
+    assert.equal(dmgMarks(0), "<svg></svg>");
+    assert.ok(dmgMarks(0.9).length > dmgMarks(0.3).length && dmgMarks(0.3).includes("<ellipse"), "more pits, cracks and stones as the pounding goes on");
+    const ruin = (age: number) => markup(createElement(siege.BreachRuin as never, { x: 0, y: 200, angle: Math.PI / 2, u: 9, age, out: -1, seed: 5 }));
+    assert.equal(ruin(-1), "<svg></svg>", "nothing before it opens");
+    assert.ok((ruin(0.2).match(/<rect/g) ?? []).length === 22 && ruin(0.5).includes("#cdbf9f") && !ruin(30).includes("#cdbf9f") && ruin(30).includes("<rect"), "a heap of stone stays, the dust goes");
+    // The smoke over a burning town: columns from the breach and the houses the fire reached, none before it spreads.
+    const anchors = siege.pallAnchors(close.settlements[0]!);
+    assert.ok(anchors.length === 3 && anchors[0]!.delay === 0 && anchors[0]!.x === 0 && anchors[0]!.y === 200 && anchors.slice(1).every((a) => a.delay > 0 && a.delay <= 6), JSON.stringify(anchors));
+    const pall = (since: number) => markup(createElement(siege.FirePall as never, { anchors, u: 12, since, seed: 1 }));
+    assert.ok(!pall(0).includes("<circle") && (pall(2).match(/<circle/g) ?? []).length === 16 && (pall(12).match(/<circle/g) ?? []).length === 48 && !/blur|filter/.test(pall(12)), "one column, then three");
+    assert.notEqual(pall(12), pall(12.4), "the smoke rises");
+
+    // On the ground: the pounded wall shows its cracks, the open breach its ruin, the burning town its smoke.
+    const { CloseGround } = (await import(MAP_CLOSE_GROUND)) as { CloseGround: (p: CloseGroundProps & { vehicles?: unknown }) => unknown };
+    const ground = (frame: number, vehicles: unknown = [gun]) => markup(createElement(CloseGround as never, { close, frame, fps: FPS, era: "erken-modern", label: (t: string) => createElement("text", null, t), k: 1, vehicles }));
+    assert.ok(!ground(land - 5).includes("#2b241b") && ground(land + 50).includes("#2b241b"), "cracks only once the guns have hit it");
+    assert.ok(!ground(land + 50, null).includes("#2b241b"), "and only when the guns are known");
+    assert.ok(!ground(419).includes("#cdbf9f") && ground(425).includes("#cdbf9f") && ground(425).includes("#1f1912"), "the breach's ruin from the frame it opens");
+    assert.ok(!ground(419).includes("rgb(") && ground(420 + 6 * FPS).includes("rgb("), "the town's smoke from the frame it burns");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

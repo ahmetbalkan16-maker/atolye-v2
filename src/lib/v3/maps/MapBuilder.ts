@@ -822,6 +822,8 @@ export const TOLD_WORDS = {
    * before it, it is the place's ("caught fire", "on fire", "set fire").
    */
   yangin: /^(?:hit|struck|burn\p{L}*|ablaze|flames?|blaze\p{L}*|explod\p{L}*|vurul\p{L}*|yan(?:ar|dı|ıyor|gın)\p{L}*|alev\p{L}*|tutuş\p{L}*|isabet\p{L}*|(?:caught|catch\p{L}*|on|set\p{L}*) fire)$/iu,
+  /** A wall breached (the breach line's own words: "a breach", "the wall cracks", "gives way", "collapses"). */
+  gedik: /^(?:breach\p{L}*|crack\p{L}*|crumbl\p{L}*|collaps\p{L}*|shatter\p{L}*|gedik\p{L}*|yıkıl\p{L}*|çök\p{L}*|(?:gives?|gave|giving) way|(?:walls?|gate) (?:breaks?|broke|falls?|fell|yields?|opens?|bursts?))$/iu,
   /**
    * A person killed: their badge's X (the Siege of Baghdad Short, 13 Nov 2026: Tayyar Mehmed Pasha was crossed out at
    * the first word of "… leads the charge — and is shot down", seven seconds early).
@@ -1151,6 +1153,60 @@ export function windingRoad(points: readonly XY[], seed: number, step: number, o
 function segmentsCross(a: XY, b: XY, c: XY, d: XY): boolean {
   const side = (p: XY, q: XY, r: XY) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
   return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+}
+
+/** A breach opens this long after its guns' first shot lands, at the earliest (seconds): the wall is seen to be hit first. */
+const BREACH_AFTER_LAND_S = 0.4;
+/** A breach opens at least this long (seconds) before its scene ends. */
+const BREACH_SEEN_S = 1.5;
+/** A breach told this long (seconds) before its guns fire is held back for them; one told earlier was the writer's own order. */
+const BREACH_HELD_MAX_S = 6;
+/** A breach opens this long (seconds) before the first token goes through it, so the gap is open when they set off. */
+const BREACH_BEFORE_CROSS_S = 0.3;
+
+/** When the siege's events are told (frames local to the shot): the narration's own timing for what the close map draws. */
+export interface SiegeTold {
+  /** When wall `wi`'s breach is told: its word ("a breach", "the wall cracks"), else its line. */
+  readonly breachAt?: (wi: number) => number | undefined;
+  /** When the first token sets off through wall `wi`'s breach (the narrated starts of NarratedMoves). */
+  readonly crossAt?: (wi: number) => number | undefined;
+  /** When settlement `si` is told burning: its word, else its line. */
+  readonly burnAt?: (si: number) => number | undefined;
+}
+
+/**
+ * A siege's events in the order the narration tells them (owner, 27 Nov 2026: "bunların hepsinin anlatılanla
+ * konumlandırmaları … senkronize olacak"; "aynı anda değil, anlatılana göre"): the guns open fire on the word that tells
+ * the bombardment (MapBuilder's `fireStart`), the wall breaks on the word or line that tells the breach — never before it,
+ * never before the first shot of the guns aimed at it has landed (the Constantinople Short's wall opened 2 s before its
+ * guns fired; a breach told ahead of its guns by more than BREACH_HELD_MAX_S is the writer's own order and stays) and never
+ * after the first token set off through it (a gap that is shut while the column is in it) — and a town burns on the word
+ * that tells its fire, from where the wall broke, no sooner than the wall opened. Tokens led through the breach
+ * (throughBreach) were decided against the line's start, so every one of them sets off at or after the breach's frame.
+ * Everything else is as the writer's lines put it. Pure.
+ */
+export function siegeAfterShots(close: NonNullable<V3GeoMap["close"]>, vehicles: NonNullable<V3GeoMap["vehicles"]>, fps: number, sceneFrames?: number, told: SiegeTold = {}): NonNullable<V3GeoMap["close"]> {
+  const reach = Math.max(40, (close.wallUnit ?? close.unit) * 4);
+  const walls = close.walls.map((w, wi) => {
+    if (!w.breach) return w;
+    const b = w.breach;
+    const lands = vehicles.filter((v) => v.kind === "top" && v.target && v.fireStart !== undefined && Math.hypot(v.target.x - b.x, v.target.y - b.y) <= reach).map((v) => v.fireStart! + Math.round(FIRE_LANDS_S * fps));
+    const land = lands.length ? Math.min(...lands) : undefined;
+    const held = land !== undefined && land - b.start <= BREACH_HELD_MAX_S * fps ? land + Math.round(BREACH_AFTER_LAND_S * fps) : 0;
+    let opens = Math.max(b.start, told.breachAt?.(wi) ?? 0, held);
+    if (sceneFrames !== undefined) opens = Math.min(opens, Math.max(b.start, sceneFrames - Math.round(BREACH_SEEN_S * fps)));
+    const cross = told.crossAt?.(wi);
+    if (cross !== undefined) opens = Math.min(opens, Math.max(b.start, cross - Math.round(BREACH_BEFORE_CROSS_S * fps)));
+    return opens === b.start ? w : { ...w, breach: { ...b, start: opens } };
+  });
+  const settlements = close.settlements.map((s, si) => {
+    if (s.burn === undefined) return s;
+    const wall = s.burnFrom ? walls.find((w) => w.breach && w.breach.x === s.burnFrom!.x && w.breach.y === s.burnFrom!.y) : undefined;
+    const at = Math.max(s.burn, told.burnAt?.(si) ?? 0, wall?.breach?.start ?? 0);
+    return at === s.burn ? s : { ...s, burn: at };
+  });
+  const moved = walls.some((w, i) => w !== close.walls[i]) || settlements.some((s, i) => s !== close.settlements[i]);
+  return moved ? { ...close, walls, settlements } : close;
 }
 
 /**
@@ -2189,6 +2245,20 @@ function projectGeoMap(
     opts.sceneFrames === undefined ? u : { ...u, steps: u.steps.map((st) => (st.losses ? { ...st, losses: fitLossDelaysS(st.losses, (opts.sceneFrames! - st.start) / (opts.fps ?? 30)) } : st)) };
   const units = told.units.map(fitted).map((u, ui) => (u.callouts ? { ...u, callouts: u.callouts.map((c, k) => ({ ...c, start: told.moved.get(`${ui}|${calloutLines[ui]![k]}`) ?? c.start })) } : u));
   separateFronts(units, gapKm * 1.15 * pxPerKm);
+  // The siege's events in the order the narration tells them (siegeAfterShots): a wall opens on the word that tells its
+  // breach, after its guns' first shot has landed and no later than the first column set off through it; a town burns on
+  // the word that tells its fire, from where the wall broke.
+  const siegeClose = close
+    ? siegeAfterShots(close, vehicles, opts.fps ?? 30, opts.sceneFrames, {
+        breachAt: (wi) => ((g) => (g ? toldStart(opts, lineStart, g.satir, wi, TOLD_WORDS.gedik, lineStart(g.satir, wi)) : undefined))(map.surlar?.[wi]?.gedik),
+        crossAt: (wi) => {
+          const at = close.walls[wi]?.breach;
+          const starts = at ? units.flatMap((u) => u.steps.filter((st) => st.via && st.through?.length && Math.hypot(st.via.x - at.x, st.via.y - at.y) < 1).map((st) => st.start)) : [];
+          return starts.length ? Math.min(...starts) : undefined;
+        },
+        burnAt: (si) => ((y) => (y?.yanma_satir !== undefined ? toldStart(opts, lineStart, y.yanma_satir, si, TOLD_WORDS.yangin, lineStart(y.yanma_satir, si)) : undefined))(map.yerlesimler?.[si]),
+      })
+    : undefined;
   // A unit's move arrow is drawn as that unit sets off (its colour, its line; of two such units the one whose new place
   // is nearer the arrow's head), not with the line's first word.
   const arrowStart = (o: NonNullable<SceneMap["oklar"]>[number], order: number) => {
@@ -2361,7 +2431,7 @@ function projectGeoMap(
     ...(units.length ? { units } : {}),
     ...(fights.length ? { fights } : {}),
     ...(vehicles.length ? { vehicles } : {}),
-    ...(close ? { close: riverBands.length ? { ...close, rivers: riverBands.map((r) => ({ d: `M${r.pts.map((p) => `${r1(p.x)} ${r1(p.y)}`).join(" L")}`, width: r1(r.half * 2) })) } : close } : {}),
+    ...(siegeClose ? { close: riverBands.length ? { ...siegeClose, rivers: riverBands.map((r) => ({ d: `M${r.pts.map((p) => `${r1(p.x)} ${r1(p.y)}`).join(" L")}`, width: r1(r.half * 2) })) } : siegeClose } : {}),
     // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
     ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
     ...(opts.era ? { era: opts.era } : {}),
