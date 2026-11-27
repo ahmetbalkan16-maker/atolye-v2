@@ -653,7 +653,7 @@ async function main() {
     const asWent = { ...trasimene, sahneler: [{ ...trasimene.sahneler[0]!, satirlar: trasimene.sahneler[0]!.satirlar.slice(0, 2) }, trasimene.sahneler[1]!] };
     // Hannibal's line on the map is a badge's quip, not an action (27 Nov 2026): as it went out, nothing ever acts.
     assert.equal(openingBeforeAction(asWent), undefined);
-    assert.match(backstoryProblems(asWent)[0]!, /^background told before the first action — scene "s2-map-campaign" line 1 \("Hannibal crossed the Alps[^]*crossed, sent, 50,000 men, by the time\); no line of the Short shows an action on screen \(only badges speak; at most 24 spoken words before one, on screen by ~10 s\)[^]*a badge's quip is not the action[^]*BACKSTORY FIRST$/);
+    assert.match(backstoryProblems(asWent)[0]!, /^background told before the first action — scene "s2-map-campaign" line 1 \("Hannibal crossed the Alps[^]*crossed, sent, 50,000 men, by the time\); no line of the Short shows an action on screen \(only badges speak; at most 24 spoken words before one, on screen by ~8 s\)[^]*a badge's quip is not the action[^]*BACKSTORY FIRST$/);
     // A unit's charge on the map line is the first action too; a stand ("tut") or a march route is not.
     const charged = { ...asWent, sahneler: [asWent.sahneler[0]!, { ...asWent.sahneler[1]!, satirlar: [{ karakter: "anlatici", metin: "Hannibal's cavalry charges out of the fog." }, ...asWent.sahneler[1]!.satirlar], harita: { birlikler: [{ yerler: [{ satir: 0, hareket: "hucum" }] }] } }] };
     assert.deepEqual(backstoryProblems(charged), []);
@@ -724,7 +724,7 @@ async function main() {
     };
     const o = openingBeforeAction(stalingrad)!;
     assert.deepEqual([o.sahne, o.satir, o.kelime], ["s2-map-pincer", 1, 7 + 10 + 13], "the arrow on s2's first line is the action, not the quip");
-    assert.match(backstoryProblems(stalingrad)[0]!, /the first action comes at scene "s2-map-pincer" line 1, after 30 spoken words \(~13 s; at most 24, on screen by ~10 s\)[^]*BACKSTORY FIRST$/);
+    assert.match(backstoryProblems(stalingrad)[0]!, /the first action comes at scene "s2-map-pincer" line 1, after 30 spoken words \(~13 s; at most 24, on screen by ~8 s\)[^]*BACKSTORY FIRST$/);
     // The arrow moved into the opening map, on the stakes line: the first action at ~7 s, nothing asked.
     const fixed = { ...stalingrad, sahneler: [{ ...stalingrad.sahneler[0]!, harita: { ...stalingrad.sahneler[0]!.harita, oklar: [{ satir: 1 }] } }, stalingrad.sahneler[1]!] };
     assert.deepEqual([openingBeforeAction(fixed)!.satir, backstoryProblems(fixed)], [2, []]);
@@ -747,9 +747,9 @@ async function main() {
     assert.deepEqual(backstoryPhrases("Atahualpa enters Cajamarca with 6,000 followers."), ["6,000 followers"]);
     // The writer is told in both languages: ~10 s, the badge's quip is no action, the main character may say the stakes.
     const en = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
-    for (const needle of ["by about\n  10 seconds", "a character's badge quip\n  is NOT the first action", "the MAIN CHARACTER may say this\n  line from their badge"]) assert.ok(en.includes(needle), needle);
+    for (const needle of ["by about\n  8 seconds", "THE MAP MOVES UNDER THE STAKES LINE", "a character's badge quip\n  is NOT the first action", "the MAIN CHARACTER may say this\n  line from their badge"]) assert.ok(en.includes(needle), needle);
     const tr = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "tr" }, CATALOG);
-    for (const needle of ["en geç ~10. saniyede", "rozet\n  esprisi ilk hamle SAYILMAZ", "ANA KARAKTER de rozetinden"]) assert.ok(tr.includes(needle), needle);
+    for (const needle of ["en geç ~8. saniyede", "TEHLİKE SATIRININ ALTINDA HARİTA KIPIRDAR", "rozet\n  esprisi ilk hamle SAYILMAZ", "ANA KARAKTER de rozetinden"]) assert.ok(tr.includes(needle), needle);
   });
 
   await scenario("I6 a Short's question title (owner, 23 Nov 2026, after Knowledgia's 52 Shorts — every one a question read out first): its shape, its anchor, said first; the narrator's line put in when the rounds left it out", () => {

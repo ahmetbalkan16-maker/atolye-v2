@@ -7,7 +7,9 @@
 import assert from "node:assert/strict";
 import { detectAyasVideoIntent } from "../src/lib/ayas/AyasVideoOrder";
 import { shortsUiCover, shortsUiFaults } from "../src/lib/v3/council/LayoutCheck";
-import { closingHoldS, GATE_TARGET, gateMarkdown, longestGapIn, parseSrt, qcChecks, qcRowCheck, scoreGate, subtitleFaults, type GateCheck } from "../src/lib/v3/council/QualityGate";
+import { closingTempoGaps, openingBeats, withOpeningBeats } from "../src/lib/v3/director/Director";
+import type { V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
+import { closingHoldS, GATE_TARGET, gateMarkdown, longestGapIn, parseFreezes, parseMomentary, parseSrt, speechMusicBalance, qcChecks, qcRowCheck, scoreGate, subtitleFaults, type GateCheck } from "../src/lib/v3/council/QualityGate";
 import type { ProductionOrder } from "../src/lib/v3/orders/ProductionOrders";
 import { approvePublish } from "../src/lib/v3/publish/PublishApproval";
 
@@ -115,6 +117,32 @@ scenario("AYAS hears the director's override in the chat", () => {
   assert.equal(forced?.kind === "publish" && forced.words, "ıran"); // Turkish lower-casing, as every chat topic is matched
   const plain = detectAyasVideoIntent("Iran videosunu yükle");
   assert.equal(plain?.kind === "publish" && plain.zorla, undefined);
+});
+
+scenario("a still picture is read from freezedetect's log; one still at the end runs to the end", () => {
+  const log = ["[freezedetect @ 0] lavfi.freezedetect.freeze_start: 10.5", "[freezedetect @ 0] lavfi.freezedetect.freeze_duration: 4.5", "[freezedetect @ 0] lavfi.freezedetect.freeze_end: 15", "[freezedetect @ 0] lavfi.freezedetect.freeze_start: 58"].join("\n");
+  assert.deepEqual(parseFreezes(log, 64), [{ start: 10.5, end: 15 }, { start: 58, end: 64 }]);
+  assert.deepEqual(parseFreezes("", 64), []);
+});
+
+scenario("music against the narrator: speech louder than music-only moments, unmeasured without enough music-only time", () => {
+  const log = Array.from({ length: 100 }, (_, i) => `[Parsed_ebur128_0 @ 0] t: ${(i / 10).toFixed(1)}  TARGET:-23 LUFS    M: ${i < 50 ? "-14.0" : "-24.0"} S: -20.0     I: -16.0 LUFS`).join("\n");
+  const pts = parseMomentary(log);
+  assert.equal(pts.length, 100);
+  const b = speechMusicBalance(pts, [{ start: 0, end: 4.9 }]);
+  assert.deepEqual(b && [b.speech, b.music, b.diff], [-14, -24, 10]);
+  assert.equal(speechMusicBalance(pts, [{ start: 0, end: 9.5 }]), undefined);
+});
+
+scenario("the closing tempo: a Short's last 10 s get a picture change at least every 3 s, the gate reports a held ending", () => {
+  // From frame 300 of a 600-frame shot at 30 fps with no change: beats at 300, then every 2.5 s.
+  assert.deepEqual(openingBeats([0], 600, 600, 30, 300), [300, 375, 450, 525]);
+  assert.deepEqual(openingBeats([0], 600, 600, 30), openingBeats([0], 600, 600, 30, 0), "the opening is unchanged");
+  const still = { fps: 30, width: 1920, height: 1080, shots: [{ id: "s5-payoff", start: 0, duration: 600, camera: [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }] }] } as unknown as V3RenderPlan;
+  assert.deepEqual(closingTempoGaps(still), [{ from: 10, to: 20, shot: "s5-payoff" }]);
+  const cut = { ...still, shots: [{ ...still.shots[0]!, camera: withOpeningBeats(still.shots[0]!.camera, [], [], 600, 600, 30, undefined, 300) }] } as unknown as V3RenderPlan;
+  assert.deepEqual(closingTempoGaps(cut), [], "the Director's closing beats close the held ending");
+  assert.deepEqual(withOpeningBeats(still.shots[0]!.camera, [], [], 600, 600, 30, undefined, 600), still.shots[0]!.camera, "nothing before `from`");
 });
 
 console.log(`PASS (${scenarios} scenarios)`);

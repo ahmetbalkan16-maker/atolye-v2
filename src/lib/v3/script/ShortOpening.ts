@@ -14,12 +14,15 @@ import { splitDirections } from "../tts/StageDirections";
  * 10 s since (owner, 27 Nov 2026: "insanları çekecek başlangıçlar yapmamız gerekiyor"; docs/v3/KANCA_ANALIZI_2026-11-27.md):
  * on all ten measured Shorts the steepest early drop fell between 4.4 and 9.8 s, on a setup line while nothing happened on
  * screen, and the three question Shorts made since 23 Nov showed their first move on the map only at 13.6–24 s.
+ * 8 s since the owner's quality standard of the same day ("videoya giriş hook bunu daha da etkin hale gelmeli"): 10 s
+ * still sat inside that 4.4–9.8 s drop; the action now comes with the stakes line.
  */
-export const FIRST_ACTION_BY_S = 10;
+export const FIRST_ACTION_BY_S = 8;
 /**
  * Spoken words before the first action at most: FIRST_ACTION_BY_S at the channel's ~2.4 spoken words a second — the
  * question title (~10 words) and the stakes line (at most 12), so the action comes with the stakes line or the next one.
  */
+// Kept at 24 when the target moved to 8 s: the channel's best organic Short (Caesar) acted after exactly 24 words.
 export const FIRST_ACTION_MAX_WORDS = 24;
 /** The channel's spoken pace, for the seconds a count of words takes (HookFollow: 2.3–2.5 words a second). */
 const WORDS_PER_S = 2.4;

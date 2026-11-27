@@ -281,3 +281,53 @@ export function qcChecks(qc: string, shorts: boolean): { readonly checks: GateCh
   const rows = qc.split(/\r?\n/).flatMap((l) => qcRowCheck(l, shorts) ?? []);
   return { checks: rows.map((r): GateCheck => ({ stage: r.stage, area: r.area, ok: r.ok, text: r.text, ...(r.weight !== undefined ? { weight: r.weight } : {}), ...(r.block ? { block: r.block } : {}) })), unknownRows: rows.filter((r) => !r.known).map((r) => r.text.slice(0, 60)) };
 }
+
+/**
+ * Still stretches of the finished video, from ffmpeg's freezedetect log (stderr): what the viewer sees as "nothing moves"
+ * whatever the plan counted as an event — the Iran war Short of 27 Nov 2026 stood ~12 s on its closing scene while lines
+ * and lip sync still counted as events. A freeze still open at the end of the log runs to `durationS`.
+ */
+export function parseFreezes(log: string, durationS: number): { start: number; end: number }[] {
+  const out: { start: number; end: number }[] = [];
+  let open: number | undefined;
+  for (const m of log.matchAll(/freeze_(start|end):\s*([\d.]+)/g)) {
+    const t = Number(m[2]);
+    if (m[1] === "start") open = t;
+    else if (open !== undefined) {
+      out.push({ start: open, end: t });
+      open = undefined;
+    }
+  }
+  if (open !== undefined) out.push({ start: open, end: durationS });
+  return out;
+}
+
+/** freezedetect's settings: a picture changing less than this share for at least FREEZE_MIN_S is still. */
+export const FREEZE_NOISE = 0.003;
+export const FREEZE_MIN_S = 3;
+
+/** ffmpeg ebur128's momentary loudness log (one "t: … M: …" line every 0.1 s) as points. */
+export function parseMomentary(log: string): { t: number; m: number }[] {
+  return [...log.matchAll(/t:\s*([\d.]+)\s+TARGET:[^\n]*?M:\s*(-?[\d.]+|-inf)/g)].flatMap((x) => (x[2] === "-inf" ? [] : [{ t: Number(x[1]), m: Number(x[2]) }]));
+}
+
+/** Music/ambience shows on its own at least this long in all, or the balance is not measured. */
+export const BALANCE_MIN_GAP_S = 1.5;
+/** Speech moments must stand at least this much louder than the music-only moments (LU). */
+export const BALANCE_MIN_LU = 4;
+
+/**
+ * Music against the narrator, from the final mix alone (owner, 27 Nov 2026, the quality standard: "Müzik anlatıcıyı
+ * bastırmamalı"; the mix keeps no separate stems): the median momentary loudness while someone speaks against the median
+ * where nobody speaks (music and ambience only, 0.3 s off each line's edge). A mix whose music-only moments are nearly as
+ * loud as its speech covers the voice. Undefined when the music-only moments are under BALANCE_MIN_GAP_S in all.
+ */
+export function speechMusicBalance(points: readonly { t: number; m: number }[], speech: readonly { start: number; end: number }[]): { speech: number; music: number; diff: number; musicS: number } | undefined {
+  const talking = (t: number, pad: number) => speech.some((s) => t >= s.start - pad && t <= s.end + pad);
+  const median = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const sp = points.filter((p) => talking(p.t, 0) && p.m > -60).map((p) => p.m);
+  const mu = points.filter((p) => !talking(p.t, 0.3) && p.m > -60).map((p) => p.m);
+  if (!sp.length || mu.length * 0.1 < BALANCE_MIN_GAP_S) return undefined;
+  const a = median(sp)!, b = median(mu)!;
+  return { speech: Math.round(a * 10) / 10, music: Math.round(b * 10) / 10, diff: Math.round((a - b) * 10) / 10, musicS: Math.round(mu.length) / 10 };
+}

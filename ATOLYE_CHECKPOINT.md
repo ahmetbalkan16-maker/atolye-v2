@@ -1,3 +1,18 @@
+## 27 Kasım 2026 (10) — Daha güçlü Short kancası, kapanış temposu, açıklar kapandı; Gaugamela Short'u (Salı 13:00)
+
+- Owner: "açık kalanları da hallet, videoya giriş hook bunu daha da etkin hale gelmeli; konu Büyük İskender'in en ünlü savaşı;
+  videoya başlamadan canlıya al".
+- Kanca: ilk hamle en geç 8 sn (önce 10; kanalın en dik düşüşü 4,4–9,8 sn), vuruş haritası soru 0–3 / tehlike 3–6 / ilk hamle
+  6–8; yazara "tehlike satırının altında harita kıpırdar" kuralı (tr+en). 24 kelime tavanı kaldı (en iyi organik Short Sezar tam
+  24 kelimede hamle yaptı).
+- Kapanış: Director bir Short'un son 10 sn'sine açılışın kamera vuruşlarını keser (CLOSING_TEMPO_S, withOpeningBeats `from`);
+  `closingTempoGaps` kapıda "Kapanış temposu" satırı. Gerçek planlarda: İran 54–64 sn, Stalingrad 57–64, Trasimene 138–146
+  tek çerçeve; Cajamarca temiz. freezedetect bu Short'larda donma bulmadı (kamera kayması) → yalnız gerçek donmalar için.
+- Müzik/anlatıcı: konuşma ile yalnız müzik/efekt anları karşılaştırılıyor, puana katılmıyor (Constantinople 0,1 LU top
+  sesinden, Trasimene 10,4 LU); puanlı ölçüm için mikserin ayrı kanalları gerekir — sıradaki iş.
+- Testler: quality-gate 12, episode-director 90, motion 29, script 68, channel-goals 21, short-tempo 3, youtube 11,
+  ayas-video-order 10, firewall 13; tsc kök+remotion; lint.
+
 ## 27 Kasım 2026 (9) — Kalıcı kalite standardı: Kalite Kapısı (10 alan, 8,5 hedef, tarih/teknik engel), Shorts arayüz alanı
 
 - Owner'ın Codex analizinden gelen "KALICI VİDEO ÜRETİM KALİTESİ STANDARDI" uygulandı; belge `docs/v3/11_KALITE_STANDARDI.md`

@@ -53,7 +53,7 @@ import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/coun
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate, sourcedNumberFacts } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview, shortsUiReview } from "../src/lib/v3/council/QualityBrain";
-import { AREA_TR, closingHoldS, CUE_MAX_CHARS, CUE_MAX_CPS, GATE_TARGET, type GateCheck, gateLine, gateMarkdown, gateSummary, longestGapIn, parseSrt, qcChecks, scoreGate, subtitleFaults, tc } from "../src/lib/v3/council/QualityGate";
+import { AREA_TR, BALANCE_MIN_LU, closingHoldS, CUE_MAX_CHARS, CUE_MAX_CPS, FREEZE_MIN_S, FREEZE_NOISE, GATE_TARGET, type GateCheck, gateLine, gateMarkdown, gateSummary, longestGapIn, parseFreezes, parseMomentary, parseSrt, qcChecks, scoreGate, speechMusicBalance, subtitleFaults, tc } from "../src/lib/v3/council/QualityGate";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { similarCaseLines } from "../src/lib/v3/council/DevBrain";
 import { brainCases, criticBriefing, factCheckBriefing } from "../src/lib/v3/council/BrainBriefing";
@@ -65,7 +65,7 @@ import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePack
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { ensureEra, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
-import { beats, blankOpening, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, realPictureCount, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, blankOpening, buildRenderPlan, CLOSING_TEMPO_S, closingTempoGaps, HOOK_S, OPENING_CHANGE_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, realPictureCount, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -1682,6 +1682,12 @@ async function main() {
       const upS = Number(probe?.format?.duration ?? NaN);
       const wantW = shorts ? 1080 : 1920;
       const wantH = shorts ? 1920 : 1080;
+      // What the viewer sees standing still on the finished video (freezedetect), whatever the plan counted as an event.
+      const freezes = await runChecked(paths.ffmpeg, ["-hide_banner", "-nostats", "-i", f(final), "-map", "0:v:0", "-vf", `freezedetect=n=${FREEZE_NOISE}:d=${FREEZE_MIN_S}`, "-f", "null", "-"], { timeoutMs: 20 * 60_000 }).then((r) => parseFreezes(`${r.stderr}\n${r.stdout}`, durationS)).catch(() => undefined);
+      const balance = await runChecked(paths.ffmpeg, ["-hide_banner", "-nostats", "-i", f("miks.wav"), "-af", "ebur128", "-f", "null", "-"], { timeoutMs: 20 * 60_000 }).then((r) => speechMusicBalance(parseMomentary(`${r.stderr}\n${r.stdout}`), timeline.lines)).catch(() => undefined);
+      const stillMax = shorts ? 4 : 6;
+      const longStill = (freezes ?? []).filter((x) => x.end - x.start > stillMax && x.end < durationS - 1);
+      const endStill = (freezes ?? []).find((x) => x.end >= durationS - 1 && x.end - x.start > FREEZE_MIN_S);
       const history = council.findings.filter((x) => x.beyin === "arastirma" && x.onem === "eksik");
       const ending = closingQuestion(episode);
       const extra: GateCheck[] = [
@@ -1692,13 +1698,20 @@ async function main() {
         ...(session ? [{ stage: "senaryo" as const, area: "hikaye" as const, ok: session.puan >= 7, weight: 2, text: `Yönetmen kurulu ${session.puan}/10 (${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}`).join(", ")}; hedef ≥ 7)` }] : [{ stage: "senaryo" as const, area: "hikaye" as const, ok: false, unmeasured: true, text: "Yönetmen kurulu: oturum yok" }]),
         { stage: "senaryo", area: "dogruluk", ok: !history.length, weight: 4, block: "tarih", text: `Araştırma beyninin eksikleri: ${history.length ? history.map((x) => `${x.baslik} (${x.yer ?? "senaryo"})`).join("; ") : "yok"}` },
         ...(shorts ? [{ stage: "senaryo" as const, area: "final" as const, ok: Boolean(ending), weight: 3, text: `Kapanış: ${ending ? `açık soruyla bitiyor ("${ending.slice(0, 80)}") + abone daveti` : "son satır açık soru + abone daveti değil (ClosingLine)"}` }] : []),
-        { stage: "kurgu", area: "final", ok: holdS <= (shorts ? 4 : 8), weight: 3, text: `Kapanış duruşu: son görsel olaydan sona ${holdS.toFixed(1)} sn (${tc(durationS - holdS)}–${tc(durationS)}; hedef ≤ ${shorts ? 4 : 8} sn, final hareketsiz beklememeli)` },
+        { stage: "kurgu", area: "final", ok: holdS <= (shorts ? 4 : 8), weight: shorts ? 1 : 3, text: `Kapanış duruşu: son görsel olaydan sona ${holdS.toFixed(1)} sn (${tc(durationS - holdS)}–${tc(durationS)}; hedef ≤ ${shorts ? 4 : 8} sn, final hareketsiz beklememeli)` },
+        // The picture's own changes in the last CLOSING_TEMPO_S (the Iran war Short held one framing 54–64 s while lines
+        // still counted as events above); the Director cuts beats in there (withOpeningBeats `from`), a map is reported.
+        ...(shorts ? [((gaps) => ({ stage: "animasyon" as const, area: "final" as const, ok: !gaps.length, weight: 3, text: `Kapanış temposu (son ${CLOSING_TEMPO_S} sn): ${gaps.length ? gaps.map((g) => `${tc(g.from)}–${tc(g.to)} ${g.shot} görüntü değişmiyor`).join("; ") : `görüntü en geç ${OPENING_CHANGE_S} sn'de bir değişiyor`}` }))(closingTempoGaps(plan))] : []),
+        { stage: "kurgu", area: "final", ok: !endStill, weight: 3, unmeasured: freezes === undefined, text: `Videoda duran final: ${freezes === undefined ? "ölçülmedi" : endStill ? `görüntü ${tc(endStill.start)}–${tc(durationS)} (${(durationS - endStill.start).toFixed(1)} sn) kıpırdamıyor` : `son ${FREEZE_MIN_S} sn'den uzun donma yok`} (ffmpeg freezedetect)` },
+        { stage: "kurgu", area: "tutma", ok: !longStill.length, weight: Math.min(4, 2 * Math.max(1, longStill.length)), unmeasured: freezes === undefined, text: `Videoda duran görüntü (> ${stillMax} sn): ${freezes === undefined ? "ölçülmedi" : longStill.length ? longStill.slice(0, 4).map((x) => `${tc(x.start)}–${tc(x.end)}`).join(", ") : "yok"} (ffmpeg freezedetect)` },
         { stage: "kurgu", area: "tutma", ok: middle.lengthS <= (shorts ? 4 : 6), weight: 2, text: `Orta bölüm (%30–70): en uzun olaysız aralık ${middle.lengthS.toFixed(1)} sn, ${tc(middle.from)}–${tc(middle.to)} (hedef ≤ ${shorts ? 4 : 6} sn)` },
         { stage: "altyazi", area: "altyazi", ok: !srtFaults.length, weight: 2 * Math.max(1, srtFaults.length), text: `Altyazı (YouTube CC, kelime zamanlı): ${srtFaults.length ? srtFaults.join("; ") : `okunur (≤ ${CUE_MAX_CHARS} karakter, ≤ ${CUE_MAX_CPS} karakter/sn, üst üste binme yok)`}` },
         ...(shorts ? [{ stage: "kurgu" as const, area: "altyazi" as const, ok: hidden !== undefined && !hidden.length, weight: Math.min(3, Math.max(1, hidden?.length ?? 1)), unmeasured: hidden === undefined, text: `Shorts arayüzü: ${hidden === undefined ? "ölçülmedi (yerleşim kaydı yok)" : hidden.length ? `${hidden.length} yazı alt bant/sağ butonlar/üst çubuk altında — ${hidden.slice(0, 3).map((x) => `${tc(x.from)} ${x.ayrinti}`).join("; ")}` : "önemli yazı kapanan alanda değil"}` }] : []),
         ...(upload ? [{ stage: "export" as const, area: "final" as const, ok: w === wantW && h === wantH && Number.isFinite(upS) && Math.abs(upS - durationS) <= 1 && (!shorts || upS <= SHORTS_MAX_S), weight: 0, block: "teknik" as const, text: `Yükleme dosyası ${upload}: ${w ?? "?"}×${h ?? "?"}, ${Number.isFinite(upS) ? upS.toFixed(1) : "?"} sn (beklenen ${wantW}×${wantH}${shorts ? `, ≤ ${SHORTS_MAX_S} sn` : ""}, final ile aynı süre)` }] : []),
         // Music under the narrator is mixed by rule (Mixer's ducking); no measure of it exists yet, so it is listed, not scored.
-        { stage: "ses", area: "ses", ok: true, unmeasured: true, text: "Müzik/anlatıcı dengesi: miks kuralıyla kısılıyor, ayrı ölçüm yok" },
+        // Listed, not scored: the music-only moments of a Short are few and carry the battle effects too (Constantinople
+        // 20 Nov 2026 measured 0.1 LU from its cannon shots, Trasimene 10.4 LU); a scored check needs the mixer's stems.
+        { stage: "ses", area: "ses", ok: true, unmeasured: true, text: `Müzik/anlatıcı dengesi (konuşmasız anlara göre, puana katılmıyor): ${balance ? `konuşma ${balance.speech} LUFS, yalnız müzik/efekt ${balance.music} LUFS (${balance.musicS} sn), fark ${balance.diff} LU (en az ${BALANCE_MIN_LU} beklenir)` : "konuşmasız an yetersiz"}` },
       ];
       const result = scoreGate([...base.checks, ...extra]);
       await fs.writeFile(f("KALITE_KAPISI.md"), gateMarkdown(episode.baslik, result));

@@ -296,7 +296,7 @@ export function shortsShape(targetS: number): { readonly min: number; readonly m
  * same day's study of Knowledgia's Shorts (owner: "bütün planları uygula") the hook is the Short's question title read
  * out first by the narrator over a map (QuestionTitle), the Short is told on vertical maps (~90%) and shows one big number.
  * Since 27 Nov 2026 (owner: "insanları çekecek başlangıçlar yapmamız gerekiyor"; docs/v3/KANCA_ANALIZI_2026-11-27.md) the
- * first action comes by ~10 s and shows on the map itself (a badge's quip is not one), and the stakes line may be the
+ * first action comes by ~10 s (~8 s and a map moving under the stakes line since the quality standard, 27 Nov 2026) and shows on the map itself (a badge's quip is not one), and the stakes line may be the
  * main character's own, as in the channel's best Short.
  */
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
@@ -317,7 +317,9 @@ YOUTUBE SHORTS — bu, telefonda akışta dik izlenen ${b.hedefSureSn} saniye ya
   yaklaşık yarısı tam bu satırda, 4–12. saniyede kaydırdı.) Bu satırı anlatıcı yerine ANA KARAKTER de rozetinden kendi
   sesiyle söyleyebilir: kazanmak ya da kaybetmek üzere olduğu şeyi söyleyen kısa, somut bir replik (kanalın en iyi
   Short'u, Caesar, "Twenty? I've seen farmhands go for more than that!" diye açıldı).
-- İlk hamleden önce geçmiş YOK: tehlike satırından hemen sonra ilk hamle ya da çatışma ekrandadır (en geç ~10. saniyede:
+- TEHLİKE SATIRININ ALTINDA HARİTA KIPIRDAR: tehlike satırı söylenirken (3–8. sn) haritada bir şey olur — iki ordu karşı
+  karşıya belirir, bir birlik öne çıkar, ilk ok çizilir. Hazırlık satırının altında duran harita asla yok.
+- İlk hamleden önce geçmiş YOK: tehlike satırından hemen sonra ilk hamle ya da çatışma ekrandadır (en geç ~8. saniyede:
   bir hücum, kurulan tuzağın kapanması, bir yangın, sahnede iki karakterin çatışması). Haritada bir karakterin rozet
   esprisi ilk hamle SAYILMAZ: hamle haritanın kendisinde görünür — bir birliğin hücum adımı, bir hamle oku, bir yangın,
   yayılan bir sınır. (Ölçülen on Short'un hepsinde en dik erken düşüş 4–10. saniyede, ekranda hiçbir şey olmazken
@@ -359,8 +361,10 @@ YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, w
   swiped away on exactly this line, between 4 and 12 seconds.) Instead of the narrator, the MAIN CHARACTER may say this
   line from their badge, in their own voice: a short, concrete line of what they are about to win or lose (our best
   Short, Caesar's, opened on "Twenty? I've seen farmhands go for more than that!").
+- THE MAP MOVES UNDER THE STAKES LINE: while the stakes line is said (3–8 s) something already happens on the map — the
+  two armies appear facing each other, a unit steps forward, a first arrow is drawn. Never a still map under a setup line.
 - NO backstory before the first action: right after the stakes line the first action or clash is on screen (by about
-  10 seconds: a charge, the trap sprung, a fire, two characters clashing on a stage). On a map a character's badge quip
+  8 seconds: a charge, the trap sprung, a fire, two characters clashing on a stage). On a map a character's badge quip
   is NOT the first action: the action shows on the map itself — a unit's attack step, a move's arrow, a fire, a border
   spreading. (On all ten Shorts we measured, the steepest early drop fell between 4 and 10 seconds, on a setup line said
   while nothing happened on screen.)

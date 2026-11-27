@@ -170,13 +170,13 @@ async function main() {
 
   await scenario("C the Short beat map: 0–3 s question stays, the rest keeps its share; the writer gets it for a Short only", () => {
     // Since 23 Nov 2026 (owner, after Knowledgia's Shorts): a ~60 s reference, the question title read out at 0–3 s.
-    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 7], ["ilk_hamle", 7, 8], ["neden", 8, 23], ["doruk", 23, 38], ["final", 38, 45]]);
-    assert.deepEqual(shortBeats(goals, 60).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 10], ["neden", 10, 30], ["doruk", 30, 50], ["final", 50, 60]], "the 60 s default is the map itself");
+    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 5], ["ilk_hamle", 5, 7], ["neden", 7, 23], ["doruk", 23, 38], ["final", 38, 45]]);
+    assert.deepEqual(shortBeats(goals, 60).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 6], ["ilk_hamle", 6, 8], ["neden", 8, 30], ["doruk", 30, 50], ["final", 50, 60]], "the 60 s default is the map itself");
     // The 90 s default (owner, 23 Nov 2026): the hook, the stakes and the first action keep their seconds — scaled as
     // before, the stakes ran 2–16 s and the first action came at ~23 s, in the window where half the viewers swipe away.
-    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 10], ["neden", 10, 42], ["doruk", 42, 74], ["final", 74, 90]]);
-    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [3, 8, 10], `${t} s`);
-    assert.match(shortBeatRule(goals, 90, "en"), /8–10 s the first action on the map itself, by 10 s[^;]*a badge's quip is not one; no backstory before it/);
+    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 6], ["ilk_hamle", 6, 8], ["neden", 8, 43], ["doruk", 43, 74], ["final", 74, 90]]);
+    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [3, 6, 8], `${t} s`);
+    assert.match(shortBeatRule(goals, 90, "en"), /6–8 s the first action on the map itself, by 8 s[^;]*a badge's quip is not one; no backstory before it/);
     // The question shapes that drew most, best first (soruKaliplari).
     assert.match(shortBeatRule(goals, 60, "en"), /\n- QUESTION SHAPES \(most watched first; take the one that fits the topic\): "How was X formed \/ How did X grow so fast\?" \(e\.g\. "How was Switzerland Formed\?"\), "Why didn't X happen\?/);
     const b30 = shortBeats(goals, 30);
@@ -266,7 +266,7 @@ async function main() {
     assert.match(openingChecks(goals, { ...base, followUp: { text: "On August 2nd, 216 BC, nobody listens to me!", byCharacter: true } })[4]!.text, /karakter cevap veriyor/);
     // The beat map no longer asks for a "who, where and when" set-up line after the hook.
     assert.doesNotMatch(shortBeatRule(goals, 45, "en"), /set up who, where and when/);
-    assert.match(shortBeatRule(goals, 45, "en"), /3–7 s the stakes in one short line \(at most 12 words/);
+    assert.match(shortBeatRule(goals, 45, "en"), /3–5 s the stakes in one short line \(at most 12 words/);
     const scene = (id: string, extra: Record<string, unknown> = {}) => ({ id, muzik_ruh_hali: "playful", satirlar: [{ jest: "point", sfx: "pop" }], kamera: [{ tip: "zoom", t: 0 }], gecis: "wipe", ...extra });
     assert.equal(scenePlanCheck([scene("s1"), scene("s2")]).ok, true, "assert.equal(scenePlanCheck([scene(\"s1\"), scene(\"s2\")]).ok, true)");
     const gaps = scenePlanCheck([scene("s1"), scene("s2", { kamera: undefined, gecis: undefined, satirlar: [{}] }), scene("s3", { kamera: undefined, satirlar: [{}], harita: { kamera: [{}], ordular: [{}] } })]);

@@ -1415,9 +1415,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       props,
       camera: geo
         ? ((c) => (input.short ? mapPulse(c, duration, fps) : c))(mapShotCamera(fillTempo(mapGlides(normalizeCamera(camera), fps), shotEventFrames(performers, titleCards, []), duration, fps)))
-        : ((cam) => (input.short && !photo && start < f(OPENING_TEMPO_S) ? withOpeningBeats(cam, performers, inserts, duration, f(OPENING_TEMPO_S) - start, fps, shotLead) : cam))(
+        : ((cam) => (input.short && !photo && si === episode.sahneler.length - 1 ? withOpeningBeats(cam, performers, inserts, duration, duration, fps, shotLead, Math.max(0, duration - f(CLOSING_TEMPO_S))) : cam))(((cam) => (input.short && !photo && start < f(OPENING_TEMPO_S) ? withOpeningBeats(cam, performers, inserts, duration, f(OPENING_TEMPO_S) - start, fps, shotLead) : cam))(
             fillTempo(noShortShots(noOpeningFlash(normalizeCamera(camera), fps), duration, fps, keptCuts, inserts), shotEventFrames(performers, titleCards, []), duration, fps),
-          ).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
+          )).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
       mapArrows,
@@ -1782,6 +1782,12 @@ export function shortShots(plan: Pick<V3RenderPlan, "fps" | "shots">, minS = OPE
  * first seconds): in the first OPENING_TEMPO_S of a Short the picture changes at least every OPENING_CHANGE_S.
  */
 export const OPENING_TEMPO_S = 15;
+/**
+ * A Short's closing tempo (owner, 27 Nov 2026, the quality standard: "Finali güçlü ve akılda kalıcı yap"; the Iran war
+ * Short's last scene held one framing ~12 s under its closing question): the last CLOSING_TEMPO_S of a Short's last stage
+ * scene keep the opening's rule, a picture change at least every OPENING_CHANGE_S (withOpeningBeats with `from`).
+ */
+export const CLOSING_TEMPO_S = 10;
 /** 7 s until 23 Nov 2026; 3 s since (owner, "bütün planları uygula": Knowledgia's Shorts change the picture every 1–3 s). */
 export const OPENING_CHANGE_S = 3;
 /** Where a missing change is put: this long after the last one (a little under OPENING_CHANGE_S). */
@@ -1843,6 +1849,25 @@ export function pictureChangeFrames(shot: ChangeShot, width: number = STAGE_SIZE
 }
 
 /**
+ * The stretches of a Short's last CLOSING_TEMPO_S without a picture change longer than OPENING_CHANGE_S (seconds on the
+ * video's clock): what the closing tempo rule leaves open (a map shot is never cut, so a still map there is reported).
+ * The quality gate's ending measure — freezedetect saw no freeze on the Iran war Short while one framing held ~12 s.
+ */
+export function closingTempoGaps(plan: Pick<V3RenderPlan, "fps" | "shots" | "width" | "stage">): { readonly from: number; readonly to: number; readonly shot: string }[] {
+  const total = plan.shots.reduce((m, s) => Math.max(m, s.start + s.duration), 0);
+  const from = Math.max(0, total - CLOSING_TEMPO_S * plan.fps);
+  const width = plan.stage?.width ?? plan.width;
+  const changes = plan.shots.filter((s) => s.start + s.duration > from).flatMap((s) => [s.start, ...pictureChangeFrames(s, s.stage?.width ?? width).map((f) => s.start + f)].map((at) => ({ at, end: s.start + s.duration, shot: s.id })));
+  const out: { from: number; to: number; shot: string }[] = [];
+  changes.sort((x, y) => x.at - y.at).forEach((c, i) => {
+    const start = Math.max(c.at, from);
+    const to = Math.min(changes[i + 1]?.at ?? Infinity, c.end, total);
+    if (to - start > OPENING_CHANGE_S * plan.fps) out.push({ from: Math.round((start / plan.fps) * 10) / 10, to: Math.round((to / plan.fps) * 10) / 10, shot: c.shot });
+  });
+  return out;
+}
+
+/**
  * The stretches of a plan's first OPENING_TEMPO_S without a picture change longer than OPENING_CHANGE_S (seconds on the
  * video's clock; the last stretch is measured up to OPENING_TEMPO_S): what the opening tempo rule leaves open — a map
  * shot is never cut (mapGlides), so a still map there is reported, not fixed.
@@ -1865,13 +1890,15 @@ export function openingTempoGaps(plan: Pick<V3RenderPlan, "fps" | "shots" | "wid
  * OPENING_TEMPO_S ends), no stretch between two changes is longer than OPENING_CHANGE_S. A beat goes OPENING_BEAT_S after
  * the last change, or halfway when that would leave the next shot shorter than OPENING_HOLD_S; never a shot under it.
  */
-export function openingBeats(changes: readonly number[], duration: number, horizon: number, fps: number): number[] {
+export function openingBeats(changes: readonly number[], duration: number, horizon: number, fps: number, from = 0): number[] {
   const max = OPENING_CHANGE_S * fps, step = Math.round(OPENING_BEAT_S * fps), hold = Math.round(OPENING_HOLD_S * fps);
   const marks = [...new Set([...changes, duration])].sort((a, b) => a - b);
   const out: number[] = [];
   for (let i = 0; i + 1 < marks.length; i++) {
     const b = marks[i + 1]!;
-    let t = marks[i]!;
+    // `from`: only the shot's frames from there on are held to the tempo (a Short's closing, CLOSING_TEMPO_S).
+    if (b <= from) continue;
+    let t = Math.max(marks[i]!, from - step);
     while (Math.min(b, horizon) - t > max) {
       let beat = t + step;
       if (b - beat < hold) beat = Math.round((t + b) / 2);
@@ -1902,13 +1929,13 @@ function standsAt(p: Pick<V3Performer, "x" | "moves">, frame: number): number | 
  * wide, like an editor's insert — so the shot's own moves never pull it back in a rush. A beat with no visibly different
  * framing, or under a cutaway, is left out. Only keys are set: the renderer's camera stays a function of the frame alone.
  */
-export function withOpeningBeats(camera: readonly V3CameraKey[], performers: readonly V3Performer[], inserts: readonly Pick<V3Insert, "start" | "end">[], duration: number, horizon: number, fps: number, lead?: string): V3CameraKey[] {
+export function withOpeningBeats(camera: readonly V3CameraKey[], performers: readonly V3Performer[], inserts: readonly Pick<V3Insert, "start" | "end">[], duration: number, horizon: number, fps: number, lead?: string, from = 0): V3CameraKey[] {
   const hold = Math.round(OPENING_HOLD_S * fps), step = Math.round(OPENING_BEAT_S * fps);
   const skipped = new Set<number>();
   let out = [...camera];
   for (let guard = 0; guard < 8; guard++) {
     const marks = pictureChangeFrames({ duration, camera: out, inserts });
-    const beat = openingBeats(marks, duration, horizon, fps).find((b) => !skipped.has(b));
+    const beat = openingBeats(marks, duration, horizon, fps, from).find((b) => !skipped.has(b));
     if (beat === undefined) break;
     skipped.add(beat);
     if (inserts.some((w) => beat >= w.start && beat <= w.end)) continue;
