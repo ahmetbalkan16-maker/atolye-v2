@@ -51,6 +51,11 @@ function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: Perfor
  * a question, read out first and kept in view): big white capitals with a dark edge, centred in the empty band above the
  * stage (the size steps down for a long question; the cover's lettering, TitleCard).
  */
+/** Stage rows stretched over a vertical frame's empty band (the set's sky above, its ground below). */
+const EDGE_ROWS = 6;
+/** Only the set's left edge is spread over the band's width: a sun or a tower in the top row became a tall spike. */
+const EDGE_COLS = 0.05;
+
 export function QuestionBand({ text, width, band }: { text: string; width: number; band: number }) {
   const chars = text.trim().length;
   const size = Math.round(Math.min(band * 0.26, chars > 70 ? 62 : chars > 45 ? 74 : 88));
@@ -239,6 +244,24 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage, exit
     <AbsoluteFill>
     <AbsoluteFill style={{ backgroundColor: "#15121c", overflow: "hidden", ...(look ? layerStyle(look) : {}) }}>
       {/* The stage; for a Short, scaled to the frame's height and slid to the window. */}
+      {/* A whole stage placed in a taller frame (a native vertical Short's acted scene) leaves empty bands above and below
+          (owner's quality standard, 27 Nov 2026; the Iran and Gaugamela Shorts' closing scenes stood in black): the set's
+          top and bottom rows are stretched over the bands (edge extend) — its sky goes on above, its ground below — and
+          darken toward the frame's edges. No blur (a per-frame filter the renders avoid); the whole set enlarged or
+          stretched put giant tents and fires in the bands. */}
+      {placed && !shot.geoMap && (drawn || bg.src) && offY > OH * 0.12
+        ? ([
+            [0, offY, 0, "linear-gradient(to bottom, rgba(21,18,28,0.88), rgba(21,18,28,0.15))"],
+            [offY + H * fit, OH - (offY + H * fit), H - EDGE_ROWS, "linear-gradient(to top, rgba(21,18,28,0.88), rgba(21,18,28,0.15))"],
+          ] as const).map(([top, height, row, shade]) => (
+            <div key={row} style={{ position: "absolute", left: 0, top, width: OW, height }}>
+              <svg width={OW} height={height} viewBox={`0 ${row} ${W * EDGE_COLS} ${EDGE_ROWS}`} preserveAspectRatio="none" style={{ position: "absolute", left: 0, top: 0 }}>
+                {drawn ? <DrawnSetBack spec={drawn} W={W} H={H} frame={frame} /> : <image href={staticFile(bg.src!)} width={W} height={H} preserveAspectRatio="xMidYMid slice" />}
+              </svg>
+              <div style={{ position: "absolute", inset: 0, background: shade }} />
+            </div>
+          ))
+        : null}
       {placed && question && offY > OH * 0.12 ? <QuestionBand text={question} width={OW} band={offY} /> : null}
       <div style={vertical ? { position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translate(${-winX * fit}px, 0px) scale(${fit})`, transformOrigin: "0 0" } : placed ? { position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden", transform: `translate(${offX}px, ${offY}px) scale(${fit})`, transformOrigin: "0 0" } : { position: "absolute", inset: 0 }}>
       <AbsoluteFill>
