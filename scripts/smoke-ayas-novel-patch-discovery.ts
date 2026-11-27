@@ -172,7 +172,7 @@ async function main(): Promise<void> {
     for (const dep of ["tsx", "typescript", "@types"]) {
       fs.symlinkSync(path.join(process.cwd(), "node_modules", dep), path.join(repoRoot, "node_modules", dep), process.platform === "win32" ? "junction" : "dir");
     }
-    fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2));
+    fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2));
     git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "tsconfig"]);
     const head = git(repoRoot, ["rev-parse", "HEAD"]);
     const obs = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) });

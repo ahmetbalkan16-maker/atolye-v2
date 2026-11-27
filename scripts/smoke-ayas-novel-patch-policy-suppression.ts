@@ -23,7 +23,7 @@ function fixture(): { readonly root: string; head(): string; commit(message: str
   fs.writeFileSync(path.join(root, "scripts", "smoke-bbb-broken.ts"), broken, "utf8");
   fs.mkdirSync(path.join(root, "node_modules"), { recursive: true });
   for (const dependency of ["tsx", "typescript", "@types"]) fs.symlinkSync(path.join(process.cwd(), "node_modules", dependency), path.join(root, "node_modules", dependency), process.platform === "win32" ? "junction" : "dir");
-  fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }), "utf8");
+  fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }), "utf8");
   git(root, ["add", "scripts", "tsconfig.json"]); git(root, ["commit", "-q", "-m", "fixture"]);
   return { root, head: () => git(root, ["rev-parse", "HEAD"]), commit(message) { git(root, ["add", "scripts"]); git(root, ["commit", "-q", "-m", message]); return git(root, ["rev-parse", "HEAD"]); } };
 }

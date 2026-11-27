@@ -54,7 +54,7 @@ function fixtureRepo(classSources: Record<string, string>, packages: readonly st
   fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
   for (const [name, source] of Object.entries(classSources)) fs.writeFileSync(path.join(repoRoot, "src", "lib", "widget", `${name}.ts`), source, "utf8");
   fs.writeFileSync(path.join(repoRoot, ".gitignore"), "node_modules/\n");
-  fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2), "utf8");
+  fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2), "utf8");
   git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
   for (const pkg of packages) link(repoRoot, pkg);
   return { repoRoot, head: git(repoRoot, ["rev-parse", "HEAD"]) };

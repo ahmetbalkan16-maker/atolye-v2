@@ -39,7 +39,7 @@ function makeErrorClassFixtureRepo(classNames: readonly string[], extraFiles: Re
   fs.writeFileSync(path.join(repoRoot, ".gitignore"), "node_modules/\n");
   fs.writeFileSync(
     path.join(repoRoot, "tsconfig.json"),
-    JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2),
+    JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2),
     "utf8",
   );
   git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
     fs.writeFileSync(path.join(repoRoot, ".gitignore"), "node_modules/\n");
     fs.writeFileSync(
       path.join(repoRoot, "tsconfig.json"),
-      JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2),
+      JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["src/**/*.ts", "scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2),
       "utf8",
     );
     git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "three bad gaps"]);

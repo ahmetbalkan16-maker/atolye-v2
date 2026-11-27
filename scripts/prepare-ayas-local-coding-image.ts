@@ -76,8 +76,9 @@ async function main(): Promise<void> {
   if (role === "evaluator") {
     const context = path.join(root, "evaluator-build"); fs.mkdirSync(context);
     const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8")); const pin = lock.packages["node_modules/typescript"];
-    if (pin.version !== "5.9.3" || pin.resolved !== "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz") throw Error("TOOLCHAIN_PIN_REFUSED");
-    const bytes = fs.readFileSync(path.join(root, "typescript-5.9.3.tgz"));
+    // Owner 2026-11-27 ("ikisini de hallet, geçir"): the reviewed evaluator toolchain moved from TypeScript 5.9.3 to 6.0.3.
+    if (pin.version !== "6.0.3" || pin.resolved !== "https://registry.npmjs.org/typescript/-/typescript-6.0.3.tgz") throw Error("TOOLCHAIN_PIN_REFUSED");
+    const bytes = fs.readFileSync(path.join(root, "typescript-6.0.3.tgz"));
     if (`sha512-${crypto.createHash("sha512").update(bytes).digest("base64")}` !== pin.integrity) throw Error("TOOLCHAIN_INTEGRITY_REFUSED");
     const compiler = tar(bytes).get("package/lib/typescript.js")?.bytes; if (!compiler) throw Error("COMPILER_MEMBER_MISSING");
     write(context, "payload/toolchain/typescript.js", compiler);
