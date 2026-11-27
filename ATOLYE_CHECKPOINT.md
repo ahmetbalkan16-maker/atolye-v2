@@ -12,6 +12,13 @@
   sesinden, Trasimene 10,4 LU); puanlı ölçüm için mikserin ayrı kanalları gerekir — sıradaki iş.
 - Testler: quality-gate 12, episode-director 90, motion 29, script 68, channel-goals 21, short-tempo 3, youtube 11,
   ayas-video-order 10, firewall 13; tsc kök+remotion; lint.
+- Canlı: 7ab17e4d (AYAS 44733190 mizah birleştirildi), otomatik yayın PUBLISHED ayas-live-7ab17e4d, izleyici 17:56'da yeniden başladı.
+- **Gaugamela Short'u** sipariş 20261127T145623-how-did-alexander-the-great-beat-darius- (60sn, en, mizahi, "331 BC"). İki müdahale
+  (vaka el-20261127T151109-hgda): senaryo onarımı açılışı düzeltemedi (ilk hamle 42 kelime/~18 sn) → elle: tehlike satırı +
+  Sur–Thapsacus–Dicle–Gaugamela yürüyüş oku (ilk hamle 10 kelime), yanlış dönem sınırları (MÖ 400 + MÖ 323 üst üste) kaldırıldı,
+  Pers sayısı "50,000–250,000?" (kaynak aralığı), Bessus artık İskender'in sağına gidiyor (Parmenion'a değil), Companion hücumu 4.
+  satırda. Dikkat: kostüm adımı bellekteki senaryoyu episode.json'a geri yazdı → birlik yaması ikinci durdurmayla yeniden uygulandı,
+  ses'ten devam. Yükleme: Salı 1 Aralık 10:00Z (13:00 TR), owner onayıyla.
 
 ## 27 Kasım 2026 (9) — Kalıcı kalite standardı: Kalite Kapısı (10 alan, 8,5 hedef, tarih/teknik engel), Shorts arayüz alanı
 
