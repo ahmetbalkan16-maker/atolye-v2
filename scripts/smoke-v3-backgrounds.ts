@@ -368,6 +368,16 @@ async function main() {
     const judge = new FakeJudge({ "epic-fury": JSON.stringify({ puan: 8, donem: 9, modern: true, tur: "fotograf", gosterilen: "uçak gemisinde jetler", sorun: "-" }), "beirut": JSON.stringify({ puan: 2, donem: 9, modern: true, tur: "fotograf", gosterilen: "enkaz", sorun: "başka yer" }) });
     assert.equal((await pickBackground(["beirut", "epic-fury"].map(candidate), war, judge, preview, () => {}, { mode: "arsiv" })).chosen?.title, "File:epic-fury.jpg", "the modern flag alone fails nothing in our own times");
     assert.equal((await pickBackground(["beirut"].map(candidate), war, judge, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "an unrelated photo still never passes");
+    // The same Short's designed hook moment: missiles over Iranian cities at night, 9/10 and 10/10, failed on "modern" alone.
+    for (const mode of ["an", "set"] as const) assert.ok(judgePrompt(war, candidate("x"), mode).includes("OUR OWN TIMES (2026)") && !judgePrompt(SCENE, candidate("x"), mode).includes("OUR OWN TIMES"), mode);
+    const drawn: AIProvider = {
+      async generate(prompt: string): Promise<AIProviderResult> {
+        const content = prompt.includes("sails") ? JSON.stringify({ var: false, ne: "" }) : JSON.stringify({ puan: 9, donem: 10, modern: true, tur: "eser", gosterilen: "şehre inen füzeler", sorun: "-" });
+        return { content, finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    } as AIProvider;
+    assert.equal((await pickBackground(["missiles"].map(candidate), war, drawn, preview, () => {}, { mode: "an" })).chosen?.title, "File:missiles.jpg", "a drawn 2026 moment is not failed for being modern");
+    assert.equal((await pickBackground(["missiles"].map(candidate), SCENE, drawn, preview, () => {}, { mode: "an" })).chosen, undefined, "an older period still refuses anything modern");
   });
 
   await scenario("P2 no set passes: a drawing of the right period stands in, never a modern, later-era or unrelated one (owner, 22 Oct 2026)", () => {

@@ -98,6 +98,10 @@ export function presentDay(donem: string): boolean {
 
 const PRESENT_DAY_NOTE = (donem: string) => `THIS STORY HAPPENS IN OUR OWN TIMES (${donem}): a photograph taken in ${donem} of the person, place or event named IS a period picture and scores 9–10 on "donem"; the aircraft, ships, weapons, cars, buildings and clothes of ${donem} are NOT modern elements here. Score "donem" low only for an image clearly from a different time (an old archive photo from decades earlier, a historical painting) and set "modern" true only for things newer than ${donem}.`;
 
+/** The "modern" rule of a drawn moment, set or thumbnail; in our own times the period note follows it. */
+const modernRule = (donem: string) => `- "modern": true if anything modern is visible.${presentDay(donem) ? `
+${PRESENT_DAY_NOTE(donem)}` : ""}`;
+
 /** Both scores at or above the bar and nothing modern in the picture. */
 /**
  * Both scores at the bar and nothing modern. `allowModern`: a subject photo of today (ruins, a site) always shows a
@@ -171,7 +175,7 @@ HEADLINE ON IT: ${scene.tr}
 Score 0–10:
 - "puan": would a viewer scrolling past click? One clear focal character, large; a readable headline at this small size; an emotion on the face; curiosity (the picture raises a question the video answers); no clutter. 0–3 if the headline cannot be read, nothing stands out, or it is a mess.
 - "donem": does it honestly show this video (its period and people)? 0–3 if it promises something the video is not.
-- "modern": true if anything modern is visible.
+${modernRule(scene.donem)}
 - "tur": "cizim".
 ${answer}`;
   }
@@ -217,7 +221,7 @@ SAID WHILE IT IS ON SCREEN: "${scene.anlatim.slice(0, 400)}"
 Look at the painting and score 0–10:
 - "puan" (moment): does it show this moment — the place, the people and what they are doing? 9–10 clearly this moment; 7–8 the right scene in a general view; 4–6 the right era but not this moment; 0–3 something else, or unusable: text or letters, a watermark, a frame, garbled or melted faces and hands, a mess of shapes.
 - "donem" (period): would every visible thing pass for ${scene.donem}? clothes, armour, weapons, flags, buildings, ships. 0–3 if anything belongs to another era or region (modern things, later uniforms or guns, the wrong architecture).
-- "modern": true if anything modern is visible.
+${modernRule(scene.donem)}
 - "tur": "eser" for a painting.
 ${answer}`;
   }
@@ -233,7 +237,7 @@ SAID IN THE SCENE: "${scene.anlatim.slice(0, 300)}"
 Score 0–10:
 - "puan" (place and style): does it show this place as wanted (landscape, buildings, what the scene needs), drawn in the show's style — a flat cartoon with clean dark outlines, flat bright colours and simple shapes? 0–3 if it shows a different kind of place, if people, faces, characters, text, letters or a watermark are visible, or the foreground is cluttered (the characters need open ground). At most 5 if it looks like a painting, a photo or a textured, soft-focused illustration instead of a flat cartoon, or if the sky is a sunset, dusk or night sky although the set wanted is not set at evening or night.
 - "donem" (period): would every visible thing pass for ${scene.donem}? 0–3 if anything belongs to another era or region (modern buildings, cars, asphalt, power lines, modern ships, a European town for an Ottoman scene, wrong architecture, religious buildings of a later era: church towers, steeples or crosses in antiquity before the 4th century AD, minarets before Islam).
-- "modern": true if anything modern is visible.
+${modernRule(scene.donem)}
 - "tur": "cizim" for a drawn image.
 ${answer}`;
   }
@@ -569,7 +573,7 @@ export async function pickBackground<T extends JudgeCandidate>(
       v = { title: c.title, puan: 0, gosterilen: "", sorun: "değerlendirilemedi" };
     }
     verdicts.push(v);
-    if (passes(v, opts.mode === "konu" || ((opts.mode ?? "arsiv") === "arsiv" && presentDay(scene.donem))) && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
+    if (passes(v, opts.mode === "konu" || (["arsiv", "an", "set"].includes(opts.mode ?? "arsiv") && presentDay(scene.donem))) && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
   }
   return best ? { chosen: best.c, verdict: best.v, verdicts } : { verdicts };
 }
