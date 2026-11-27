@@ -230,6 +230,32 @@ export const SHORT_PICTURES_FROM_S = 90;
  */
 export const SHORT_MIN_PICTURES = 3;
 
+/**
+ * A Short's opening scene never puts its real picture on its first lines (owner, 27 Nov 2026, after the Gaugamela Short:
+ * "giriş çok önemli … ne anlattığını göstermesi gerekiyor"): there the Immortals relief stood 4.5–8.5 s over the stakes
+ * line "Alexander's 47,000 face a Persian army…" — the 4–10 s window where most viewers swipe — while the map should have
+ * shown the two armies facing. Lines below this index (the question and the stakes line) stay on the moving map.
+ */
+export const OPENING_PICTURE_FLOOR = 2;
+
+/**
+ * Moves a Short's opening picture off the question and the stakes line (OPENING_PICTURE_FLOOR): to the scene's first
+ * narrator line from there on, else the mark is dropped (another scene can carry the picture). Logged as a fix.
+ */
+export function keepOpeningOnMap(episode: Episode, targetS: number): { episode: Episode; fixes: string[] } {
+  const s = episode.sahneler[0];
+  if (!isShorts(targetS) || !s?.harita?.merkez || s.ara_goruntu_satir === undefined || s.ara_goruntu_satir >= OPENING_PICTURE_FLOOR) return { episode, fixes: [] };
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+  const satir = s.satirlar.findIndex((l, i) => i >= OPENING_PICTURE_FLOOR && !visible.has(l.karakter));
+  const moved = { ...s };
+  if (satir >= 0) moved.ara_goruntu_satir = satir;
+  else delete (moved as { ara_goruntu_satir?: number }).ara_goruntu_satir;
+  const fix = satir >= 0
+    ? `${s.id}: açılış resmi ${s.ara_goruntu_satir}. satırdaydı (soru/tehlike satırı haritada kalır) — ${satir}. satıra`
+    : `${s.id}: açılış resmi ${s.ara_goruntu_satir}. satırdaydı ve sonrasında anlatıcı satırı yok — işaret kaldırıldı`;
+  return { episode: { ...episode, sahneler: [moved, ...episode.sahneler.slice(1)] }, fixes: [fix] };
+}
+
 /** The picture moments a script asks for: each map scene's marked line, each "gorseller" entry, each photo scene. */
 export function pictureMoments(episode: Episode): number {
   const scenes = Array.isArray(episode?.sahneler) ? episode.sahneler : [];
@@ -255,9 +281,11 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
     // Real period pictures (owner, 11 Nov 2026, after the Gallipoli video): an unmarked map scene is never searched.
     const unmarked = total >= SHORT_PICTURES_FROM_S ? map.filter((s) => s.ara_goruntu_satir === undefined) : [];
     if (unmarked.length) return [`map scene${unmarked.length > 1 ? "s" : ""} ${unmarked.map((s) => `"${s.id}"`).join(", ")} mark${unmarked.length > 1 ? "" : "s"} no "ara_goruntu_satir": every map scene of a Short marks one narrator line whose moment gets its real period picture (and its "arka_plan_sorgusu" searches for it) — REAL PERIOD PICTURES`];
+    const opening = scenes[0];
+    const openingAsk = opening?.harita?.merkez && opening.ara_goruntu_satir !== undefined && opening.ara_goruntu_satir < OPENING_PICTURE_FLOOR ? [`scene "${opening.id}" puts its real picture on line ${opening.ara_goruntu_satir} ("ara_goruntu_satir"): the first ${OPENING_PICTURE_FLOOR} lines of a Short (the question and the stakes line) show the map moving — the two sides facing, the first move — never a still picture; mark a later narrator line — OPENING ON THE MAP`] : [];
     const asked = pictureMoments(episode);
-    if (total >= SHORT_SHARES_FROM_S && asked < SHORT_MIN_PICTURES) return [`this Short asks ${asked} real picture moment${asked === 1 ? "" : "s"} (at least ${SHORT_MIN_PICTURES}): mark a narrator line "ara_goruntu_satir" on the map scenes and give the key narrator lines "gorseller" — the moment's real photograph, painting or archive film, a few seconds each over the map narration — REAL PERIOD PICTURES`];
-    return [];
+    if (total >= SHORT_SHARES_FROM_S && asked < SHORT_MIN_PICTURES) return [...openingAsk, `this Short asks ${asked} real picture moment${asked === 1 ? "" : "s"} (at least ${SHORT_MIN_PICTURES}): mark a narrator line "ara_goruntu_satir" on the map scenes and give the key narrator lines "gorseller" — the moment's real photograph, painting or archive film, a few seconds each over the map narration — REAL PERIOD PICTURES`];
+    return openingAsk;
   }
   if (total < 90) return [];
   const out: string[] = [];
@@ -278,9 +306,10 @@ export function markMapPictures(episode: Episode, targetS: number): { episode: E
   const fixes: string[] = [];
   // A Short under SHORT_PICTURES_FROM_S marks only as many map scenes as it lacks for SHORT_MIN_PICTURES (owner, 27 Nov 2026).
   let short = targetS >= SHORT_PICTURES_FROM_S ? Infinity : SHORT_MIN_PICTURES - pictureMoments(episode);
-  const sahneler = episode.sahneler.map((s) => {
+  const sahneler = episode.sahneler.map((s, si) => {
     if (short <= 0 || !s.harita?.merkez || s.ara_goruntu_satir !== undefined || !s.arka_plan_sorgusu?.en?.trim()) return s;
-    const satir = s.satirlar.findIndex((l) => !visible.has(l.karakter));
+    // The opening's question and stakes line stay on the moving map (OPENING_PICTURE_FLOOR).
+    const satir = s.satirlar.findIndex((l, i) => (si > 0 || i >= OPENING_PICTURE_FLOOR) && !visible.has(l.karakter));
     if (satir < 0) return s;
     short -= 1;
     fixes.push(`${s.id}: harita sahnesi dönem görseli satırı işaretlememişti; ${satir}. satır (anlatıcı) işaretlendi`);
@@ -331,7 +360,7 @@ export function livenStillMaps(episode: Episode): { episode: Episode; fixes: str
 /** A ruler's fall told in a line: killed, slain, captured, executed (English and Turkish stems). */
 const FALL = /\b(?:killed|slain|dies|died|dead|captured|assassinated|executed|beheaded|murdered|falls in battle|fell in battle)\b|öldü|öldürül|şehit|esir düş|idam/iu;
 /** A side breaking: collapses, flees, routed (English and Turkish stems). */
-const ROUT = /\b(?:collaps(?:e|es|ed)|fl(?:ee|ees|ed)|rout(?:s|ed)?|breaks?|broke|scatter(?:s|ed)?|retreat(?:s|ed)?|withdr[ae]w(?:s|n)?|runs? away)\b|bozgun|kaçt|kaçış|dağıl|geri çekil/iu;
+const ROUT = /\b(?:collaps(?:e|es|ed)|fl(?:ee|ees|ed)|rout(?:s|ed)?|breaks?|broke|scatter(?:s|ed)?|retreat(?:s|ed)?|withdr[ae]w(?:s|n)?|runs? away|f[ae]lls? apart|falling apart|crumbl(?:e|es|ed)|disintegrat(?:e|es|ed))\b|bozgun|kaçt|kaçış|dağıl|geri çekil/iu;
 /** A side going forward: charges, attacks, counterattacks, storms (English and Turkish stems). */
 const ADVANCE = /\b(?:charg(?:e|es|ed)|attack(?:s|ed)?|counterattack(?:s|ed)?|counter-attack(?:s|ed)?|assault(?:s|ed)?|advanc(?:e|es|ed)|push(?:es|ed)?|storm(?:s|ed)?|smash(?:es|ed)?)\b|hücum|saldır|ilerle/iu;
 
@@ -527,12 +556,101 @@ export function openOpeningMap(episode: Episode): { episode: Episode; fixes: str
  * writer left out is filled in; every fix is logged.
  */
 export function directBattleMaps(episode: Episode): { episode: Episode; fixes: string[] } {
-  const battle = directBattleMapsOnly(episode);
+  const carried = carryCloseArmies(episode);
+  const battle = directBattleMapsOnly(carried.episode);
+  battle.fixes.unshift(...carried.fixes);
   const settled = settleFallMarks(battle.episode);
   const told = vehiclesOnToldLine(settled.episode);
   const aimed = aimPlanesAtShips(told.episode);
   const opened = openOpeningMap(aimed.episode);
   return { episode: opened.episode, fixes: [...battle.fixes, ...settled.fixes, ...told.fixes, ...aimed.fixes, ...opened.fixes] };
+}
+
+/** A unit's last place on its scene: its last step that has a formation (a move step without one keeps the one before). */
+function lastFormation(u: NonNullable<SceneMap["birlikler"]>[number]): UnitFormation | undefined {
+  const steps = [...u.yerler].sort((a, b) => b.satir - a.satir);
+  for (const y of steps) if (formationAt(y)) {
+    if ("cephe" in y) return { cephe: y.cephe };
+    if ("kume" in y) return { kume: y.kume, ...(y.km !== undefined ? { km: y.km } : {}) };
+    if ("kusatma" in y) return { kusatma: y.kusatma, ...(y.km !== undefined ? { km: y.km } : {}) };
+  }
+  return undefined;
+}
+
+/** A formation moved by (dLon, dLat). */
+function shifted(f: UnitFormation, d: [number, number]): UnitFormation {
+  const m = (p: readonly [number, number]): [number, number] => [p[0] + d[0], p[1] + d[1]];
+  if ("cephe" in f) return { cephe: f.cephe.map(m) };
+  if ("kume" in f) return { ...f, kume: m(f.kume) };
+  return { ...f, kusatma: m(f.kusatma) };
+}
+
+/**
+ * The battle goes on on the next close map (owner, 27 Nov 2026, after the Gaugamela Short: "ne anlattığını göstermesi
+ * gerekiyor"): the scene after the close battle map told "Darius turns his chariot and flees. Without its king, the
+ * Persian line falls apart" over an empty 10 km field — Darius' badge alone, no army, no rout. A close map scene with no
+ * units of its own, right after a close map with units and over the same field (its centre within the earlier map's
+ * width), takes those units where they stood at the end; a side a line tells breaking (ROUT, the side or its stem
+ * named) falls back away from the enemy on that line (the battle pass then routs it), and the others follow half as
+ * far. The scene's map widens to the earlier field so the armies are in the picture; a camera key narrower than half
+ * of it is dropped (it would show grass between them). Logged as a fix.
+ */
+export function carryCloseArmies(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const sahneler = [...episode.sahneler];
+  for (let i = 1; i < sahneler.length; i++) {
+    const s = sahneler[i]!;
+    const prev = sahneler[i - 1]!;
+    const h = s.harita;
+    const p = prev.harita;
+    if (!h?.merkez || !h.genislik_km || h.genislik_km > CLOSE_MAP_MAX_KM || h.birlikler?.length) continue;
+    if (!p?.merkez || !p.genislik_km || p.genislik_km > CLOSE_MAP_MAX_KM || (p.birlikler?.length ?? 0) < 2) continue;
+    if (distanceKm([h.merkez[0], h.merkez[1]], [p.merkez[0], p.merkez[1]]) > p.genislik_km) continue;
+    const units = p.birlikler!.flatMap((u) => {
+      const f = lastFormation(u);
+      return f ? [{ u, f }] : [];
+    });
+    if (units.length < 2) continue;
+    const stem = (taraf: string) => (taraf.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).find((w) => w.length >= 4 && !/^(army|forces?|troops|coalition|league|the)$/.test(w)) ?? "").slice(0, 5);
+    const centre = (list: typeof units) => {
+      const pts = list.map((x) => formationAt(x.f)!);
+      return [pts.reduce((a, q) => a + q[0], 0) / pts.length, pts.reduce((a, q) => a + q[1], 0) / pts.length] as [number, number];
+    };
+    // The rout: the first line telling a side (named by its stem) breaking.
+    const sides = [...new Set(units.map((x) => x.u.taraf))];
+    const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+    let rout: { line: number; side: string } | undefined;
+    s.satirlar.forEach((l, li) => {
+      if (rout || visible.has(l.karakter) || !ROUT.test(l.metin)) return;
+      const text = l.metin.toLocaleLowerCase("en-US");
+      const side = sides.find((t) => stem(t) && mentions(text, stem(t)));
+      if (side) rout = { line: li, side };
+    });
+    const birlikler = units.map(({ u, f }) => {
+      const yerler: NonNullable<SceneMap["birlikler"]>[number]["yerler"][number][] = [{ satir: 0, ...f }];
+      if (rout) {
+        const losers = units.filter((x) => x.u.taraf === rout!.side);
+        const winners = units.filter((x) => x.u.taraf !== rout!.side);
+        const [a, b] = [centre(losers), centre(winners)];
+        const len = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+        // Away from the enemy by a quarter of the field (degrees of longitude are shorter: km per degree at this latitude).
+        const kmLon = 111 * Math.cos((a[1] * Math.PI) / 180);
+        const away: [number, number] = [((a[0] - b[0]) / len) * (p.genislik_km! * 0.25) / kmLon, ((a[1] - b[1]) / len) * (p.genislik_km! * 0.25) / 111];
+        const loser = u.taraf === rout.side;
+        yerler.push({ satir: rout.line, ...shifted(f, loser ? away : [away[0] / 2, away[1] / 2]), ...(loser ? { bozgun: true } : {}) });
+      }
+      // The earlier scene's line numbers (its steps, its highlighted lines) mean nothing here.
+      const rest: Record<string, unknown> = { ...u };
+      delete rest.yerler;
+      delete rest.vurgu;
+      return { ...(rest as Omit<typeof u, "yerler" | "vurgu">), yerler };
+    });
+    const kamera = (h.kamera ?? []).filter((k) => !k.genislik_km || k.genislik_km >= p.genislik_km! * 0.5);
+    const harita: SceneMap = { ...h, merkez: [p.merkez[0], p.merkez[1]], genislik_km: p.genislik_km, birlikler, ...(h.kamera ? { kamera } : {}) };
+    sahneler[i] = { ...s, harita };
+    fixes.push(`${s.id}: yakın harita boştu — ${prev.id} sahnesinin ${birlikler.length} birliği son yerleriyle devralındı${rout ? `, ${rout.side} ${rout.line}. satırda bozguna uğrar` : ""}${kamera.length !== (h.kamera?.length ?? 0) ? `, ${(h.kamera?.length ?? 0) - kamera.length} dar kamera anahtarı kaldırıldı` : ""}`);
+  }
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
 /** A wound told: wounded, injured, carried off (English and Turkish stems). */

@@ -38,7 +38,7 @@ import { closeBox, closeSiteLookup, type LibraryBox, libraryBoxFor, placeWall, p
 import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/SiegeMap";
 import { ambushMapLacks, isAmbushMap, toldFog } from "../src/lib/v3/maps/AmbushMap";
 import { landOf } from "../src/lib/v3/maps/LandUnits";
-import { directBattleMaps, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
+import { directBattleMaps, keepOpeningOnMap, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, joinRings, riversFromOverpass, closeCoastFor, closeRiversFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, riverBoxes, riverFile, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -125,6 +125,8 @@ function sampleEpisode(): Episode {
 function fakeAudio(duration: number): LineAudio {
   return { file: "x.wav", duration, visemes: [{ t: 0, v: "B" }, { t: 0.2, v: "D" }, { t: duration - 0.1, v: "X" }], words: [], lipSync: "rms" };
 }
+
+const formationLat = (step: object) => { const y = step as { kume?: readonly [number, number]; cephe?: readonly (readonly [number, number])[] }; return y.kume ? y.kume[1] : y.cephe!.reduce((a, p) => a + p[1], 0) / y.cephe!.length; };
 
 async function main() {
   await scenario("A numbers", () => {
@@ -1420,10 +1422,18 @@ async function main() {
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }, true).some((p) => p.includes("map scenes take 33% of this Short") && p.includes("SHARES OF A SHORT")));
     assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true)[0]!.includes("at most one short character scene"), "the old character hook and payoff: 67% map is asked for more");
     // Every Short asks at least three real picture moments (owner, 27 Nov 2026): the marked map line + two "gorseller".
-    const rich = { ...map, gorseller: [{ satir: 0, en: "The army on the march, 1456" }, { satir: 2, en: "Siege of Belgrade, 1456" }] };
+    // Its picture after the question and the stakes line (OPENING_PICTURE_FLOOR, 27 Nov 2026).
+    const rich = { ...map, ara_goruntu_satir: 2, gorseller: [{ satir: 0, en: "The army on the march, 1456" }, { satir: 2, en: "Siege of Belgrade, 1456" }] };
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(rich, 52), sized(stage, 8)] }, true), [], "the map and an 8 s payoff");
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(rich, 58), sized(map, 2)] }, true), [], "a Short wholly on the map");
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 52), sized(stage, 8)] }, true).some((p) => p.includes("asks 1 real picture moment (at least 3)")), "one picture is too few, the 60 s Short too");
+    // The question and the stakes line stay on the moving map (Gaugamela Short, 27 Nov 2026: a relief over the stakes line).
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 52), sized(stage, 8)] }, true).some((p) => p.includes("OPENING ON THE MAP")), "line 1 of the opening asked");
+    assert.ok(!shareProblems({ ...episode, sahneler: [sized(stage, 8), sized(map, 52)] }, true).some((p) => p.includes("OPENING ON THE MAP")), "a later map scene may show it on line 1");
+    const kept = keepOpeningOnMap({ ...episode, sahneler: [map, stage] }, 60);
+    assert.deepEqual([kept.episode.sahneler[0]!.ara_goruntu_satir, kept.fixes.length], [2, 1], "moved to the third line");
+    assert.equal(keepOpeningOnMap({ ...episode, sahneler: [{ ...map, satirlar: map.satirlar.slice(0, 2) }, stage] }, 60).episode.sahneler[0]!.ara_goruntu_satir, undefined, "no later narrator line: the mark is dropped");
+    assert.equal(keepOpeningOnMap({ ...episode, sahneler: [map, stage] }, 600).fixes.length, 0, "a long video keeps it");
     // Real period pictures in a 3-minute Short (owner, 11 Nov 2026, after the Gallipoli video): every map scene marks
     // its picture line; unmarked ones are asked for, then marked on their first narrator line as a last resort.
     const bare = { ...map, ara_goruntu_satir: undefined };
@@ -1433,12 +1443,12 @@ async function main() {
     // The last resort in a 60 s Short marks only as many map scenes as it lacks for three.
     const bare60 = sized(bare, 20);
     const sixty = markMapPictures({ ...episode, sahneler: [bare60, { ...bare60, id: "m2" }, { ...bare60, id: "m3" }, { ...bare60, id: "m4" }] }, 60);
-    assert.deepEqual(sixty.episode.sahneler.map((s) => s.ara_goruntu_satir), [0, 0, 0, undefined], "three marked, the fourth left");
+    assert.deepEqual(sixty.episode.sahneler.map((s) => s.ara_goruntu_satir), [2, 0, 0, undefined], "three marked, the fourth left; the opening's after its stakes line");
     const twoAsked = markMapPictures({ ...episode, sahneler: [{ ...bare60, gorseller: rich.gorseller }, { ...bare60, id: "m2" }, { ...bare60, id: "m3" }] }, 60);
     assert.equal(twoAsked.fixes.length, 1, "two pictures asked already: one map scene marked");
     const quipFirst = { ...bare, satirlar: [{ karakter: speaker, metin: "Ready?", duygu: "mutlu" as const }, narrate("The army marches north.")] };
-    const marked = markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 180);
-    assert.equal(marked.episode.sahneler[0]!.ara_goruntu_satir, 1, "the narrator's line, never the character's");
+    const marked = markMapPictures({ ...episode, sahneler: [stage, quipFirst] }, 180);
+    assert.equal(marked.episode.sahneler[1]!.ara_goruntu_satir, 1, "the narrator's line, never the character's");
     assert.equal(marked.fixes.length, 1);
     assert.equal(markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 600).fixes.length, 0, "a long video keeps its one map in three");
     assert.equal(markMapPictures({ ...episode, sahneler: [{ ...quipFirst, satirlar: [quipFirst.satirlar[0]!] }, stage] }, 180).fixes.length, 0, "no narrator line, nothing marked");
@@ -1937,6 +1947,22 @@ async function main() {
     // A wide map: the X only (badges keep their lines there).
     const wide = { ...battle, harita: { ...battle.harita!, genislik_km: 900, birlikler: undefined } };
     assert.deepEqual(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [wide] }).episode.sahneler[0]!.harita!.rozetler!.map((r) => [r.satir, r.x_satir]), [[undefined, undefined], [undefined, 3]]);
+
+    // The battle goes on on the next close map (Gaugamela Short, 27 Nov 2026: "Darius flees … the Persian line falls
+    // apart" over an empty field): the empty close map takes the armies where they stood, the side told breaking routs.
+    const after = { ...battle, id: "s-flee", harita: { merkez: [21.06, 42.69] as [number, number], genislik_km: 6, rozetler: [{ karakter: "mehmed", konum: [21.05, 42.66] as [number, number] }], kamera: [{ satir: 1, merkez: [21.06, 42.69] as [number, number], genislik_km: 2 }] }, satirlar: [narrate("Mehmed rides along the line."), narrate("The Serbian line falls apart."), narrate("Night falls.")] };
+    const carried = directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle, after] });
+    const ch = carried.episode.sahneler[1]!.harita!;
+    assert.deepEqual([ch.birlikler!.length, ch.genislik_km, ch.merkez], [2, 16, [21.05, 42.68]], "both sides, on the earlier field");
+    assert.deepEqual(ch.birlikler![0]!.yerler[0], { satir: 0, kume: [21.05, 42.72] }, "the Serbs where they ended the battle");
+    assert.deepEqual(ch.birlikler!.map((u) => u.yerler.map((y) => [y.satir, y.bozgun ?? false])), [[[0, false], [1, true]], [[0, false], [1, false]]], "the Serbs rout on the line telling it, the Ottomans follow");
+    assert.ok(formationLat(ch.birlikler![0]!.yerler[1]!) > 42.72, "away from the Ottomans (north)");
+    assert.deepEqual(ch.kamera, [], "a 2 km camera key would show grass between the armies");
+    assert.ok(carried.fixes.some((x) => x.startsWith("s-flee: yakın harita boştu")), carried.fixes.join(" | "));
+    assert.equal(validateEpisode(carried.episode).ok, true, JSON.stringify(validateEpisode(carried.episode).errors.slice(0, 2)));
+    // Not carried: a scene with its own units, a wide map, a field far away.
+    assert.equal(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle, { ...after, harita: { ...after.harita, merkez: [23, 44] as [number, number] } }] }).episode.sahneler[1]!.harita!.birlikler, undefined, "another field");
+    assert.equal(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle, { ...after, harita: { ...after.harita, genislik_km: 900 } }] }).episode.sahneler[1]!.harita!.birlikler, undefined, "a wide map");
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

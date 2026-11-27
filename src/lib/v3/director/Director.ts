@@ -706,6 +706,13 @@ export function realPictureCount(plan: V3RenderPlan): number {
   return seen.size;
 }
 
+/** When real pictures stand on screen, in absolute seconds (designed pictures and map pictures left out, as realPictureCount). */
+export function realPictureWindows(plan: V3RenderPlan): { start: number; end: number }[] {
+  return plan.shots.flatMap((s) =>
+    s.id === "kapak" ? [] : (s.inserts ?? []).filter((w) => !DESIGNED_CAPTIONS.includes(w.caption ?? "") && !isMapPicture(w.caption)).map((w) => ({ start: (s.start + w.start) / plan.fps, end: (s.start + w.end) / plan.fps })),
+  );
+}
+
 /** How the narration names a side: the first five letters of its first real word ("Ottomans" → "ottom", "Serbian Coalition" → "serbi"). */
 export function sideStem(taraf: string): string | undefined {
   const w = taraf.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).find((x) => x.length >= 4 && !/^(army|forces?|troops|coalition|league|the)$/.test(x));

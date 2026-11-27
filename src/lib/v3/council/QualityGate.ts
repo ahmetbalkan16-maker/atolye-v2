@@ -234,6 +234,10 @@ const ROW_RULES: readonly RowRule[] = [
   { test: /^İlk 3 sn — ilk görsel olay/, stage: "animasyon", area: "kanca" },
   { test: /^İlk 3 sn — tam ekran kart:/, stage: "sahneler", area: "kanca", weight: 1 },
   { test: /^İlk kare:/, stage: "kurgu", area: "kanca", weight: 3 },
+  // The opening on the screen itself (owner, 27 Nov 2026, the Gaugamela Short scored 10/10 here with its armies first on
+  // screen at 16 s): weighted like the question, so a hook that shows nothing cannot score as a strong one.
+  { test: /^Açılışta ilk hamle:/, stage: "sahneler", area: "kanca", weight: 3 },
+  { test: /^Açılış resmi:/, stage: "kurgu", area: "kanca", weight: 2 },
   { test: /^Soru başlık:/, stage: "senaryo", area: "tutma" },
   { test: /^Sahne planı/, stage: "sahneler", area: "hikaye" },
   { test: /^Short açılışı/, stage: "animasyon", area: "kanca" },

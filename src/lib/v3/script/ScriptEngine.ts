@@ -12,7 +12,7 @@ import { backstoryProblems } from "./ShortOpening";
 import { storyRuleProblems } from "./StoryRules";
 import { addToldStrengths } from "./ToldNumbers";
 import { fixFieldLimits, normalizeDraft } from "./DraftNormalizer";
-import { directBattleMaps, livenStillMaps, mapProblems, markMapPictures, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
+import { directBattleMaps, keepOpeningOnMap, livenStillMaps, mapProblems, markMapPictures, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, orderFidelityPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, supportCheckPrompt, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { type V3Budget, V3BudgetError, type V3ModelChoice } from "./V3Budget";
@@ -809,6 +809,9 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   for (const fix of crowded.fixes) input.log?.(`  senaryo: ${fix}`);
   if (crowded.episode !== written) written = crowded.episode;
   // A Short's map scene still without its picture line gets its first narrator line (owner, 11 Nov 2026).
+  const onMap = keepOpeningOnMap(written, brief.hedefSureSn);
+  for (const fix of onMap.fixes) input.log?.(`  senaryo: ${fix}`);
+  if (onMap.episode !== written) written = onMap.episode;
   const pictured = markMapPictures(written, brief.hedefSureSn);
   for (const fix of pictured.fixes) input.log?.(`  senaryo: ${fix}`);
   if (pictured.episode !== written) written = pictured.episode;

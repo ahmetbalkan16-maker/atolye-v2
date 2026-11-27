@@ -65,7 +65,7 @@ import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePack
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { ensureEra, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
-import { beats, blankOpening, buildRenderPlan, CLOSING_TEMPO_S, closingTempoGaps, HOOK_S, OPENING_CHANGE_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, realPictureCount, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, blankOpening, buildRenderPlan, CLOSING_TEMPO_S, closingTempoGaps, HOOK_S, OPENING_CHANGE_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, realPictureCount, realPictureWindows, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -85,7 +85,8 @@ import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "..
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { closingQuestion, ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
-import { SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S } from "../src/lib/v3/script/MapRules";
+import { OPENING_PICTURE_FLOOR, SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S } from "../src/lib/v3/script/MapRules";
+import { openingScreenChecks } from "../src/lib/v3/script/ShortOpening";
 import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import { opensWithQuestion } from "../src/lib/v3/script/QuestionTitle";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -1437,6 +1438,8 @@ async function main() {
             blankMeasured: true,
             ...((b) => (b ? { blank: b } : {}))(blankOpening(plan)),
           }),
+          // The first action and the stakes line on the screen itself (owner, 27 Nov 2026, the Gaugamela Short's hook).
+          ...openingScreenChecks(episode, (si, li) => timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li)?.start, realPictureWindows(plan), OPENING_PICTURE_FLOOR),
           scenePlanCheck(episode.sahneler),
           ...(openingPlan ? [openingPlan] : []),
         ].map((c) => row(c.ok, c.text))

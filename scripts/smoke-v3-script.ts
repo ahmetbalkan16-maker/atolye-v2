@@ -29,7 +29,7 @@ import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumber
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { opensWithQuestion, questionFaults, questionFirst, questionNumberClash, questionProblems, questionTags, questionTitleFaults, questionVideoTitle } from "../src/lib/v3/script/QuestionTitle";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
-import { actionLines, backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
+import { actionLines, backstoryPhrases, backstoryProblems, openingBeforeAction, openingScreenChecks } from "../src/lib/v3/script/ShortOpening";
 import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
@@ -733,6 +733,18 @@ async function main() {
     const scene = (harita: object) => ({ id: "m", harita, satirlar: [] });
     assert.deepEqual([...actionLines(scene({ oklar: [{ satir: 2 }, { satir: 3, stil: "plan" }] }))], [2]);
     assert.deepEqual([...actionLines(scene({ bolgeler: [{ satir: 0 }, { satir: 2 }, { satir: 0, yayilma: { satir: 4 } }] }))].sort(), [2, 4]);
+    // Gaugamela (27 Nov 2026): a march arrow on a wide map under "Alexander's 47,000 face a Persian army…" is the approach,
+    // not a move; an arrow whose line tells a move counts on any map; on a close map any arrow counts.
+    const lines = (t: string) => [{ karakter: "anlatici", metin: "Q?" }, { karakter: "anlatici", metin: t }];
+    assert.deepEqual([...actionLines({ id: "w", harita: { genislik_km: 1800, oklar: [{ satir: 1 }] }, satirlar: lines("Alexander's 47,000 face a Persian army no one can agree on.") })], [], "a march arrow");
+    assert.deepEqual([...actionLines({ id: "w", harita: { genislik_km: 1800, oklar: [{ satir: 1 }] }, satirlar: lines("Zhukov's Red Army smashes through the Romanian lines.") })], [1], "a told move");
+    assert.deepEqual([...actionLines({ id: "c", harita: { genislik_km: 20, oklar: [{ satir: 1 }] }, satirlar: lines("Darius waits on the plain.") })], [1], "a close map");
+    // The gate's opening rows, on the finished timeline (lines 2 s apart; the stakes line ends at 4 s).
+    const at = (si: number, li: number) => (si === 0 ? li * 2 : undefined);
+    const opening = { oyuncu_kadrosu: cast, sahneler: [{ id: "m", harita: { genislik_km: 20, oklar: [{ satir: 2 }] }, satirlar: [...lines("They meet."), { karakter: "anlatici", metin: "They charge." }] }] };
+    assert.deepEqual(openingScreenChecks(opening, at, [{ start: 1, end: 3.8 }], 2).map((c) => c.ok), [true, false], "action at 4 s; a picture over the stakes line");
+    assert.deepEqual(openingScreenChecks(opening, at, [{ start: 3.8, end: 8 }], 2).map((c) => c.ok), [true, true], "a picture from the third line");
+    assert.deepEqual(openingScreenChecks({ ...opening, sahneler: [{ ...opening.sahneler[0]!, harita: { genislik_km: 20 } }] }, at, [], 2)[0]!.ok, false, "nothing acts");
     // A map Short where only badges speak is asked (it was not measurable before); a stage-only one is not measured.
     const quipsOnly = { ...stalingrad, sahneler: [stalingrad.sahneler[0]!, { ...stalingrad.sahneler[1]!, harita: {} }] };
     assert.match(backstoryProblems(quipsOnly)[0]!, /^no line of the Short shows an action on screen[^]*BACKSTORY FIRST$/);
