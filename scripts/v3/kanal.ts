@@ -9,8 +9,13 @@
  *   npx tsx scripts/v3/kanal.ts rapor                        every measured video (Studio and API), the channel summary,
  *                                                            the next Short's targets, the pilot
  *   npx tsx scripts/v3/kanal.ts pilot                        the 6-Short pilot plan and what is measured of it
+ *   npx tsx scripts/v3/kanal.ts analiz [--yaz]               the channel analyst (owner, 27 Nov 2026): what repeats across the
+ *                                                            videos and the proposals it would make; --yaz files them in the
+ *                                                            Gelişim Merkezi and writes _kutuphane/kanal/analiz-raporu.md
+ *                                                            (the idle cycle does it once a week by itself)
  *
- * Reads and writes only the V3 work root's `_kutuphane/kanal/performans/` and the brains' lesson memory. Only `cek`
+ * Reads and writes only the V3 work root's `_kutuphane/kanal/` and the brains' lesson memory (`analiz --yaz` also the
+ * Gelişim Merkezi's proposals and AYAS's inbox). Only `cek`
  * reaches YouTube (read-only Data and Analytics APIs with the owner's token; the idle cycle does the same once a day);
  * nothing uploads and nothing spends. A number not in the file is "ölçülmedi", never a pass.
  */
@@ -21,6 +26,8 @@ import {
   type ChannelGoals, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, PERFORMANCE_METRICS, type PerformanceEvaluation,
   pilotTrends, recordViewRatio, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
 } from "../../src/lib/v3/publish/ChannelGoals";
+import { analystReport } from "../../src/lib/v3/publish/ChannelAnalyst";
+import { analyseChannel, channelAnalystTick } from "../../src/lib/v3/publish/ChannelAnalystRun";
 import { judgeAndTeach } from "../../src/lib/v3/publish/ChannelLearning";
 import { youtubeAnalyticsTick } from "../../src/lib/v3/publish/YoutubeAnalytics";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
@@ -138,6 +145,26 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "analiz") {
+    // The channel analyst (owner, 27 Nov 2026): read-only unless --yaz; the idle cycle runs the same once a week.
+    if (process.argv.includes("--yaz")) {
+      const r = await channelAnalystTick({ workRoot: paths.workRoot, force: true });
+      console.log(r.satir);
+      if (r.durum === "hata") process.exitCode = 1;
+      return;
+    }
+    const now = new Date();
+    const { analiz, plan } = await analyseChannel(paths.workRoot, now);
+    console.log(analystReport(analiz, plan, now));
+    console.log("Yazılacak öneriler (--yaz ile Gelişim Merkezi'ne):");
+    for (const p of plan.yeni) console.log(`  YENİ ${p.id} [${p.beyin}] ${p.baslik}\n      geliştiriciye görev: ${p.neden.slice(0, 400)}`);
+    for (const p of plan.guncel) console.log(`  KANITI GÜNCELLENİR ${p.id} [${p.beyin}] ${p.baslik}`);
+    for (const x of plan.ayni) console.log(`  DEĞİŞMEZ ${x.key} (${x.durum})`);
+    for (const f of plan.sahip) console.log(`  SAHİP KARARI, kuyruğa yazılmaz (${f.key}): ${f.oneri}`);
+    if (!plan.yeni.length && !plan.guncel.length && !plan.ayni.length && !plan.sahip.length) console.log("  yok");
+    return;
+  }
+
   if (command === "rapor" || command === "pilot") {
     const records = await listPerformance(paths.workRoot);
     if (command === "rapor") {
@@ -171,7 +198,7 @@ async function main(): Promise<void> {
     for (const s of trends.saatler) console.log(`  saat ${s.saat}: ${s.n} video${s.diziyeGoreFark !== undefined ? `, dizisine göre ${s.diziyeGoreFark >= 0 ? "+" : ""}${(s.diziyeGoreFark * 100).toFixed(1)} puan` : ""}`);
     return;
   }
-  throw new Error(`bilinmeyen komut: ${command} (hedefler | ornek | kaydet | cek | rapor | pilot)`);
+  throw new Error(`bilinmeyen komut: ${command} (hedefler | ornek | kaydet | cek | rapor | pilot | analiz)`);
 }
 
 main().catch((e) => {

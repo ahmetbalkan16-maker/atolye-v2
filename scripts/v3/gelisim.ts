@@ -11,7 +11,8 @@
  *   npx tsx scripts/v3/gelisim.ts reddet <id> [--not "…"]
  *
  * Tasks: the owner's links and internet searches are studied; delivered videos are compared with the references (lessons)
- * and, once a day, the channel's own YouTube Analytics numbers are read and taught (YoutubeAnalytics); the productions'
+ * and, once a day, the channel's own YouTube Analytics numbers are read and taught (YoutubeAnalytics), once a week the
+ * channel analyst files what repeats across the videos as proposals (ChannelAnalystRun); the productions'
  * code wants are collected as proposals; a video similar to a recent episode is searched and studied; the quality
  * brain sits its exam; it tries one new prompt addition and its one tunable setting, kept only when the exam rises by
  * MIN_GAIN points. Code never changes here. Spend: at most 10 cents a cycle; every local model call waits for a cool
@@ -37,6 +38,7 @@ import { graceApproveTechnologyProposals, technologyWatchRound } from "../../src
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, studyAttempts, type StudyRequest, studyRequestsDue, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, EXAMPLES_TRIAL_EVERY_DAYS, examplesTrialDue, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
+import { channelAnalystTick } from "../../src/lib/v3/publish/ChannelAnalystRun";
 import { loadChannelGoals } from "../../src/lib/v3/publish/ChannelGoals";
 import { youtubeAnalyticsTick } from "../../src/lib/v3/publish/YoutubeAnalytics";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
@@ -271,8 +273,14 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     // YouTube Analytics too — only with a token file, never failing the task (a dead connection is told to the owner).
     const yt = await youtubeAnalyticsTick({ workRoot: paths.workRoot, goals: loadChannelGoals(paths.contentRoot), settings: youtubeSettings(paths.repoRoot), fetcher: fetch, log });
     const ytLine = yt.durum === "token-yok" || yt.durum === "erken" ? undefined : yt.satir;
+    // Owner, 27 Nov 2026 ("videolarımız daha iyi olsun, neredeyse hiç takip gelmiyor"): once a week the channel analyst
+    // reads across the videos and files its findings as proposals in the Gelişim Merkezi (ChannelAnalystRun).
+    const analyst = await channelAnalystTick({ workRoot: paths.workRoot });
+    const analystLine = analyst.durum === "erken" || analyst.durum === "veri-yok" ? undefined : analyst.satir;
+    if (analystLine) log(`  ${analystLine}`);
     const refs = await listReferences(paths.workRoot);
-    if (!refs.length) return ytLine ? ok(ytLine) : skip("henüz incelenmiş referans yok");
+    const channelLines = [ytLine, analystLine].filter((l): l is string => !!l);
+    if (!refs.length) return channelLines.length ? ok(channelLines.join(" · ")) : skip("henüz incelenmiş referans yok");
     const compared = await doneSet(paths, "karsilastirilan.json");
     const lines: string[] = [];
     for (const o of orders.filter(delivered)) {
@@ -292,7 +300,7 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
       await compared.add(o.id);
       lines.push(`"${o.konu.slice(0, 50)}": ${gaps.length ? gaps.map((g) => gapLesson(g).tr).join("; ") : "referans temposunda"}`);
     }
-    if (ytLine) lines.push(ytLine);
+    lines.push(...channelLines);
     return lines.length ? ok(lines.join(" · ")) : skip("karşılaştırılacak yeni video yok");
   }
   if (task === "oneriler") {
