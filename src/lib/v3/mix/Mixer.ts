@@ -3,6 +3,7 @@ import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import { type Episode, SCENE_MOODS, type SceneMood, type SfxId } from "../episode/EpisodeTypes";
 import { armsOf } from "../episode/Period";
+import { SHIP_SINK_S, TORPEDO_EVERY_S, TORPEDO_RUN_S, shellOutcome } from "../../../../remotion-v3/src/scene/mapEffects";
 import { fitLossDelaysS, unitLossDelaysS } from "../maps/MapBuilder";
 import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
@@ -105,6 +106,8 @@ export function planMusic(scenes: readonly { readonly start: number; readonly en
 export interface SfxCue {
   readonly t: number;
   readonly id: SfxId;
+  /** Level relative to the effect's own (default 1): a distant flak burst or every other shell of a barrage is quieter. */
+  readonly gain?: number;
 }
 
 export interface SfxCueOptions {
@@ -118,6 +121,31 @@ export interface SfxCueOptions {
 
 /** How far before its line the writer's effect sounds, so the narrator's first word does not cover it. */
 export const SFX_LEAD_S = 0.3;
+
+/**
+ * The map's gun cadence as MapVehicles.tsx draws it (FIRE_S, SHOT_EVERY_S and SHOT_FLIGHT_S are private to the renderer and
+ * kept in step by hand; TORPEDO_* and shellOutcome are imported): a firing vehicle shoots every 1.1 s for 6 s, a shell is
+ * in the air 0.7 s, a plane at a ship drops a torpedo every 2.6 s.
+ */
+export const FIRE_SPAN_S = 6;
+export const SHOT_EVERY_S = 1.1;
+export const SHOT_FLIGHT_S = 0.7;
+/** A target lies on a ship when a ship's route passes within this share of the map's width of it (the renderer's six sprite sizes). */
+const SHIP_REACH = 0.06;
+/** Every other shot of a barrage is a little quieter, and a flak burst is far off: the booms are heard, not stacked. */
+const BARRAGE_SOFT = 0.6;
+const FLAK_GAIN = 0.25;
+/** Flak sounds from this long before a raid to this long after (mapEffects.FLAK_LEAD_S / FLAK_TAIL_S), every FLAK_EVERY_S. */
+const FLAK_LEAD_S = 3;
+const FLAK_TAIL_S = 7;
+const FLAK_EVERY_S = 1.2;
+const WATER_VEHICLES: ReadonlySet<string> = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
+/** The renderer's pseudo-random number (mapEffects.rand), for a gun's own start offset within its first shot. */
+const drawnRand = (seed: number): number => {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+const kmApart = (a: readonly [number, number], b: readonly [number, number]): number => Math.hypot((a[0] - b[0]) * 111 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180), (a[1] - b[1]) * 111);
 /** An effect id sounds at most twice within this many seconds. */
 export const SFX_REPEAT_WINDOW_S = 6;
 /** Effects with several recorded takes or period variants (the mixer plays them in turn): twelve falls are twelve swords. */
@@ -157,6 +185,64 @@ export function sfxLibraryFiles(sfxDir: string, id: SfxId): string[] {
   const takes = existsSync(dir) ? readdirSync(dir).filter((n) => new RegExp(`^atolye-v3-${id}-[a-z]+-\\d{2}\\.wav$`).test(n)).sort().map((n) => path.join(dir, n)) : [];
   if (takes.length) return takes;
   return [`atolye-v3-${id}-kenney.wav`, `atolye-v3-${id}-01.wav`].map((n) => path.join(dir, n)).filter((p) => existsSync(p)).slice(0, 1);
+}
+
+type SceneOf = Episode["sahneler"][number];
+
+/** Whether vehicle `vi`'s target lies on a ship of another vehicle group (the renderer's shipTargeted, in km). */
+function aimsAtShip(scene: SceneOf, vi: number): boolean {
+  const map = scene.harita;
+  const a = map?.araclar?.[vi];
+  if (!map || !a?.hedef) return false;
+  const reach = (map.genislik_km ?? 0) * SHIP_REACH;
+  return (map.araclar ?? []).some((o, oi) => oi !== vi && WATER_VEHICLES.has(o.tur) && [o.konum, ...(o.yol ?? [])].some((q) => kmApart(q, a.hedef!) <= reach));
+}
+
+/**
+ * What a firing vehicle sounds like on screen (naval and air battles, 28 Nov 2026: the map drew a shot every 1.1 s for 6 s
+ * but the mix gave two booms per target). A gun or ship: a boom with every shot, every other one softer, and for a shell
+ * aimed at a ship the splash of each one shellOutcome draws as a miss (the renderer's own seed, so it sounds where the
+ * picture splashes). A plane at a ship: a splash as the torpedo drops, the strike as it runs in; a plane over land: a blast
+ * as each bomb lands. All inside the scene.
+ */
+export function vehicleFireCues(scene: SceneOf, vi: number, start: number, sceneEnd: number): SfxCue[] {
+  const a = scene.harita?.araclar?.[vi];
+  if (!a) return [];
+  const out: SfxCue[] = [];
+  const ship = aimsAtShip(scene, vi);
+  const plane = a.tur === "ucak";
+  const t0 = start + drawnRand(vi * 13) * 0.3;
+  if (plane && ship) {
+    for (let k = 0; k * TORPEDO_EVERY_S < FIRE_SPAN_S; k++) {
+      const drop = t0 + k * TORPEDO_EVERY_S;
+      out.push({ t: drop + 0.3, id: "su", gain: 0.6 }, { t: drop + TORPEDO_RUN_S, id: "top_atisi" });
+    }
+  } else {
+    for (let k = 0; k * SHOT_EVERY_S < FIRE_SPAN_S; k++) {
+      const shot = t0 + k * SHOT_EVERY_S;
+      out.push({ t: plane ? shot + SHOT_FLIGHT_S : shot, id: "top_atisi", ...(k % 2 ? { gain: BARRAGE_SOFT } : {}) });
+      if (ship && !plane && !shellOutcome(vi * 101 + k).hit) out.push({ t: shot + SHOT_FLIGHT_S + 0.1, id: "su", gain: 0.6 });
+    }
+  }
+  return out.filter((c) => c.t < sceneEnd - 0.1);
+}
+
+/**
+ * Anti-aircraft fire round a raid on a fleet (mapEffects.flakWindow: from 3 s before the attack to 7 s after, only where a
+ * ship of another side floats): a light, distant boom every FLAK_EVERY_S. The raid is the plane group's fire line, else
+ * the first loss of an enemy ship.
+ */
+export function flakCues(scene: SceneOf, vi: number, lineAt: (li: number) => { readonly start: number } | undefined, sceneEnd: number, sceneStart: number): SfxCue[] {
+  const a = scene.harita?.araclar?.[vi];
+  const ships = (scene.harita?.araclar ?? []).filter((o) => WATER_VEHICLES.has(o.tur) && o.renk !== a?.renk);
+  if (!a || !ships.length) return [];
+  const fireAt = a.hedef ? lineAt(a.ates_satir ?? a.yol_satir ?? a.satir)?.start : undefined;
+  const sunkAt = ships.flatMap((o) => (o.kayip_satir !== undefined && (o.kayip ?? 0) > 0 ? [(lineAt(o.kayip_satir)?.start ?? Infinity) + unitLossDelaysS(1)[0]!] : [])).sort((x, y) => x - y)[0];
+  const raid = fireAt ?? sunkAt;
+  if (raid === undefined || !Number.isFinite(raid)) return [];
+  const out: SfxCue[] = [];
+  for (let t = Math.max(sceneStart, raid - FLAK_LEAD_S); t < Math.min(sceneEnd - 0.1, raid + FLAK_TAIL_S); t += FLAK_EVERY_S) out.push({ t, id: "top_atisi", gain: FLAK_GAIN });
+  return out;
 }
 
 /**
@@ -251,17 +337,20 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline, opts: SfxCu
       }
     }
     // Vehicles: the sea as a fleet sets out, the roar of a cavalry or elephant charge, a plane's rush; their fire.
-    for (const a of scene.harita?.araclar ?? []) {
+    for (const [vi, a] of (scene.harita?.araclar ?? []).entries()) {
       const go = a.yol?.length ? lineAt(a.yol_satir ?? a.satir) : undefined;
       const sound = ({ gemi: "dalga", kadirga: "dalga", yelkenli: "dalga", denizalti: "dalga", suvari: "kalabalik", fil: "kalabalik", ucak: "whoosh" } as Partial<Record<string, SfxId>>)[a.tur];
       if (go && sound) cues.push({ t: go.start + 0.2, id: sound });
       const fire = a.hedef && gun ? lineAt(a.ates_satir ?? a.yol_satir ?? a.satir) : undefined;
-      if (fire) cues.push({ t: fire.start + 0.4, id: "top_atisi" }, { t: fire.start + 2.6, id: "top_atisi" });
+      if (fire) cues.push(...vehicleFireCues(scene, vi, fire.start, sceneEnd));
+      if (gun && a.tur === "ucak") cues.push(...flakCues(scene, vi, lineAt, sceneEnd, st?.start ?? 0));
       // Each one lost goes down with its sound, at the tokens' pace: a ship's splash, a blast (a fall before gunpowder).
       const lost = a.kayip_satir !== undefined ? Math.min(Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))), Math.max(0, Math.round(a.kayip ?? 0))) : 0;
       const sunk = lost ? lineAt(a.kayip_satir!) : undefined;
       const down: SfxId = ["gemi", "kadirga", "yelkenli", "denizalti"].includes(a.tur) ? "su" : gun ? "top_atisi" : "dusus";
       if (sunk) cues.push(...unitLossDelaysS(lost).map((d) => ({ t: sunk.start + d, id: down })));
+      // A ship going under: the hull settles with a low thud as the splash dies away (SHIP_SINK_S: it takes 3 s to go).
+      if (sunk && down === "su") cues.push(...unitLossDelaysS(lost).map((d) => ({ t: sunk.start + d + SHIP_SINK_S * 0.4, id: "dusus" as SfxId, gain: 0.5 })));
     }
   });
   if (film) {
@@ -272,8 +361,13 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline, opts: SfxCu
     if (!cues.some((c) => c.t < HOOK_QUIET_S && HOOK_LIKE.has(c.id))) cues.push({ t: 0, id: HOOK_STING });
   }
   // The same effect twice within a second is one sound (two footstep runs 0.2 s apart doubled into a clatter).
-  const sorted = cues.sort((a, b) => a.t - b.t);
-  const apart = sorted.filter((c, i) => !sorted.slice(0, i).some((p) => p.id === c.id && c.t - p.t < 1));
+  // Louder cues first, so a quiet distant flak burst never takes the place of the strike beside it.
+  const sorted = [...cues].sort((a, b) => (b.gain ?? 1) - (a.gain ?? 1) || a.t - b.t);
+  // Measured against the cues that stay, not the ones dropped: a cannon's chain of shots 1.1 s apart must not lose its second
+  // shot because a battle marker 0.8 s before it was itself dropped.
+  const apart: SfxCue[] = [];
+  for (const c of sorted) if (!apart.some((p) => p.id === c.id && Math.abs(c.t - p.t) < 1)) apart.push(c);
+  apart.sort((a, b) => a.t - b.t);
   // And no effect more than twice within SFX_REPEAT_WINDOW_S: the same thud on three lines in a row was heard as a loop.
   const kept: SfxCue[] = [];
   for (const c of apart) if (TAKES_IN_TURN.has(c.id) || kept.filter((p) => p.id === c.id && c.t - p.t < SFX_REPEAT_WINDOW_S).length < 2) kept.push(c);
@@ -329,7 +423,7 @@ export interface MixInput {
   readonly duration: number;
   readonly dialogue: readonly { readonly file: string; readonly start: number }[];
   readonly music: readonly MusicSegment[];
-  readonly sfx: readonly { readonly file: string; readonly t: number; readonly id: SfxId }[];
+  readonly sfx: readonly { readonly file: string; readonly t: number; readonly id: SfxId; readonly gain?: number }[];
   /** Quiet ambience of each scene's place (SfxDesigner), looped over the scene, under everything. */
   readonly ambience?: readonly { readonly start: number; readonly end: number; readonly file: string }[];
   /** The battle bed (BattleBed.renderBattleBed): one stereo file as long as the episode, ducked gently under speech. */
@@ -525,7 +619,7 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   };
   // An effect never steps out of or into silence either (a boing began at −2 dBFS on its first sample).
   const effects = new Float32Array(total);
-  for (const s of input.sfx) if (await playable(s.file, `efekt ${s.id}`)) placeSamples(effects, fadeClipEdges(await monoAt48k(paths, await clean(s.file, "efekt"), tmp), SAMPLE_RATE, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S), s.t, SFX_GAIN[s.id]);
+  for (const s of input.sfx) if (await playable(s.file, `efekt ${s.id}`)) placeSamples(effects, fadeClipEdges(await monoAt48k(paths, await clean(s.file, "efekt"), tmp), SAMPLE_RATE, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S), s.t, SFX_GAIN[s.id] * (s.gain ?? 1));
   const dlgFile = path.join(tmp, "dialogue.wav");
   const sfxFile = path.join(tmp, "sfx.wav");
   await fs.writeFile(dlgFile, wavFloat32(dialogue));
