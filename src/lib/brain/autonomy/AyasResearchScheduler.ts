@@ -7,6 +7,7 @@ import { AYAS_RESEARCH_PENDING_DEEP_MAX_SOURCES, createAyasResearchSchedulerHear
 import { runAyasLightResearchScan, type AyasLightScanResult, type AyasLightResearchDeps } from "./AyasLightResearchEngine";
 import { runAyasDeepResearchScan, type AyasDeepScanResult, type AyasDeepResearchDeps } from "./AyasDeepResearchEngine";
 import { resolveAyasResearchSourceRegistry, type AyasResearchSource } from "./AyasResearchSourceRegistry";
+import { AYAS_TRACKED_RELEASE_SOURCES } from "./AyasResearchReleaseRelevance";
 import { AYAS_GOAL_RESEARCH_ON_TIME_GRACE_MS, tickDueAyasGoalResearchJob } from "./AyasGoalResearchSchedule";
 import type { AyasGoalStore } from "./AyasGoalStore";
 import type { AyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
@@ -226,14 +227,22 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
       // the budget hands its remaining sources to the next tick.
       const owed = new Set([...(state.pendingDeepSourceIds ?? []), ...light.results.filter((r) => r.changed).map((r) => r.sourceId)]);
       const owedSources = sources.filter((s) => owed.has(s.sourceId));
+      // The release feeds of the tools AYAS ships ride along on every DEEP, after the owed sources (owner 2026-11-27,
+      // "React güncelleme boşluğu: uygula"): a release whose feed change was seen by a LIGHT-only cycle before the
+      // 9 Nov carry-over fix was never analysed, so the novelty memory had no React 19.3.x record and the update radar
+      // never offered it. The novelty memory is checked before any model call, so an already-seen feed costs one
+      // fetch; a tracked feed the budget did not reach is simply read again on the next DEEP, never carried as owed.
+      const deepSources = mode === "DEEP"
+        ? [...owedSources, ...sources.filter((s) => !owed.has(s.sourceId) && Object.prototype.hasOwnProperty.call(AYAS_TRACKED_RELEASE_SOURCES, s.sourceId))]
+        : owedSources;
       let deep: AyasDeepScanResult | undefined;
       let deepCompletedAt: string | undefined;
       if (mode === "DEEP") {
         admitEffect();
-        deep = await runAyasDeepResearchScan({ ...deepDeps, ...budget, sources: owedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
+        deep = await runAyasDeepResearchScan({ ...deepDeps, ...budget, sources: deepSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
         deepCompletedAt = now();
       }
-      const stillOwed = mode === "DEEP" ? deep!.deferredSourceIds : owedSources.map((s) => s.sourceId);
+      const stillOwed = mode === "DEEP" ? deep!.deferredSourceIds.filter((id) => owed.has(id)) : owedSources.map((s) => s.sourceId);
       // A continuation that judged nothing new (the model never answers inside the budget) does not continue again: the
       // owed sources wait for the regular cadence instead of occupying the model every tick.
       const wasContinuation = !!state.pendingDeepSourceIds?.length && state.nextDeepAt !== undefined && state.nextDeepAt === state.lastExecutedAt;
