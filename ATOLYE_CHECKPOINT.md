@@ -1,3 +1,24 @@
+## 27 Kasım 2026 (3) — İki paralel dal bitirildi ve feature dalına alındı (canlıda DEĞİL)
+
+- Gözlemci 27 Kasım 07:00'de yeniden başlamış; Bekçi ilk turu canlıda çalıştı (`SECURITY_WATCH ok`, 3 bulgu, sınav 11/11).
+  Log'da aynı satırda `"discovery":"FAILED"` da var — incelenmedi.
+- `codex/ayas-oneriyor-tech-watch` → 2abf3886: teknoloji izleme → "AYAS ÖNERİYOR · Teknoloji izleme". Yeniden doğrulandı
+  (tsc, lint 0/0, 12 suite).
+- `codex/bekci-research` bitirildi (a8bbad0f) → birleştirildi: Bekçi turu araştırma alt sürecini başlatıyor
+  (`researchChildDue`: saatte en fazla bir, çöken süreçten sonra 3 sa, osv.dev taramasıyla aynı turda asla, yeni
+  HEAD'de ya da günlük); şifre taramasında Gitleaks 8.30.1 tüm geçmiş (her çalıştırmadan önce hash kontrolü, 18 sn);
+  "yeni-tehdit" ihtiyacı (düzeltmesi olmayan ciddi açık → bir öğrenilen kontrol; tavsiye metni göreve girmez);
+  düzeltmesi olan açık bilerek öneri yapılmadı (kod hattı paket dosyasına dokunamaz, bulgu sahibe yolu söylüyor);
+  Güvenlik paneli tarayıcıyı ve araştırma kaynaklarını gösteriyor. Smoke `smoke-ayas-security-research.ts` 12.
+  Kanıt: 11 suite PASS (security-watch 16, firewall-closure 13, constitution-run-binding 18 + mutations 13/13,
+  autonomy-daemon 9, brain-control-center, development-center 64, v3-self-improvement 11, code-change-lane 12,
+  grace 17), tsc, lint 0/0. Gerçek araştırma turu: 4/4 kaynak, 97 bileşen, 221 tavsiye, etkileyen 0, 6 sn; yanlış alarm 0.
+- **Canlıya almada:** canonical checkout'ta bir kez `npx tsx scripts/ayas-security-tools-install.ts` (Gitleaks indirir,
+  iki sağlamayı doğrular, Git-dışı `bin/security-tools/`); yapılmazsa Bekçi `sir:yedek-tarama` (düşük) gösterir.
+  Gözlemci uzun ömürlü ama Bekçi turu her tick'te yeni süreç → yeniden başlatma gerekmez.
+- Toplu canlıya alma sahibin isteğini bekliyor. Karar bekleyenler değişmedi (SMB/NetBIOS, TypeScript 7, React radar
+  boşluğu; AyasSafePublicFetch sorusu artık gereksiz: sabit-host GET firewall suite'ini geçiyor, pin değişmedi).
+
 ## 27 Kasım 2026 (2) — Toplu canlıya alma dd8b77f6; otomatik canlı açık; güvenli durdurma
 
 - Canlı `ayas-live-dd8b77f6` (gözlemcinin otomatik yayını, healthy; geri dönüş ayas-live-90db7935): ana sayfa ofisi + Bekçi.
