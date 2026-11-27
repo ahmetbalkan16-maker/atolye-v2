@@ -1260,7 +1260,7 @@ async function main() {
       araclar: [{ tur: "top", renk: OTT.renk, sayi: 3, konum: [28.905, 41.02], satir: 0, hedef: [28.92, 41.02], ates_satir: gunLine }],
       birlikler: [{ ...OTT, ad: "Janissaries", tur: "kilicli", sayi: 6, yerler: [{ satir: 0, cephe: [[28.905, 41.03], [28.905, 41.01]] }, { satir: 1, kume: [28.935, 41.02] }] }],
     });
-    const build = (map: SceneMap) => buildGeoMap(map, data, 1920, 1080, lineStart, { era: "erken-modern", year: 1453, fps: FPS_, toldAt: frameOf, lineEnd: (i) => lineStart(i + 1) - 1, sceneFrames: 21 * FPS_ });
+    const build = (map: SceneMap) => buildGeoMap(map, data, 1920, 1080, lineStart, { era: "erken-modern", year: 1453, fps: FPS_, toldAt: frameOf, lineEnd: (i) => (i + 1 < starts.length ? lineStart(i + 1) - 1 : 21 * FPS_), sceneFrames: 21 * FPS_ });
 
     // One line tells the bombardment and the breach and the assault: the guns fire on "Cannons", the wall opens once the
     // first shot has landed and the breach is told, and the column sets off after it — in that order, not together.
@@ -1278,6 +1278,10 @@ async function main() {
     assert.ok(city!.burn! > opens && city!.burn! >= lineStart(2), "not while the wall still stands");
     assert.equal(village!.burn, frameOf(3, TOLD_WORDS.yangin), "the village waits for its own line");
     assert.ok(village!.burn! > city!.burn!, "one after the other");
+    // A word on another line does not move an event there: a town told burning on line 0 (which has no word for fire) burns
+    // from the breach, not when line 2 says "burns".
+    const early = build({ ...siege(1, 1), yerlesimler: [{ tur: "sehir", ad: "City", noktalar: [[28.925, 41.035], [28.96, 41.035], [28.96, 41.005], [28.925, 41.005]], yanma_satir: 0 }] });
+    assert.ok(early.close!.settlements[0]!.burn! >= opens && early.close!.settlements[0]!.burn! < lineStart(2), "burns " + early.close!.settlements[0]!.burn + ", the wall opened at " + opens + ", line 2 starts at " + lineStart(2));
     // The wall breaks on the line that tells it, never before: told on line 2 (the guns fired on line 1), it holds until then.
     const later = build(siege(2, 1));
     const laterOpens = later.close!.walls[0]!.breach!.start;

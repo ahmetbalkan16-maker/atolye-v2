@@ -2248,15 +2248,22 @@ function projectGeoMap(
   // The siege's events in the order the narration tells them (siegeAfterShots): a wall opens on the word that tells its
   // breach, after its guns' first shot has landed and no later than the first column set off through it; a town burns on
   // the word that tells its fire, from where the wall broke.
+  // A siege event's word only counts on its own line (toldAt also looks to the lines round it, for the guns' "open fire"):
+  // a town told burning on line 0 does not wait for a "burns" the narrator says on line 4.
+  const ownWord = (line: number, order: number, word: RegExp) => {
+    const at = opts.toldAt?.(line, word);
+    const end = opts.lineEnd?.(line);
+    return at !== undefined && at >= lineStart(line, order) && (end === undefined || at <= end) ? at : undefined;
+  };
   const siegeClose = close
     ? siegeAfterShots(close, vehicles, opts.fps ?? 30, opts.sceneFrames, {
-        breachAt: (wi) => ((g) => (g ? toldStart(opts, lineStart, g.satir, wi, TOLD_WORDS.gedik, lineStart(g.satir, wi)) : undefined))(map.surlar?.[wi]?.gedik),
+        breachAt: (wi) => ((g) => (g ? ownWord(g.satir, wi, TOLD_WORDS.gedik) : undefined))(map.surlar?.[wi]?.gedik),
         crossAt: (wi) => {
           const at = close.walls[wi]?.breach;
           const starts = at ? units.flatMap((u) => u.steps.filter((st) => st.via && st.through?.length && Math.hypot(st.via.x - at.x, st.via.y - at.y) < 1).map((st) => st.start)) : [];
           return starts.length ? Math.min(...starts) : undefined;
         },
-        burnAt: (si) => ((y) => (y?.yanma_satir !== undefined ? toldStart(opts, lineStart, y.yanma_satir, si, TOLD_WORDS.yangin, lineStart(y.yanma_satir, si)) : undefined))(map.yerlesimler?.[si]),
+        burnAt: (si) => ((y) => (y?.yanma_satir !== undefined ? ownWord(y.yanma_satir, si, TOLD_WORDS.yangin) : undefined))(map.yerlesimler?.[si]),
       })
     : undefined;
   // A unit's move arrow is drawn as that unit sets off (its colour, its line; of two such units the one whose new place
