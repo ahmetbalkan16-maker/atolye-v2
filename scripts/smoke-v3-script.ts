@@ -29,7 +29,7 @@ import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumber
 import { throatClearingOpening, validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { opensWithQuestion, questionFaults, questionFirst, questionNumberClash, questionProblems, questionTags, questionTitleFaults, questionVideoTitle } from "../src/lib/v3/script/QuestionTitle";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookAnchorProblems, type HookFollowFault, hookFollowFaults, hookFollowLine, hookFollowProblems, splitHookFollow } from "../src/lib/v3/script/HookFollow";
-import { backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
+import { actionLines, backstoryPhrases, backstoryProblems, openingBeforeAction } from "../src/lib/v3/script/ShortOpening";
 import { datedMoments, longLineProblems, storyTimeProblems, storyYear, typedAndSpokenProblems } from "../src/lib/v3/script/StoryRules";
 import { cachedDiscountUsd, cachedTokensOf, fellBackChecks, V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { OpenAITextProvider } from "../src/lib/v3/script/OpenAIText";
@@ -651,9 +651,9 @@ async function main() {
     // The first action: a visible character's line (a clash of words) on line 3 of s1 — the Alps line is after it here.
     assert.deepEqual(openingBeforeAction(trasimene)?.arkaPlan, [], "Flaminius answers in s1: the first action comes first");
     const asWent = { ...trasimene, sahneler: [{ ...trasimene.sahneler[0]!, satirlar: trasimene.sahneler[0]!.satirlar.slice(0, 2) }, trasimene.sahneler[1]!] };
-    const o = openingBeforeAction(asWent)!;
-    assert.deepEqual([o.sahne, o.satir, o.kelime, o.arkaPlan.map((b) => `${b.sahne}#${b.satir}`)], ["s2-map-campaign", 2, 50, ["s2-map-campaign#1"]]);
-    assert.match(backstoryProblems(asWent)[0]!, /^background told before the first action — scene "s2-map-campaign" line 1 \("Hannibal crossed the Alps[^]*crossed, sent, 50,000 men, by the time\); the first action comes at scene "s2-map-campaign" line 2, after 50 spoken words \(~21 s; at most 30, on screen by ~12 s\)[^]*BACKSTORY FIRST$/);
+    // Hannibal's line on the map is a badge's quip, not an action (27 Nov 2026): as it went out, nothing ever acts.
+    assert.equal(openingBeforeAction(asWent), undefined);
+    assert.match(backstoryProblems(asWent)[0]!, /^background told before the first action — scene "s2-map-campaign" line 1 \("Hannibal crossed the Alps[^]*crossed, sent, 50,000 men, by the time\); no line of the Short shows an action on screen \(only badges speak; at most 24 spoken words before one, on screen by ~10 s\)[^]*a badge's quip is not the action[^]*BACKSTORY FIRST$/);
     // A unit's charge on the map line is the first action too; a stand ("tut") or a march route is not.
     const charged = { ...asWent, sahneler: [asWent.sahneler[0]!, { ...asWent.sahneler[1]!, satirlar: [{ karakter: "anlatici", metin: "Hannibal's cavalry charges out of the fog." }, ...asWent.sahneler[1]!.satirlar], harita: { birlikler: [{ yerler: [{ satir: 0, hareket: "hucum" }] }] } }] };
     assert.deepEqual(backstoryProblems(charged), []);
@@ -705,6 +705,51 @@ async function main() {
     for (const needle of ["No greeting, no joke, nothing before it", "with a name or a number in it", "Why Couldn't 290,000 Germans Escape Stalingrad?", "NO backstory before the first action", "\"X crossed the Alps\", \"Rome sent…\" — comes AFTER the first clash, in one line at most"]) assert.ok(en.includes(needle), needle);
     const tr = writingPrompt({ konu: "Trasimene", donem: "MÖ 217", hedefSureSn: 90, ton: "mizahi", dil: "tr" }, CATALOG);
     for (const needle of ["Önünde selam, espri ya da başka cümle yok", "İlk hamleden önce geçmiş YOK", "ilk çatışmadan SONRA ve en çok tek satırla"]) assert.ok(tr.includes(needle), needle);
+  });
+
+  await scenario("I5b the first action by ~10 s, on the map itself (owner, 27 Nov 2026, KANCA_ANALIZI: every measured Short lost most viewers at 4.4–9.8 s while nothing happened; the question Shorts passed on a badge quip)", () => {
+    const narrator = { id: "anlatici", ad: "Narrator", gorunur: false };
+    const cast = [narrator, { id: "paulus", ad: "Friedrich Paulus", gorunur: true }, { id: "zhukov", ad: "Georgy Zhukov", gorunur: true }];
+    const q = "Why Couldn't 290,000 Axis Troops Escape Stalingrad?";
+    const stakes = "6th Army wants Stalingrad; Soviets about to trap them inside.";
+    const quip = "Romanians on our flanks — what could go wrong? That always works out well.";
+    // The Stalingrad Short as it went out (23 Nov 2026): question, stakes, Paulus' badge quip at 8.6 s, the pincer's
+    // arrows only in scene 2 at 13.6 s. Until 27 Nov the quip was its "first action" and it passed.
+    const stalingrad = {
+      oyuncu_kadrosu: cast,
+      sahneler: [
+        { id: "s1-map-hook", harita: { bolgeler: [{ ad: "Germany", satir: 0 }] }, satirlar: [{ karakter: "anlatici", metin: q }, { karakter: "anlatici", metin: stakes }, { karakter: "paulus", metin: quip }] },
+        { id: "s2-map-pincer", harita: { oklar: [{ satir: 0 }, { satir: 1 }], bolgeler: [{ ad: "Stalingrad Pocket", satir: 1 }] }, satirlar: [{ karakter: "anlatici", metin: "November 19: Zhukov's Red Army smashes through the Romanian lines." }, { karakter: "zhukov", metin: "Welcome to the pocket!" }] },
+      ],
+    };
+    const o = openingBeforeAction(stalingrad)!;
+    assert.deepEqual([o.sahne, o.satir, o.kelime], ["s2-map-pincer", 1, 7 + 10 + 13], "the arrow on s2's first line is the action, not the quip");
+    assert.match(backstoryProblems(stalingrad)[0]!, /the first action comes at scene "s2-map-pincer" line 1, after 30 spoken words \(~13 s; at most 24, on screen by ~10 s\)[^]*BACKSTORY FIRST$/);
+    // The arrow moved into the opening map, on the stakes line: the first action at ~7 s, nothing asked.
+    const fixed = { ...stalingrad, sahneler: [{ ...stalingrad.sahneler[0]!, harita: { ...stalingrad.sahneler[0]!.harita, oklar: [{ satir: 1 }] } }, stalingrad.sahneler[1]!] };
+    assert.deepEqual([openingBeforeAction(fixed)!.satir, backstoryProblems(fixed)], [2, []]);
+    // What acts on a map: a move's arrow (not a "plan" arrow), a border appearing after the first line or spreading; a
+    // border drawn from the scene's start is the setting, not a move.
+    const scene = (harita: object) => ({ id: "m", harita, satirlar: [] });
+    assert.deepEqual([...actionLines(scene({ oklar: [{ satir: 2 }, { satir: 3, stil: "plan" }] }))], [2]);
+    assert.deepEqual([...actionLines(scene({ bolgeler: [{ satir: 0 }, { satir: 2 }, { satir: 0, yayilma: { satir: 4 } }] }))].sort(), [2, 4]);
+    // A map Short where only badges speak is asked (it was not measurable before); a stage-only one is not measured.
+    const quipsOnly = { ...stalingrad, sahneler: [stalingrad.sahneler[0]!, { ...stalingrad.sahneler[1]!, harita: {} }] };
+    assert.match(backstoryProblems(quipsOnly)[0]!, /^no line of the Short shows an action on screen[^]*BACKSTORY FIRST$/);
+    assert.deepEqual(backstoryProblems({ oyuncu_kadrosu: cast, sahneler: [{ id: "a", satirlar: [{ karakter: "anlatici", metin: q }, { karakter: "anlatici", metin: stakes }] }] }), []);
+    // The channel's best Short (Caesar, 3 Nov 2026, its episode.json lines) opened on a stage: the pirate answers after 24 words.
+    const caesar = {
+      oyuncu_kadrosu: [narrator, { id: "caesar", ad: "Julius Caesar", gorunur: true }, { id: "pirate", ad: "Pirate", gorunur: true }],
+      sahneler: [{ id: "s1-hook", satirlar: [{ karakter: "caesar", metin: "Twenty talents? I’m worth way more than that!" }, { karakter: "anlatici", metin: "In 75 BC, Julius Caesar was kidnapped by Cilician pirates. They demanded a ransom: twenty talents." }, { karakter: "pirate", metin: "Twenty? Fine, we’ll ask for more." }] }],
+    };
+    assert.deepEqual([openingBeforeAction(caesar)!.kelime, backstoryProblems(caesar)], [24, []]);
+    // A count of followers is a troop count (the Cajamarca Short's "Atahualpa enters Cajamarca with 6,000 followers").
+    assert.deepEqual(backstoryPhrases("Atahualpa enters Cajamarca with 6,000 followers."), ["6,000 followers"]);
+    // The writer is told in both languages: ~10 s, the badge's quip is no action, the main character may say the stakes.
+    const en = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
+    for (const needle of ["by about\n  10 seconds", "a character's badge quip\n  is NOT the first action", "the MAIN CHARACTER may say this\n  line from their badge"]) assert.ok(en.includes(needle), needle);
+    const tr = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "tr" }, CATALOG);
+    for (const needle of ["en geç ~10. saniyede", "rozet\n  esprisi ilk hamle SAYILMAZ", "ANA KARAKTER de rozetinden"]) assert.ok(tr.includes(needle), needle);
   });
 
   await scenario("I6 a Short's question title (owner, 23 Nov 2026, after Knowledgia's 52 Shorts — every one a question read out first): its shape, its anchor, said first; the narrator's line put in when the rounds left it out", () => {

@@ -79,14 +79,25 @@
       "konular": "Roma, Osmanlı, Moğol ve diğer büyük uygarlıklar"
     }
   ],
+  "abonelik": {
+    "not": "27 Kas 2026 (owner: \"neredeyse hiç takip gelmiyor kanalımıza\"): ölçülen 11 Short toplam ~14.900 görüntülemeden (çoğu reklam) 1 abone getirdi. Shorts'ta bitiş ekranı yok; elimizdekiler: son satırın açık sorusu + daveti (9eed7a15), açıklamada kanalın vaadi ve yayın günleri, owner'ın sabitleyeceği yorum (YouTube API yorum sabitleyemez). {gunler} yayın takviminden gelir (PublishCalendar.WEEKLY_SLOTS), {soru} son satırın açık sorusundan. Okuyan: ChannelGoals.subscribeTexts.",
+    "aciklamaSatiri": {
+      "en": "Crowns & Doodles: history's most insane moments, told on a map in about a minute. A new one every {gunler} — subscribe so you don't miss the next.",
+      "tr": "Crowns & Doodles: tarihin en çılgın anları, haritada, yaklaşık bir dakikada. Her {gunler} yenisi — sonrakini kaçırmamak için abone ol."
+    },
+    "sabitYorum": {
+      "en": "{soru} Tell us in the comments 👇 A new insane history moment every {gunler} — subscribe so you don't miss it.",
+      "tr": "{soru} Yorumlarda yaz 👇 Her {gunler} tarihten yeni bir çılgın an — kaçırmamak için abone ol."
+    }
+  },
   "shortsYapisi": {
     "referansSureSn": 60,
-    "not": "23 Kas 2026 (owner: \"bütün planları uygula\", Knowledgia incelemesi — 2,2 M abone, 52 Short'un medyan süresi 57 sn, medyan izlenme 1,86 M; hepsi soru başlıklı, sesli soruyla açılan dikey harita): Short ~60 sn, soru 0–3, tehlike 3–8 ve ilk hamle 8–12 sn her uzunlukta sabittir (sabit: true); diğer bölümler sürenin payıyla ölçeklenir. Süreler esnektir; hikâyenin doğal akışı bozulmaz.",
+    "not": "23 Kas 2026 (owner: \"bütün planları uygula\", Knowledgia incelemesi — 2,2 M abone, 52 Short'un medyan süresi 57 sn, medyan izlenme 1,86 M; hepsi soru başlıklı, sesli soruyla açılan dikey harita): Short ~60 sn, soru 0–3, tehlike 3–8 ve ilk hamle 8–10 sn (27 Kas 2026'ya kadar 8–12) her uzunlukta sabittir (sabit: true); diğer bölümler sürenin payıyla ölçeklenir. Süreler esnektir; hikâyenin doğal akışı bozulmaz.",
     "bolumler": [
       { "id": "soru", "basSn": 0, "bitSn": 3, "sabit": true, "tr": "Soru: anlatıcı videonun soru başlığını kelimesi kelimesine okur, sorunun bölgesi renkli ve adları yazılı haritada (siyah ekran, selam, espri yok; içinde bir ad ya da sayı)", "en": "the question: the narrator reads the video's question title word for word over the coloured, labelled map of its region (no black screen, no greeting, no joke; a name or a number in it)" },
       { "id": "baglam", "basSn": 3, "bitSn": 8, "sabit": true, "tr": "Ne olduğu ve neyin tehlikede olduğu, en çok 12 kelimelik tek satırla (tarihle açılmaz: yer ve tarih kartta; 19 Kas 2026 tutma ölçümü)", "en": "the stakes in one short line (at most 12 words: who wants what, what is about to go wrong; never a date opener — the place-date card shows where and when)" },
-      { "id": "ilk_hamle", "basSn": 8, "bitSn": 12, "sabit": true, "tr": "İlk hamle haritada: hücum, kapanan tuzak, sınırın değişmesi ya da bir yangın — önünde geçmiş yok (yürüyüş, yol, asker sayısı ilk çatışmadan sonra, en çok tek satır)", "en": "the first action on the map: a charge, the trap sprung, a border changing or a fire — no backstory before it (marches, routes, troop counts come after the first clash, in one line at most)" },
-      { "id": "neden", "basSn": 12, "bitSn": 30, "tr": "Cevabın nedenleri ya da adımları haritada satır satır; hikâyenin en çarpıcı sayısı bir kez büyük (sayaç kartı ya da güç çubuğu); bir karakter rozetinden tek esprili cümle", "en": "the answer's causes or steps on the map, line by line; the story's most striking number shown big once (a counter card or the strength bar); one witty line from a character's badge" },
+      { "id": "ilk_hamle", "basSn": 8, "bitSn": 10, "sabit": true, "tr": "İlk hamle haritanın kendisinde, en geç 10. sn: hücum, kapanan tuzak, hamle oku, sınırın değişmesi ya da bir yangın — rozet esprisi hamle sayılmaz; önünde geçmiş yok (yürüyüş, yol, asker sayısı ilk çatışmadan sonra, en çok tek satır; 27 Kas 2026: ölçülen on Short'un en dik erken düşüşü 4–10. sn'de, ekranda bir şey olmazken)", "en": "the first action on the map itself, by 10 s: a charge, the trap sprung, a move's arrow, a border changing or a fire — a badge's quip is not one; no backstory before it (marches, routes, troop counts come after the first clash, in one line at most)" },
+      { "id": "neden", "basSn": 10, "bitSn": 30, "tr": "Cevabın nedenleri ya da adımları haritada satır satır; hikâyenin en çarpıcı sayısı bir kez büyük (sayaç kartı ya da güç çubuğu); bir karakter rozetinden tek esprili cümle", "en": "the answer's causes or steps on the map, line by line; the story's most striking number shown big once (a counter card or the strength bar); one witty line from a character's badge" },
       { "id": "doruk", "basSn": 30, "bitSn": 50, "tr": "Dönüm ve sonucu haritada (ya da tek kısa karakter sahnesinde)", "en": "the turn and its outcome on the map (or in the one short character scene)" },
       { "id": "final", "basSn": 50, "bitSn": 60, "tr": "Sorunun cevabı sorunun kendi sözleriyle tek cümlede (video başa döndüğünde soru yeniden anlam kazanır), ardından ana karakterin kısa abone daveti", "en": "the answer in one sentence in the question's own words (so the question lands again when the Short loops), then the main character's short invitation" }
     ],

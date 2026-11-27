@@ -46,7 +46,7 @@ import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNam
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { canvaCoverFor } from "../src/lib/v3/thumbnail/CanvaClient";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapterScenes, chapters, chapterText, packagePrompt, packageQuestion, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapterScenes, chapters, chapterText, descriptionLead, packagePrompt, packageQuestion, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, isMeasureBrain, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
@@ -78,12 +78,12 @@ import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlan
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
 import { isShorts, lengthOk, lengthTopS, mapStageFor, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
-import { channelGoalNote, loadChannelGoals, openingChecks, openingPlanCheck, scenePlanCheck, shortBeatRule } from "../src/lib/v3/publish/ChannelGoals";
+import { channelGoalNote, loadChannelGoals, openingChecks, openingPlanCheck, scenePlanCheck, shortBeatRule, subscribeTexts } from "../src/lib/v3/publish/ChannelGoals";
 import { applyOpeningFixes, openingFixes, openingFixLine, studioMade } from "../src/lib/v3/council/OpeningRetouch";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
-import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
+import { closingQuestion, ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
 import { SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S } from "../src/lib/v3/script/MapRules";
 import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import { opensWithQuestion } from "../src/lib/v3/script/QuestionTitle";
@@ -1343,8 +1343,12 @@ async function main() {
       : marked.length >= 3
         ? chapters(marked.map((m) => timeline.scenes[m.index]?.start ?? 0), marked.map((m) => m.baslik), timeline.duration)
         : chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration);
-    if (youtube) await writeJson(f("youtube.json"), { ...youtube, bolumler: chs, ...(upload ? { dosya: upload } : {}) });
-    const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
+    // A Short's subscribe texts (owner, 27 Nov 2026: "neredeyse hiç takip gelmiyor"): the channel's promise and days in the
+    // description, and a comment for the owner to pin built on the closing line's open question (ChannelGoals.subscribeTexts).
+    const subscribe = shorts ? (() => { try { const g = loadChannelGoals(paths.contentRoot); return g ? subscribeTexts(g, dil, closingQuestion(episode)) : {}; } catch { return {}; } })() : {};
+    if (youtube) await writeJson(f("youtube.json"), { ...youtube, paket: { ...youtube.paket, ...(subscribe.sabitYorum ? { sabitYorum: subscribe.sabitYorum } : {}) }, bolumler: chs, ...(upload ? { dosya: upload } : {}) });
+    if (subscribe.sabitYorum) log(`  sabitlenecek yorum (youtube.json → paket.sabitYorum): ${subscribe.sabitYorum}`);
+    const hook = descriptionLead(youtube?.paket.aciklamaGiris, subscribe.aciklama);
     const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
     const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";
     // One line per music credit (its three attribution lines joined, as in CREDITS.md), so no cut can split one.

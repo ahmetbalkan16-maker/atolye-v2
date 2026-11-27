@@ -9,7 +9,7 @@ import { choosePackagePair, contentWords, headlineLines, lintDescriptionLead, li
 import { judgePrompt } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { mainCharacters, thumbnailPlans } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapters, chapterText, packagePrompt, readPackage, uploadFileName } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapters, chapterText, descriptionLead, packagePrompt, readPackage, uploadFileName } from "../src/lib/v3/thumbnail/YoutubePackage";
 
 let scenarios = 0;
 function scenario(name: string, fn: () => void) {
@@ -165,6 +165,23 @@ function main() {
     assert.deepEqual(plans.map((p) => [p.ad, p.baslik, p.background.src, p.poses.length]), [["portre", "POINT OF NO RETURN", "bg/s1.png", 1], ["catisma", "HE DID WHAT?", "bg/s2.png", 2], ["portre-2", "POINT OF NO RETURN", "bg/s2.png", 1]], "assert.deepEqual(plans.map((p) => [p.ad, p.baslik, p.background.src, p.poses.length]), [[\"portre\", \"POINT OF NO RETURN\", \"bg/s1.png\", 1], [\"catisma\", \"HE DID WHAT?\", \"bg/s2.png\", 2], [\"portre-2\", \"POINT OF NO RETURN\", \"bg/s2.png\", 1]])");
     assert.equal(thumbnailPlans(episode, [], sets, []).length, 0, "assert.equal(thumbnailPlans(episode, [], sets, []).length, 0)");
     assert.match(judgePrompt({ konu: "x", donem: "49 BC", mekan: "thumbnail", tr: "HE DID WHAT?", en: "", anlatim: "" }, { title: "k" }, "kapak"), /shown SMALL[\s\S]*HE DID WHAT\?/);
+  });
+
+  scenario("E a Short's description lead (owner, 27 Nov 2026, 1 subscriber from ~14,900 views): the short answer first, the channel's promise right under it; without one, as before", () => {
+    const answer = "Pizarro's 168 Spaniards captured Atahualpa by surprise at Cajamarca in 1532.";
+    const promise = "Crowns & Doodles: history's most insane moments, told on a map in about a minute. A new one every Tue, Thu & Sat — subscribe so you don't miss the next.";
+    assert.equal(descriptionLead(answer, promise), `${answer}
+
+${promise}
+
+`);
+    assert.equal(descriptionLead(answer), `${answer}
+
+`, "a long video or a goals file without the block: unchanged");
+    assert.equal(descriptionLead("", promise), `${promise}
+
+`);
+    assert.equal(descriptionLead(undefined, undefined), "");
   });
 
   console.log(`V3 youtube smoke: PASS (${scenarios} scenarios)`);

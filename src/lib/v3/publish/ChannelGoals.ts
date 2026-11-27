@@ -3,6 +3,7 @@ import path from "node:path";
 import { isShorts } from "../render/Format";
 import { dateOpener, HOOK_FOLLOW_MAX_WORDS, hookAnchor, hookFollowFaults } from "../script/HookFollow";
 import { questionTitleFaults } from "../script/QuestionTitle";
+import { slotDaysText } from "./PublishCalendar";
 
 /**
  * Crowns & Doodles' video goals (owner, 5 Nov 2026, from the channel's real YouTube Studio numbers): ONE source,
@@ -35,6 +36,11 @@ export interface ChannelGoals {
     readonly uzun: { readonly durum: "HEDEF_TANIMLANMADI" | string; readonly not?: string; readonly izlemeyiSecenler?: Band; readonly ortIzlenmeOrani?: Band };
   };
   readonly diziler: readonly SeriesGoal[];
+  /** The channel's subscribe texts for a Short's package (subscribeTexts); optional, an older file has none. */
+  readonly abonelik?: {
+    readonly aciklamaSatiri?: Readonly<Partial<Record<"tr" | "en", string>>>;
+    readonly sabitYorum?: Readonly<Partial<Record<"tr" | "en", string>>>;
+  };
   readonly shortsYapisi: {
     readonly referansSureSn: number;
     readonly bolumler: readonly ShortBeat[];
@@ -130,6 +136,23 @@ export function shortBeatRule(goals: ChannelGoals, targetS: number, lang: "tr" |
   return lang === "tr"
     ? `- ZAMAN HARİTASI (yaklaşık, hikâyenin akışı önce gelir): ${beats}.\n${shapes ? `- SORU KALIPLARI (en çok izlenenden aza; konuya uyanı seç): ${shapes}.\n` : ""}`
     : `- BEAT MAP (approximate; the story's own flow comes first): ${beats}.\n${shapes ? `- QUESTION SHAPES (most watched first; take the one that fits the topic): ${shapes}.\n` : ""}`;
+}
+
+/**
+ * A Short's subscribe texts (owner, 27 Nov 2026: "neredeyse hiç takip gelmiyor kanalımıza" — the eleven measured Shorts
+ * brought one subscriber from ~14,900 views): a Short has no end screen, so the channel's promise goes where a viewer who
+ * liked it looks — the description, right under the question and its short answer, and a comment for the owner to pin
+ * (the YouTube API cannot pin one). `{gunler}` becomes the calendar's Short days (PublishCalendar.slotDaysText: exactly
+ * the days the uploader keeps); `{soru}` the closing line's open question (ClosingLine.closingQuestion). The pinned
+ * comment is only written when there is a question to ask: a bare "subscribe" comment gives a viewer nothing to answer.
+ */
+export function subscribeTexts(goals: ChannelGoals, dil: "tr" | "en", soru?: string): { readonly aciklama?: string; readonly sabitYorum?: string } {
+  const days = slotDaysText("short", dil);
+  const fill = (t: string | undefined, q = "") => (t?.trim() ? t.replace(/\{gunler\}/g, days).replace(/\{soru\}/g, q).replace(/\s+/g, " ").trim() : undefined);
+  const aciklama = fill(goals.abonelik?.aciklamaSatiri?.[dil]);
+  const question = soru?.trim();
+  const sabitYorum = question ? fill(goals.abonelik?.sabitYorum?.[dil], question) : undefined;
+  return { ...(aciklama ? { aciklama } : {}), ...(sabitYorum ? { sabitYorum } : {}) };
 }
 
 /* ------------------------------------------------------- production QC --- */
