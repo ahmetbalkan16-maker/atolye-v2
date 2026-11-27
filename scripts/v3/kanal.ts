@@ -148,7 +148,7 @@ async function main(): Promise<void> {
   if (command === "analiz") {
     // The channel analyst (owner, 27 Nov 2026): read-only unless --yaz; the idle cycle runs the same once a week.
     if (process.argv.includes("--yaz")) {
-      const r = await channelAnalystTick({ workRoot: paths.workRoot, force: true });
+      const r = await channelAnalystTick({ workRoot: paths.workRoot, force: true, oneriYaz: true });
       console.log(r.satir);
       if (r.durum === "hata") process.exitCode = 1;
       return;

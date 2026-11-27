@@ -74,7 +74,13 @@ export type AnalystTickState = "erken" | "veri-yok" | "tamam" | "hata";
  * nothing without records (the state is not stamped, so it runs as soon as there are some), never throws. Files the
  * proposals, writes the report, and tells AYAS when anything was new or changed.
  */
-export async function channelAnalystTick(d: { readonly workRoot: string; readonly now?: Date; readonly force?: boolean }): Promise<{ readonly durum: AnalystTickState; readonly satir: string }> {
+/**
+ * Whether findings are filed in the Gelişim Merkezi (owner, 27 Nov 2026: "gelişim merkezine düşmesine gerek yok, sen hallet"):
+ * off by default — the report and AYAS's message reach the owner, and Claude builds the fixes; ATOLYE_V3_KANAL_ONERI=1 files them.
+ */
+export const fileProposalsByDefault = (env: Readonly<Record<string, string | undefined>> = process.env): boolean => env.ATOLYE_V3_KANAL_ONERI === "1";
+
+export async function channelAnalystTick(d: { readonly workRoot: string; readonly now?: Date; readonly force?: boolean; readonly oneriYaz?: boolean }): Promise<{ readonly durum: AnalystTickState; readonly satir: string }> {
   const now = d.now ?? new Date();
   try {
     const file = analystStateFile(d.workRoot);
@@ -82,14 +88,15 @@ export async function channelAnalystTick(d: { readonly workRoot: string; readonl
     if (!d.force && state.sonAnaliz && now.getTime() - Date.parse(state.sonAnaliz) < ANALYST_EVERY_DAYS * 86_400_000) return { durum: "erken", satir: `kanal analisti bu hafta çalıştı (${state.sonAnaliz.slice(0, 10)})` };
     const { analiz, plan } = await analyseChannel(d.workRoot, now);
     if (!analiz.videolar) return { durum: "veri-yok", satir: "kanal analisti: ölçülmüş video yok" };
-    await fileAnalystProposals(d.workRoot, plan);
+    const file_ = d.oneriYaz ?? fileProposalsByDefault();
+    if (file_) await fileAnalystProposals(d.workRoot, plan);
     const report = analystReportFile(d.workRoot);
     await writeAtomic(report, analystReport(analiz, plan, now));
     await writeAtomic(file, `${JSON.stringify({ ...state, sonAnaliz: now.toISOString() }, null, 2)}\n`);
-    const satir = `kanal analisti: ${analiz.videolar} video, ${analiz.bulgular.length} bulgu; ${plan.yeni.length} yeni öneri, ${plan.guncel.length} öneri güncellendi${plan.sahip.length ? `, ${plan.sahip.length} sahip kararı` : ""}`;
+    const satir = `kanal analisti: ${analiz.videolar} video, ${analiz.bulgular.length} bulgu; ${file_ ? "" : "rapor: "}${plan.yeni.length} yeni öneri, ${plan.guncel.length} öneri güncellendi${plan.sahip.length ? `, ${plan.sahip.length} sahip kararı` : ""}`;
     if (plan.yeni.length || plan.guncel.length || plan.sahip.length) {
       const owner = plan.sahip.map((f) => f.baslik).join("; ");
-      await tellOwner(d.workRoot, `${satir} (Gelişim Merkezi: AYAS ÖNERİYOR · Kanal analisti)${owner ? `. Senin kararın: ${owner}` : ""}. Rapor: ${report}`, report, now);
+      await tellOwner(d.workRoot, `${satir}${file_ ? " (Gelişim Merkezi: AYAS ÖNERİYOR · Kanal analisti)" : " (yalnız rapor; öneri yazılmadı)"}${owner ? `. Senin kararın: ${owner}` : ""}. Rapor: ${report}`, report, now);
     }
     return { durum: "tamam", satir };
   } catch (e) {

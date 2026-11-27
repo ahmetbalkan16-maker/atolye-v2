@@ -8,13 +8,13 @@
  * Run: npx tsx scripts/smoke-v3-channel-analyst.ts
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { decideProposal, listProposals, needsOwner } from "../src/lib/v3/council/SelfImprovement";
 import type { EpisodeTimeline } from "../src/lib/v3/publish/ChannelAnalyticsMap";
 import { ANALYST_KEY_PREFIX, ANALYST_SOURCE, analystReport, analyzeChannel, findingKeyOf, planAnalystProposals } from "../src/lib/v3/publish/ChannelAnalyst";
-import { analystReportFile, analystStateFile, channelAnalystTick } from "../src/lib/v3/publish/ChannelAnalystRun";
+import { analystReportFile, analystStateFile, channelAnalystTick, fileProposalsByDefault } from "../src/lib/v3/publish/ChannelAnalystRun";
 import { PERFORMANCE_METRICS, type PerformanceMetric, type RetentionPoint, type VideoPerformanceRecord } from "../src/lib/v3/publish/ChannelGoals";
 import { savePerformance } from "../src/lib/v3/publish/VideoPerformanceStore";
 
@@ -184,7 +184,16 @@ async function main(): Promise<void> {
       record({ id: ID(2), sure: 56, views: 1_100, subs: 0, comments: 0, ad: 0.9, published: "2026-11-05T10:00:00Z", tutma: curve(56, { drop: { from: 5, to: 6, size: 0.12 } }) }),
     ];
     for (const r of recs) await savePerformance(workRoot, r);
-    const first = await channelAnalystTick({ workRoot, now });
+    // Owner, 27 Nov 2026 ("gelişim merkezine düşmesine gerek yok"): by default only the report and AYAS's message.
+    const quiet = mkdtempSync(path.join(os.tmpdir(), "v3-kanal-analist-sessiz-"));
+    for (const r of recs) await savePerformance(quiet, r);
+    const reportOnly = await channelAnalystTick({ workRoot: quiet, now });
+    assert.equal(reportOnly.durum, "tamam", reportOnly.satir);
+    assert.equal((await listProposals(quiet)).length, 0, "varsayılan: Gelişim Merkezi'ne öneri yazılmaz");
+    assert.ok(existsSync(analystReportFile(quiet)) && reportOnly.satir.includes("rapor:"));
+    assert.ok(!fileProposalsByDefault({}) && fileProposalsByDefault({ ATOLYE_V3_KANAL_ONERI: "1" }));
+    rmSync(quiet, { recursive: true, force: true });
+    const first = await channelAnalystTick({ workRoot, now, oneriYaz: true });
     assert.equal(first.durum, "tamam", first.satir);
     const filed = (await listProposals(workRoot)).map((x) => x.proposal);
     assert.ok(filed.length >= 2, "öneriler yazıldı");
@@ -201,9 +210,9 @@ async function main(): Promise<void> {
     const inbox = readFileSync(path.join(workRoot, "_kutuphane", "ayas-gelen-kutusu.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { kaynak: string; ozet: string });
     assert.equal(inbox.at(-1)!.kaynak, "atolye-v3-kanal-analisti");
     // Within the week: nothing runs.
-    assert.equal((await channelAnalystTick({ workRoot, now: new Date(now.getTime() + 3 * 86_400_000) })).durum, "erken");
+    assert.equal((await channelAnalystTick({ workRoot, now: new Date(now.getTime() + 3 * 86_400_000), oneriYaz: true })).durum, "erken");
     // Forced again on the same data: nothing new, nothing changed (dedupe).
-    const again = await channelAnalystTick({ workRoot, now: new Date(now.getTime() + 86_400_000), force: true });
+    const again = await channelAnalystTick({ workRoot, now: new Date(now.getTime() + 86_400_000), force: true, oneriYaz: true });
     assert.match(again.satir, /0 yeni öneri, 0 öneri güncellendi/);
     assert.equal((await listProposals(workRoot)).length, filed.length);
     // New numbers a week later: the same proposal (same id) carries the new evidence; a rejected one stays rejected.
@@ -212,7 +221,7 @@ async function main(): Promise<void> {
     await decideProposal(workRoot, other.id, "reddedildi", "istemiyorum");
     await savePerformance(workRoot, { ...recs[0]!, olcumAni: "28g", olcumTarihi: "2026-12-01", metrikler: { ...recs[0]!.metrikler, goruntuleme: 2_400 } });
     const later = new Date(now.getTime() + 8 * 86_400_000);
-    const third = await channelAnalystTick({ workRoot, now: later });
+    const third = await channelAnalystTick({ workRoot, now: later, oneriYaz: true });
     assert.equal(third.durum, "tamam", third.satir);
     const after = (await listProposals(workRoot)).map((x) => x.proposal);
     assert.equal(after.length, filed.length, "ikinci öneri açılmadı");
