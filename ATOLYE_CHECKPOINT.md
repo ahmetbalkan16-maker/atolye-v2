@@ -1,3 +1,19 @@
+## 27 Kasım 2026 (4) — Toplu canlıya alma 890d6c35; React radar boşluğu; ofis akıcılığı; TypeScript 6 denemesi sürüyor
+
+Owner: "1.3.4. maddeleri uygula", "ofiste … hareketleri çok kasıyor", "sonra canlıya al hepsini".
+- **4 (React radar boşluğu)** 5fd2321d: `AyasResearchScheduler` her DEEP'te izlenen sürüm akışlarını (AYAS_TRACKED_RELEASE_SOURCES)
+  borçlu kaynaklardan sonra okur; bütçeye sığmayan ekstra akış borç olarak taşınmaz. Yeni suite
+  `smoke-ayas-research-tracked-deep.ts` 4 (scheduler suite'i eval-pinli); komşu 16 suite PASS. Canlıdan sonraki ilk DEEP'te
+  (≤3 sa) React 19.3.x novelty kaydı oluşmalı → radar teklif eder → "Onayla ve dene" sahibin.
+- **Ofis akıcılığı** 874cad95 (sahip videoyu gördü, "tamam"): her kare çizilir (33 ms atlama kaldırıldı), duruş geçişleri
+  0,32 sn çapraz geçiş, yumuşak dönüşler, yürüyüş salınımı, gölge 30 Hz, uyarlanır çözünürlük, statik + eklem birleştirme
+  (çizim çağrısı 2658 → 986). Ölçüm: eski 150/300 kare, yeni 301/301, en uzun 16,9 ms.
+- **Toplu canlıya alma:** canlı daldaki AYAS d5658e43 (Bekçi smoke'u) birleştirildi → 890d6c35 canlı dala ff push, canonical
+  pull, canonical.a Gitleaks kuruldu (INSTALLED, hash doğru), Graphify CURRENT; gözlemcinin otomatik yayını 05:32 UTC
+  `ayas-live-890d6c35` (dış erişim healthy; geri dönüş ayas-live-dd8b77f6). V3 izleyicisi yeniden başlatılmadı (gelisim.ts alt süreç).
+- **3 (TypeScript 6.0.3)** `codex/typescript-6` worktree `D:\ÜRETİM\private\temp\wt-ts6` (paralel ajan): tsc temiz, lint 0/0,
+  tüm smoke taraması sürüyor. Geçerse paket dosyası değiştiği için canonical'da `npm install` gerekir → ayrı adım.
+
 ## 27 Kasım 2026 (3) — İki paralel dal bitirildi ve feature dalına alındı (canlıda DEĞİL)
 
 - Gözlemci 27 Kasım 07:00'de yeniden başlamış; Bekçi ilk turu canlıda çalıştı (`SECURITY_WATCH ok`, 3 bulgu, sınav 11/11).
