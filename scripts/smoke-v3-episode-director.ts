@@ -3965,6 +3965,27 @@ async function main() {
     assert.equal(worldDiveFloorKm(close), 0);
   });
 
+  await scenario("a tall frame's camera stop keeps its own line's badges and rings in the picture (Gaugamela Short, 27 Nov 2026: the opening stop at 39.6° E left the badges and the ring at the right edge, the map pulse cut them off)", () => {
+    const map = {
+      merkez: [43.25, 36.36], genislik_km: 1800,
+      rozetler: [{ karakter: "alexander", konum: [43.1, 36.3], satir: 0 }, { karakter: "darius", konum: [43.38, 36.42], satir: 0 }],
+      vurgular: [{ satir: 0, konum: [43.25, 36.36] }],
+      oklar: [{ noktalar: [[35.4, 33.4], [42.95, 36.42]], satir: 1 }],
+      kamera: [{ satir: 0, merkez: [39.6, 35.6], genislik_km: 1800 }, { satir: 3, merkez: [43.25, 36.36], genislik_km: 120 }],
+    } as unknown as Parameters<typeof mapWorld>[0];
+    const tall = mapWorld(map, 1080, 1920);
+    const stop = tall.keys[1]!.view;
+    const x = (lon: number) => (lon - stop.lon0) / stop.spanLon + 0.5;
+    assert.ok(stop.lon0 > 41 && stop.lon0 < 43.25, `moved east toward the badges, not onto them: ${stop.lon0}`);
+    assert.ok(Math.abs(x(43.38) - 0.5) * 1.25 <= 0.5 - 0.24 + 1e-9, `Darius' plate stays inside the pulsed frame: x=${x(43.38)}`);
+    assert.ok(Math.abs(stop.spanLon - mapView([39.6, 35.6], 1800 * 9 / 16, 1080, 1920).spanLon) < 1e-9, "shifted, never zoomed");
+    assert.equal(tall.keys[2]!.view.lon0, 43.25, "a stop already on its marks stays");
+    // A 16:9 frame keeps the writer's stop; marks too far apart for the stop keep it too.
+    assert.equal(mapWorld(map, 1920, 1080).keys[1]!.view.lon0, 39.6);
+    const apart = { ...map, rozetler: [{ karakter: "a", konum: [30, 36], satir: 0 }, { karakter: "b", konum: [50, 36], satir: 0 }] } as typeof map;
+    assert.equal(mapWorld(apart, 1080, 1920).keys[1]!.view.lon0, 39.6);
+  });
+
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
 }
 

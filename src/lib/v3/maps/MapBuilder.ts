@@ -148,6 +148,54 @@ export function tallWidthKm(map: SceneMap): number {
   return Math.min(g, Math.max(g * TALL_MAP_SPAN, needed));
 }
 
+/**
+ * How much a Short's map pulse (Director.mapPulse: MAP_PULSE_ZOOM 1.2 on a ×1.035 hold) narrows the frame at its
+ * closest; a tall camera stop keeps its marks inside that narrower frame (kept here, MapBuilder does not import Director).
+ */
+const TALL_PULSE_ZOOM = 1.25;
+/** A badge's name plate reaches about this share of a tall frame's width each side of its pin ("Alexander the Great": ~0.47 of the width). */
+const TALL_BADGE_HALF = 0.24;
+
+/**
+ * A tall frame's camera stop shifted (never zoomed) so the marks of its own line stay in the picture (owner, 27 Nov 2026,
+ * the Gaugamela Short: "ne anlattığını göstermesi gerekiyor"; the writer's opening stop at 39.6° E, 1,012 km across the
+ * vertical frame, put Alexander's and Darius' badges and the Gaugamela ring at its right edge, and the map's pulse cut
+ * them off from 1 s to 12 s). The marks are the badges shown by the stop's line, the rings and battles of its lines, and —
+ * when they fit too — the arrows and roads its lines draw; they must lie inside TALL_MARGIN of the pulsed frame (a badge's
+ * plate: TALL_BADGE_HALF). The
+ * smallest shift that does it is taken; marks too far apart for the stop keep the writer's centre. 16:9 frames are not
+ * touched.
+ */
+export function tallKeyCentre(map: SceneMap, satir: number, next: number, view: MapView): [number, number] {
+  const lon0 = view.lon0;
+  const near = (p: readonly [number, number]): [number, number] => [p[0] + 360 * Math.round((lon0 - p[0]) / 360), p[1]];
+  const inStop = (l: number | undefined) => (l ?? 0) >= satir && (l ?? 0) < next;
+  const must: [number, number][] = [
+    // A badge on a road is somewhere along it: only standing badges are held in the frame.
+    ...(map.rozetler ?? []).flatMap((r) => ((r.satir ?? 0) < next && !r.yol?.length && r.konum ? [near(r.konum)] : [])),
+    ...(map.vurgular ?? []).flatMap((v) => (inStop(v.satir) && v.konum ? [near(v.konum)] : [])),
+    ...(map.savaslar ?? []).filter((b) => inStop(b.satir)).map((b) => near(b.konum)),
+  ];
+  const also: [number, number][] = [
+    ...(map.oklar ?? []).filter((a) => inStop(a.satir)).flatMap((a) => a.noktalar.map(near)),
+    ...(map.ordular ?? []).filter((a) => inStop(a.yol_satir ?? a.satir)).flatMap((a) => (a.yol ?? []).map(near)),
+  ];
+  const fit = (pts: [number, number][], margin: number): [number, number] | undefined => {
+    const usable = view.spanLon * (0.5 / TALL_PULSE_ZOOM - margin);
+    const usableLat = view.spanLat * (0.5 / TALL_PULSE_ZOOM - margin * (view.width / view.height));
+    if (!pts.length) return [view.lon0, view.lat0];
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const [w, e, s, n] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    if (e - w > 2 * usable || n - s > 2 * usableLat) return undefined;
+    // The smallest move: the centre clamped into the band where every mark is within reach.
+    return [Math.min(Math.max(view.lon0, e - usable), w + usable), Math.min(Math.max(view.lat0, n - usableLat), s + usableLat)];
+  };
+  // Badges with their whole name plate; when the arrows and roads do not fit with them, the badges and rings alone.
+  const margin = (map.rozetler ?? []).length ? TALL_BADGE_HALF : TALL_MARGIN;
+  return fit([...must, ...also], margin) ?? fit(must, margin) ?? [view.lon0, view.lat0];
+}
+
 export function mapView(center: readonly [number, number], widthKm: number, width: number, height: number): MapView {
   const [lon0, lat0] = center;
   const kx = Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
@@ -1862,7 +1910,16 @@ export function mapWorld(map: SceneMap, width: number, height: number, tilted = 
   // the writer zoomed to at TALL_MAP_SPAN of its width; a 16:9 frame the writer's widths as before.
   const tall = height > width;
   const keyKm = (km: number) => Math.max(km, worldDiveFloorKm(map));
-  const keys = [{ view: mapView(map.merkez!, tall ? tallWidthKm(map) : map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), tall ? keyKm(k.genislik_km) * TALL_MAP_SPAN : keyKm(k.genislik_km), width, height) }))];
+  const stops = [...(map.kamera ?? [])].sort((x, y) => x.satir - y.satir);
+  const keys = [
+    { view: mapView(map.merkez!, tall ? tallWidthKm(map) : map.genislik_km!, width, height) },
+    ...stops.map((k, i) => {
+      const km = tall ? keyKm(k.genislik_km) * TALL_MAP_SPAN : keyKm(k.genislik_km);
+      const v = mapView(near(k.merkez), km, width, height);
+      // A tall frame's stop keeps its own line's marks in the picture (tallKeyCentre); 16:9 as the writer gave it.
+      return { satir: k.satir, view: tall ? mapView(tallKeyCentre(map, k.satir, stops[i + 1]?.satir ?? Infinity, v), km, width, height) : v };
+    }),
+  ];
   const span = tilted ? TILT_WORLD_SPAN : undefined;
   if (keys.length === 1 && !span) {
     const v = keys[0]!.view;
