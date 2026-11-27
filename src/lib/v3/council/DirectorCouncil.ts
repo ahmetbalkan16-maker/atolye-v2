@@ -165,6 +165,26 @@ export interface ScriptTimes {
   readonly scenes: readonly { readonly start: number; readonly end: number }[];
 }
 
+/**
+ * Sounds that tell the viewer something else than the line shows. On the Alexander Short (27 Nov 2026) Darius fled
+ * to a `dusus` thud — heard as a fall, not as a getaway — and the humourist's fix (light quick footsteps) could not be
+ * ordered, since a line's own sound was never replaced. A misfit sound is now marked in the council's script and may
+ * be swapped; `yerine` is the sound that fits.
+ */
+export const SFX_MISFITS: readonly { readonly sfx: SfxId; readonly yerine: SfxId; readonly neden: string; readonly when: (l: SceneLine) => boolean }[] = [
+  {
+    sfx: "dusus",
+    yerine: "adim",
+    neden: "a fall's thud on a getaway reads as a fall",
+    when: (l) => (l.hareket === "kos" || /\b(flee|fled|flees|fleeing|run(?:s|ning)? away|ran away|escape[sd]?|escaping|bolt(?:s|ed)?|retreat(?:s|ed|ing)?|scurr(?:y|ies|ied))\b|\bka[çc](?:t[ıi]|[ıi]yor|ar|mak|ış|is)/i.test(l.metin)) && !/\b(fall|falls|fell|trip(?:s|ped)?|stumbl\w*|collaps\w*|thud|drop(?:s|ped)?|faint\w*)\b|d[üu][şs]t[üu]|y[ıi]ğ[ıi]ld/i.test(l.metin),
+  },
+];
+
+/** The misfit rule a line's own sound breaks, if any. */
+export function soundMisfit(l: SceneLine): (typeof SFX_MISFITS)[number] | undefined {
+  return l.sfx ? SFX_MISFITS.find((m) => m.sfx === l.sfx && m.when(l)) : undefined;
+}
+
 /** The script as the council reads it: scene by scene, numbered lines, who is on stage, what they do. */
 export function compactScript(episode: Episode, times?: ScriptTimes): string {
   const name = (id: string) => (episode.oyuncu_kadrosu.find((c) => c.id === id)?.gorunur ? id : `${id} (voice only)`);
@@ -176,7 +196,7 @@ export function compactScript(episode: Episode, times?: ScriptTimes): string {
       const stage = [...onStage(sc)];
       const head = `SCENE ${sc.id} — ${kind} — ${sc.mekan}${set}${stage.length ? ` — on stage: ${stage.join(", ")}` : ""}${t ? ` — ${t.start.toFixed(0)}–${t.end.toFixed(0)} s` : ""}`;
       const lines = sc.satirlar.map((l, li) => {
-        const extra = [l.jest ? `gesture ${l.jest}` : "", l.hareket ? `move ${l.hareket}` : "", l.balon ? `bubble "${l.balon}"` : "", l.oyun?.length ? `acts: ${l.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")).join("; ")}` : "", l.sfx ? `sound ${l.sfx}` : ""].filter(Boolean).join(", ");
+        const extra = [l.jest ? `gesture ${l.jest}` : "", l.hareket ? `move ${l.hareket}` : "", l.balon ? `bubble "${l.balon}"` : "", l.oyun?.length ? `acts: ${l.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")).join("; ")}` : "", l.sfx ? `sound ${l.sfx}${((m) => (m ? ` (does not fit: ${m.neden}; better ${m.yerine})` : ""))(soundMisfit(l))}` : ""].filter(Boolean).join(", ");
         return `  #${li} ${name(l.karakter)} (${l.duygu}): ${l.metin}${extra ? ` [${extra}]` : ""}`;
       });
       return [head, ...lines].join("\n");
@@ -215,7 +235,7 @@ const NUMBER_RULE = "Numbers, dates and measurements in the lines come from the 
  */
 export const HUMOUR_TOOLBOX = `YOUR TOOLBOX (what the studio can make):
 - A line ("satir"): a deadpan aside, an absurd modern comparison ("like your Wi-Fi dropping mid-game"), a character talking like a modern person, understatement, a callback to an earlier joke. Pop culture only as our own words (an everyday habit, a gadget, a meme-like phrase), never a film's, show's or song's title line, quote or theme tune — those cannot be used.
-- A sound on a line ("oyun", name it in "oneri" by its id): ${SFX_IDS.map((id) => `${id} (${SFX_NOTES[id]})`).join(", ")}. A sound lands at the start of the line; a line marked "sound" already has one.
+- A sound on a line ("oyun", name it in "oneri" by its id): ${SFX_IDS.map((id) => `${id} (${SFX_NOTES[id]})`).join(", ")}. A sound lands at the start of the line; a line marked "sound" already has one, unless it is marked "does not fit" — then name the better one.
 - An act ("oyun"): the characters on stage react with a gesture or a face while the line is said.`;
 
 export function criticPrompt(beyin: Critic, script: string, ctx: CouncilContext, lessons: readonly string[], example = "s1"): string {
@@ -291,7 +311,7 @@ ${script}
 
 Decide what to fix in ONE revision round, using ONLY these fixes:
 1. {"tur": "satir", "sahne", "satir", "talimat": "<English instruction to the script writer>"} — the writer rewrites that line, keeping its speaker and facts;
-2. {"tur": "oyun", "sahne", "satir", "oyun": [{"karakter", "jest", "duygu", "efekt"}], "sfx"} — characters ON STAGE in that scene act during the line (the speaker's own entry sets the gesture and face it speaks with; one entry per character); jest: ${GESTURES.join(", ")}; duygu: ${EMOTIONS.join(", ")}; efekt: ${EFFECTS.join(", ")}; optional "sfx": a sound at the start of a line that has none yet (any scene, "oyun" may then be empty): ${SFX_IDS.join(", ")};
+2. {"tur": "oyun", "sahne", "satir", "oyun": [{"karakter", "jest", "duygu", "efekt"}], "sfx"} — characters ON STAGE in that scene act during the line (the speaker's own entry sets the gesture and face it speaks with; one entry per character); jest: ${GESTURES.join(", ")}; duygu: ${EMOTIONS.join(", ")}; efekt: ${EFFECTS.join(", ")}; optional "sfx": a sound at the start of a line that has none yet, or in place of a sound marked "does not fit" (any scene, "oyun" may then be empty): ${SFX_IDS.join(", ")};
 3. {"tur": "set", "sahne", "manzara", "tasarim"} — a stage scene gets another place: manzara one of ${LANDSCAPES.join(", ")}, and/or "tasarim" a new English description of the drawn place with NO people in it (the characters stand on the stage in front of it).
 On stage: ${stages || "nobody"}. "sahne" is the scene id exactly as written after SCENE (like "${exampleScene(episode)}"); "satir" is the line's number as a plain number.
 Faces, likeness and costumes are not yours to fix here: the retouch brain redesigns them by its own measures; never use a set or an act for them.
@@ -322,8 +342,9 @@ export function parseDecision(episode: Episode, text: string, maxEdits = MAX_EDI
       edits.push({ tur: "satir", sahne: sc.id, satir: li, talimat: clip(e.talimat, 400), neden });
     } else if (e.tur === "oyun" && li !== undefined && (Array.isArray(e.oyun) || e.sfx !== undefined)) {
       const stage = onStage(sc);
-      // A sound only where the line has none (a fight's sword or a fall's thud stays on its cue).
-      const sfx = SFX_IDS.includes(e.sfx as SfxId) && !sc.satirlar[li]!.sfx ? (e.sfx as SfxId) : undefined;
+      // A sound only where the line has none or a misfit one (a fight's sword or a fall's thud stays on its cue).
+      const had = sc.satirlar[li]!;
+      const sfx = SFX_IDS.includes(e.sfx as SfxId) && e.sfx !== had.sfx && (!had.sfx || soundMisfit(had)) ? (e.sfx as SfxId) : undefined;
       const acts = (Array.isArray(e.oyun) ? (e.oyun as Record<string, unknown>[]) : []).flatMap((a): LineAct[] => {
         const id = String(a?.karakter ?? "");
         if (!stage.has(id) || !visible.has(id)) return [];
@@ -541,7 +562,7 @@ export function applyEdits(episode: Episode, edits: readonly DirectorEdit[], rew
           const others = act.oyun.filter((a) => a.karakter !== l.karakter);
           if (own) out = { ...out, ...(own.jest ? { jest: own.jest } : {}), ...(own.duygu ? { duygu: own.duygu } : {}), ...(own.efekt ? { efekt: own.efekt } : {}) };
           if (others.length) out = { ...out, oyun: [...new Map([...(l.oyun ?? []), ...others].map((a) => [a.karakter, a] as const)).values()] };
-          if (act.sfx && !l.sfx) out = { ...out, sfx: act.sfx };
+          if (act.sfx && (!l.sfx || soundMisfit(l))) out = { ...out, sfx: act.sfx };
         }
         return out;
       });

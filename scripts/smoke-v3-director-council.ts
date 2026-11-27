@@ -38,6 +38,7 @@ import {
   type RefusedFix,
   rewritePrompt,
   sessionDebate,
+  soundMisfit,
   sourcedNumberFacts,
 } from "../src/lib/v3/council/DirectorCouncil";
 import { bestRound, cutFaults, faultsDecided, keepRound, restoreRound, retouchDebate, roundImproved, type RoundScore, roundLine, roundScore, roundShortfall, withDirector } from "../src/lib/v3/council/RetouchBrain";
@@ -171,6 +172,31 @@ async function main() {
     assertEpisode(fixed);
     assert.equal(editsStep(d.duzeltmeler), "render");
     assert.match(sessionDebate({ raporlar: [], yanitlar: [], puan: 6, karar: { ozet: "", duzeltmeler: d.duzeltmeler, yeniden: [] } } as never)[0]!.metin, /para efekti/);
+  });
+
+  await scenario("C3 the Alexander Short's flight (27 Nov 2026): a fall's thud on a getaway is marked as a misfit and AYAS may swap it", () => {
+    const sc = episode.sahneler[1]!;
+    const fled = { ...sc.satirlar[0]!, metin: "Darius flees the field in his chariot.", sfx: "dusus" as const };
+    const fell = { ...sc.satirlar[1]!, metin: "The legionary trips and falls into the river.", sfx: "dusus" as const };
+    const ep = { ...episode, sahneler: [episode.sahneler[0]!, { ...sc, satirlar: [fled, fell, ...sc.satirlar.slice(2)] }, ...episode.sahneler.slice(2)] };
+    assert.equal(soundMisfit(fled)?.yerine, "adim");
+    assert.equal(soundMisfit(fell), undefined);
+    assert.equal(soundMisfit({ ...fled, metin: "He just stands there.", hareket: "kos" })?.yerine, "adim");
+    assert.equal(soundMisfit({ ...fled, sfx: "adim" }), undefined);
+    const s = compactScript(ep);
+    assert.match(s, /#0 [^\n]*sound dusus \(does not fit: [^)]*; better adim\)/);
+    assert.match(s, /#1 [^\n]*sound dusus\]/);
+    assert.match(criticPrompt("mizah", "", { baslik: "", sureSn: 60, shorts: true }, []), /unless it is marked "does not fit"/);
+    const d = parseDecision(ep, JSON.stringify({ ozet: "", duzeltmeler: [
+      { tur: "oyun", sahne: STAGE, satir: 0, sfx: "adim", neden: "kaçış hafif adımlarla" },
+      // A fitting fall keeps its thud; a "swap" to the same sound is no fix.
+      { tur: "oyun", sahne: STAGE, satir: 1, sfx: "boing", neden: "x" },
+      { tur: "oyun", sahne: STAGE, satir: 3, sfx: "davul", neden: "y" },
+    ] }))!;
+    assert.deepEqual(d.duzeltmeler.map((e) => [e.sahne, (e as Extract<DirectorEdit, { tur: "oyun" }>).sfx]), [[STAGE, "adim"]]);
+    const fixed = applyEdits(ep, d.duzeltmeler, []);
+    assert.deepEqual(fixed.sahneler[1]!.satirlar.slice(0, 2).map((l) => l.sfx), ["adim", "dusus"]);
+    assertEpisode(fixed);
   });
 
   await scenario("D rewrites: only ordered lines, sane length, a bubble only where one was; the fixed episode stays valid", () => {
