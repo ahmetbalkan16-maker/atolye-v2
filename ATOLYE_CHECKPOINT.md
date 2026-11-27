@@ -14,6 +14,10 @@
   Sınav 19/19. Canlı `ayas-live-0470a8bb` (healthy). **Sahibin yapacağı:** yönetici PowerShell'de
   `Set-NetFirewallProfile -Profile Public -DefaultInboundAction Block -AllowInboundRules False` (+ isteğe bağlı NetBIOS/LLMNR
   kapatma). Claude kabuğu yönetici değil. Şu an okunan: "True / Block" (kalkan kapalı).
+- **Son karar** (owner: "ortak dosyalara giriyorum, yazıcıyı kullanıyorum … başka değişikliğe gerek yok", "bekçide bununla
+  ilgili uyarı kalmasın"): 5d27a0e9 — 445/139/3389, Ortak izin kuralları ve güvenlik duvarı ölçümü hiç bulgu değil; panelde
+  yalnız bilgi satırı `report.sharedNetwork`. NetBIOS/LLMNR kapatma önerisi geri çekildi (ortak klasörlere isimle erişim).
+  Canlı `ayas-live-5d27a0e9` (healthy); 06:53 UTC turu: 0 bulgu. Sahip yalnız block-all satırını isterse çalıştırır.
 
 ## 27 Kasım 2026 (4) — Toplu canlıya alma 890d6c35; React radar boşluğu; ofis akıcılığı; TypeScript 6 denemesi sürüyor
 
