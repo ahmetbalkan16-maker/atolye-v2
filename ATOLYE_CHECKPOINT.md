@@ -1,3 +1,20 @@
+## 27 Kasım 2026 (5) — TypeScript 6.0.3 canlıda; Bekçi Ortak ağ kararı (canlı 0470a8bb)
+
+- **TypeScript 5.9.3 → 6.0.3** (owner "ikisini de hallet, geçir"): c6272b7e — kök + remotion-v3 paketleri; 14 smoke'un geçici
+  repo tsconfig'inden `moduleResolution: "node"` çıkarıldı (TS 6'da TS5107; TS 5.9 commonjs'te node10'u kendisi seçer),
+  donmuş `smoke-ayas-owner-approval-resume.ts` dokunulmadı; değerlendirme araç zinciri sabiti
+  (`prepare-ayas-local-coding-image.ts`) 6.0.3. 29bafe9d EVAL 15F.4-v78 (v77 arşivi; 3 pin commit'li bloblardan).
+  Kanıt: 14 suite PASS, tsc (kök + remotion) temiz, lint 0/0, eval-governance 10 + mutations 8/8 + yardstick 7,
+  **cf49 CLOSED_PASS**. Tam taramada kalan 7 hata 5.9 tabanında da var (release-provenance workerd, STT/wake/local-providers).
+  Canonical'da `npm install` (kök + remotion-v3, V3 siparişi yokken) → 6.0.3; canlı `ayas-live-e1b08a8c` kendi npm ci'si
+  ile 6.0.3. Canlı daldaki AYAS bf3c1b6a (tracked-deep smoke) birleştirildi.
+- **Bekçi / Ortak ağ** (owner: "ortak ağ kullanmak zorundayım; ağda başka birisi benim sistemi görmesin"): 0470a8bb —
+  `measurePublicShield` (ActiveStore, yönetici gerekmez) → `publicShield`; Ortak profil tüm geleni engellerken 445/139/3389
+  ve Ortak izin kuralları bulgu değil, 3000/11434 yine sayılır; tavsiye artık "Özel'e geç" değil, block-all komutu.
+  Sınav 19/19. Canlı `ayas-live-0470a8bb` (healthy). **Sahibin yapacağı:** yönetici PowerShell'de
+  `Set-NetFirewallProfile -Profile Public -DefaultInboundAction Block -AllowInboundRules False` (+ isteğe bağlı NetBIOS/LLMNR
+  kapatma). Claude kabuğu yönetici değil. Şu an okunan: "True / Block" (kalkan kapalı).
+
 ## 27 Kasım 2026 (4) — Toplu canlıya alma 890d6c35; React radar boşluğu; ofis akıcılığı; TypeScript 6 denemesi sürüyor
 
 Owner: "1.3.4. maddeleri uygula", "ofiste … hareketleri çok kasıyor", "sonra canlıya al hepsini".
