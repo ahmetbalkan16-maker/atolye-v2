@@ -1,3 +1,24 @@
+## 27 Kasım 2026 (8) — İran savaşı Short'u YouTube'da (Cmt 12:00 TR); 2026 görselleri; kanal analisti; kanca ve abone kuralları
+
+- **Video:** sipariş `20261127T092349-how-did-one-night-of-strikes-start-the-2`, ton ciddi, 60sn, tur 0 teslim (64,0 sn,
+  1080×1920, 3 gerçek fotoğraf: Hamaney/Hürmüz/Hayfa). **YouTube `haNqkio1Jcw` gizli, 2026-11-28T09:00Z (Cmt 12:00 TR).**
+  Müdahaleler: (1) senaryo elle yeniden yazıldı (gerçek kişilere espri, ölen Hamaney konuşuyordu + abone daveti, "before dawn",
+  "150 tankers") → vaka el-20261127T093039-l1pp; (2) 3bcbfd8d + 11f6092b: 1990+ dönemlerde yargıç "modern"i ret sebebi saymıyor
+  (Epic Fury foto dönem 0/10, Hamaney 9/3 MODERN, çizimler 9/10 düşüyordu); (3) rötuş turu 1 durduruldu: AYAS yönetmeni
+  kaynaktaki Hamaney'in ölümünü silip kaynaksız cümle koyuyordu → deliverAfterFailedRound tur 0, vaka el-20261127T113403-zidk.
+- **9eed7a15:** Short soruyla açılır VE soruyla kapanır (son satır açık soru + abone daveti, ≤20 kelime).
+- **0858fd64 + 31a8bfeb:** kanal analisti (`ChannelAnalyst.ts`, `ChannelAnalystRun.ts`, `kanal.ts analiz`, haftalık adım
+  `gelisim.ts karsilastir`): videolar arası 7 bulgu; owner "gelişim merkezine düşmesine gerek yok" → varsayılan yalnız rapor
+  (`_kutuphane/kanal/analiz-raporu.md`) + AYAS mesajı; öneri yalnız `ATOLYE_V3_KANAL_ONERI=1` ya da `analiz --yaz`.
+- **a843cfe2:** ilk hamle ~10 sn/24 kelime (rozet esprisi hamle sayılmaz), açıklamaya kanal vaadi + yayın günleri,
+  `youtube.json paket.sabitYorum` (son sorudan; API sabitleyemez → owner elle sabitler). Kanıt `docs/v3/KANCA_ANALIZI_2026-11-27.md`.
+- **1f7880e3:** `docs/v3/REKLAM_ONERISI_2026-11-27.md` (14.865 görüntülemenin %79'u reklam, 1 abone) — karar owner'da.
+- Hepsi canlı dalda (canonical 1f7880e3). Testler: script 68, episode-director 90, backgrounds 34, channel-analyst 7,
+  channel-goals 21, youtube 11, youtube-yukleme 12, short-tempo 3, self-improvement 11, firewall closure; tsc; lint 0/0.
+- **Kalan kusurlar (sıradaki iş):** dikey karakter sahnesinde alt bant boş kalıyor ve kapanış ~12 sn duruyor; 7,4–11,8 sn
+  ortak düşüşü harita sahnelerinde (harita ilk bakışta okunmalı, üstünde hareket); İran Short'unun sabit yorumu
+  (paket.sabitYorum bu videoda yok, a843cfe2 sonrası üretimlerde var); YouTube izni ~3 Aralık'ta düşer.
+
 ## 27 Kasım 2026 (7) — Her Short'ta (60 sn dahil) en az 3 gerçek görsel; sistem taraması temiz
 
 - Owner: "shorts videolarında da gerçek fotoğraf kullanılsın, en azından 3 tane", "60 sn shortslarda da çalışsın".
