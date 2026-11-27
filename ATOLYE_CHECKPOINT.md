@@ -1,3 +1,16 @@
+## 27 Kasım 2026 (12) — Gaugamela Short YouTube'da planlı: frcyPUbflsg, Salı 1 Aralık 10:00Z (13:00 TR)
+
+- Canlı 3e00045c (owner "onay istediklerini yap"): dolu dikey bantlar, puanlı müzik dengesi, antik görsel kuralı; otomatik yayın PUBLISHED.
+- Yeniden çıkış: render'dan; mozaik yine düştü (s3 kamera 1. satırda yakınlaşıyor, işaretli satır pencereye sığmadı) → işaret 2. satıra;
+  rötuş turu iki kez benzerliği düşürdü (7→6), durduruldu; son çıkış elle `atolye-v3.ts uret … --from-step render --rotus-yok`.
+  Yan etki: durdurulan tur 1'in gardırobu İskender çizimini değiştirmişti (benzerlik 4/10), karede göze batmıyor.
+- Son kesim: kapı 8,5/10 iyileştirme gerekli, engel yok; 3 gerçek görsel (Ölümsüzler, Lahit, Mozaik), anlatıcı fondan 12,3 LU yüksek.
+  Yedekler: teslim-tur0-yedek, teslim-tur0b-yedek. Sipariş elle güncellendi (durum, video, kalite, yayin onaylandı → planlandi).
+- Owner elle sabitleyecek yorum: "Would you have charged straight at a king? Tell us in the comments 👇 A new insane history moment
+  every Tue, Thu & Sat — subscribe so you don't miss it."
+- Açık: kapının zayıf alanları (sahne planında kamera eksikleri, kalite beyninin "anlatılanı gösterme" 2,5/10, lejant Shorts üst
+  çubuğunda, altyazı videodan taşması); durdurulan rötuş turunun gardırobu paylaşılan dosyaları değiştiriyor (yalnız tur klasörüne yazmalı).
+
 ## 27 Kasım 2026 (11) — Gaugamela tur 0 teslim (8,7/10), antik görsel araması, dolu dikey bantlar, puanlı müzik dengesi
 
 - Gaugamela Short tur 0 uyarıyla teslim (59,5 sn, kapı 8,7/10, engel yok; tur 1 benzerlik 7→6 düştü, seçilmedi). Görsel adımında
