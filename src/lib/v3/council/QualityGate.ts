@@ -331,3 +331,30 @@ export function speechMusicBalance(points: readonly { t: number; m: number }[], 
   const a = median(sp)!, b = median(mu)!;
   return { speech: Math.round(a * 10) / 10, music: Math.round(b * 10) / 10, diff: Math.round((a - b) * 10) / 10, musicS: Math.round(mu.length) / 10 };
 }
+
+/** The voices against the bed under them, from the mixer's own stems (Mixer.renderMix). */
+export interface VoiceOverBed {
+  /** Median of voice minus bed (LU) over the moments someone speaks. */
+  readonly farkLu: number;
+  /** The share of speaking moments where the bed comes within BED_CLOSE_LU of the voice. */
+  readonly yakinPay: number;
+  readonly konusmaSn: number;
+}
+
+/** A voice this much over its bed reads clearly on a phone speaker; less is music covering the narrator. */
+export const VOICE_OVER_BED_MIN_LU = 8;
+/** A speaking moment with the bed this close to the voice is a moment the words may be lost. */
+export const BED_CLOSE_LU = 4;
+
+/**
+ * Music against the narrator, scored (owner, 27 Nov 2026, the quality standard: "Müzik anlatıcıyı bastırmamalı"): the
+ * dialogue stem and the bed stem (the same mix with the voices silenced after they keyed every duck), moment by moment
+ * (ebur128, 0.4 s windows) where the voice is above -45 LUFS. Undefined with under a second of speech.
+ */
+export function voiceOverBed(voice: readonly { t: number; m: number }[], bed: readonly { t: number; m: number }[]): VoiceOverBed | undefined {
+  const at = new Map(bed.map((p) => [Math.round(p.t * 10), p.m]));
+  const diffs = voice.filter((p) => p.m > -45).map((p) => p.m - (at.get(Math.round(p.t * 10)) ?? -70));
+  if (diffs.length < 10) return undefined;
+  const sorted = [...diffs].sort((a, b) => a - b);
+  return { farkLu: Math.round(sorted[Math.floor(sorted.length / 2)]! * 10) / 10, yakinPay: Math.round((diffs.filter((d) => d < BED_CLOSE_LU).length / diffs.length) * 100) / 100, konusmaSn: diffs.length / 10 };
+}

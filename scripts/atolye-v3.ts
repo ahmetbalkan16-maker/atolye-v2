@@ -53,7 +53,7 @@ import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/coun
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate, sourcedNumberFacts } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview, shortsUiReview } from "../src/lib/v3/council/QualityBrain";
-import { AREA_TR, BALANCE_MIN_LU, closingHoldS, CUE_MAX_CHARS, CUE_MAX_CPS, FREEZE_MIN_S, FREEZE_NOISE, GATE_TARGET, type GateCheck, gateLine, gateMarkdown, gateSummary, longestGapIn, parseFreezes, parseMomentary, parseSrt, qcChecks, scoreGate, speechMusicBalance, subtitleFaults, tc } from "../src/lib/v3/council/QualityGate";
+import { AREA_TR, BALANCE_MIN_LU, BED_CLOSE_LU, VOICE_OVER_BED_MIN_LU, type VoiceOverBed, closingHoldS, CUE_MAX_CHARS, CUE_MAX_CPS, FREEZE_MIN_S, FREEZE_NOISE, GATE_TARGET, type GateCheck, gateLine, gateMarkdown, gateSummary, longestGapIn, parseFreezes, parseMomentary, parseSrt, qcChecks, scoreGate, speechMusicBalance, subtitleFaults, tc } from "../src/lib/v3/council/QualityGate";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { similarCaseLines } from "../src/lib/v3/council/DevBrain";
 import { brainCases, criticBriefing, factCheckBriefing } from "../src/lib/v3/council/BrainBriefing";
@@ -1278,7 +1278,7 @@ async function main() {
       for (const c of r.cleanup) log(`  ses temizliği: ${c.kaynak} — ${c.once} sabit tiz çizgi → ${c.sonra}`);
       if (r.declick.once) log(`  ses tıkırtısı: ${r.declick.satir} satırda ${r.declick.once} tık → ${r.declick.sonra}`);
       for (const h of r.borazan) log(`  ⚠ çalınmadı: ${h.kaynak} — ${h.sorun}`);
-      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, dosya: path.basename(s.file), ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup, tik: r.declick, ...(r.borazan.length ? { borazan: r.borazan } : {}), ...(battle ? { savas: { pencereler: battle.windows, silah: battle.arms, ...battle.counts } } : {}) };
+      const meta = { ...(r.balans ? { balans: r.balans } : {}), integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, dosya: path.basename(s.file), ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup, tik: r.declick, ...(r.borazan.length ? { borazan: r.borazan } : {}), ...(battle ? { savas: { pencereler: battle.windows, silah: battle.arms, ...battle.counts } } : {}) };
       await writeJson(f("miks.json"), meta);
       return meta;
     });
@@ -1709,8 +1709,10 @@ async function main() {
         ...(shorts ? [{ stage: "kurgu" as const, area: "altyazi" as const, ok: hidden !== undefined && !hidden.length, weight: Math.min(3, Math.max(1, hidden?.length ?? 1)), unmeasured: hidden === undefined, text: `Shorts arayüzü: ${hidden === undefined ? "ölçülmedi (yerleşim kaydı yok)" : hidden.length ? `${hidden.length} yazı alt bant/sağ butonlar/üst çubuk altında — ${hidden.slice(0, 3).map((x) => `${tc(x.from)} ${x.ayrinti}`).join("; ")}` : "önemli yazı kapanan alanda değil"}` }] : []),
         ...(upload ? [{ stage: "export" as const, area: "final" as const, ok: w === wantW && h === wantH && Number.isFinite(upS) && Math.abs(upS - durationS) <= 1 && (!shorts || upS <= SHORTS_MAX_S), weight: 0, block: "teknik" as const, text: `Yükleme dosyası ${upload}: ${w ?? "?"}×${h ?? "?"}, ${Number.isFinite(upS) ? upS.toFixed(1) : "?"} sn (beklenen ${wantW}×${wantH}${shorts ? `, ≤ ${SHORTS_MAX_S} sn` : ""}, final ile aynı süre)` }] : []),
         // Music under the narrator is mixed by rule (Mixer's ducking); no measure of it exists yet, so it is listed, not scored.
+        // Scored from the mixer's stems (Mixer.renderMix balans: voices vs the bed with them silenced); an older mix has none.
+        ((v?: VoiceOverBed) => ({ stage: "ses" as const, area: "ses" as const, ok: !!v && v.farkLu >= VOICE_OVER_BED_MIN_LU && v.yakinPay <= 0.15, weight: 2, unmeasured: !v, text: `Anlatıcı müziğin üstünde: ${v ? `konuşma anlarında ses fondan ${v.farkLu} LU yüksek (hedef ≥ ${VOICE_OVER_BED_MIN_LU}), fonun sese ${BED_CLOSE_LU} LU'dan yakın olduğu an %${Math.round(v.yakinPay * 100)} (hedef ≤ %15), ${v.konusmaSn} sn konuşma` : "ölçülmedi (miks bu ölçümden önce yapılmış)"}` }))((mix as { balans?: VoiceOverBed }).balans),
         // Listed, not scored: the music-only moments of a Short are few and carry the battle effects too (Constantinople
-        // 20 Nov 2026 measured 0.1 LU from its cannon shots, Trasimene 10.4 LU); a scored check needs the mixer's stems.
+        // 20 Nov 2026 measured 0.1 LU from its cannon shots, Trasimene 10.4 LU); the stems above are the score.
         { stage: "ses", area: "ses", ok: true, unmeasured: true, text: `Müzik/anlatıcı dengesi (konuşmasız anlara göre, puana katılmıyor): ${balance ? `konuşma ${balance.speech} LUFS, yalnız müzik/efekt ${balance.music} LUFS (${balance.musicS} sn), fark ${balance.diff} LU (en az ${BALANCE_MIN_LU} beklenir)` : "konuşmasız an yetersiz"}` },
       ];
       const result = scoreGate([...base.checks, ...extra]);

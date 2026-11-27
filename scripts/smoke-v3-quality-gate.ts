@@ -9,9 +9,10 @@ import { detectAyasVideoIntent } from "../src/lib/ayas/AyasVideoOrder";
 import { shortsUiCover, shortsUiFaults } from "../src/lib/v3/council/LayoutCheck";
 import { closingTempoGaps, openingBeats, withOpeningBeats } from "../src/lib/v3/director/Director";
 import type { V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
-import { closingHoldS, GATE_TARGET, gateMarkdown, longestGapIn, parseFreezes, parseMomentary, parseSrt, speechMusicBalance, qcChecks, qcRowCheck, scoreGate, subtitleFaults, type GateCheck } from "../src/lib/v3/council/QualityGate";
+import { closingHoldS, GATE_TARGET, gateMarkdown, longestGapIn, parseFreezes, parseMomentary, parseSrt, speechMusicBalance, voiceOverBed, qcChecks, qcRowCheck, scoreGate, subtitleFaults, type GateCheck } from "../src/lib/v3/council/QualityGate";
 import type { ProductionOrder } from "../src/lib/v3/orders/ProductionOrders";
 import { approvePublish } from "../src/lib/v3/publish/PublishApproval";
+import { mixGraph } from "../src/lib/v3/mix/Mixer";
 
 let scenarios = 0;
 function scenario(name: string, fn: () => void): void {
@@ -143,6 +144,22 @@ scenario("the closing tempo: a Short's last 10 s get a picture change at least e
   const cut = { ...still, shots: [{ ...still.shots[0]!, camera: withOpeningBeats(still.shots[0]!.camera, [], [], 600, 600, 30, undefined, 300) }] } as unknown as V3RenderPlan;
   assert.deepEqual(closingTempoGaps(cut), [], "the Director's closing beats close the held ending");
   assert.deepEqual(withOpeningBeats(still.shots[0]!.camera, [], [], 600, 600, 30, undefined, 600), still.shots[0]!.camera, "nothing before `from`");
+});
+
+scenario("the narrator over the music, from the mixer's stems: the dialogue-muted bed and the median gap where someone speaks", () => {
+  const voice = Array.from({ length: 50 }, (_, i) => ({ t: i / 10, m: i < 40 ? -16 : -80 }));
+  const quiet = voiceOverBed(voice, voice.map((p) => ({ t: p.t, m: -30 })));
+  assert.deepEqual(quiet, { farkLu: 14, yakinPay: 0, konusmaSn: 4 });
+  const loud = voiceOverBed(voice, voice.map((p) => ({ t: p.t, m: -18 })));
+  assert.equal(loud!.farkLu, 2);
+  assert.equal(loud!.yakinPay, 1);
+  assert.equal(voiceOverBed(voice.slice(0, 5), []), undefined);
+  // The muted graph keeps every duck keyed by the voices and only silences them in the final sum.
+  const g = { beds: ["[2:a]anull[m0]"], ambience: [], duration: 10 };
+  const muted = mixGraph(g, { muteDialogue: true });
+  assert.ok(muted.includes("[dlg]volume=0[dlgm]"));
+  assert.ok(muted.at(-1)!.startsWith("[dlgm][ducked][fx]amix"));
+  assert.deepEqual(mixGraph(g).filter((c) => !c.includes("dlgm")), mixGraph(g), "the normal mix is unchanged");
 });
 
 console.log(`PASS (${scenarios} scenarios)`);

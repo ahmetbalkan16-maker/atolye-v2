@@ -9,6 +9,7 @@ import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { cleanAudioFile, declickClip, decodeMono, EFFECT_FADE_IN_S, EFFECT_FADE_OUT_S, fadeClipEdges, hornProblems, ticks } from "./AudioQuality";
+import { parseMomentary, type VoiceOverBed, voiceOverBed } from "../council/QualityGate";
 
 /**
  * V3 audio mix: dialogue and effects are placed sample-exactly in Node, music beds are cut, looped and
@@ -328,8 +329,12 @@ function duckChain(main: string, key: string, ratio: number, out: string, thresh
  * effects duck every bed (EFFECT_DUCK_RATIO), and the ambience stays steady under speech (a place does not breathe
  * with the narrator). Each key is split once per bed it moves, so no FFmpeg link is left open.
  */
-export function mixGraph(g: { readonly beds: readonly string[]; readonly ambience: readonly string[]; readonly battle?: string; readonly duration: number }): string[] {
+export function mixGraph(g: { readonly beds: readonly string[]; readonly ambience: readonly string[]; readonly battle?: string; readonly duration: number }, opts: { readonly muteDialogue?: boolean } = {}): string[] {
   const dur = g.duration.toFixed(3);
+  // `muteDialogue`: the same mix with the voices silenced after they keyed every duck — the bed exactly as the viewer
+  // hears it under the narrator (MixResult.balans).
+  const dlgOut = opts.muteDialogue ? "[dlgm]" : "[dlg]";
+  const mute = opts.muteDialogue ? ["[dlg]volume=0[dlgm]"] : [];
   const speechKeys = [...(g.beds.length ? ["km"] : []), ...(g.battle ? ["kb"] : [])];
   const effectKeys = [...(g.beds.length ? ["fm"] : []), ...(g.ambience.length ? ["fa"] : []), ...(g.battle ? ["fb"] : [])];
   const split = (first: string, keys: readonly string[]) => (keys.length ? `,asplit=${keys.length + 1}[${first}]${keys.map((k) => `[${k}]`).join("")}` : `[${first}]`);
@@ -344,12 +349,12 @@ export function mixGraph(g: { readonly beds: readonly string[]; readonly ambienc
     chains.push(g.battle, duckChain("bt0", "kb", BATTLE_DUCK_RATIO, "bt1"), duckChain("bt1", "fb", EFFECT_DUCK_RATIO, "bt", EFFECT_DUCK_THRESHOLD));
     under.push("[bt]");
   }
-  if (!g.beds.length) return [...chains, `[dlg][fx]${under.join("")}amix=inputs=${2 + under.length}:normalize=0:duration=first[mix]`];
+  if (!g.beds.length) return [...chains, ...mute, `${dlgOut}[fx]${under.join("")}amix=inputs=${2 + under.length}:normalize=0:duration=first[mix]`];
   chains.push(`${g.beds.map((_, i) => `[m${i}]`).join("")}amix=inputs=${g.beds.length}:normalize=0:duration=longest,apad=whole_dur=${dur}[bed]`);
   // Duck the bed under speech. A 5 ms attack moved the gain within one cycle of a low horn and added 7 dB more
   // distortion above 1.5 kHz than 20 ms (measured 26 Oct 2026); 20 ms still lands before the first syllable is heard.
   chains.push(duckChain("bed", "km", 8, "bed1"), duckChain("bed1", "fm", EFFECT_DUCK_RATIO, "ducked", EFFECT_DUCK_THRESHOLD));
-  return [...chains, `[dlg][ducked][fx]${under.join("")}amix=inputs=${3 + under.length}:normalize=0:duration=first[mix]`];
+  return [...chains, ...mute, `${dlgOut}[ducked][fx]${under.join("")}amix=inputs=${3 + under.length}:normalize=0:duration=first[mix]`];
 }
 
 export interface MixResult {
@@ -364,6 +369,8 @@ export interface MixResult {
   readonly declick: MixDeclick;
   /** Effects and ambience beds left out because they sound like a horn (AudioQuality.hornProblems), with why. */
   readonly borazan: readonly MixHorn[];
+  /** The voices against the bed under them (QualityGate.voiceOverBed); undefined when it could not be measured. */
+  readonly balans?: VoiceOverBed;
 }
 
 /** A source the mixer would not play: its file name, what it was and why. */
@@ -489,6 +496,14 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const chains = mixGraph({ beds, ambience: places, ...(battle ? { battle } : {}), duration: input.duration });
   const raw = path.join(tmp, "mix-raw.wav");
   await runChecked(paths.ffmpeg, [...args, "-filter_complex", chains.join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", raw], { timeoutMs: 30 * 60_000 });
+  // Music must not cover the narrator (owner, 27 Nov 2026, the quality standard): the bed rendered once more with the
+  // voices silenced (same ducks), both measured moment by moment where someone speaks. A failed measure is no fault.
+  const balans = await (async () => {
+    const bedOnly = path.join(tmp, "bed-raw.wav");
+    await runChecked(paths.ffmpeg, [...args, "-filter_complex", mixGraph({ beds, ambience: places, ...(battle ? { battle } : {}), duration: input.duration }, { muteDialogue: true }).join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", bedOnly], { timeoutMs: 30 * 60_000 });
+    const momentary = async (file: string) => parseMomentary((await runChecked(paths.ffmpeg, ["-hide_banner", "-nostats", "-i", file, "-af", "ebur128", "-f", "null", "-"])).stderr);
+    return voiceOverBed(await momentary(dlgFile), await momentary(bedOnly));
+  })().catch(() => undefined);
 
   // Two-pass loudness: measure, then apply with the measured values (linear when possible). The true-peak target
   // keeps 0.5 dB of headroom: AAC encoding of the final file lifts inter-sample peaks (−1.0 here became −0.9).
@@ -501,5 +516,5 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const loud = await measureLoudness(paths, out);
   await fs.rm(tmp, { recursive: true, force: true });
   const credits = [...new Set(input.music.map((m) => m.track.attribution ?? `${m.track.title} — ${m.track.license ?? "lisans bilinmiyor"}`))];
-  return { file: out, ...loud, credits, cleanup, declick, borazan };
+  return { file: out, ...loud, credits, cleanup, declick, borazan, ...(balans ? { balans } : {}) };
 }
