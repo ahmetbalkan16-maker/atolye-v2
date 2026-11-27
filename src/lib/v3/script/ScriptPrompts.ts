@@ -10,6 +10,7 @@ import {
   PROP_KINDS,
   SCENE_MOODS,
   SFX_IDS,
+  SFX_NOTES,
   TRANSITIONS,
   type EpisodeSource,
   type EpisodeTone,
@@ -410,28 +411,6 @@ of its words, into a line — the sources are other authors' writing. A real per
       : ""
   }`;
 }
-
-const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
-  whoosh: "swish, fast move",
-  pop: "comic pop",
-  boing: "cartoon boing",
-  kilic: "sword drawn",
-  top_atisi: "cannon shot",
-  davul: "war drum",
-  kalabalik: "crowd murmur",
-  cekic: "hammer on metal",
-  dalga: "sea waves on a shore",
-  su: "splashing through shallow water (wading, fording a river)",
-  zil: "bell",
-  yumruk: "punch",
-  dusus: "body falls, thud",
-  adim: "footsteps",
-  kapi: "door opens",
-  para: "coins",
-  kagit: "paper, book, scroll",
-  basari: "comic success sting",
-  hata: "comic failure sting (wah-wah)",
-};
 
 /** The historical atlas's polities near the episode's year, as an option for the map territories. */
 function bordersText(snapshots: ScriptBrief["tarihiSinirlar"]): string {
