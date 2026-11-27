@@ -11,7 +11,7 @@
   tuval `touch-action:none`. Ofis ana sayfada da aynı sahneyi kullanır.
 - **Kanıt:** tsc temiz, eslint temiz, `smoke-ayas-owner-ui-v2` PASS 36; izole önizlemede (3210) öğle/akşam/gece ve telefon 390×844
   (ofis sayfası + ana sayfa) ekran görüntüleri, sentetik dokunma ile pinch yakınlaştırdı, konsol hatası yok.
-- **Durum:** `claude/ofis-gece-gunduz` dalında; toplu canlı alma ile canlıya gidecek.
+- **Durum:** CANLI 27 Kasım 21:48 TR — `ayas-live-cf9d0c4a` (PID 29964, dış erişim sağlıklı; geri dönüş `ayas-live-686ffc1f`). Aynı yayında: Araştırma radarından Wrangler 4.169.0, ESLint 10.16.0, React 19.3.1 (Sonnet alt ajanı, `claude/arastirma-guncellemeleri`; TypeScript 7.0.2 ana sürüm, typescript-eslint <6.1 istediği için owner kararına bırakıldı) ve Gelişim Merkezi işi kalite-110. Gelişim Merkezi onaylarının hepsi uygulanmış ve canlıda.
 
 ## 27 Kasım 2026 (11) — Gaugamela tur 0 teslim (8,7/10), antik görsel araması, dolu dikey bantlar, puanlı müzik dengesi
 
