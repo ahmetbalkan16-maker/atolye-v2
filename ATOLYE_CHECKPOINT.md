@@ -10,6 +10,20 @@
   every Tue, Thu & Sat — subscribe so you don't miss it."
 - Açık: kapının zayıf alanları (sahne planında kamera eksikleri, kalite beyninin "anlatılanı gösterme" 2,5/10, lejant Shorts üst
   çubuğunda, altyazı videodan taşması); durdurulan rötuş turunun gardırobu paylaşılan dosyaları değiştiriyor (yalnız tur klasörüne yazmalı).
+## 27 Kasım 2026 (12) — Atölye ofisi: telefonda iki parmakla yakınlaştırma, düz tuğla duvar + ışıklı tabela, gündüz/gece döngüsü
+
+- **İstek (owner):** telefonda da yakınlaştırma; karşı duvardaki ağaç gibi yuvarlak şeyler kalksın, sadece tuğla duvar; duvarın
+  ortasına şık, ışıklı "YouTube Atölye Üretim Merkezi"; gündüz/gece döngüsü.
+- **Yapılan (`src/components/office-preview/AtolyeOffice3DScene.tsx`, `office-preview.css`):** duvarın arkasındaki bahçe ağacı
+  küreleri duvarın içinden çıkıyordu — küreler ve pencereler kaldırıldı, duvar tek parça tuğla (`addBrickWallAndSign`). Ortada koyu
+  plaka + pirinç kenar, kırmızı oynat rozeti, "YouTube" ve "ATÖLYE ÜRETİM MERKEZİ" parlayan yazı, hale ve tuğlaya vuran sıcak ışık
+  (`addWallSign`). Gündüz/gece: 240 saniyede bir gün, izleyenin gerçek saatinden başlar; güneş doğudan batıya, şafak/gün batımı
+  sıcak, gece ay ışığı + koyu gök, lambalar/ekranlar/sokak lambaları ve tabela gece parlar (`makeDayNightCycle`). `?saat=<0–24>`
+  saati sabitler. Dokunmatik: iki parmak sıkıştırma = yakınlaştırma (0,5×–3,5×), tek parmak = gezinme, çift dokunuş = genel görünüm;
+  tuval `touch-action:none`. Ofis ana sayfada da aynı sahneyi kullanır.
+- **Kanıt:** tsc temiz, eslint temiz, `smoke-ayas-owner-ui-v2` PASS 36; izole önizlemede (3210) öğle/akşam/gece ve telefon 390×844
+  (ofis sayfası + ana sayfa) ekran görüntüleri, sentetik dokunma ile pinch yakınlaştırdı, konsol hatası yok.
+- **Durum:** CANLI 27 Kasım 21:48 TR — `ayas-live-cf9d0c4a` (PID 29964, dış erişim sağlıklı; geri dönüş `ayas-live-686ffc1f`). Aynı yayında: Araştırma radarından Wrangler 4.169.0, ESLint 10.16.0, React 19.3.1 (Sonnet alt ajanı, `claude/arastirma-guncellemeleri`; TypeScript 7.0.2 ana sürüm, typescript-eslint <6.1 istediği için owner kararına bırakıldı) ve Gelişim Merkezi işi kalite-110. Gelişim Merkezi onaylarının hepsi uygulanmış ve canlıda.
 
 ## 27 Kasım 2026 (11) — Gaugamela tur 0 teslim (8,7/10), antik görsel araması, dolu dikey bantlar, puanlı müzik dengesi
 

@@ -70,7 +70,7 @@
 .oop-office-scene { position:relative; overflow:hidden; width:100%; aspect-ratio:1.62/1; min-height:420px; max-height:calc(100vh - 190px); border:1px solid rgba(139,183,174,.72); border-radius:15px; background:#d5e0dc; box-shadow:0 12px 32px rgba(6,28,29,.2); }
 .oop-office-3d-mount { position:absolute; inset:0; overflow:hidden; }
 .oop-office-3d-mount[data-webgl="unavailable"] { display:grid; place-items:center; padding:24px; color:#203a38; font-size:14px; }
-.oop-office-3d-canvas { display:block; width:100%; height:100%; outline:none; cursor:grab; touch-action:pan-y; }
+.oop-office-3d-canvas { display:block; width:100%; height:100%; outline:none; cursor:grab; touch-action:none; }
 .oop-office-3d-note { position:absolute; z-index:6; right:10px; bottom:10px; max-width:calc(100% - 24px); padding:5px 9px; border:1px solid rgba(77,101,88,.25); border-radius:8px; background:rgba(255,253,247,.9); color:#3a4a44; font-size:10.5px; font-weight:800; letter-spacing:.04em; }
 /* Room names and worker tags are projected from the 3D scene every frame (AtolyeOffice3DScene updateOverlay). */
 .oop-office-overlay { position:absolute; inset:0; overflow:hidden; pointer-events:none; }

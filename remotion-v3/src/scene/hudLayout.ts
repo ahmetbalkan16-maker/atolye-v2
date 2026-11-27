@@ -86,7 +86,7 @@ export function legendScaleText(menPerDot: number, language: "tr" | "en"): strin
 
 /**
  * The dotted map's legend (owner, 13 Nov 2026: "her yuvarlak birlik 1000 askere denk gelsin"): a small plate in the top
- * left corner — the date stamp holds the top right, the strength bar the top middle, the atlas corner the bottom left,
+ * left corner (in a Short below the player's top bar) — the date stamp holds the top right, the strength bar the top middle, the atlas corner the bottom left,
  * the captions the bottom middle — and below the strength bar where a narrow frame's bar reaches that corner. Its rows:
  * "● = 1,000 men" at the map's scale (only when some unit's men are written: estimated armies get no number), then each
  * side's colour and name. Shown from the first unit on; none on a block map. Sized for the longer of its two languages,
@@ -114,7 +114,10 @@ export function dotLegend(map: Pick<V3GeoMap, "dates" | "strength" | "units" | "
   const scaleChars = scale ? Math.max(legendScaleText(army.menPerDot, "en").length, legendScaleText(army.menPerDot, "tr").length) * LEGEND_FONT * 0.56 : 0;
   const w = (LEGEND_PAD * 2 + 26 + Math.max(scaleChars, ...rows.map(width))) * u;
   const h = (LEGEND_PAD * 2 + rows.length * LEGEND_ROW - 6) * u;
-  let box: Box = { x0: 40 * u, y0: 30 * u, x1: 40 * u + w, y1: 30 * u + h };
+  // A vertical frame's legend starts below the Shorts top bar, like the date plate (Gaugamela Short, 27 Nov 2026: at
+  // 30 px the legend stood 88 % under the player's search bar).
+  const top = dateTop(W, H) * u;
+  let box: Box = { x0: 40 * u, y0: top, x1: 40 * u + w, y1: top + h };
   const stamps = (cards ?? []).filter((c) => c.style === "yer_tarih" && c.end > first).map((c) => stampBox(c, W, H));
   const marks = [...markBoxes(map, frame, W, H, first), ...stamps];
   const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
