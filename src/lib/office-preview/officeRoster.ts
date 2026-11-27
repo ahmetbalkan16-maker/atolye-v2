@@ -42,18 +42,15 @@ export interface OfficeRosterEntry {
   readonly roomSlug: OfficeRoomSlug;
 }
 
+/**
+ * Owner 2026-11-27: "herkese bir oda ver ve odalar aynı büyüklükte olsun sadece ayasın kendi odası farklı olsun
+ * diğerlerinden daha gösterişli ve büyük olsun". Every worker has a room of its own (AYAS's is "yonetim", the
+ * developer's is Gelişim Merkezi "gelistirme"); the meeting room and the lounge are shared.
+ */
 export type OfficeRoomSlug =
-  | "arastirma"
-  | "kurgu-mizah"
-  | "kostum-kalite"
-  | "ortam-gorsel"
-  | "yonetim"
-  | "muhasebe"
-  | "onarim-nobet"
-  | "dinlenme"
-  | "ses"
-  | "toplanti"
-  | "gelistirme";
+  | "yonetim" | "arastirma" | "radar" | "kurgu" | "mizah" | "kostum" | "kalite" | "tarih" | "ortam" | "yayinci"
+  | "analist" | "muhasebe" | "onarim" | "gozcu" | "guvenlik" | "denetci" | "ses" | "gelistirme" | "cirak"
+  | "toplanti" | "dinlenme";
 
 /** The link that drops the owner into the existing AYAS chat with voice started (BrainCoreConsole startConversation). */
 export const AYAS_VOICE_HREF = "/brain?panel=chat&konus=1";
@@ -68,56 +65,56 @@ export const OFFICE_ROSTER: readonly OfficeRosterEntry[] = [
   { id: "arastirma", reportsTo: "ayas", authority: "uretir", roomSlug: "arastirma", ownerGate: ["Ücretli kaynak kullanımı"],
     auditor: { name: "Kaynak denetçisi", questions: ["Her alıntı makalede birebir geçiyor mu?", "Tarih ve sayılar kaynakla aynı mı?", "Telif durumu yazıldı mı?"] },
     qualityGate: true, opens: { label: "Araştırma paneli", href: "/brain?panel=research" } },
-  { id: "radar", reportsTo: "ayas", authority: "okur", roomSlug: "arastirma", ownerGate: ["Güncellemeyi uygulama", "Model indirme"],
+  { id: "radar", reportsTo: "ayas", authority: "okur", roomSlug: "radar", ownerGate: ["Güncellemeyi uygulama", "Model indirme"],
     auditor: { name: "Güvenlik denetçisi", questions: ["Bilinen güvenlik açığı var mı?", "Ayrı kopyada denendi mi?", "Faydası ölçüldü mü?"] },
     qualityGate: true, opens: { label: "Güncelleme radarı", href: "/brain?panel=research" } },
-  { id: "kurgu", reportsTo: "ayas", authority: "uretir", roomSlug: "kurgu-mizah", ownerGate: [],
+  { id: "kurgu", reportsTo: "ayas", authority: "uretir", roomSlug: "kurgu", ownerGate: [],
     auditor: { name: "Senaryo denetçisi", questions: ["Soru başlığı ilk saniyede soruluyor mu?", "Her iddianın kaynağı var mı?", "Sahne sırası tarifle uyumlu mu?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "mizah", reportsTo: "kurgu", authority: "uretir", roomSlug: "kurgu-mizah", ownerGate: [],
+  { id: "mizah", reportsTo: "kurgu", authority: "uretir", roomSlug: "mizah", ownerGate: [],
     auditor: { name: "Ton denetçisi", questions: ["Espri gerçeği çarpıtıyor mu?", "Kırıcı ya da uygunsuz mu?", "Gerçek alıntıyı silip yerine şaka koydu mu?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "kostum", reportsTo: "ayas", authority: "uretir", roomSlug: "kostum-kalite", ownerGate: [],
+  { id: "kostum", reportsTo: "ayas", authority: "uretir", roomSlug: "kostum", ownerGate: [],
     auditor: { name: "Dönem denetçisi", questions: ["Kıyafet o yıla ve bölgeye uyuyor mu?", "Yüz portreye benziyor mu?", "Herkes birbirinden ayırt ediliyor mu?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "kalite", reportsTo: "ayas", authority: "durdurur", roomSlug: "kostum-kalite", ownerGate: [],
+  { id: "kalite", reportsTo: "ayas", authority: "durdurur", roomSlug: "kalite", ownerGate: [],
     auditor: { name: "İkinci göz", questions: ["'0 hata' dediği karelere gerçekten bakıldı mı?", "Puan tek kareye mi dayanıyor?", "Sınav doğruluğu düştü mü?"] },
     qualityGate: false, opens: PRODUCTION },
-  { id: "tarih", reportsTo: "ayas", authority: "durdurur", roomSlug: "kostum-kalite", ownerGate: ["Durdurulan siparişi yeniden başlatma"],
+  { id: "tarih", reportsTo: "ayas", authority: "durdurur", roomSlug: "tarih", ownerGate: ["Durdurulan siparişi yeniden başlatma"],
     auditor: { name: "Kaynak denetçisi", questions: ["Durdurma gerekçesi kaynakla kanıtlı mı?", "Yer değiştirmiş olay ya da kişi kaldı mı?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "ortam", reportsTo: "ayas", authority: "uretir", roomSlug: "ortam-gorsel", ownerGate: ["CC BY-SA dışı görsel kullanımı"],
+  { id: "ortam", reportsTo: "ayas", authority: "uretir", roomSlug: "ortam", ownerGate: ["CC BY-SA dışı görsel kullanımı"],
     auditor: { name: "Harita denetçisi", questions: ["Sınırlar ve cepheler o tarihe doğru mu?", "Yazı bir karakterin üstüne biniyor mu?", "Görselin lisansı ve kaynağı yazıldı mı?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "yayinci", reportsTo: "owner", authority: "yayinlar", roomSlug: "yonetim", ownerGate: ["Her yükleme ve yayın saati"],
+  { id: "yayinci", reportsTo: "owner", authority: "yayinlar", roomSlug: "yayinci", ownerGate: ["Her yükleme ve yayın saati"],
     auditor: { name: "Yayın denetçisi", questions: ["Dosya 1080x1920 ve doğru sürede mi?", "Onay tam bu dosyaya mı bağlı?", "Açıklamada kaynaklar ve krediler var mı?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "analist", reportsTo: "ayas", authority: "okur", roomSlug: "yonetim", ownerGate: ["Reklam ya da ücretli tanıtım"],
+  { id: "analist", reportsTo: "ayas", authority: "okur", roomSlug: "analist", ownerGate: ["Reklam ya da ücretli tanıtım"],
     auditor: { name: "Veri denetçisi", questions: ["Organik ve ücretli izlenme ayrıldı mı?", "Karşılaştırma aynı süre aralığında mı?"] },
     qualityGate: true, opens: PRODUCTION },
   { id: "muhasebe", reportsTo: "owner", authority: "okur", roomSlug: "muhasebe", ownerGate: ["Bütçe tavanını değiştirme"],
     auditor: { name: "Bütçe denetçisi", questions: ["Sayaç gerçek faturayla tutuyor mu?", "Video başına tavan aşıldı mı?"] },
     qualityGate: true, opens: { label: "Gelir ve maliyet", href: "/brain/revenue" } },
-  { id: "onarim", reportsTo: "ayas", authority: "uretir", roomSlug: "onarim-nobet", ownerGate: ["Durmuş siparişi yeniden başlatma"],
+  { id: "onarim", reportsTo: "ayas", authority: "uretir", roomSlug: "onarim", ownerGate: ["Durmuş siparişi yeniden başlatma"],
     auditor: { name: "Onarım denetçisi", questions: ["Seçilen çare sabit listeden mi?", "Aynı hata tekrar etti mi?", "Kök neden yazıldı mı?"] },
     qualityGate: true, opens: { label: "AYAS raporları", href: "/brain?panel=selfheal" } },
-  // Owner 2026-11-26: the security brain, seated by the entrance; it reports straight to the owner.
-  { id: "guvenlik", reportsTo: "owner", authority: "durdurur", roomSlug: "toplanti", ownerGate: ["Port ya da hizmet kapatma", "Şifre ya da anahtar değiştirme", "Oturumları silme", "Kendi kurallarını değiştirme"],
+  // Owner 2026-11-26: the security brain (Bekçi); it reports straight to the owner.
+  { id: "guvenlik", reportsTo: "owner", authority: "durdurur", roomSlug: "guvenlik", ownerGate: ["Port ya da hizmet kapatma", "Şifre ya da anahtar değiştirme", "Oturumları silme", "Kendi kurallarını değiştirme"],
     auditor: { name: "Sahip", questions: ["Bulgu ölçülmüş bir kanıta mı dayanıyor?", "Ölçülemeyen bir şey temiz mi sayıldı?", "Haftalık sınav tam mı, yanlış alarm var mı?"] },
     qualityGate: true, opens: { label: "Güvenlik paneli", href: "/brain?panel=safety" } },
-  { id: "gozcu", reportsTo: "owner", authority: "gozler", roomSlug: "onarim-nobet", ownerGate: ["Bir servisi kapatma"],
+  { id: "gozcu", reportsTo: "owner", authority: "gozler", roomSlug: "gozcu", ownerGate: ["Bir servisi kapatma"],
     auditor: { name: "Sağlık denetçisi", questions: ["Alarm gerçek bir ölçüme mi dayanıyor?", "Aynı alarm tekrar mı gönderildi?"] },
     qualityGate: true, opens: { label: "Sistem paneli", href: "/brain?panel=system" } },
   { id: "ses", reportsTo: "ayas", authority: "uretir", roomSlug: "ses", ownerGate: [],
     auditor: { name: "Ses denetçisi", questions: ["Islık ya da ötme var mı?", "Anlatım ile görüntü senkron mu?", "Müziğin lisansı uygun mu?"] },
     qualityGate: true, opens: PRODUCTION },
-  { id: "denetci", reportsTo: "owner", authority: "durdurur", roomSlug: "toplanti", ownerGate: [],
+  { id: "denetci", reportsTo: "owner", authority: "durdurur", roomSlug: "denetci", ownerGate: [],
     auditor: { name: "Sahip (sen)", questions: ["Bulgu kanıtlı mı?", "Denetlediği işten bağımsız mı?"] },
     qualityGate: true, opens: { label: "Güvenlik paneli", href: "/brain?panel=safety" } },
   { id: "gelistirici", reportsTo: "ayas", authority: "uretir", roomSlug: "gelistirme", ownerGate: ["Her kod değişikliğini uygulama (ONAYLA VE UYGULA)", "Canlıya alma"],
     auditor: { name: "Kod denetçisi", questions: ["Yalnız izinli dosyalar mı değişti?", "TypeScript, lint ve testler geçti mi?", "Ders ve vaka kaydı yazıldı mı?"] },
     qualityGate: true, opens: { label: "Gelişim Merkezi", href: "/brain?panel=development" } },
-  { id: "cirak", reportsTo: "gelistirici", authority: "uretir", roomSlug: "gelistirme", ownerGate: ["Her kod değişikliğini uygulama"],
+  { id: "cirak", reportsTo: "gelistirici", authority: "uretir", roomSlug: "cirak", ownerGate: ["Her kod değişikliğini uygulama"],
     auditor: { name: "Kod denetçisi", questions: ["Sınav kodu gerçek değişiklikle aynı işi yapıyor mu?", "Sınırlı dosya kapsamında mı kaldı?"] },
     qualityGate: true, opens: { label: "Gelişim Merkezi", href: "/brain?panel=development" } },
 ];
@@ -137,20 +134,36 @@ export interface OfficeRoom {
   readonly summary: string;
   /** The real AYAS page this room's work lives on (Gelişim Merkezi for the development room). */
   readonly opens?: { readonly label: string; readonly href: string };
+  /** What the room page says when no worker has its desk here (the shared rooms). */
+  readonly emptyNote?: string;
 }
 
+const opensOf = (id: PreviewBrainId) => getRosterEntry(id).opens;
+
 export const OFFICE_ROOMS: readonly OfficeRoom[] = [
-  { slug: "yonetim", name: "AYAS · Yönetim & Yayın", summary: "AYAS işi alır, planlar, dağıtır ve sonuçları toplar; yayın ve kanal analizi burada.", opens: { label: "AYAS ile sesli konuş", href: AYAS_VOICE_HREF } },
-  { slug: "arastirma", name: "Araştırma", summary: "Kaynak bankası ve teknoloji takibi: her bilgi kaynağıyla gelir.", opens: { label: "Araştırma paneli", href: "/brain?panel=research" } },
-  { slug: "kurgu-mizah", name: "Kurgu & Mizah", summary: "Senaryo, soru başlığı, sahne sırası ve espriler.", opens: PRODUCTION },
-  { slug: "kostum-kalite", name: "Kostüm & Kalite", summary: "Dönem kıyafetleri ile kare kare kalite ve tarih kontrolü.", opens: PRODUCTION },
-  { slug: "ortam-gorsel", name: "Ortam & Görsel", summary: "Dekorlar, haritalar, kapak görseli.", opens: PRODUCTION },
-  { slug: "ses", name: "Ses Stüdyosu", summary: "Anlatım, müzik, efekt ve miks.", opens: PRODUCTION },
-  { slug: "toplanti", name: "Toplantı & Denetim", summary: "Bağımsız denetçi ve kurul toplantıları; bulgular doğrudan sahibe gider.", opens: { label: "Güvenlik paneli", href: "/brain?panel=safety" } },
+  { slug: "yonetim", name: "AYAS · Yönetim Ofisi", summary: "AYAS işi alır, planlar, dağıtır ve sonuçları toplar; çalışanlar raporlarını buraya getirir.", opens: { label: "AYAS ile sesli konuş", href: AYAS_VOICE_HREF } },
+  { slug: "arastirma", name: "Araştırma", summary: "Kaynak bankası: her bilgi kaynağıyla gelir.", opens: opensOf("arastirma") },
+  { slug: "radar", name: "Güncelleme Radarı", summary: "Teknoloji ve güncelleme takibi; ayrı kopyada denenmeden hiçbir şey uygulanmaz.", opens: opensOf("radar") },
+  { slug: "ortam", name: "Ortam & Görsel", summary: "Dekorlar, haritalar, kapak görseli.", opens: opensOf("ortam") },
+  { slug: "kurgu", name: "Kurgu", summary: "Senaryo, soru başlığı ve sahne sırası.", opens: opensOf("kurgu") },
+  { slug: "mizah", name: "Mizah", summary: "Gerçeği çarpıtmayan espriler.", opens: opensOf("mizah") },
+  { slug: "kostum", name: "Kostüm", summary: "Dönem kıyafetleri ve portreye benzeyen yüzler.", opens: opensOf("kostum") },
+  { slug: "kalite", name: "Kalite", summary: "Kare kare kalite ölçümü; geçmeyen iş gerekçesiyle geri döner.", opens: opensOf("kalite") },
+  { slug: "tarih", name: "Tarih Hakemi", summary: "Tarih kapısı: kaynakla kanıtlanmayan iddia üretimi durdurur.", opens: opensOf("tarih") },
+  { slug: "yayinci", name: "Yayın", summary: "Yükleme ve yayın saati, yalnız sahip onayıyla.", opens: opensOf("yayinci") },
+  { slug: "analist", name: "Kanal Analizi", summary: "Kanal sayıları ve izlenme karşılaştırmaları.", opens: opensOf("analist") },
+  { slug: "muhasebe", name: "Muhasebe", summary: "Token ve dolar sayacı, video başına bütçe tavanı.", opens: opensOf("muhasebe") },
+  { slug: "ses", name: "Ses Stüdyosu", summary: "Anlatım, müzik, efekt ve miks.", opens: opensOf("ses") },
+  { slug: "denetci", name: "Bağımsız Denetim", summary: "Bağımsız denetçi; bulguları doğrudan sahibe gider.", opens: opensOf("denetci") },
+  { slug: "guvenlik", name: "Güvenlik · Bekçi", summary: "Yerel güvenlik nöbeti; kapatma ve şifre işleri yalnız sahip onayıyla.", opens: opensOf("guvenlik") },
+  { slug: "gozcu", name: "Nöbet · Gözcü", summary: "Gece gündüz sistemi izleyen gözcü.", opens: opensOf("gozcu") },
+  { slug: "onarim", name: "Onarım", summary: "Takılan adımları sabit çare listesinden kurtaran tamirci.", opens: opensOf("onarim") },
   { slug: "gelistirme", name: "Yazılım & Geliştirme · Gelişim Merkezi", summary: "Onaylı öneriler akşamları ayrı kopyada kodlanır, denetlenir ve sahibin tek tıkına bekler.", opens: { label: "Gelişim Merkezi", href: "/brain?panel=development" } },
-  { slug: "muhasebe", name: "Muhasebe", summary: "Token ve dolar sayacı, video başına bütçe tavanı.", opens: { label: "Gelir ve maliyet", href: "/brain/revenue" } },
-  { slug: "onarim-nobet", name: "Onarım & Nöbet", summary: "Takılan adımları kurtaran tamirci ve gece gündüz nöbet tutan gözcü.", opens: { label: "Sistem paneli", href: "/brain?panel=system" } },
-  { slug: "dinlenme", name: "Dinlenme", summary: "İşi biten çalışanlar sırayla mola verir; iş yokken harcama sıfırdır." },
+  { slug: "cirak", name: "Çırak", summary: "Geliştiricinin yanında sınırlı dosya kapsamında kod yazan çırak.", opens: opensOf("cirak") },
+  { slug: "toplanti", name: "Toplantı Odası", summary: "Kurul toplantıları; boşta kalan çalışanlar burada toplanır.",
+    emptyNote: "Bu odada sabit çalışan yok; boşta kalan çalışanlar sırayla buraya toplantıya gelir." },
+  { slug: "dinlenme", name: "Dinlenme", summary: "İşi biten çalışanlar sırayla mola verir; iş yokken harcama sıfırdır.",
+    emptyNote: "Bu odada sabit çalışan yok; işi biten çalışanlar sırayla buraya mola vermeye gelir." },
 ];
 
 /** A room's page in the preview; workers of that room are listed there with their auditors. */

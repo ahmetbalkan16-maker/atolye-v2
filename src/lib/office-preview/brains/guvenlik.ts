@@ -5,7 +5,7 @@ export const guvenlikBrain = {
   id: "guvenlik",
   name: "Bekçi",
   department: "Güvenlik",
-  room: "Toplantı & Denetim",
+  room: "Güvenlik · Bekçi",
   liveStatus: "mevcut",
   sourceRole: "Güvenlik beyni (scripts/ayas-security-watch.ts, gözlemcinin her turunda)",
   mission: "Sistemi içeriden izler: giriş denemeleri, açık portlar, güvenlik duvarı, Git'e düşen şifreler, paket açıkları ve canlı sürümün bütünlüğü. Her bulguyu kanıtıyla raporlar.",

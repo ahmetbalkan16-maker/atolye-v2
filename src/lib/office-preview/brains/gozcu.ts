@@ -4,7 +4,7 @@ export const gozcuBrain = {
   id: "gozcu",
   name: "Gözcü",
   department: "Nöbet",
-  room: "Onarım & Nöbet",
+  room: "Nöbet · Gözcü",
   liveStatus: "mevcut",
   sourceRole: "AYAS gözlemcisi (observer daemon)",
   mission: "Gece gündüz makinenin sağlığını, GPU ısısını, Graphify güncelliğini ve servisleri izler; sorun görünce alarm verir.",

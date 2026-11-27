@@ -4,7 +4,7 @@ export const ayasBrain = {
   id: "ayas",
   name: "AYAS · Yönetmen",
   department: "Yönetim",
-  room: "Yönetim",
+  room: "AYAS · Yönetim Ofisi",
   liveStatus: "mevcut",
   sourceRole: "sef",
   mission: "Owner isteğini açık ölçütlere çevirir, uzman beyinlere dağıtır ve bulguları toplar.",

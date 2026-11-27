@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { getPreviewBrain } from "@/lib/office-preview/brains";
-import { roomHref, type OfficeRoomSlug } from "@/lib/office-preview/officeRoster";
+import { getRosterEntry, roomHref, type OfficeRoomSlug } from "@/lib/office-preview/officeRoster";
 import type { PreviewBrainId } from "@/lib/office-preview/roleTypes";
 
 type Props = {
@@ -18,9 +18,11 @@ type Props = {
 };
 
 type Stage = "work" | "rest" | "rise" | "walk-out" | "inspect" | "wait" | "talk" | "coffee" | "lounge" | "meeting" | "walk-back" | "sit";
+type DeskOptions = { wide?: boolean; ledgers?: boolean; audio?: boolean; costume?: boolean };
 type WorkerSpec = {
   key: string;
   brainId: PreviewBrainId;
+  /** The seat (where the worker sits at its desk). */
   x: number;
   z: number;
   deskX?: number;
@@ -28,11 +30,16 @@ type WorkerSpec = {
   accent: string;
   pair?: string;
   pairSlot?: number;
-  focusX?: number;
-  focusZ?: number;
   homeYaw?: number;
   seatOffset?: number;
   firstMove: number;
+  /** The room key of the worker's own room and, when the default lane does not fit, how its seat is reached. */
+  room: string;
+  approach?: (door: Door) => readonly XZ[] | null;
+  /** Where a trip without a partner goes: its own cabinet, or AYAS's office to report. */
+  solo?: Spot;
+  desk?: DeskOptions;
+  cell?: OfficeCell;
 };
 
 type WorkerRig = {
@@ -66,7 +73,8 @@ type WorkerRig = {
   loungeSeatIndex?: number;
   tripKind: "task" | "lounge" | "meeting";
   meetingSeatIndex?: number;
-  meetingRoute?: THREE.Vector3[];
+  /** The facing the worker turns to on arriving (a meeting chair, the sofa, a cabinet, AYAS's desk). */
+  arrivalYaw?: number;
   /** The pose last drawn (joint values) and the pose key it came from, for cross-fading a pose change. */
   pose?: Float32Array;
   poseKey?: string;
@@ -77,47 +85,174 @@ type WorkerRig = {
 };
 
 const FLOOR_Y = 0;
-const AISLE_Z = 1.1;
 // Ambient walks are rare so desks are mostly occupied; a worker the sample flow marks busy never leaves its desk.
 const PERIOD = 64;
 const PAIR_TALK_DISTANCE = 2.45;
 const TASK_TRIPS_BEFORE_BREAK = 2;
 const LOUNGE_BREAK_SECONDS = 12;
-// Owner 2026-11-26: idle workers "masasında oturabilir toplantı yapabilir yada dinlenebilir". The meeting room table
-// (addMeetingTable at 1.95, 5.25) has three chairs per side; a seated worker faces the table.
+// Owner 2026-11-26: idle workers "masasında oturabilir toplantı yapabilir yada dinlenebilir".
 const MEETING_SECONDS = 16;
-const MEETING_SEATS = [
-  { x: 0.65, z: 6.32, yaw: Math.PI }, { x: 1.95, z: 6.32, yaw: Math.PI }, { x: 3.25, z: 6.32, yaw: Math.PI },
-  { x: 0.65, z: 4.18, yaw: 0 }, { x: 1.95, z: 4.18, yaw: 0 }, { x: 3.25, z: 4.18, yaw: 0 },
-] as const;
-const LOUNGE_SEATS = [
-  { x: -10.05, z: 5.05 },
-  { x: -8.28, z: 5.05 },
-] as const;
 
+/**
+ * Owner 2026-11-27: "otoparkı ve arabaları kaldır yola kadar ofisi genişlet herkese bir oda ver ve odalar aynı
+ * büyüklükte olsun sadece ayasın kendi odası farklı olsun diğerlerinden daha gösterişli ve büyük olsun".
+ * The building now runs to the right-hand street where the car park was (x −12 … 22). Inside are four rows of equal
+ * rooms (4.4 m × 3.24 m) on two corridors that meet at both ends of the building. The two middle rows hold AYAS's
+ * office in the centre (three rooms wide and both rows deep), the lounge on the left and the meeting room on the right.
+ */
+const BUILDING_X0 = -12;
+const BUILDING_X1 = 22;
+const BUILDING_CX = (BUILDING_X0 + BUILDING_X1) / 2;
+const INNER_X0 = -11.9;
+const INNER_X1 = 21.9;
+const ROOM_W = 4.4;
+const ROOM_D = 3.24;
+const COLUMNS = 7;
+const ROOMS_X0 = -10.4;
+const ROOMS_X1 = ROOMS_X0 + ROOM_W * COLUMNS;
+const ROW_Z0 = [-7.98, -3.24, 0, 4.74] as const;
+const CORRIDOR_Z = [-3.99, 3.99] as const;
+const CORRIDOR_W = 1.5;
+const END_CORRIDOR_X = [(INNER_X0 + ROOMS_X0) / 2, (ROOMS_X1 + INNER_X1) / 2] as const;
+const DOOR_DX = 1.3;
+const DOOR_W = 1.1;
+
+type XZ = readonly [number, number];
+/** A door: its centre along the wall, the wall's z and the corridor line it opens onto. */
+type Door = { x: number; wallZ: number; corrZ: number; width: number };
+
+type OfficeCell = {
+  col: number; row: number; cx: number; x0: number; x1: number; z0: number; z1: number; door: Door;
+  deskX: number; deskZ: number; seatZ: number; cabinet: XZ; inspect: XZ;
+};
+
+/**
+ * One of the equal rooms. Rows 0 and 2 open forward onto their corridor, rows 1 and 3 backward. The worker sits on the
+ * desk's +z side facing it; the lane from the chair to the door (x = door) never crosses the desk or the cabinet.
+ */
+function officeCell(col: number, row: number): OfficeCell {
+  const x0 = ROOMS_X0 + ROOM_W * col;
+  const cx = x0 + ROOM_W / 2;
+  const z0 = ROW_Z0[row]!;
+  const z1 = z0 + ROOM_D;
+  const opensForward = row === 0 || row === 2;
+  const door: Door = { x: cx + DOOR_DX, wallZ: opensForward ? z1 : z0, corrZ: CORRIDOR_Z[row < 2 ? 0 : 1], width: DOOR_W };
+  const deskZ = opensForward ? z0 + 1.0 : z0 + 1.6;
+  const cabinetX = opensForward ? cx + 1.6 : cx - 1.6;
+  return {
+    col, row, cx, x0, x1: x0 + ROOM_W, z0, z1, door, deskX: cx - 0.55, deskZ, seatZ: deskZ + 0.75,
+    cabinet: [cabinetX, z0 + 0.35], inspect: [cabinetX, z0 + 0.96],
+  };
+}
+const cellKey = (col: number, row: number) => `cell:${col}:${row}`;
+
+/** A two-row shared room in the middle band (the lounge, the meeting room) with a door on each corridor. */
+function sharedRoom(col: number) {
+  const x0 = ROOMS_X0 + ROOM_W * col;
+  const cx = x0 + ROOM_W / 2;
+  const doors: readonly Door[] = [
+    { x: cx + DOOR_DX, wallZ: ROW_Z0[1], corrZ: CORRIDOR_Z[0], width: DOOR_W },
+    { x: cx + DOOR_DX, wallZ: ROW_Z0[2] + ROOM_D, corrZ: CORRIDOR_Z[1], width: DOOR_W },
+  ];
+  return { x0, x1: x0 + ROOM_W, cx, z0: ROW_Z0[1], z1: ROW_Z0[2] + ROOM_D, doors };
+}
+const LOUNGE_ROOM = sharedRoom(0);
+const MEETING_ROOM = sharedRoom(6);
+
+const AYAS_ROOM = { x0: ROOMS_X0 + ROOM_W * 2, x1: ROOMS_X0 + ROOM_W * 5, z0: ROW_Z0[1], z1: ROW_Z0[2] + ROOM_D };
+const AYAS_CX = (AYAS_ROOM.x0 + AYAS_ROOM.x1) / 2;
+/** AYAS's office: a wide double door onto the front corridor and a side door onto the back one. */
+const AYAS_DOORS: readonly Door[] = [
+  { x: AYAS_CX, wallZ: AYAS_ROOM.z1, corrZ: CORRIDOR_Z[1], width: 2.0 },
+  { x: AYAS_CX + 3, wallZ: AYAS_ROOM.z0, corrZ: CORRIDOR_Z[0], width: DOOR_W },
+];
+// AYAS sits behind his desk facing the room (and the camera), not with his back to it like the staff.
+const AYAS_SEAT: XZ = [AYAS_CX, AYAS_ROOM.z0 + 0.89];
+const AYAS_DESK_Z = AYAS_SEAT[1] + 0.75;
+const AYAS_SIDE_X = AYAS_CX + 1.6;
+
+/**
+ * A place a worker can walk to: in a room (`room` key) or on a corridor (`corridor:<0|1>`). `approach` lists the
+ * in-room steps from a door's lane to the place (null: that door does not lead there); `via` the steps from the
+ * worker's own seat when the place is in its own room.
+ */
+type Spot = {
+  room: string; x: number; z: number; yaw?: number;
+  approach?: (door: Door) => readonly XZ[] | null;
+  via?: readonly XZ[];
+};
+
+const ROOM_DOORS = new Map<string, readonly Door[]>([
+  ["ayas", AYAS_DOORS], ["lounge", LOUNGE_ROOM.doors], ["meeting", MEETING_ROOM.doors],
+]);
+for (let col = 0; col < COLUMNS; col += 1) for (const row of [0, 1, 2, 3]) ROOM_DOORS.set(cellKey(col, row), [officeCell(col, row).door]);
+
+const ayasApproach = (door: Door): readonly XZ[] => door.wallZ > 0
+  ? [[door.x, 0.6], [AYAS_SIDE_X, 0.6], [AYAS_SIDE_X, AYAS_SEAT[1]]]
+  : [[door.x, AYAS_SEAT[1]]];
+/** AYAS's own short walk: round the desk to look over the office. */
+const AYAS_OWN_SPOT: Spot = { room: "ayas", x: AYAS_CX + 2.2, z: -1.0, yaw: 0, via: [[AYAS_SIDE_X, AYAS_SEAT[1]], [AYAS_SIDE_X, -1.0]] };
+/** Where the staff who report to AYAS stand in front of his desk. */
+const REPORT_SPOTS: readonly Spot[] = [-0.75, 0, 0.75].map((dx) => ({ room: "ayas", x: AYAS_CX + dx, z: dx === 0 ? -0.3 : -0.45, yaw: Math.PI }));
+
+const MEETING_TABLE: XZ = [MEETING_ROOM.cx - 0.2, 0];
+const MEETING_SEATS = [-1.3, 0, 1.3].flatMap((dx) => [
+  { x: MEETING_TABLE[0] + dx, z: 1.07, yaw: Math.PI },
+  { x: MEETING_TABLE[0] + dx, z: -1.07, yaw: 0 },
+]);
+// The lounge sofa stands against the lounge's left wall facing +x; its two seats face the coffee table.
+const LOUNGE_SOFA: XZ = [LOUNGE_ROOM.x0 + 0.65, 0];
+const LOUNGE_SEATS = [
+  { x: LOUNGE_SOFA[0] + 0.4, z: -0.9, yaw: Math.PI / 2 },
+  { x: LOUNGE_SOFA[0] + 0.4, z: 0.9, yaw: Math.PI / 2 },
+] as const;
+/** Seats behind a table or a sofa are reached from the door on their own side, round the furniture. */
+const sideApproach = (seat: { x: number; z: number }, aisleZ: number, aisleX: number) => (door: Door): readonly XZ[] | null =>
+  (door.wallZ > 0) === (seat.z > 0) ? [[door.x, Math.sign(seat.z) * aisleZ], [aisleX, Math.sign(seat.z) * aisleZ]] : null;
+const meetingSpot = (index: number): Spot => {
+  const seat = MEETING_SEATS[index]!;
+  return { room: "meeting", ...seat, approach: sideApproach(seat, 1.85, seat.x) };
+};
+const loungeSpot = (index: number): Spot => {
+  const seat = LOUNGE_SEATS[index]!;
+  return { room: "lounge", ...seat, approach: sideApproach(seat, 1.35, LOUNGE_SOFA[0] + 0.8) };
+};
+
+function cellWorker(key: string, brainId: PreviewBrainId, col: number, row: number, accent: string, firstMove: number,
+  extra: Partial<WorkerSpec> = {}): WorkerSpec {
+  const cell = officeCell(col, row);
+  return {
+    key, brainId, x: cell.deskX, z: cell.seatZ, deskX: cell.deskX, deskZ: cell.deskZ, accent, firstMove,
+    room: cellKey(col, row), cell, solo: { room: cellKey(col, row), x: cell.inspect[0], z: cell.inspect[1], yaw: Math.PI },
+    ...extra,
+  };
+}
+
+// The order is the old one so every worker keeps its face, hair and height.
 const WORKERS: readonly WorkerSpec[] = [
-  { key: "ayas-director", brainId: "ayas", x: 0, z: -0.65, deskX: 0, deskZ: -1.5, accent: "#41d9de", focusX: 1.65, focusZ: -0.4, firstMove: 9 },
-  { key: "researcher", brainId: "arastirma", x: -9, z: -5.55, deskX: -9, deskZ: -6.25, accent: "#6dd7ff", pair: "research-review", pairSlot: 0, firstMove: 7 },
-  { key: "editor", brainId: "kurgu", x: -2.9, z: -5.55, deskX: -2.9, deskZ: -6.25, accent: "#ffbd70", pair: "creative-review", pairSlot: 0, firstMove: 13 },
-  { key: "humorist", brainId: "mizah", x: -0.9, z: -5.55, deskX: -0.9, deskZ: -6.25, accent: "#ed76d5", pair: "creative-review", pairSlot: 1, firstMove: 13 },
-  { key: "costumer", brainId: "kostum", x: 8, z: -5.55, deskX: 8, deskZ: -6.25, accent: "#f3a58e", pair: "costume-review", pairSlot: 0, firstMove: 18 },
-  { key: "environment", brainId: "ortam", x: -9, z: -0.3, deskX: -9, deskZ: -1.05, accent: "#81d49c", pair: "research-review", pairSlot: 1, firstMove: 7 },
-  { key: "accountant", brainId: "muhasebe", x: 9, z: -0.3, deskX: 9, deskZ: -1.05, accent: "#e2c578", focusX: 10.45, focusZ: -0.25, firstMove: 19 },
-  { key: "developer", brainId: "gelistirici", x: 7, z: 4.85, deskX: 7, deskZ: 4.1, accent: "#82b4ff", pair: "development", pairSlot: 0, firstMove: 15 },
-  { key: "apprentice", brainId: "cirak", x: 9.7, z: 4.85, deskX: 9.7, deskZ: 4.1, accent: "#a5a7ff", pair: "development", pairSlot: 1, firstMove: 15 },
-  { key: "sound", brainId: "ses", x: -3.5, z: 5.05, deskX: -3.5, deskZ: 4.25, accent: "#8ed5d2", pair: "sound-review", pairSlot: 0, firstMove: 23 },
-  { key: "auditor", brainId: "denetci", x: -0.45, z: 5.05, deskX: -0.45, deskZ: 4.25, accent: "#70e4c0", pair: "sound-review", pairSlot: 1, firstMove: 23 },
-  { key: "quality", brainId: "kalite", x: 5.85, z: -5.55, deskX: 5.85, deskZ: -6.25, accent: "#54d8ad", pair: "costume-review", pairSlot: 1, firstMove: 18 },
-  { key: "repair", brainId: "onarim", x: 10, z: 1.25, deskX: 10, deskZ: 0.45, accent: "#f0a85f", focusX: 11.05, focusZ: 1.55, firstMove: 27 },
-  // Owner 2026-11-26 "yeni ajanlar eklemen gerekiyorsa ekle … gerekli odalara ekle": real parts of the system that
-  // had no seat yet — the history gate, the update radar, the publisher, the channel analyst and the observer.
-  { key: "historian", brainId: "tarih", x: 3.85, z: -5.55, deskX: 3.85, deskZ: -6.25, accent: "#c99a52", focusX: 4.9, focusZ: -4.4, firstMove: 31 },
-  { key: "radar", brainId: "radar", x: -7.0, z: -5.55, deskX: -7.0, deskZ: -6.25, accent: "#5fb8d8", focusX: -7.6, focusZ: -4.2, firstMove: 35 },
-  { key: "publisher", brainId: "yayinci", x: -3.4, z: -0.65, deskX: -3.4, deskZ: -1.5, accent: "#e8604a", focusX: -2.4, focusZ: 0.0, firstMove: 39 },
-  { key: "analyst", brainId: "analist", x: 3.3, z: -0.65, deskX: 3.3, deskZ: -1.5, accent: "#f0a060", focusX: 2.3, focusZ: 0.0, firstMove: 43 },
-  { key: "watcher", brainId: "gozcu", x: 7.2, z: 1.25, deskX: 7.2, deskZ: 0.45, accent: "#6f7fa6", focusX: 6.2, focusZ: 1.55, firstMove: 47 },
-  // Owner 2026-11-26: the security brain (Bekçi) sits by the entrance in the meeting & audit room.
-  { key: "security", brainId: "guvenlik", x: 4.3, z: 7.45, deskX: 4.3, deskZ: 6.7, accent: "#c0392b", focusX: 0.6, focusZ: 7.2, firstMove: 51 },
+  { key: "ayas-director", brainId: "ayas", x: AYAS_SEAT[0], z: AYAS_SEAT[1], deskX: AYAS_SEAT[0], deskZ: AYAS_DESK_Z, accent: "#41d9de",
+    homeYaw: 0, firstMove: 9, room: "ayas", approach: ayasApproach, solo: AYAS_OWN_SPOT },
+  cellWorker("researcher", "arastirma", 1, 0, "#6dd7ff", 7, { pair: "research-review", pairSlot: 0, desk: { wide: true } }),
+  cellWorker("editor", "kurgu", 3, 0, "#ffbd70", 13, { pair: "creative-review", pairSlot: 0 }),
+  cellWorker("humorist", "mizah", 4, 0, "#ed76d5", 13, { pair: "creative-review", pairSlot: 1 }),
+  cellWorker("costumer", "kostum", 5, 0, "#f3a58e", 18, { pair: "costume-review", pairSlot: 0, desk: { costume: true } }),
+  cellWorker("environment", "ortam", 2, 0, "#81d49c", 7, { pair: "research-review", pairSlot: 1, desk: { wide: true } }),
+  cellWorker("accountant", "muhasebe", 5, 2, "#e2c578", 19, { desk: { ledgers: true } }),
+  cellWorker("developer", "gelistirici", 5, 3, "#82b4ff", 15, { pair: "development", pairSlot: 0, desk: { wide: true } }),
+  cellWorker("apprentice", "cirak", 6, 3, "#a5a7ff", 15, { pair: "development", pairSlot: 1, desk: { wide: true } }),
+  cellWorker("sound", "ses", 0, 3, "#8ed5d2", 23, { pair: "sound-review", pairSlot: 0, desk: { audio: true } }),
+  cellWorker("auditor", "denetci", 1, 3, "#70e4c0", 23, { pair: "sound-review", pairSlot: 1 }),
+  cellWorker("quality", "kalite", 6, 0, "#54d8ad", 18, { pair: "costume-review", pairSlot: 1 }),
+  cellWorker("repair", "onarim", 4, 3, "#f0a85f", 27, { pair: "repair-watch", pairSlot: 1, desk: { wide: true } }),
+  // Owner 2026-11-26 "yeni ajanlar eklemen gerekiyorsa ekle … gerekli odalara ekle": the history gate, the update
+  // radar, the publisher, the channel analyst and the observer. Those who report to AYAS walk to his office to report.
+  cellWorker("historian", "tarih", 1, 1, "#c99a52", 31, { solo: REPORT_SPOTS[1], desk: { ledgers: true } }),
+  cellWorker("radar", "radar", 0, 0, "#5fb8d8", 35, { solo: REPORT_SPOTS[0] }),
+  cellWorker("publisher", "yayinci", 5, 1, "#e8604a", 39),
+  cellWorker("analyst", "analist", 1, 2, "#f0a060", 43, { solo: REPORT_SPOTS[2] }),
+  cellWorker("watcher", "gozcu", 3, 3, "#6f7fa6", 27, { pair: "repair-watch", pairSlot: 0 }),
+  // Owner 2026-11-26: the security brain (Bekçi).
+  cellWorker("security", "guvenlik", 2, 3, "#c0392b", 51),
 ];
 
 /** Sample-only status shown above each worker; the preview page derives it from the scripted scenario step. */
@@ -142,29 +277,94 @@ const STATUS_COLOR: Record<OfficeWorkerStatus, string> = {
   bitti: "#34c472",
 };
 
-// One floor colour and one floor-level name per room. Names are drawn as screen overlays (never mirrored, always
-// readable) at the room's front edge; floor tints follow the department accent so rooms read apart at a glance.
-const ROOMS: readonly { slug: OfficeRoomSlug; name: string; x: number; z: number; sx: number; sz: number; floor: string; gold?: boolean; labelDx?: number; labelDz?: number }[] = [
-  { slug: "arastirma", name: "ARAŞTIRMA", x: -8.9, z: -5.3, sx: 5.75, sz: 5.15, floor: "#dbe7f1" },
-  { slug: "kurgu-mizah", name: "KURGU & MİZAH", x: -1.7, z: -5.3, sx: 8.05, sz: 5.15, floor: "#f3e2cf" },
-  { slug: "kostum-kalite", name: "KOSTÜM & KALİTE", x: 7.2, z: -5.3, sx: 9.0, sz: 5.15, floor: "#f1dde2" },
-  { slug: "ortam-gorsel", name: "ORTAM & GÖRSEL", x: -8.9, z: -0.25, sx: 5.75, sz: 4.3, floor: "#dcebdc" },
-  { slug: "yonetim", name: "AYAS · YÖNETİM & YAYIN", x: -0.45, z: -0.25, sx: 10.65, sz: 4.3, floor: "#efe5c9", gold: true },
-  { slug: "muhasebe", name: "MUHASEBE", x: 8.45, z: -1.25, sx: 6.55, sz: 2.25, floor: "#ece5cc", labelDx: 1.9, labelDz: -0.9 },
-  { slug: "onarim-nobet", name: "ONARIM & NÖBET", x: 8.45, z: 1.05, sx: 6.55, sz: 1.75, floor: "#e1e5e8" },
-  { slug: "dinlenme", name: "DİNLENME", x: -8.9, z: 5.05, sx: 5.75, sz: 5.8, floor: "#eee2cf" },
-  { slug: "ses", name: "SES STÜDYOSU", x: -3.5, z: 5.05, sx: 4.55, sz: 5.8, floor: "#e4dff1" },
-  { slug: "toplanti", name: "TOPLANTI & DENETİM", x: 1.95, z: 5.05, sx: 5.85, sz: 5.8, floor: "#e8e3d7" },
-  { slug: "gelistirme", name: "GELİŞİM MERKEZİ", x: 8.45, z: 5.05, sx: 6.55, sz: 5.8, floor: "#dce5f0" },
+// One floor tint and one floor-level name per room. Names are drawn as screen overlays (never mirrored, always
+// readable) at the room's front edge; floor tints follow the worker's accent so rooms read apart at a glance.
+const ROOM_TAG: Record<OfficeRoomSlug, string> = {
+  yonetim: "AYAS · YÖNETİM", arastirma: "ARAŞTIRMA", radar: "RADAR", kurgu: "KURGU", mizah: "MİZAH", kostum: "KOSTÜM",
+  kalite: "KALİTE", tarih: "TARİH HAKEMİ", ortam: "ORTAM & GÖRSEL", yayinci: "YAYIN", analist: "KANAL ANALİZİ",
+  muhasebe: "MUHASEBE", onarim: "ONARIM", gozcu: "NÖBET", guvenlik: "GÜVENLİK", denetci: "DENETİM", ses: "SES STÜDYOSU",
+  gelistirme: "GELİŞİM MERKEZİ", cirak: "ÇIRAK", toplanti: "TOPLANTI", dinlenme: "DİNLENME",
+};
+type SceneRoom = { slug: OfficeRoomSlug; x: number; z: number; sx: number; sz: number; floor: string; gold?: boolean };
+const roomFloor = (accent: string) => "#" + new THREE.Color("#f1ece2").lerp(new THREE.Color(accent), 0.32).getHexString();
+const ROOMS: readonly SceneRoom[] = [
+  ...WORKERS.flatMap((worker): SceneRoom[] => worker.cell ? [{
+    slug: getRosterEntry(worker.brainId).roomSlug, x: worker.cell.cx, z: (worker.cell.z0 + worker.cell.z1) / 2,
+    sx: ROOM_W, sz: ROOM_D, floor: roomFloor(worker.accent),
+  }] : []),
+  { slug: "yonetim", x: AYAS_CX, z: 0, sx: AYAS_ROOM.x1 - AYAS_ROOM.x0, sz: AYAS_ROOM.z1 - AYAS_ROOM.z0, floor: "#ecd9a6", gold: true },
+  { slug: "dinlenme", x: LOUNGE_ROOM.cx, z: 0, sx: ROOM_W, sz: LOUNGE_ROOM.z1 - LOUNGE_ROOM.z0, floor: "#eee2cf" },
+  { slug: "toplanti", x: MEETING_ROOM.cx, z: 0, sx: ROOM_W, sz: MEETING_ROOM.z1 - MEETING_ROOM.z0, floor: "#e8e3d7" },
 ];
 
-const PAIR_TARGETS: Record<string, readonly [readonly [number, number], readonly [number, number]]> = {
-  "research-review": [[-10, -3.25], [-8.5, -3.25]],
-  "creative-review": [[-3.1, -4.2], [-1.25, -4.2]],
-  "costume-review": [[7.2, -4.2], [8.9, -4.2]],
-  development: [[7, 6.15], [9.55, 6.15]],
-  "sound-review": [[-2.8, 5.9], [-0.9, 5.9]],
-};
+/** Pair partners meet on the corridor between their two doors. */
+const PAIR_TARGETS = new Map<string, readonly [Spot, Spot]>();
+for (const worker of WORKERS) {
+  if (!worker.pair || PAIR_TARGETS.has(worker.pair) || !worker.cell) continue;
+  const members = WORKERS.filter((other) => other.pair === worker.pair && other.cell);
+  const first = members.find((member) => (member.pairSlot ?? 0) === 0)?.cell;
+  const second = members.find((member) => member.pairSlot === 1)?.cell;
+  if (!first || !second) continue;
+  const corridor = first.row < 2 ? 0 : 1;
+  const mid = (first.door.x + second.door.x) / 2;
+  const side = first.door.x <= second.door.x ? 1 : -1;
+  const at = (dx: number): Spot => ({ room: `corridor:${corridor}`, x: mid + dx, z: CORRIDOR_Z[corridor] });
+  PAIR_TARGETS.set(worker.pair, [at(-0.55 * side), at(0.55 * side)]);
+}
+
+function homeSpot(spec: WorkerSpec): Spot {
+  return { room: spec.room, x: spec.x, z: spec.z, approach: spec.approach };
+}
+
+function doorsOf(spot: Spot): readonly Door[] {
+  if (spot.room.startsWith("corridor:")) {
+    const z = CORRIDOR_Z[Number(spot.room.slice("corridor:".length))]!;
+    return [{ x: spot.x, wallZ: z, corrZ: z, width: 0 }];
+  }
+  return ROOM_DOORS.get(spot.room) ?? [];
+}
+
+function cleanPath(points: THREE.Vector3[]): THREE.Vector3[] {
+  return points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
+}
+
+/**
+ * The walking route between two places: out of the room along its door lane, along the corridor (round one end of the
+ * building when the two doors open onto different corridors) and in through the other room's door. Of every pair of
+ * usable doors the shortest route wins. Within one room the worker walks its own lane (or the place's `via`).
+ */
+function routeBetween(from: Spot, to: Spot, start: THREE.Vector3): THREE.Vector3[] {
+  const point = ([x, z]: XZ) => new THREE.Vector3(x, FLOOR_Y, z);
+  const goal = point([to.x, to.z]);
+  if (from.room === to.room) {
+    const lane = doorsOf(to)[0]?.x ?? to.x;
+    const steps: readonly XZ[] = to.via ?? [[lane, from.z], [lane, to.z]];
+    return cleanPath([start.clone(), ...steps.map(point), goal]);
+  }
+  const approach = (spot: Spot, door: Door): readonly XZ[] | null => spot.approach ? spot.approach(door) : [[door.x, spot.z]];
+  let best: THREE.Vector3[] | null = null;
+  let bestLength = Infinity;
+  for (const exit of doorsOf(from)) {
+    const out = approach(from, exit);
+    if (!out) continue;
+    for (const entry of doorsOf(to)) {
+      const inward = approach(to, entry);
+      if (!inward) continue;
+      const steps: XZ[] = [...[...out].reverse(), [exit.x, exit.wallZ], [exit.x, exit.corrZ]];
+      if (exit.corrZ !== entry.corrZ) {
+        const cost = (x: number) => Math.abs(exit.x - x) + Math.abs(entry.x - x);
+        const end = END_CORRIDOR_X.reduce((pick, x) => (cost(x) < cost(pick) ? x : pick));
+        steps.push([end, exit.corrZ], [end, entry.corrZ]);
+      }
+      steps.push([entry.x, entry.corrZ], [entry.x, entry.wallZ], ...inward);
+      const points = cleanPath([start.clone(), ...steps.map(point), goal]);
+      let length = 0;
+      for (let i = 1; i < points.length; i += 1) length += points[i]!.distanceTo(points[i - 1]!);
+      if (length < bestLength) { best = points; bestLength = length; }
+    }
+  }
+  return best ?? [start.clone(), goal];
+}
 
 const PARTITION_WALL = new THREE.MeshStandardMaterial({ color: "#f3eee5", roughness: 0.85 });
 const PARTITION_CAP = new THREE.MeshStandardMaterial({ color: "#b98f62", roughness: 0.55 });
@@ -531,21 +731,20 @@ function addWardrobeRail(box: ReturnType<typeof makeBoxFactory>, parent: THREE.O
   box(parent, "wardrobe rack base right", x + 0.82, 0.08, z, 0.1, 0.1, 0.58, metal);
 }
 
-function addAcousticPanels(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D) {
+/** Acoustic panels on a wall along z at `x` (facing +x), one per entry of `zs`. */
+function addAcousticPanels(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, zs: readonly number[]) {
   const panelColors = ["#48535a", "#58615e", "#414d54"];
-  for (const [i, z] of [2.85, 4.1, 7.2].entries()) {
-    box(parent, "sound studio acoustic panel", -1.14, 1.32, z, 0.08, 0.94, 0.7, mat(panelColors[i]!, 0.96));
-    for (let rib = -1; rib <= 1; rib += 1) box(parent, "acoustic panel rib", -1.085, 1.32, z + rib * 0.18, 0.035, 0.82, 0.035, mat("#313a3f", 0.98));
+  for (const [i, z] of zs.entries()) {
+    box(parent, "sound studio acoustic panel", x, 1.32, z, 0.08, 0.94, 0.7, mat(panelColors[i % panelColors.length]!, 0.96));
+    for (let rib = -1; rib <= 1; rib += 1) box(parent, "acoustic panel rib", x + 0.055, 1.32, z + rib * 0.18, 0.035, 0.82, 0.035, mat("#313a3f", 0.98));
   }
 }
 
-function addCoffeeCorner(box: ReturnType<typeof makeBoxFactory>, sphere: ReturnType<typeof makeSphereFactory>, parent: THREE.Object3D) {
+function addCoffeeCorner(box: ReturnType<typeof makeBoxFactory>, sphere: ReturnType<typeof makeSphereFactory>, parent: THREE.Object3D, x: number, z: number) {
   const wood = mat("#806147", 0.65);
   const machine = mat("#ece6da", 0.37, 0.08);
   const dark = mat("#26353a", 0.42);
   const steam = new THREE.MeshBasicMaterial({ color: "#f8f3e4", transparent: true, opacity: 0.52 });
-  const x = -10.4;
-  const z = 2.9;
   box(parent, "coffee counter", x, 0.48, z, 2.1, 0.96, 0.62, wood);
   box(parent, "coffee counter top", x, 0.99, z, 2.18, 0.1, 0.7, mat("#c7a47b", 0.56));
   box(parent, "coffee machine", x - 0.25, 1.45, z - 0.08, 0.67, 0.77, 0.52, machine);
@@ -620,7 +819,7 @@ function addFloorLamp(box: ReturnType<typeof makeBoxFactory>, sphere: ReturnType
   sphere(parent, "floor lamp warm bulb", x, 1.43, z, 0.12, bulb, 8, 6);
 }
 
-function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x = 7.4, z = 5.25) {
+function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, z: number, boardX = x + 1.55) {
   const top = mat("#8d684d", 0.56);
   const chair = mat("#536c67", 0.82);
   const leg = mat("#514b43", 0.4, 0.2);
@@ -643,7 +842,7 @@ function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.O
   box(parent, "meeting agenda folder", x + 0.56, 1.015, z + 0.1, 0.48, 0.025, 0.34, mat("#81928a", 0.86));
   box(parent, "meeting water carafe", x + 1.18, 1.11, z - 0.12, 0.17, 0.34, 0.17, mat("#94b9b2", 0.2, 0.12));
   for (const dx of [-0.25, 0.85]) box(parent, "meeting water glass", x + dx, 1.04, z + 0.37, 0.1, 0.16, 0.1, mat("#c7ded7", 0.2, 0.08));
-  const whiteboardX = x + 1.55;
+  const whiteboardX = boardX;
   box(parent, "meeting-room planning board", whiteboardX, 1.55, z - 2.9, 2.2, 1.2, 0.1, mat("#d2c9b6", 0.86));
   const noteColors = ["#e7c66f", "#78c8bd", "#db8e77", "#93adcf"];
   for (let i = 0; i < noteColors.length; i += 1) {
@@ -656,7 +855,7 @@ function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.O
 function addPlantAndWindows(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D) {
   const frame = mat("#5b4c3e", 0.5, 0.14);
   const glass = new THREE.MeshStandardMaterial({ color: "#98b8aa", transparent: true, opacity: 0.38, roughness: 0.26, metalness: 0.08 });
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < 10; i += 1) {
     const x = -10.6 + i * 3.5;
     const foliage = mat(i % 2 ? "#75966d" : "#5e815f", 0.96);
     const crown = new THREE.Mesh(new THREE.SphereGeometry(0.68 + (i % 3) * 0.08, 10, 7), foliage);
@@ -672,13 +871,14 @@ function addPlantAndWindows(box: ReturnType<typeof makeBoxFactory>, parent: THRE
     map.needsUpdate = true;
     box(parent, name, x, y, -8.1, sx, sy, 0.24, new THREE.MeshStandardMaterial({ map, roughness: 0.9, metalness: 0 }));
   };
-  const wallFrom = -11.98;
-  const wallTo = 11.98;
+  // The wall runs the whole widened building; every back-row room has its own window.
+  const wallFrom = BUILDING_X0 + 0.02;
+  const wallTo = BUILDING_X1 - 0.02;
   const wallHeight = 4.04;
   const sillY = 0.95;
   const headY = 3.25;
-  const windows = [-8.4, -2.8, 2.8, 8.4];
-  const windowWidth = 3.1;
+  const windows = Array.from({ length: COLUMNS }, (_, col) => officeCell(col, 0).cx);
+  const windowWidth = 2.6;
   let cursor = wallFrom;
   for (const wx of windows) {
     const left = wx - windowWidth / 2;
@@ -707,7 +907,8 @@ function addCourtyardDecoration(
   const soil = mat("#4c4335", 1);
   const bark = mat("#68513d", 0.96);
   const foliage = ["#567b4c", "#6f8d57", "#3f6849"].map((color) => mat(color, 0.97));
-  for (const side of [-1, 1] as const) {
+  // Owner 2026-11-27: the right side is the office now, up to the street; only the left keeps its garden strip.
+  for (const side of [-1] as const) {
     const x = side * 12.48;
     box(parent, "side courtyard stone path", x, 0.035, 0, 0.82, 0.07, 15.9, paving);
     box(parent, "side raised planting bed", side * 13.08, 0.31, 0, 0.52, 0.62, 15.5, planterStone);
@@ -728,8 +929,8 @@ function addCourtyardDecoration(
     }
   }
 
-  box(parent, "front courtyard walking path", 0, 0.035, 8.82, 22, 0.07, 1.35, paving);
-  for (const x of [-9.1, 9.1]) {
+  box(parent, "front courtyard walking path", BUILDING_CX, 0.035, 8.82, BUILDING_X1 - BUILDING_X0, 0.07, 1.35, paving);
+  for (const x of [-8.6, 5, 18.6]) {
     box(parent, "front courtyard planter", x, 0.34, 8.72, 1.5, 0.64, 0.76, planterStone);
     box(parent, "front planter soil", x, 0.68, 8.72, 1.34, 0.06, 0.62, soil);
     let shrubIndex = 0;
@@ -741,48 +942,11 @@ function addCourtyardDecoration(
 
   const wood = mat("#75543c", 0.72);
   const metal = mat("#4f5149", 0.48, 0.2);
-  for (const x of [-4.3, 4.3]) {
+  for (const x of [-1.6, 11.6]) {
     box(parent, "courtyard bench seat", x, 0.48, 8.78, 1.9, 0.13, 0.54, wood);
     box(parent, "courtyard bench back", x, 0.9, 8.52, 1.9, 0.68, 0.12, wood);
     for (const dx of [-0.68, 0.68]) box(parent, "courtyard bench leg", x + dx, 0.25, 8.82, 0.1, 0.48, 0.1, metal);
   }
-}
-
-function addGlassDividerAlongX(
-  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, z: number, startX: number, endX: number,
-  doorX: number, glass: THREE.Material, frame: THREE.Material, doorWidth = 1.45,
-) {
-  const leftDoor = doorX - doorWidth / 2;
-  const rightDoor = doorX + doorWidth / 2;
-  const addPane = (fromX: number, toX: number) => {
-    if (toX - fromX < 0.12) return;
-    // Solid lower wall + glass above, like a real office partition (also gives the scene depth and shadows).
-    box(parent, "partition lower wall", (fromX + toX) / 2, 0.45, z, toX - fromX, 0.9, 0.12, PARTITION_WALL);
-    box(parent, "partition wall cap", (fromX + toX) / 2, 0.915, z, toX - fromX, 0.03, 0.16, PARTITION_CAP);
-    box(parent, "glass room wall panel", (fromX + toX) / 2, 1.43, z, toX - fromX, 1.0, 0.05, glass);
-  };
-  addPane(startX, leftDoor);
-  addPane(rightDoor, endX);
-  box(parent, "glass wall upper frame", (startX + endX) / 2, 2.0, z, endX - startX, 0.09, 0.12, frame);
-  for (const x of [leftDoor, rightDoor]) box(parent, "glass doorway frame post", x, 1.02, z, 0.075, 2.02, 0.12, frame);
-}
-
-function addGlassDividerAlongZ(
-  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, startZ: number, endZ: number,
-  doorZ: number, glass: THREE.Material, frame: THREE.Material, doorWidth = 1.45,
-) {
-  const nearDoor = doorZ - doorWidth / 2;
-  const farDoor = doorZ + doorWidth / 2;
-  const addPane = (fromZ: number, toZ: number) => {
-    if (toZ - fromZ < 0.12) return;
-    box(parent, "partition lower wall", x, 0.45, (fromZ + toZ) / 2, 0.12, 0.9, toZ - fromZ, PARTITION_WALL);
-    box(parent, "partition wall cap", x, 0.915, (fromZ + toZ) / 2, 0.16, 0.03, toZ - fromZ, PARTITION_CAP);
-    box(parent, "glass room wall panel", x, 1.43, (fromZ + toZ) / 2, 0.05, 1.0, toZ - fromZ, glass);
-  };
-  addPane(startZ, nearDoor);
-  addPane(farDoor, endZ);
-  box(parent, "glass wall upper frame", x, 2.0, (startZ + endZ) / 2, 0.12, 0.09, endZ - startZ, frame);
-  for (const z of [nearDoor, farDoor]) box(parent, "glass doorway frame post", x, 1.02, z, 0.12, 2.02, 0.075, frame);
 }
 
 function addGlassEnclosureWallAlongZ(
@@ -801,17 +965,23 @@ function addGlassEnclosureWallAlongZ(
   box(parent, "perimeter glass base rail", x, 0.06, (startZ + endZ) / 2, 0.14, 0.12, endZ - startZ, frame);
 }
 
-/** A perimeter of framed glass along x (at `at` = z) or along z (at `at` = x), with an optional door gap. */
+/** A perimeter of framed glass along x (at `at` = z) or along z (at `at` = x), with entrance door gaps. */
 function addFramedGlassWall(
   box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, axis: "x" | "z", at: number, from: number, to: number,
-  door: number | null, doorWidth: number, glass: THREE.Material, frame: THREE.Material,
+  doors: readonly number[], doorWidth: number, glass: THREE.Material, frame: THREE.Material,
 ) {
   const height = 1.7;
   const piece = (name: string, center: number, length: number, y: number, sy: number, depth: number, material: THREE.Material) => {
     if (axis === "x") box(parent, name, center, y, at, length, sy, depth, material);
     else box(parent, name, at, y, center, depth, sy, length, material);
   };
-  const runs: [number, number][] = door === null ? [[from, to]] : [[from, door - doorWidth / 2], [door + doorWidth / 2, to]];
+  const runs: [number, number][] = [];
+  let cursor = from;
+  for (const door of [...doors].sort((a, b) => a - b)) {
+    runs.push([cursor, door - doorWidth / 2]);
+    cursor = door + doorWidth / 2;
+  }
+  runs.push([cursor, to]);
   for (const [start, end] of runs) {
     piece("perimeter glass base rail", (start + end) / 2, end - start, 0.06, 0.12, 0.16, frame);
     piece("perimeter framed glass", (start + end) / 2, end - start, height / 2 + 0.06, height - 0.1, 0.04, glass);
@@ -819,7 +989,7 @@ function addFramedGlassWall(
     const panels = Math.max(1, Math.round((end - start) / 2));
     for (let i = 0; i <= panels; i += 1) piece("perimeter glass mullion", start + ((end - start) * i) / panels, 0.07, height / 2, height, 0.12, frame);
   }
-  if (door !== null) {
+  for (const door of doors) {
     for (const post of [door - doorWidth / 2, door + doorWidth / 2]) piece("entrance door post", post, 0.12, 1.1, 2.2, 0.16, frame);
     piece("entrance door header", door, doorWidth + 0.12, 2.2, 0.12, 0.16, frame);
     piece("entrance mat", door, doorWidth - 0.2, 0.012, 0.02, 0.9, mat("#4d4a45", 0.95));
@@ -861,8 +1031,8 @@ function makeCar(box: ReturnType<typeof makeBoxFactory>, color: string): THREE.G
 }
 
 /**
- * Owner 2026-11-26 ("dışına yol otopark araba falan, daha gerçekçi olur"): lawn around the building, a street with
- * a sidewalk in front, a striped car park on the right with parked cars, and cars driving along the street.
+ * Owner 2026-11-26 ("dışına yol otopark araba falan, daha gerçekçi olur"), car park removed 2026-11-27: lawn and a street with
+ * a sidewalk in front, and cars driving along the streets (the car park on the right became office space).
  * Returns the moving cars; the frame loop drives them.
  */
 /**
@@ -994,9 +1164,7 @@ function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THR
   lawn.position.set(4, -0.02, 4);
   parent.add(lawn);
   const asphalt = mat("#4d5156", 0.9);
-  const lotAsphalt = mat("#5b5f64", 0.92);
   const paint = mat("#f2f0e6", 0.7);
-  const yellow = mat("#e9c14c", 0.7);
   const curb = mat("#c9c6be", 0.85);
   // Owner 2026-11-26 ("diğer tarafına da yol yap, ofis şehir içindeymiş hissi versin"): the building sits on a city
   // block — streets on all four sides with crossings, and city blocks beyond them (tall behind and on the left, low
@@ -1083,27 +1251,10 @@ function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THR
     parent.add(crown);
   }
   facade.dispose();
-  // Car park on the right, its driveway joining the street.
-  box(parent, "car park asphalt", 18.6, 0.012, -0.4, 9.2, 0.02, 16.4, lotAsphalt);
-  box(parent, "car park driveway asphalt", 20.9, 0.011, 9.4, 4.6, 0.02, 3.2, lotAsphalt);
-  box(parent, "car park curb", 14.0, 0.06, -0.4, 0.16, 0.12, 16.4, curb);
-  const stallWidth = 2.6;
-  const stalls = 6;
-  const firstZ = -7.6;
-  for (let i = 0; i <= stalls; i += 1) box(parent, "car park stall stripe", 16.6, 0.026, firstZ + i * stallWidth, 4.8, 0.01, 0.1, paint);
-  box(parent, "car park stall end stripe", 14.25, 0.026, firstZ + (stalls * stallWidth) / 2, 0.1, 0.01, stalls * stallWidth, paint);
-  for (let i = 0; i < 3; i += 1) box(parent, "car park arrow stripe", 21.2, 0.026, -5 + i * 4.2, 0.12, 0.01, 1.6, yellow);
-  const parkedColors = ["#c43d3a", "#e8e8e6", "#2f5f8f", "#3c3f44", "#7f8c8d"];
-  const taken = [0, 1, 3, 4, 5];
-  taken.forEach((stall, index) => {
-    const car = makeCar(box, parkedColors[index % parkedColors.length]!);
-    car.position.set(16.7, 0.02, firstZ + stall * stallWidth + stallWidth / 2);
-    car.rotation.y = index % 2 ? Math.PI : 0;
-    parent.add(car);
-  });
+  // Owner 2026-11-27 ("otoparkı ve arabaları kaldır"): the car park and its parked cars are gone; the office stands there.
   // Street lamps along the sidewalk.
   const pole = mat("#3d4248", 0.5, 0.4);
-  for (const x of [-12, -4, 6, 16]) {
+  for (const x of [-12, -4, 4, 12, 20]) {
     box(parent, "street lamp pole", x, 1.6, 9.55, 0.1, 3.2, 0.1, pole);
     box(parent, "street lamp arm", x, 3.15, 9.85, 0.08, 0.08, 0.7, pole);
     box(parent, "street lamp head", x, 3.08, 10.2, 0.3, 0.1, 0.42, mat("#fff4d0", 0.3));
@@ -1142,46 +1293,249 @@ function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THR
   };
 }
 
+/** A partition along x (at z = `at`) or along z (at x = `at`): a solid lower wall, glass above and open door gaps. */
+function addPartition(
+  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, axis: "x" | "z", at: number, from: number, to: number,
+  doors: readonly { at: number; width: number }[], glass: THREE.Material, frame: THREE.Material,
+  cap: THREE.Material = PARTITION_CAP, wall: THREE.Material = PARTITION_WALL,
+) {
+  const piece = (name: string, center: number, length: number, y: number, sy: number, depth: number, material: THREE.Material) => {
+    if (axis === "x") box(parent, name, center, y, at, length, sy, depth, material);
+    else box(parent, name, at, y, center, depth, sy, length, material);
+  };
+  const pane = (start: number, end: number) => {
+    if (end - start < 0.12) return;
+    // Solid lower wall + glass above, like a real office partition (also gives the scene depth and shadows).
+    piece("partition lower wall", (start + end) / 2, end - start, 0.45, 0.9, 0.12, wall);
+    piece("partition wall cap", (start + end) / 2, end - start, 0.915, 0.03, 0.16, cap);
+    piece("glass room wall panel", (start + end) / 2, end - start, 1.43, 1.0, 0.05, glass);
+  };
+  const gaps = [...doors].sort((a, b) => a.at - b.at);
+  let cursor = from;
+  for (const gap of gaps) {
+    pane(cursor, gap.at - gap.width / 2);
+    cursor = gap.at + gap.width / 2;
+  }
+  pane(cursor, to);
+  piece("glass wall upper frame", (from + to) / 2, to - from, 2.0, 0.09, 0.12, frame);
+  for (const gap of gaps) for (const post of [gap.at - gap.width / 2, gap.at + gap.width / 2]) {
+    piece("glass doorway frame post", post, 0.075, 1.02, 2.02, 0.12, frame);
+  }
+}
+
 function addFloorAndZones(
   box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, textures: THREE.Texture[], carpetTexture: THREE.Texture,
 ) {
   const slab = mat("#d9d0c0", 0.92);
   const trim = mat("#9c8a72", 0.62, 0.06);
-  box(parent, "single open-plan office floor", 0, -0.12, 0, 24, 0.24, 16.4, slab);
-  box(parent, "floor front trim", 0, -0.22, 8.05, 24, 0.11, 0.16, trim);
-  box(parent, "floor left trim", -11.92, -0.22, 0, 0.16, 0.11, 16.2, trim);
-  box(parent, "floor right trim", 11.92, -0.22, 0, 0.16, 0.11, 16.2, trim);
-  // Each team has a room on one aligned grid. Transparent full-height partitions and door gaps keep it open-plan.
+  const width = BUILDING_X1 - BUILDING_X0;
+  box(parent, "single open-plan office floor", BUILDING_CX, -0.12, 0, width, 0.24, 16.4, slab);
+  box(parent, "floor front trim", BUILDING_CX, -0.22, 8.05, width, 0.11, 0.16, trim);
+  box(parent, "floor left trim", BUILDING_X0 + 0.08, -0.22, 0, 0.16, 0.11, 16.2, trim);
+  box(parent, "floor right trim", BUILDING_X1 - 0.08, -0.22, 0, 0.16, 0.11, 16.2, trim);
   for (const room of ROOMS) addRoomPanel(box, parent, textures, carpetTexture, room.x, room.z, room.sx, room.sz, room.floor);
+  // Two corridors along the building and one across each end, so every door is reachable from every other.
+  const aisle = mat("#cdbfa6", 0.94);
+  for (const z of CORRIDOR_Z) box(parent, "main walking aisle", (INNER_X0 + INNER_X1) / 2, 0.008, z, INNER_X1 - INNER_X0, 0.015, CORRIDOR_W, aisle);
+  for (const x of END_CORRIDOR_X) box(parent, "cross walking aisle", x, 0.009, 0, ROOMS_X0 - INNER_X0, 0.016, 15.96, aisle);
 
   const glass = new THREE.MeshStandardMaterial({ color: "#d4ebe8", transparent: true, opacity: 0.2, roughness: 0.18, metalness: 0.05, depthWrite: false });
   const frame = mat("#cfc5b4", 0.5, 0.08);
-  const wallStart = -11.82;
-  const wallEnd = 11.82;
-  for (const [start, end, door] of [[wallStart, -5.9, -8.85], [-5.9, 2.5, -1.7], [2.5, wallEnd, 7.2]] as const) {
-    addGlassDividerAlongX(box, parent, -2.55, start, end, door, glass, frame);
+  // AYAS's office stands out: warm white walls, brass caps and brass frames.
+  const goldCap = mat("#c9a24a", 0.36, 0.45);
+  const goldFrame = mat("#b8913c", 0.34, 0.55);
+  const ayasWall = mat("#f7f0e1", 0.7);
+  const gap = (door: Door) => ({ at: door.x, width: door.width });
+  const cellsOf = (row: number) => Array.from({ length: COLUMNS }, (_, col) => officeCell(col, row));
+  addPartition(box, parent, "x", ROW_Z0[0] + ROOM_D, ROOMS_X0, ROOMS_X1, cellsOf(0).map((cell) => gap(cell.door)), glass, frame);
+  addPartition(box, parent, "x", ROW_Z0[3], ROOMS_X0, ROOMS_X1, cellsOf(3).map((cell) => gap(cell.door)), glass, frame);
+  for (const [wallZ, row] of [[ROW_Z0[1], 1], [ROW_Z0[2] + ROOM_D, 2]] as const) {
+    const onWall = (doors: readonly Door[]) => doors.filter((door) => door.wallZ === wallZ).map(gap);
+    addPartition(box, parent, "x", wallZ, LOUNGE_ROOM.x0, LOUNGE_ROOM.x1, onWall(LOUNGE_ROOM.doors), glass, frame);
+    addPartition(box, parent, "x", wallZ, AYAS_ROOM.x0, AYAS_ROOM.x1, onWall(AYAS_DOORS), glass, goldFrame, goldCap, ayasWall);
+    addPartition(box, parent, "x", wallZ, MEETING_ROOM.x0, MEETING_ROOM.x1, onWall(MEETING_ROOM.doors), glass, frame);
+    for (const col of [1, 5]) {
+      const cell = officeCell(col, row);
+      addPartition(box, parent, "x", wallZ, cell.x0, cell.x1, [gap(cell.door)], glass, frame);
+    }
   }
-  for (const [start, end, door] of [[wallStart, -5.9, -8.85], [-5.9, -1.1, -3.5], [-1.1, 5, 0.75], [5, wallEnd, 7.4]] as const) {
-    addGlassDividerAlongX(box, parent, 2.05, start, end, door, glass, frame, 1.65);
+  for (const col of [1, 5]) addPartition(box, parent, "x", ROW_Z0[2], officeCell(col, 1).x0, officeCell(col, 1).x1, [], glass, frame);
+  for (let line = 0; line <= COLUMNS; line += 1) {
+    const x = ROOMS_X0 + ROOM_W * line;
+    addPartition(box, parent, "z", x, ROW_Z0[0], ROW_Z0[0] + ROOM_D, [], glass, frame);
+    addPartition(box, parent, "z", x, ROW_Z0[3], ROW_Z0[3] + ROOM_D, [], glass, frame);
+    if (line === 3 || line === 4) continue;
+    const gold = line === 2 || line === 5;
+    addPartition(box, parent, "z", x, ROW_Z0[1], ROW_Z0[2] + ROOM_D, [], glass, gold ? goldFrame : frame,
+      gold ? goldCap : PARTITION_CAP, gold ? ayasWall : PARTITION_WALL);
   }
-  for (const [x, start, end, door] of [[-5.9, -8.05, -2.55, -5.3], [2.5, -8.05, -2.55, -5.3], [-5.9, -2.55, 2.05, 1.1], [5, -2.55, 2.05, 1.1], [-5.9, 2.05, 7.95, 5.1], [-1.1, 2.05, 7.95, 5.9], [5, 2.05, 7.95, 5.1]] as const) {
-    addGlassDividerAlongZ(box, parent, x, start, end, door, glass, frame, 1.55);
-  }
-  // Separate accounting from assembly while leaving their door beside the main aisle.
-  addGlassDividerAlongX(box, parent, 0.05, 5.05, wallEnd, 6.1, glass, frame, 1.55);
   // Doll-house cut: the far (left) side keeps full-height glass; the two sides facing the camera are low sills so
   // nothing tall stands between the viewer and the people inside.
-  addGlassEnclosureWallAlongZ(box, parent, -11.92, -8.05, 8.05, glass, frame);
-  // Owner 2026-11-26 ("diğer yerler cam çerçeve"): the two sides facing the camera are framed glass. Kept lower than
-  // the far side (1.7 m) and very clear so the people inside stay visible; the front has the entrance doors.
+  addGlassEnclosureWallAlongZ(box, parent, BUILDING_X0 + 0.08, -8.05, 8.05, glass, frame);
+  // Owner 2026-11-26 ("diğer yerler cam çerçeve"): the two sides facing the camera are framed glass, kept low and very
+  // clear; the entrances are at the two ends of the front, where the end corridors meet the street side.
   const frontGlass = new THREE.MeshStandardMaterial({ color: "#cfe6ec", transparent: true, opacity: 0.16, roughness: 0.08, metalness: 0.1, depthWrite: false });
   const darkFrame = mat("#3b4148", 0.45, 0.35);
-  addFramedGlassWall(box, parent, "x", 8.05, -11.98, 11.98, 0, 1.8, frontGlass, darkFrame);
-  addFramedGlassWall(box, parent, "z", 11.92, -8.05, 8.05, null, 0, frontGlass, darkFrame);
-  // A clear cross-shaped aisle is reserved for walking routes.
-  const aisle = mat("#cdbfa6", 0.94);
-  box(parent, "main walking aisle", 0, 0.008, 1.1, 23.6, 0.015, 1.28, aisle);
-  box(parent, "cross walking aisle", 0, 0.009, -0.1, 1.22, 0.016, 5.0, aisle);
+  addFramedGlassWall(box, parent, "x", 8.05, BUILDING_X0 + 0.02, BUILDING_X1 - 0.02, END_CORRIDOR_X, 1.3, frontGlass, darkFrame);
+  addFramedGlassWall(box, parent, "z", BUILDING_X1 - 0.08, -8.05, 8.05, [], 0, frontGlass, darkFrame);
+}
+
+function addBookshelf(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, z: number, width: number) {
+  const wood = mat("#5c3f2c", 0.6);
+  const bookColors = ["#7a2630", "#24365e", "#c9a24a", "#3f6849", "#d8c89e", "#5e5650"].map((color) => mat(color, 0.8));
+  box(parent, "walnut bookshelf back", x, 1.1, z - 0.17, width, 2.2, 0.05, wood);
+  for (const side of [-1, 1]) box(parent, "walnut bookshelf side", x + side * (width / 2 - 0.03), 1.1, z, 0.06, 2.2, 0.38, wood);
+  for (let shelf = 0; shelf < 5; shelf += 1) {
+    const y = 0.08 + shelf * 0.5;
+    box(parent, "walnut bookshelf shelf", x, y, z, width, 0.05, 0.38, wood);
+    if (shelf === 4) continue;
+    let cursor = x - width / 2 + 0.12;
+    let index = shelf * 3;
+    while (cursor < x + width / 2 - 0.2) {
+      const bookWidth = 0.06 + ((index * 7) % 5) * 0.018;
+      const bookHeight = 0.3 + ((index * 5) % 4) * 0.035;
+      box(parent, "leather bound book", cursor + bookWidth / 2, y + 0.025 + bookHeight / 2, z + 0.02, bookWidth, bookHeight, 0.26, bookColors[index % bookColors.length]!);
+      cursor += bookWidth + 0.012 + (index % 6 === 5 ? 0.16 : 0);
+      index += 1;
+    }
+  }
+}
+
+function addArmchair(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, x: number, z: number, yaw: number) {
+  const chair = new THREE.Group();
+  chair.position.set(x, 0, z);
+  chair.rotation.y = yaw;
+  parent.add(chair);
+  const leather = mat("#6e3b2c", 0.7);
+  const leg = mat("#3b2d24", 0.6);
+  // Local +z is the front of the chair.
+  box(chair, "leather armchair seat", 0, 0.38, 0.04, 0.82, 0.26, 0.74, leather);
+  box(chair, "leather armchair back", 0, 0.8, -0.33, 0.82, 0.66, 0.18, leather);
+  for (const side of [-1, 1]) box(chair, "leather armchair arm", side * 0.38, 0.6, 0.02, 0.14, 0.3, 0.74, leather);
+  for (const dx of [-0.33, 0.33]) for (const dz of [-0.3, 0.32]) box(chair, "armchair foot", dx, 0.12, dz, 0.07, 0.24, 0.07, leg);
+}
+
+/**
+ * AYAS's office (owner 2026-11-27: "diğerlerinden daha gösterişli ve büyük olsun"): three rooms wide and both middle
+ * rows deep, brass-trimmed, with an executive desk facing the door, a wall of screens showing the studio, bookshelves,
+ * a leather seating corner, a round strategy table, chandeliers and the owner-approval checkpoint by the door.
+ */
+function addAyasOffice(
+  box: ReturnType<typeof makeBoxFactory>, sphere: ReturnType<typeof makeSphereFactory>, parent: THREE.Object3D,
+  addContactShadow: (parent: THREE.Object3D, x: number, z: number, width: number, depth: number) => void,
+) {
+  const { x0, x1, z0, z1 } = AYAS_ROOM;
+  const brass = mat("#c9a24a", 0.32, 0.6);
+  for (const [x, z, sx, sz] of [[AYAS_CX, z0 + 0.06, x1 - x0 - 0.1, 0.06], [AYAS_CX, z1 - 0.06, x1 - x0 - 0.1, 0.06],
+    [x0 + 0.06, 0, 0.06, z1 - z0 - 0.1], [x1 - 0.06, 0, 0.06, z1 - z0 - 0.1]] as const) {
+    box(parent, "ayas office brass floor trim", x, 0.04, z, sx, 0.02, sz, brass);
+  }
+  addRug(parent, AYAS_CX, -1.05, 2.7, 1.55, "#7b3f3a");
+  addRug(parent, AYAS_CX, -1.05, 2.45, 1.32, "#8d4d45");
+  // Executive desk: the staff desk turned to face the room, wider, with a front panel and a brass name plate.
+  const desk = new THREE.Group();
+  desk.position.set(AYAS_CX, 0, AYAS_DESK_Z);
+  desk.rotation.y = Math.PI;
+  parent.add(desk);
+  addContactShadow(parent, AYAS_CX, AYAS_DESK_Z, 2.6, 1.2);
+  addDesk(box, desk, 0, 0, "#41d9de", { wide: true });
+  box(desk, "executive desk front panel", 0, 0.5, -0.35, 1.9, 0.72, 0.05, mat("#5c3f2c", 0.55));
+  box(desk, "executive desk brass name plate", 0, 0.62, -0.385, 0.62, 0.12, 0.02, brass);
+  // A wall of screens behind the desk: one tile per department in its accent colour.
+  const wallZ = z0 + 0.1;
+  box(parent, "ayas screen wall frame", AYAS_CX, 1.75, wallZ, 4.6, 1.72, 0.08, mat("#1c232b", 0.4, 0.3));
+  const tiles = ["#6dd7ff", "#ffbd70", "#f3a58e", "#81d49c", "#8ed5d2", "#82b4ff"];
+  tiles.forEach((color, index) => {
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    const screen = new THREE.MeshStandardMaterial({ color: "#0d1820", emissive: color, emissiveIntensity: 0.5, roughness: 0.3 });
+    box(parent, "ayas status screen", AYAS_CX - 1.48 + column * 1.48, 2.17 - row * 0.8, wallZ + 0.05, 1.38, 0.72, 0.02, screen);
+  });
+  addBookshelf(box, parent, x0 + 1.25, z0 + 0.24, 2.3);
+  addBookshelf(box, parent, x1 - 1.3, z0 + 0.24, 2.2);
+  // Leather seating corner on the left.
+  const sofa = new THREE.Group();
+  sofa.position.set(x0 + 0.65, 0, 0.55);
+  sofa.rotation.y = Math.PI / 2;
+  parent.add(sofa);
+  addRug(parent, x0 + 1.75, 0.55, 1.85, 1.95, "#5d6f7a");
+  addContactShadow(parent, x0 + 0.65, 0.55, 1.4, 3.9);
+  addSofa(box, sofa, 0, 0);
+  addArmchair(box, parent, x0 + 3.35, -0.25, -Math.PI / 2);
+  addArmchair(box, parent, x0 + 3.35, 1.35, -Math.PI / 2);
+  // Round strategy table on the right with a glowing map on top.
+  const tableX = x1 - 1.7;
+  const tableZ = 0.7;
+  addContactShadow(parent, tableX, tableZ, 2.4, 2.4);
+  const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.08, 28), mat("#5c3f2c", 0.5));
+  tableTop.name = "round strategy table top";
+  tableTop.position.set(tableX, 0.86, tableZ);
+  parent.add(tableTop);
+  const tableStem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.32, 0.82, 12), brass);
+  tableStem.name = "round strategy table stem";
+  tableStem.position.set(tableX, 0.41, tableZ);
+  parent.add(tableStem);
+  const map = new THREE.Mesh(new THREE.CircleGeometry(0.56, 28), new THREE.MeshStandardMaterial({ color: "#0f2a33", emissive: "#41d9de", emissiveIntensity: 0.45, roughness: 0.3 }));
+  map.name = "strategy table glowing map glow";
+  map.rotation.x = -Math.PI / 2;
+  map.position.set(tableX, 0.905, tableZ);
+  parent.add(map);
+  for (let i = 0; i < 4; i += 1) {
+    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const cx = tableX + Math.cos(angle) * 1.12;
+    const cz = tableZ + Math.sin(angle) * 1.12;
+    const chair = new THREE.Group();
+    chair.position.set(cx, 0, cz);
+    chair.rotation.y = Math.atan2(tableX - cx, tableZ - cz);
+    parent.add(chair);
+    box(chair, "strategy table chair seat", 0, 0.47, 0, 0.5, 0.1, 0.5, mat("#24365e", 0.7));
+    box(chair, "strategy table chair back", 0, 0.82, -0.23, 0.5, 0.6, 0.08, mat("#24365e", 0.7));
+    box(chair, "strategy table chair stem", 0, 0.22, 0, 0.06, 0.42, 0.06, brass);
+  }
+  for (const [x, z] of [[x0 + 0.45, z1 - 0.45], [x1 - 0.45, z1 - 0.45], [x0 + 2.85, z0 + 0.4], [x1 - 0.4, z0 + 1.35]] as const) {
+    addPlant(box, sphere, parent, x, z);
+  }
+  addFloorLamp(box, sphere, parent, x0 + 0.4, -1.75);
+  addFloorLamp(box, sphere, parent, x1 - 2.8, z1 - 0.45);
+  // Owner approval is a single brass checkpoint beside AYAS's door, not a separate floor or office.
+  box(parent, "owner approval checkpoint", AYAS_CX + 1.5, 0.12, z1 - 0.45, 1.1, 0.12, 0.4, mat("#e5c578", 0.42, 0.16));
+  box(parent, "owner checkpoint light", AYAS_CX + 1.5, 0.23, z1 - 0.45, 0.13, 0.08, 0.13, mat("#fff2aa", 0.32, 0.1));
+  // Chandeliers instead of the staff rooms' strip lights.
+  const glow = new THREE.MeshStandardMaterial({ color: "#fff3d0", emissive: "#ffd27a", emissiveIntensity: 0.8, roughness: 0.3 });
+  for (const x of [AYAS_CX - 4.2, AYAS_CX, AYAS_CX + 4.2]) {
+    box(parent, "chandelier cable", x, 3.55, -0.3, 0.025, 0.5, 0.025, brass);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 32), brass);
+    ring.name = "brass chandelier ring";
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x, 3.28, -0.3);
+    parent.add(ring);
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (i / 8) * Math.PI * 2;
+      sphere(parent, "chandelier bulb glow", x + Math.cos(angle) * 0.5, 3.2, -0.3 + Math.sin(angle) * 0.5, 0.06, glow, 8, 6);
+    }
+  }
+}
+
+/** The shared lounge: sofa against the left wall, coffee table, a coffee counter at the back, lamp and plant. */
+function addLounge(
+  box: ReturnType<typeof makeBoxFactory>, sphere: ReturnType<typeof makeSphereFactory>, parent: THREE.Object3D,
+  addContactShadow: (parent: THREE.Object3D, x: number, z: number, width: number, depth: number) => void,
+) {
+  const sofa = new THREE.Group();
+  sofa.position.set(LOUNGE_SOFA[0], 0, LOUNGE_SOFA[1]);
+  sofa.rotation.y = Math.PI / 2;
+  parent.add(sofa);
+  addRug(parent, LOUNGE_SOFA[0] + 1.25, 0, 1.6, 1.85, "#92785e");
+  addContactShadow(parent, LOUNGE_SOFA[0], LOUNGE_SOFA[1], 1.5, 4.0);
+  addSofa(box, sofa, 0, 0);
+  const counter = new THREE.Group();
+  counter.position.set(LOUNGE_ROOM.cx - 0.8, 0, LOUNGE_ROOM.z0 + 0.42);
+  counter.rotation.y = Math.PI;
+  parent.add(counter);
+  addContactShadow(parent, LOUNGE_ROOM.cx - 0.8, LOUNGE_ROOM.z0 + 0.42, 2.6, 0.95);
+  addCoffeeCorner(box, sphere, counter, 0, 0);
+  addFloorLamp(box, sphere, parent, LOUNGE_ROOM.x0 + 0.45, LOUNGE_ROOM.z1 - 0.5);
+  addPlant(box, sphere, parent, LOUNGE_ROOM.cx + 0.7, LOUNGE_ROOM.z1 - 0.4);
 }
 
 function makeHumanWorker(
@@ -1395,7 +1749,7 @@ function makeHumanWorker(
     chair = new THREE.Group();
     chair.name = `seat:${spec.key}`;
     chair.position.set(spec.x, 0, spec.z);
-    chair.rotation.y = Math.PI;
+    chair.rotation.y = spec.homeYaw ?? Math.PI;
     parent.add(chair);
     const chairMaterial = mat("#536c67", 0.82);
     const chairLeg = mat("#514b43", 0.42, 0.16);
@@ -1670,100 +2024,10 @@ function computePose(worker: WorkerRig, stage: Stage, progress: number, now: num
   else if (stage === "sit") worker.root.position.y = FLOOR_Y + seatOffset * ease(progress);
   // The walk keeps its own small step bob (set above); it used to be overwritten here.
   else if (stage !== "walk-out" && stage !== "walk-back") worker.root.position.y = FLOOR_Y;
-  if (worker.chair) worker.chair.position.z = worker.spec.z + (stage === "rise" ? ease(progress) * 0.4 : stage === "sit" ? (1 - ease(progress)) * 0.4 : 0);
+  // The chair rolls back behind the worker: +z for the staff (facing −z), −z for AYAS (facing the room).
+  const chairBack = -Math.cos(worker.spec.homeYaw ?? Math.PI) * 0.4;
+  if (worker.chair) worker.chair.position.z = worker.spec.z + (stage === "rise" ? ease(progress) * chairBack : stage === "sit" ? (1 - ease(progress)) * chairBack : 0);
   return key;
-}
-
-function pathBetween(from: THREE.Vector3, to: THREE.Vector3, spec?: WorkerSpec): THREE.Vector3[] {
-  if (spec?.key === "developer" || spec?.key === "apprentice") {
-    const meetingEdgeX = 9.55;
-    const meetingRearZ = 6.9;
-    const startsAtBoard = from.z < 4.5;
-    const endsAtChairs = to.z > 5.8;
-    const points = startsAtBoard && endsAtChairs
-      ? [from.clone(), new THREE.Vector3(meetingEdgeX, FLOOR_Y, from.z), new THREE.Vector3(meetingEdgeX, FLOOR_Y, meetingRearZ), new THREE.Vector3(to.x, FLOOR_Y, meetingRearZ), to.clone()]
-      : [from.clone(), new THREE.Vector3(from.x, FLOOR_Y, meetingRearZ), new THREE.Vector3(meetingEdgeX, FLOOR_Y, meetingRearZ), new THREE.Vector3(meetingEdgeX, FLOOR_Y, to.z), to.clone()];
-    return points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
-  }
-  if (spec?.key === "environment") {
-    const deskX = -9;
-    const deskSideX = -10.35;
-    const crossesDesk = Math.min(from.z, to.z) < -1.42 && Math.max(from.z, to.z) > -0.62
-      && Math.max(from.x, to.x) > deskX - 0.98 && Math.min(from.x, to.x) < deskX + 0.98;
-    if (crossesDesk) {
-      const doorX = -8.85;
-      const points = [
-        from.clone(),
-        new THREE.Vector3(deskSideX, FLOOR_Y, from.z),
-        new THREE.Vector3(deskSideX, FLOOR_Y, -1.82),
-        new THREE.Vector3(doorX, FLOOR_Y, -1.82),
-        new THREE.Vector3(doorX, FLOOR_Y, to.z),
-        to.clone(),
-      ];
-      return points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
-    }
-  }
-  if (spec?.pair === "research-review" && spec.key === "researcher") {
-    return [from.clone(), to.clone()];
-  }
-  if (spec?.pair === "creative-review" || spec?.pair === "costume-review" || spec?.pair === "sound-review") {
-    return [from.clone(), to.clone()];
-  }
-  if (from.distanceTo(to) < 3) return [from.clone(), to.clone()];
-  const points = [
-    from.clone(),
-    new THREE.Vector3(from.x, FLOOR_Y, AISLE_Z),
-    new THREE.Vector3(to.x, FLOOR_Y, AISLE_Z),
-    to.clone(),
-  ];
-  return points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
-}
-
-function loungePortals(spec: WorkerSpec): readonly (readonly [number, number])[] {
-  if (spec.z < -2.55) {
-    if (spec.x < -5.9) return [[-8.85, -2.55], [-8.85, 2.05]];
-    if (spec.x < 2.5) return [[-1.7, -2.55], [-5.9, 1.1], [-8.85, 1.1], [-8.85, 2.05]];
-    return [[7.2, -2.55], [6.1, 0.05], [5, 1.1], [-5.9, 1.1], [-8.85, 1.1], [-8.85, 2.05]];
-  }
-  if (spec.z <= 2.05) {
-    if (spec.x < -5.9) return [[-8.85, 2.05]];
-    if (spec.x < 5) return [[-5.9, 1.1], [-8.85, 1.1], [-8.85, 2.05]];
-    return [...(spec.z < 0.05 ? [[6.1, 0.05] as const] : []), [5, 1.1], [-5.9, 1.1], [-8.85, 1.1], [-8.85, 2.05]];
-  }
-  if (spec.x >= 5) return [[5, 5.1], [-1.1, 5.9], [-5.9, 5.1]];
-  if (spec.x >= -1.1) return [[-1.1, 5.9], [-5.9, 5.1]];
-  if (spec.x >= -5.9) return [[-5.9, 5.1]];
-  return [];
-}
-
-/** Doors from a worker's desk to the meeting table seat (reverse it to walk back). */
-function meetingRoute(spec: WorkerSpec, seat: { x: number; z: number }): THREE.Vector3[] {
-  const pts: [number, number][] = [];
-  const near = seat.z < 5.25;
-  if (spec.z > 2.05) {
-    // Front row: the development room and the sound studio open straight into the meeting room.
-    const side = spec.x >= 5 ? 4.4 : -0.5;
-    pts.push(spec.x >= 5 ? [5, 5.1] : [-1.1, 5.9], [side, spec.x >= 5 ? 5.1 : 5.9], [side, near ? 3.4 : 6.95]);
-  } else {
-    if (spec.z < -2.55) {
-      if (spec.x < -5.9) pts.push([-8.85, -2.55], [-8.85, AISLE_Z], [-5.9, AISLE_Z]);
-      else if (spec.x < 2.5) pts.push([-1.7, -2.55], [-1.7, AISLE_Z]);
-      else pts.push([7.2, -2.55], [6.1, 0.05], [5, AISLE_Z]);
-    } else if (spec.x < -5.9) pts.push([spec.x, AISLE_Z], [-5.9, AISLE_Z]);
-    else if (spec.x < 5) pts.push([spec.x, AISLE_Z]);
-    else pts.push(...(spec.z < 0.05 ? [[6.1, 0.05] as [number, number]] : []), [5, AISLE_Z]);
-    pts.push([0.75, AISLE_Z], [0.75, 2.05], [0.75, 3.4]);
-    if (!near) pts.push([-0.5, 3.4], [-0.5, 6.95]);
-  }
-  pts.push([seat.x, near ? 3.4 : 6.95]);
-  return pts.map(([x, z]) => new THREE.Vector3(x, FLOOR_Y, z));
-}
-
-function pathViaLounge(from: THREE.Vector3, to: THREE.Vector3, spec: WorkerSpec, returning = false): THREE.Vector3[] {
-  const portals = [...loungePortals(spec)];
-  if (returning) portals.reverse();
-  const points = [from, ...portals.map(([x, z]) => new THREE.Vector3(x, FLOOR_Y, z)), to];
-  return points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
 }
 
 function facingYaw(dx: number, dz: number): number {
@@ -1809,7 +2073,7 @@ function buildOfficeScene(
   const camera = new THREE.OrthographicCamera(-12, 12, 6.75, -6.75, 0.1, 120);
   // The camera looks at `viewTarget` from a fixed iso offset; wheel zoom and drag panning move only these two.
   const CAMERA_OFFSET = new THREE.Vector3(18, 25, 25);
-  const HOME_VIEW = new THREE.Vector3(0, 0.6, -0.9);
+  const HOME_VIEW = new THREE.Vector3(BUILDING_CX, 0.6, -0.4);
   const viewTarget = HOME_VIEW.clone();
   // Goals the camera glides toward each frame (wheel, worker focus, double-click reset).
   const viewGoal = HOME_VIEW.clone();
@@ -1823,10 +2087,13 @@ function buildOfficeScene(
   // Bright, soft daylight: the key light sits on the camera side so the faces we see are lit, not the backs.
   scene.add(new THREE.HemisphereLight("#fffaf0", "#b9ad98", 1.75));
   const keyLight = new THREE.DirectionalLight("#fff1dc", 1.7);
-  keyLight.position.set(14, 26, 12);
+  keyLight.position.set(BUILDING_CX + 14, 26, 12);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(4096, 4096);
-  Object.assign(keyLight.shadow.camera, { left: -17, right: 17, top: 14, bottom: -14, near: 1, far: 80 });
+  Object.assign(keyLight.shadow.camera, { left: -24, right: 24, top: 18, bottom: -18, near: 1, far: 80 });
+  // The light aims at the middle of the widened building so its shadow box covers both ends.
+  keyLight.target.position.set(BUILDING_CX, 0, 0);
+  scene.add(keyLight.target);
   keyLight.shadow.bias = -0.0004;
   keyLight.shadow.normalBias = 0.02;
   keyLight.shadow.radius = 4;
@@ -1869,13 +2136,35 @@ function buildOfficeScene(
   addCourtyardDecoration(box, sphere, room);
   const driveStreet = addSiteAndStreet(box, room);
 
-  // One level only: low open partitions, an uncluttered walking aisle, and a bright window line.
-  const plantPositions = [
-    [-11, -7.1], [-4.7, -7.1], [3.7, -7.1], [11, -7.1],
-    [-11, -0.3], [-4.8, -0.3], [5.55, -1.65], [11, -0.6],
-    [-11, 7.1], [-4.8, 7.1], [2.0, 7.1], [11, 7.1],
-  ] as const;
-  for (const [x, z] of plantPositions) addPlant(box, sphere, room, x, z);
+  // Every worker's own room: its desk, a cabinet (the tailor gets a garment rail), a plant and a ceiling light.
+  for (const worker of WORKERS) {
+    const cell = worker.cell;
+    if (!cell) continue;
+    addDesk(box, room, cell.deskX, cell.deskZ, worker.accent, worker.desk ?? {});
+    if (worker.brainId === "kostum") {
+      const rail = new THREE.Group();
+      rail.position.set(cell.cx + 1.85, 0, cell.z0 + 1.65);
+      rail.rotation.y = -Math.PI / 2;
+      room.add(rail);
+      addWardrobeRail(box, rail, 0, 0);
+    } else {
+      addFilingCabinet(box, room, cell.cabinet[0], cell.cabinet[1], worker.accent);
+    }
+    if (worker.brainId === "ses") addAcousticPanels(box, room, cell.x0 + 0.1, [cell.z0 + 0.95, cell.z0 + 1.85, cell.z0 + 2.75]);
+    addPlant(box, sphere, room, cell.cx - 1.85, cell.z1 - 0.4);
+    addOfficeLinearLight(box, room, cell.cx, (cell.z0 + cell.z1) / 2);
+  }
+  addLounge(box, sphere, room, addContactShadow);
+  addContactShadow(room, MEETING_TABLE[0], MEETING_TABLE[1], 3.7, 1.85);
+  addRug(room, MEETING_TABLE[0], MEETING_TABLE[1], 1.95, 1.7, "#9aada0");
+  addMeetingTable(box, room, MEETING_TABLE[0], MEETING_TABLE[1], MEETING_ROOM.cx - 1.0);
+  addPlant(box, sphere, room, MEETING_ROOM.x0 + 0.4, MEETING_ROOM.z1 - 0.4);
+  for (const z of [-1.6, 1.6]) {
+    addOfficeLinearLight(box, room, LOUNGE_ROOM.cx, z);
+    addOfficeLinearLight(box, room, MEETING_ROOM.cx, z);
+  }
+  addAyasOffice(box, sphere, room, addContactShadow);
+  for (const x of END_CORRIDOR_X) addPlant(box, sphere, room, x, -7.5);
 
   // Room names sit on the floor at each room's front edge (projected every frame into the overlay).
   const roomTags = ROOMS.map((item) => {
@@ -1883,55 +2172,12 @@ function buildOfficeScene(
     const tag = document.createElement("a");
     tag.href = roomHref(item.slug);
     tag.className = "oop-room-tag" + (item.gold ? " is-gold" : "");
-    tag.textContent = item.name;
+    tag.textContent = ROOM_TAG[item.slug];
     overlay.append(tag);
-    return { tag, at: new THREE.Vector3(item.x + (item.labelDx ?? 0), 0.05, item.z + item.sz / 2 - 0.42 + (item.labelDz ?? 0)) };
+    // Staff rooms: the name sits at the front edge on the door-lane side, clear of the name tag over the seated worker.
+    const dx = item.sx === ROOM_W && item.sz === ROOM_D ? 1.05 : 0;
+    return { tag, at: new THREE.Vector3(item.x + dx, 0.05, item.z + item.sz / 2 - 0.42) };
   });
-
-  addDesk(box, room, -9, -6.15, "#6dd7ff", { wide: true });
-  addDesk(box, room, -2.9, -6.15, "#ffbd70");
-  addDesk(box, room, -0.9, -6.15, "#ed76d5");
-  addDesk(box, room, 8, -6.15, "#f3a58e", { costume: true });
-  addDesk(box, room, -9, -1.0, "#81d49c", { wide: true });
-  addDesk(box, room, 0, -1.5, "#41d9de", { wide: true });
-  addDesk(box, room, 9, -1.0, "#e2c578", { ledgers: true });
-  addDesk(box, room, 7, 4.1, "#82b4ff", { wide: true });
-  addDesk(box, room, 9.7, 4.1, "#a5a7ff", { wide: true });
-  addDesk(box, room, -3.5, 4.15, "#8ed5d2", { audio: true });
-  addDesk(box, room, -0.45, 4.15, "#70e4c0");
-  addDesk(box, room, 5.85, -6.15, "#54d8ad");
-  addDesk(box, room, 10, 0.35, "#f0a85f", { wide: true });
-  addDesk(box, room, 3.85, -6.15, "#c99a52", { ledgers: true });
-  addDesk(box, room, -7.0, -6.15, "#5fb8d8");
-  addDesk(box, room, -3.4, -1.5, "#e8604a");
-  addDesk(box, room, 3.3, -1.5, "#f0a060");
-  addDesk(box, room, 7.2, 0.35, "#6f7fa6");
-  addDesk(box, room, 4.3, 6.6, "#c0392b");
-  addContactShadow(room, -9.15, 4.65, 4.2, 1.65);
-  addSofa(box, room, -9.15, 4.65);
-  addRug(room, -9.15, 5.15, 2.7, 1.95, "#92785e");
-  addRug(room, 1.95, 5.45, 2.7, 1.9, "#9aada0");
-  addFloorLamp(box, sphere, room, -11.25, 3.9);
-  addFloorLamp(box, sphere, room, 10.85, 6.55);
-  addFloorLamp(box, sphere, room, 11.0, -2.25);
-  addContactShadow(room, -10.4, 2.9, 2.7, 0.98);
-  addCoffeeCorner(box, sphere, room);
-  addContactShadow(room, 1.95, 5.25, 3.7, 1.85);
-  addMeetingTable(box, room, 1.95, 5.25);
-  addFilingCabinet(box, room, -11.05, -4.55, "#6dd7ff");
-  addFilingCabinet(box, room, 11.0, -1.32, "#e2c578");
-  addFilingCabinet(box, room, 11.0, 1.2, "#f0a85f");
-  addWardrobeRail(box, room, 10.45, -4.75);
-  addAcousticPanels(box, room);
-  for (const [lightX, lightZ] of [
-    [-8.7, -5.6], [-0.8, -5.6], [8.6, -5.6],
-    [-8.7, -0.4], [0, -0.4], [8.7, -0.9],
-    [-3.5, 3.5], [1.95, 3.45], [8.5, 3.7],
-  ] as const) addOfficeLinearLight(box, room, lightX, lightZ);
-  // Owner approval is shown as a single checkpoint at the edge of AYAS's room, not a separate floor/office.
-  const gold = mat("#e5c578", 0.42, 0.16);
-  box(room, "owner approval checkpoint", 1.65, 0.12, 0.16, 1.1, 0.12, 0.4, gold);
-  box(room, "owner checkpoint light", 1.65, 0.23, 0.16, 0.13, 0.08, 0.13, mat("#fff2aa", 0.32, 0.1));
 
   const workerLayer = new THREE.Group();
   scene.add(workerLayer);
@@ -2021,7 +2267,7 @@ function buildOfficeScene(
     const height = Math.max(1, container.clientHeight);
     const aspect = width / height;
     // A narrow (phone) frame keeps the whole office width in view instead of cutting its sides off.
-    const frustumHeight = Math.max(16.9, 25.4 / aspect);
+    const frustumHeight = Math.max(20.5, 36 / aspect);
     camera.left = (-frustumHeight * aspect) / 2;
     camera.right = (frustumHeight * aspect) / 2;
     camera.top = frustumHeight / 2;
@@ -2052,6 +2298,17 @@ function buildOfficeScene(
   };
 
   const meetingAssignments = new Map<number, WorkerRig>();
+  const startTrip = (worker: WorkerRig, now: number, to: Spot, kind: WorkerRig["tripKind"]) => {
+    worker.destination = new THREE.Vector3(to.x, FLOOR_Y, to.z);
+    worker.arrivalYaw = to.yaw;
+    worker.tripKind = kind;
+    worker.path = routeBetween(homeSpot(worker.spec), to, worker.root.position);
+    worker.pathIndex = 1;
+    worker.stage = "rise";
+    worker.stageAt = now;
+    worker.talkStarted = false;
+    if (worker.chair) worker.chair.visible = true;
+  };
   const makeTrip = (worker: WorkerRig, now: number) => {
     // Second idle trip of a cycle: join the meeting table when a chair is free.
     const freeSeat = MEETING_SEATS.findIndex((_, index) => !meetingAssignments.has(index));
@@ -2059,55 +2316,25 @@ function buildOfficeScene(
     // room is in use soon after the page opens rather than only after a minute and a half.
     const meetingTrip = worker.spec.firstMove % 2 === 1 ? 0 : 1;
     if (worker.loungeSeatIndex === undefined && worker.taskTripsSinceBreak === meetingTrip && freeSeat >= 0) {
-      const seat = MEETING_SEATS[freeSeat]!;
       meetingAssignments.set(freeSeat, worker);
       worker.meetingSeatIndex = freeSeat;
-      worker.meetingRoute = meetingRoute(worker.spec, seat);
-      worker.destination = new THREE.Vector3(seat.x, FLOOR_Y, seat.z);
-      worker.tripKind = "meeting";
-      const points = [worker.root.position.clone(), ...worker.meetingRoute, worker.destination.clone()];
-      worker.path = points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
-      worker.pathIndex = 1;
-      worker.stage = "rise";
-      worker.stageAt = now;
-      worker.talkStarted = false;
-      if (worker.chair) worker.chair.visible = true;
+      startTrip(worker, now, meetingSpot(freeSeat), "meeting");
       return;
     }
     const loungeSeatIndex = worker.loungeSeatIndex;
-    const isLoungeTrip = loungeSeatIndex !== undefined && loungeAssignments.get(loungeSeatIndex) === worker;
-    const pair = worker.spec.pair;
-    const slot = worker.spec.pairSlot ?? 0;
-    const pairedTarget = pair ? PAIR_TARGETS[pair]?.[slot] : undefined;
-    const loungeSeat = isLoungeTrip ? LOUNGE_SEATS[loungeSeatIndex] : undefined;
-    const target = loungeSeat
-      ? [loungeSeat.x, loungeSeat.z] as const
-      : pairedTarget ?? [worker.spec.focusX ?? worker.spec.x + 1.1, worker.spec.focusZ ?? worker.spec.z + 0.8] as const;
-    worker.destination = new THREE.Vector3(target[0], FLOOR_Y, target[1]);
-    worker.tripKind = isLoungeTrip ? "lounge" : "task";
-    worker.path = isLoungeTrip
-      ? pathViaLounge(worker.root.position, worker.destination, worker.spec)
-      : pathBetween(worker.root.position, worker.destination, worker.spec);
-    worker.pathIndex = 1;
-    worker.stage = "rise";
-    worker.stageAt = now;
-    worker.talkStarted = false;
-    if (worker.chair) worker.chair.visible = true;
+    if (loungeSeatIndex !== undefined && loungeAssignments.get(loungeSeatIndex) === worker) {
+      startTrip(worker, now, loungeSpot(loungeSeatIndex), "lounge");
+      return;
+    }
+    // A pair meets on the corridor between its doors; a worker alone goes to its cabinet or reports to AYAS.
+    const pairSpot = worker.spec.pair ? PAIR_TARGETS.get(worker.spec.pair)?.[worker.spec.pairSlot ?? 0] : undefined;
+    startTrip(worker, now, pairSpot ?? worker.spec.solo ?? homeSpot(worker.spec), "task");
   };
 
   const beginReturn = (worker: WorkerRig, now: number) => {
+    // Back the way it came: the outbound route reversed, from wherever the worker stands now.
     const home = new THREE.Vector3(worker.spec.x, FLOOR_Y, worker.spec.z);
-    if (worker.tripKind === "meeting") {
-      const points = [worker.root.position.clone(), ...[...(worker.meetingRoute ?? [])].reverse(), home];
-      worker.path = points.filter((point, index) => index === 0 || point.distanceTo(points[index - 1]!) > 0.14);
-      worker.pathIndex = 1;
-      worker.stage = "walk-back";
-      worker.stageAt = now;
-      return;
-    }
-    worker.path = worker.tripKind === "lounge"
-      ? pathViaLounge(worker.root.position, home, worker.spec, true)
-      : pathBetween(worker.root.position, home, worker.spec);
+    worker.path = cleanPath([worker.root.position.clone(), ...worker.path.slice(1, -1).reverse(), home]);
     worker.pathIndex = 1;
     worker.stage = "walk-back";
     worker.stageAt = now;
@@ -2195,9 +2422,9 @@ function buildOfficeScene(
         } else if (worker.tripKind === "lounge") {
           worker.stage = "lounge";
           worker.stageAt = now;
-          worker.yawGoal = 0;
+          worker.yawGoal = worker.arrivalYaw ?? 0;
         } else if (worker.spec.pair) startPairTalk(worker, now);
-        else { worker.stage = "inspect"; worker.stageAt = now; }
+        else { worker.stage = "inspect"; worker.stageAt = now; worker.yawGoal = worker.arrivalYaw; }
       }
       return;
     }
@@ -2254,7 +2481,6 @@ function buildOfficeScene(
         if (worker.tripKind === "meeting") {
           if (worker.meetingSeatIndex !== undefined) meetingAssignments.delete(worker.meetingSeatIndex);
           worker.meetingSeatIndex = undefined;
-          worker.meetingRoute = undefined;
           worker.taskTripsSinceBreak += 1;
         } else if (worker.tripKind === "lounge") {
           if (worker.loungeSeatIndex !== undefined) loungeAssignments.delete(worker.loungeSeatIndex);
@@ -2334,7 +2560,7 @@ function buildOfficeScene(
     right.setFromMatrixColumn(camera.matrixWorld, 0);
     up.setFromMatrixColumn(camera.matrixWorld, 1);
     viewTarget.addScaledVector(right, -dx * unitsPerPx).addScaledVector(up, dy * unitsPerPx);
-    viewTarget.x = THREE.MathUtils.clamp(viewTarget.x, -22, 22);
+    viewTarget.x = THREE.MathUtils.clamp(viewTarget.x, BUILDING_CX - 22, BUILDING_CX + 22);
     viewTarget.z = THREE.MathUtils.clamp(viewTarget.z, -18, 18);
     viewTarget.y = 0.6;
     viewGoal.copy(viewTarget);
@@ -2456,7 +2682,7 @@ export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses =
   }, []);
 
   return <>
-    <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; beyinler görev alanlarına yürür, boşta kaldıklarında sırayla dinlenme odasını kullanır ve masalarına döner." />
+    <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; her çalışanın eşit büyüklükte kendi odası var, AYAS’ın odası ortada ve en büyüğü; çalışanlar koridorlarda buluşur, AYAS’a rapor götürür, toplantı ve dinlenme odalarını sırayla kullanır." />
     <div className="oop-office-legend" aria-label="Durum renkleri">{LEGEND.map((status) =>
       <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek: yakınlaş/uzaklaş · sürükle: gez · çift tık: genel görünüm</span></div>
     <div className="oop-office-3d-note">{new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · {sourceLabel}</div>

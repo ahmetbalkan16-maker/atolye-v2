@@ -4,7 +4,7 @@ export const radarBrain = {
   id: "radar",
   name: "Teknoloji Radarı",
   department: "Araştırma",
-  room: "Araştırma",
+  room: "Güncelleme Radarı",
   liveStatus: "mevcut",
   sourceRole: "AYAS güncelleme radarı",
   mission: "Kullandığımız araçların ve modellerin yeni sürümlerini izler; değerli olanı ayrı bir kopyada denetip Gelişim Merkezi'ne öneri olarak koyar.",

@@ -4,7 +4,7 @@ export const onarimBrain = {
   id: "onarim",
   name: "Hata onarım beyni",
   department: "Onarım",
-  room: "Montaj & Kalite",
+  room: "Onarım",
   liveStatus: "mevcut",
   sourceRole: "onarim",
   mission: "Denetçinin işaretlediği tek sorunu en küçük kapsamla düzeltir.",

@@ -4,7 +4,7 @@ export const yayinciBrain = {
   id: "yayinci",
   name: "Yayıncı",
   department: "Yayın",
-  room: "AYAS Yönetim & Yayın",
+  room: "Yayın",
   liveStatus: "mevcut",
   sourceRole: "V3 PublishOrder / YoutubeUpload",
   mission: "Teslim edilen videoyu sahibin onayından sonra YouTube'a yükler; başlık, açıklama, etiket ve yayın saatini hazırlar.",

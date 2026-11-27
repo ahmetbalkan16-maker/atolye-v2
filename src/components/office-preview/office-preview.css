@@ -94,6 +94,9 @@
 .oop-office-legend span { display:flex; align-items:center; gap:5px; }
 .oop-office-legend i { width:9px; height:9px; border-radius:50%; }
 @media (prefers-reduced-motion: reduce) { .oop-room-tag,.oop-worker-tag { will-change:auto; } }
+/* Owner 2026-11-27: the widened office has 21 rooms; on a phone their names would cover the workers, so only the
+   workers' tags stay (each room's page is still one tap away through its worker). */
+@media (max-width:720px) { .oop-office-overlay .oop-room-tag { display:none; } }
 .oop-office-sr-list { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .oop-scene-caption { position:absolute; z-index:6; bottom:10px; left:10px; display:flex; align-items:center; gap:6px; padding:5px 9px; border-radius:8px; background:rgba(2,15,19,.75); color:#ebf8f3; font-size:11px; text-shadow:0 1px 4px #000; }
 .oop-scene-caption i { width:5px; height:5px; border-radius:50%; background:#e7c66d; box-shadow:0 0 7px rgba(231,198,109,.65); }

@@ -64,6 +64,17 @@ yine eskisi gibi butonlar olsun ya da altta; telefondan nasıl gözüküyor onu 
 - `scripts/smoke-ayas-homepage-v2.ts` checks the office and its read-only source; `scripts/smoke-ayas-owner-ui-v2.ts`
   pins the shell to 98c36b2 plus exactly this hero change and the Atölye hrefs.
 
+## Atölye office widened (2026-11-27)
+
+Explicit owner instruction about the office shown in the homepage hero, 2026-11-27: "otoparkı ve arabaları kaldır yola
+kadar ofisi genişlet herkese bir oda ver ve odalar aynı büyüklükte olsun sadece ayasın kendi odası farklı olsun
+diğerlerinden daha gösterişli ve büyük olsun"; after seeing the screenshots: "arabalar dolaşsın bu şekilde kaydet".
+
+- Only the scene inside the existing `AtolyeOffice3DScene` changed (car park gone, building up to the street, an equal
+  room per worker, a larger brass-trimmed AYAS office, shared meeting room and lounge). The homepage shell, its rail,
+  command panel, dock and `AyasHomeOffice.tsx` are unchanged; the worker states still come from the same read-only source.
+- On a phone (≤ 720 px) the 21 room names are hidden so the workers' tags stay readable.
+
 ## Shared owner workspace (2026-10-07)
 
 The owner-approved shared `src/components/workspace/` frame applies only to subpages; `/` returns the existing central-brain composition. Explicit navigation is never generated from capabilities. The entire shared workspace directory and `scripts/smoke-ayas-owner-ui-v2.ts` are also FORBIDDEN_AUTONOMOUS, since the root layout imports its stylesheet. Automatic development cannot add homepage features through shared code.

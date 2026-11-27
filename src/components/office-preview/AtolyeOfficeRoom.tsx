@@ -25,7 +25,7 @@ export function AtolyeOfficeRoom({ slug }: { slug: OfficeRoomSlug }) {
     </header>
     <nav className="oop-room-nav" aria-label="Diğer odalar">{OFFICE_ROOMS.map(item =>
       <a key={item.slug} href={roomHref(item.slug)} aria-current={item.slug === slug ? "page" : undefined}>{item.name}</a>)}</nav>
-    {members.length === 0 && <p className="oop-room-empty">Bu odada sabit çalışan yok; işi biten çalışanlar sırayla buraya mola vermeye gelir.</p>}
+    {members.length === 0 && <p className="oop-room-empty">{room.emptyNote ?? "Bu odada sabit çalışan yok."}</p>}
     <section className="oop-room-grid">{members.map(entry => {
       const brain = getPreviewBrain(entry.id);
       const boss = entry.reportsTo === "owner" ? "Sahip (sen)" : getPreviewBrain(entry.reportsTo).name;

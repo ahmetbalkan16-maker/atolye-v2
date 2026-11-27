@@ -4,7 +4,7 @@ export const analistBrain = {
   id: "analist",
   name: "Kanal Analisti",
   department: "Yayın",
-  room: "AYAS Yönetim & Yayın",
+  room: "Kanal Analizi",
   liveStatus: "mevcut",
   sourceRole: "scripts/v3/kanal.ts",
   mission: "Kanal verilerini okur; organik ve ücretli izlenmeyi ayırır, hangi videonun neden tuttuğunu derse çevirip AYAS'a rapor eder.",

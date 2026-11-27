@@ -4,7 +4,7 @@ export const tarihBrain = {
   id: "tarih",
   name: "Tarih Hakemi",
   department: "Kalite kontrol",
-  room: "Kostüm & Kalite",
+  room: "Tarih Hakemi",
   liveStatus: "mevcut",
   sourceRole: "V3 tarih kapısı (history gate)",
   mission: "Senaryodaki her tarihi olayı, kişiyi ve sırayı kaynak bankasıyla karşılaştırır; ciddi bir tarih hatasında üretimi kostümlerden önce durdurur.",

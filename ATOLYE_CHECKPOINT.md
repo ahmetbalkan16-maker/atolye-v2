@@ -1,3 +1,24 @@
+## 27 Kasım 2026 (6) — Atölye ofisi genişledi: herkese eşit oda, büyük AYAS odası (toplu canlı almayı bekliyor)
+
+- Owner: "otoparkı ve arabaları kaldır yola kadar ofisi genişlet herkese bir oda ver ve odalar aynı büyüklükte olsun sadece
+  ayasın kendi odası farklı olsun diğerlerinden daha gösterişli ve büyük olsun"; görüntüleri gördükten sonra "arabalar
+  dolaşsın bu şekilde kaydet". Dal `claude/ofis-genisleme` (worktree `D:\ÜRETİM\Atolye\gelistirme\claude-ofis-genis`),
+  `codex/atolye-office-preview`'a ileri sarıldı.
+- `AtolyeOffice3DScene.tsx`: otopark + park etmiş arabalar silindi (sokak trafiği kaldı); bina x −12…22 (sağ yola kadar).
+  4 sıra × 7 sütun eşit oda (4,4 × 3,24 m), iki koridor (z ±3,99) uçlarda birleşir. Orta bant: solda Dinlenme, ortada
+  AYAS (3 sütun × 2 sıra, pirinç çerçeve, odaya bakan masa — AYAS artık `homeYaw: 0`, ekran duvarı, kitaplıklar, deri
+  köşe, strateji masası, avizeler, sahip onay noktası), sağda Toplantı. Yürüyüş artık tek genel yönlendirici
+  (`routeBetween`: oda şeridi → kapı → koridor → [uç koridor] → kapı → yer); eski elle yazılmış `pathBetween`/
+  `loungePortals`/`meetingRoute` silindi. Çiftler koridorda kapılarının ortasında buluşur (yeni çift: Gözcü–Onarım);
+  Tarih/Radar/Kanal Analisti AYAS'ın masasına rapora gider; sahibe raporlayan yalnızlar kendi dolabına.
+- `officeRoster.ts`: `OfficeRoomSlug` 21 oda (her çalışana bir oda; AYAS `yonetim`, geliştirici `gelistirme`, ortak
+  `toplanti`/`dinlenme`); eski `kurgu-mizah`, `kostum-kalite`, `ortam-gorsel`, `onarim-nobet` slug'ları kalktı.
+  `OfficeRoom.emptyNote`; beyin dosyalarındaki `room` metinleri yeni odalara göre. Telefonda (≤720 px) oda adları gizli.
+- Kanıt: tsc + lint (ofis dosyaları) temiz; `smoke-ayas-homepage-v2` 14/14, `smoke-ayas-owner-ui-v2` 36/36; izole
+  `next dev --webpack` (:3210, junction node_modules ile Turbopack `next/package.json` bulamıyor) + CDP ekran görüntüleri:
+  ofis, AYAS odası yakın, ana sayfa, telefon, oda sayfaları — konsol hatası yok
+  (`D:\ÜRETİM\private\temp\ofis-onizleme\genisleme-2026-11-27\`). Canlıya alma: sahibin toplu canlı almasında.
+
 ## 27 Kasım 2026 (5) — TypeScript 6.0.3 canlıda; Bekçi Ortak ağ kararı (canlı 0470a8bb)
 
 - **TypeScript 5.9.3 → 6.0.3** (owner "ikisini de hallet, geçir"): c6272b7e — kök + remotion-v3 paketleri; 14 smoke'un geçici

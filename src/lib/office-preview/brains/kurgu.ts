@@ -4,7 +4,7 @@ export const kurguBrain = {
   id: "kurgu",
   name: "Kurgu beyni",
   department: "Kurgu",
-  room: "Kurgu & Mizah",
+  room: "Kurgu",
   liveStatus: "mevcut",
   sourceRole: "kurgu",
   mission: "Senaryo ve sahne akışını teslim ölçütlerine göre düzenler.",
