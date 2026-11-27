@@ -23,6 +23,7 @@ import { listStudyRequests } from "../../src/lib/v3/council/ReferenceStore";
 import { listLinkRequests, listSearchRequests } from "../../src/lib/ayas/research/AyasLinkRequests";
 import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles, listProposals } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, publishLine, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
+import type { GateSummary } from "../../src/lib/v3/council/QualityGate";
 import { approvePublish } from "../../src/lib/v3/publish/PublishApproval";
 import { publishApproved } from "../../src/lib/v3/publish/PublishOrder";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
@@ -52,7 +53,10 @@ async function makeOrder(paths: V3Paths, file: string, order: ProductionOrder): 
   const video = path.join(out, "final.mp4");
   const qc = existsSync(path.join(out, "QC.md")) ? await fs.readFile(path.join(out, "QC.md"), "utf8") : "";
   const delivery = /Teslim: (.+)/.exec(qc)?.[1] ?? "";
+  // The quality gate's verdict travels with the order: PublishApproval refuses a blocked one without the owner's override.
+  const gate = existsSync(path.join(out, "kalite-kapisi.json")) ? ((await fs.readFile(path.join(out, "kalite-kapisi.json"), "utf8").then((t) => JSON.parse(t) as GateSummary).catch(() => undefined))) : undefined;
   Object.assign(order, {
+    ...(gate?.karar ? { kalite: { karar: gate.karar, puan: gate.puan, engeller: gate.engeller ?? [], zayif: gate.zayif ?? [] } } : {}),
     bitis: new Date().toISOString(),
     durum: code === 0 && existsSync(video) ? (/UYARIYLA/.test(delivery) ? "uyariyla_teslim" : "teslim") : "hata",
     ...(existsSync(video) ? { video } : {}),
@@ -183,8 +187,8 @@ async function main() {
     const id = process.argv[3];
     const all = await listOrders(paths.workRoot);
     const hit = all.find((x) => x.order.id === id);
-    if (!hit) throw new Error(`Kullanım: yapim.ts onayla <sipariş id> [--hemen] — "${id ?? ""}" bulunamadı`);
-    approvePublish(hit.order, all.map((x) => x.order), process.argv.includes("--hemen"));
+    if (!hit) throw new Error(`Kullanım: yapim.ts onayla <sipariş id> [--hemen] [--zorla] — "${id ?? ""}" bulunamadı`);
+    approvePublish(hit.order, all.map((x) => x.order), process.argv.includes("--hemen"), new Date(), { zorla: process.argv.includes("--zorla") });
     await saveOrder(hit.file, hit.order);
     console.log(`onaylandı: ${hit.order.id}${publishLine(hit.order)}`);
     return;

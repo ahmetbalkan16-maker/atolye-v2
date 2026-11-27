@@ -1,3 +1,25 @@
+## 27 Kasım 2026 (9) — Kalıcı kalite standardı: Kalite Kapısı (10 alan, 8,5 hedef, tarih/teknik engel), Shorts arayüz alanı
+
+- Owner'ın Codex analizinden gelen "KALICI VİDEO ÜRETİM KALİTESİ STANDARDI" uygulandı; belge `docs/v3/11_KALITE_STANDARDI.md`
+  (madde → Atölye'deki yer tablosu, var olan/yeni/ölçülmeyen ayrımı).
+- `src/lib/v3/council/QualityGate.ts` (saf): QC.md satırlarını başlığından aşamaya + 10 puan alanına bağlar (`qcChecks`),
+  `scoreGate` (10'dan düşüm, gerekçe = ölçülen her kontrol), karar yayina_hazir / iyilestirme_gerekli (<8,5 ya da alan <8) /
+  engelli (tarih: doğrulama, araştırma eksikleri; teknik: lisans, bozuk ses, CREDITS, açıklama, yükleme dosyası biçimi).
+  Yeni ölçümler: orta bölüm %30–70 boşluğu, kapanış duruşu, altyazı okunurluğu (≤84 karakter, ≤22 kr/sn), Shorts arayüzü
+  (`LayoutCheck.shortsUiFaults`, `QualityBrain.shortsUiReview`), yükleme dosyası ffprobe. Çıktı `KALITE_KAPISI.md` + `kalite-kapisi.json`.
+- Yayın: `order.kalite` (yapim.ts teslimde yazar); `approvePublish` engelli videoyu onaylamaz; yönetmen geçişi AYAS'ta
+  "… videosunu yine de yükle" ya da `yapim.ts onayla <id> --zorla`.
+- Dikey karede tarih damgası 30 → 150 px (`hudLayout.dateTop`), güç çubuğu 150 → 240 (İran/Cajamarca/Stalingrad Short'larında
+  damga Shorts üst çubuğunun altındaydı). Yatay video değişmedi. Önizleme: İran s2 kare 4 (dikey) bakıldı.
+- Geriye dönük deneme (son 7 sipariş, model yok): 8,8–9,3; Stalingrad (elle bölüm, doğrulama kaydı yok) engelli. Ortak bulgular:
+  sahne planında kamera eksikleri, Constantinople'da videodan taşan 4 altyazı, 15 kelimelik kanca ardı.
+- İran Short'u sabit yorumu (owner elle sabitler): "Will Hormuz ever truly reopen? Tell us in the comments 👇 A new insane
+  history moment every Tue, Thu & Sat — subscribe so you don't miss it."
+- Testler: smoke-v3-quality-gate 9, motion 29, episode-director 90, youtube 11, youtube-yukleme 12, ayas-video-order 10,
+  firewall closure 13; tsc (kök + remotion-v3); lint 0/0. Canlıda DEĞİL (toplu canlı alma bekler; izleyici yeniden başlatılmalı).
+- Açık: müzik/anlatıcı dengesi ölçülmüyor (raporda "ölçülmedi"); kapanış duruşu plan olaylarından ölçülüyor — İran'da
+  görülen ~12 sn "duran kapanış" olay sayımında görünmedi (karakter satırları olay sayılıyor), sıradaki Short'ta bakılacak.
+
 ## 27 Kasım 2026 (8) — İran savaşı Short'u YouTube'da (Cmt 12:00 TR); 2026 görselleri; kanal analisti; kanca ve abone kuralları
 
 - **Video:** sipariş `20261127T092349-how-did-one-night-of-strikes-start-the-2`, ton ciddi, 60sn, tur 0 teslim (64,0 sn,

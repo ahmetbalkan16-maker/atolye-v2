@@ -1,6 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { slotText } from "../publish/PublishCalendar";
+import type { GateSummary } from "../council/QualityGate";
 
 /**
  * Video production orders — the door between AYAS (the manager) and Atölye V3. An order is a JSON file in runtime
@@ -44,6 +45,11 @@ export interface ProductionOrder {
   devamAdimi?: ProductionStep;
   /** The retouch round to resume (its plan is rotus-plani.json in the work dir); a resumed order without it forgot it. */
   rotusTuru?: number;
+  /**
+   * The Video Quality Gate's verdict of the delivered cut (kalite-kapisi.json; owner, 27 Nov 2026, the quality standard):
+   * "engelli" keeps it from YouTube until the owner overrides it (PublishApproval). Absent on orders made before the gate.
+   */
+  kalite?: GateSummary;
   /** YouTube: absent until the owner approves the delivered video (owner, 2 Nov 2026: no upload without approval). */
   yayin?: OrderPublish;
 }

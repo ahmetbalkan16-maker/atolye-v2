@@ -52,7 +52,8 @@ import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/Bra
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate, sourcedNumberFacts } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
-import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, frameKindAt, layoutReview, narratedSpans, pixelReview, qualityReview, shortsUiReview } from "../src/lib/v3/council/QualityBrain";
+import { AREA_TR, closingHoldS, CUE_MAX_CHARS, CUE_MAX_CPS, GATE_TARGET, type GateCheck, gateLine, gateMarkdown, gateSummary, longestGapIn, parseSrt, qcChecks, scoreGate, subtitleFaults, tc } from "../src/lib/v3/council/QualityGate";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { similarCaseLines } from "../src/lib/v3/council/DevBrain";
 import { brainCases, criticBriefing, factCheckBriefing } from "../src/lib/v3/council/BrainBriefing";
@@ -77,7 +78,7 @@ import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/S
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { addDepthMaps, depthDeps } from "../src/lib/v3/render/DepthMaps";
-import { isShorts, lengthOk, lengthTopS, mapStageFor, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, lengthTopS, mapStageFor, outputFrame, rotatedShortArgs, SHORTS_SIZE, shortsLayout, shortsMinS, SHORTS_MAX_S, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { channelGoalNote, loadChannelGoals, openingChecks, openingPlanCheck, scenePlanCheck, shortBeatRule, subscribeTexts } from "../src/lib/v3/publish/ChannelGoals";
 import { applyOpeningFixes, openingFixes, openingFixLine, studioMade } from "../src/lib/v3/council/OpeningRetouch";
 import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "../src/lib/v3/publish/YoutubeUpload";
@@ -1665,6 +1666,48 @@ async function main() {
       council.debate("sef", "rötuş kararı", retouchDebate(nextRound));
       await writeJson(f("rotus-plani.json"), nextRound);
     }
+    // The Video Quality Gate (owner, 27 Nov 2026, the permanent quality standard): QC's rows filed by stage and area, with
+    // the measures only this point has (frames, layout, pixels, council, ending, middle, subtitles, the upload's format),
+    // scored out of 10 per area from what was measured. A historical or technical blocker is a missing piece (eksik) and
+    // keeps the order from "ready to publish" (PublishApproval); an area under target is a warning for the next round.
+    const gate = await (async () => {
+      const base = qcChecks(qc.join("\n"), shorts);
+      if (base.unknownRows.length) log(`  kalite kapısı: sınıfsız QC satırı (tempo/kurgu sayıldı): ${base.unknownRows.join(" | ")}`);
+      const holdS = closingHoldS(events, durationS);
+      const middle = longestGapIn(events, durationS);
+      const srtFaults = existsSync(f("altyazi.srt")) ? subtitleFaults(parseSrt(await fs.readFile(f("altyazi.srt"), "utf8")), durationS) : ["altyazı dosyası yok"];
+      const hidden = shorts ? await shortsUiReview({ file: f("yerlesim.json"), plan, council }).catch(() => undefined) : undefined;
+      const probe = upload ? await runChecked(paths.ffprobe, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", f(upload)]).then((r) => JSON.parse(r.stdout) as { streams?: { width?: number; height?: number }[]; format?: { duration?: string } }).catch(() => undefined) : undefined;
+      const [w, h] = [probe?.streams?.[0]?.width, probe?.streams?.[0]?.height];
+      const upS = Number(probe?.format?.duration ?? NaN);
+      const wantW = shorts ? 1080 : 1920;
+      const wantH = shorts ? 1920 : 1080;
+      const history = council.findings.filter((x) => x.beyin === "arastirma" && x.onem === "eksik");
+      const ending = closingQuestion(episode);
+      const extra: GateCheck[] = [
+        { stage: "gorseller", area: "gorsel", ok: quality.checked > 0 && quality.averageScore >= 7 && quality.faulty <= Math.max(1, Math.round(quality.checked * 0.1)), weight: 2, unmeasured: !quality.checked, text: `Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10 (hedef ≥ 7, sorunlu kare ≤ %10)` },
+        ...(quality.showing !== undefined ? [{ stage: "gorseller" as const, area: "gorsel" as const, ok: quality.showing >= 7, weight: 1, text: `Anlatılanı gösterme ${quality.showing.toFixed(1)}/10 (her görsel anlatılan bilgiyle ilgili olmalı; hedef ≥ 7)` }] : []),
+        { stage: "kurgu", area: "gorsel", ok: layoutCount === 0, weight: Math.min(3, Math.max(1, layoutCount ?? 1)), unmeasured: layoutCount === undefined, text: `Yerleşim: ${layoutCount ?? "ölçülmedi"} kusur (kesik ya da üst üste yazı, kadraj dışı birlik)` },
+        { stage: "export", area: "gorsel", ok: pixelCount === 0, weight: Math.min(3, Math.max(1, pixelCount ?? 1)), unmeasured: pixelCount === undefined, text: `Piksel: ${pixelCount ?? "ölçülmedi"} kusur (karanlık bant, flaş)` },
+        ...(session ? [{ stage: "senaryo" as const, area: "hikaye" as const, ok: session.puan >= 7, weight: 2, text: `Yönetmen kurulu ${session.puan}/10 (${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}`).join(", ")}; hedef ≥ 7)` }] : [{ stage: "senaryo" as const, area: "hikaye" as const, ok: false, unmeasured: true, text: "Yönetmen kurulu: oturum yok" }]),
+        { stage: "senaryo", area: "dogruluk", ok: !history.length, weight: 4, block: "tarih", text: `Araştırma beyninin eksikleri: ${history.length ? history.map((x) => `${x.baslik} (${x.yer ?? "senaryo"})`).join("; ") : "yok"}` },
+        ...(shorts ? [{ stage: "senaryo" as const, area: "final" as const, ok: Boolean(ending), weight: 3, text: `Kapanış: ${ending ? `açık soruyla bitiyor ("${ending.slice(0, 80)}") + abone daveti` : "son satır açık soru + abone daveti değil (ClosingLine)"}` }] : []),
+        { stage: "kurgu", area: "final", ok: holdS <= (shorts ? 4 : 8), weight: 3, text: `Kapanış duruşu: son görsel olaydan sona ${holdS.toFixed(1)} sn (${tc(durationS - holdS)}–${tc(durationS)}; hedef ≤ ${shorts ? 4 : 8} sn, final hareketsiz beklememeli)` },
+        { stage: "kurgu", area: "tutma", ok: middle.lengthS <= (shorts ? 4 : 6), weight: 2, text: `Orta bölüm (%30–70): en uzun olaysız aralık ${middle.lengthS.toFixed(1)} sn, ${tc(middle.from)}–${tc(middle.to)} (hedef ≤ ${shorts ? 4 : 6} sn)` },
+        { stage: "altyazi", area: "altyazi", ok: !srtFaults.length, weight: 2 * Math.max(1, srtFaults.length), text: `Altyazı (YouTube CC, kelime zamanlı): ${srtFaults.length ? srtFaults.join("; ") : `okunur (≤ ${CUE_MAX_CHARS} karakter, ≤ ${CUE_MAX_CPS} karakter/sn, üst üste binme yok)`}` },
+        ...(shorts ? [{ stage: "kurgu" as const, area: "altyazi" as const, ok: hidden !== undefined && !hidden.length, weight: Math.min(3, Math.max(1, hidden?.length ?? 1)), unmeasured: hidden === undefined, text: `Shorts arayüzü: ${hidden === undefined ? "ölçülmedi (yerleşim kaydı yok)" : hidden.length ? `${hidden.length} yazı alt bant/sağ butonlar/üst çubuk altında — ${hidden.slice(0, 3).map((x) => `${tc(x.from)} ${x.ayrinti}`).join("; ")}` : "önemli yazı kapanan alanda değil"}` }] : []),
+        ...(upload ? [{ stage: "export" as const, area: "final" as const, ok: w === wantW && h === wantH && Number.isFinite(upS) && Math.abs(upS - durationS) <= 1 && (!shorts || upS <= SHORTS_MAX_S), weight: 0, block: "teknik" as const, text: `Yükleme dosyası ${upload}: ${w ?? "?"}×${h ?? "?"}, ${Number.isFinite(upS) ? upS.toFixed(1) : "?"} sn (beklenen ${wantW}×${wantH}${shorts ? `, ≤ ${SHORTS_MAX_S} sn` : ""}, final ile aynı süre)` }] : []),
+        // Music under the narrator is mixed by rule (Mixer's ducking); no measure of it exists yet, so it is listed, not scored.
+        { stage: "ses", area: "ses", ok: true, unmeasured: true, text: "Müzik/anlatıcı dengesi: miks kuralıyla kısılıyor, ayrı ölçüm yok" },
+      ];
+      const result = scoreGate([...base.checks, ...extra]);
+      await fs.writeFile(f("KALITE_KAPISI.md"), gateMarkdown(episode.baslik, result));
+      await writeJson(f("kalite-kapisi.json"), { ...gateSummary(result), tur: rotusTuru, alanlar: result.areas, asamalar: result.stages });
+      for (const b of result.blockers) council.find({ beyin: b.startsWith("TARİH") ? "arastirma" : "kalite", onem: "eksik", baslik: "kalite kapısı: yayını durduran hata", ayrinti: b, oneri: "giderilmeden video yayına hazır sayılmaz (KALITE_KAPISI.md)", tur: "veri", yer: "kalite kapısı" });
+      for (const a of result.areas.filter((x) => x.score !== undefined && x.score < GATE_TARGET)) council.find({ beyin: "kalite", onem: "uyari", baslik: `kalite kapısı: ${AREA_TR[a.area]} ${a.score!.toFixed(1)}/10 (hedef ${GATE_TARGET})`, ayrinti: a.failed.join(" · ").slice(0, 600), tur: "veri", yer: "kalite kapısı" });
+      log(gateLine(result));
+      return result;
+    })().catch((e: Error) => (log(`  kalite kapısı hesaplanamadı: ${e.message.slice(0, 160)}`), undefined));
     // The quality brain delivers: a production with a missing piece (an "eksik" finding) is delivered with a warning.
     const missing = council.findings.filter((x) => x.onem === "eksik").length;
     const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
@@ -1674,7 +1717,7 @@ async function main() {
     if (wants?.yeni || wants?.tekrar) log(`  Gelişim Merkezi: ${wants.yeni} yeni geliştirme önerisi, ${wants.tekrar} tekrar eden`);
     const councilLine = session ? `\n- Yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi${nextRound?.yonetmen ? ` (${nextRound.tur}. turda uygulanacak)` : ""}` : session.kararYok}` : "";
     const paceLine = ours ? `\n- Tempo: ${measuresLine(ours)}${paceTargets ? ` (referans hedefi: ${targetsLine(paceTargets)})` : ""}` : "";
-    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}${councilLine}${paceLine}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
+    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}${councilLine}${paceLine}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)${gate ? `\n- ${gateLine(gate)} (ayrıntı KALITE_KAPISI.md)` : ""}\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
     log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
     retouchPlan = nextRound;
 

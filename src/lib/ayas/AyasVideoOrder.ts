@@ -20,7 +20,7 @@ import { resolveV3Paths } from "@/lib/v3/V3Paths";
 export type AyasVideoIntent =
   | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en"; readonly sure?: string }
   | { readonly kind: "status" }
-  | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean }
+  | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean; readonly zorla?: boolean }
   /** "Bu videodan öğren <YouTube bağlantısı>" or a link alone: the brains study every linked video while idle (ReferenceStudy). */
   | { readonly kind: "study"; readonly urls: readonly string[] }
   /** "Beyinler ne öğrendi", "kurul ne dedi": the brains' council, lessons and proposals (BrainsReport). */
@@ -123,10 +123,12 @@ const STATUS = new RegExp(`(?<!\\p{L})(?:video|sipariş|belgesel)\\p{L}*(?:\\s+\
 // "son videoyu hemen yayınla", "video güzel olmuş, yükle", "yüklemeyi onaylıyorum". Only an imperative at the end of
 // the sentence counts; "yüklendi mi" is a status question above, "nasıl video yüklenir" matches nothing.
 const PUBLISH_VERB = "(?:yükle|yayınla|yayına al)(?:yebilirsin|yabilirsin|r misin|r mısın)?";
-const PUBLISH_TR = new RegExp(`^(?:(.{0,80}?)\\s+)?(?:video|short|shorts|bölüm|belgesel)(?:['’]?\\p{L}*)(?:[,\\s]+(?:onaylandı|onaylıyorum|onayladım|tamam|güzel|uygun|iyi|olmuş)){0,2}[,\\s]+(?:(?:hemen|şimdi|youtube['’]?a)\\s+){0,2}${PUBLISH_VERB}$`, "u");
+const PUBLISH_TR = new RegExp(`^(?:(.{0,80}?)\\s+)?(?:video|short|shorts|bölüm|belgesel)(?:['’]?\\p{L}*)(?:[,\\s]+(?:onaylandı|onaylıyorum|onayladım|tamam|güzel|uygun|iyi|olmuş)){0,2}[,\\s]+(?:(?:hemen|şimdi|youtube['’]?a|yine\\s+de|gene\\s+de)\\s+){0,3}${PUBLISH_VERB}$`, "u");
 const PUBLISH_APPROVE_TR = /^(?:(.{0,80}?)\s+)?(?:video\p{L}*\s+)?(?:yüklemeyi|yayını|yayınlamayı)\s+onaylıyorum$/u;
 const PUBLISH_EN = /^(?:please\s+)?(?:upload|publish)\s+(?:the\s+)?(.{0,80}?)\s*(?:video|short)(?:\s+now)?$/u;
 const NOW_WORD = /(?<!\p{L})(?:hemen|şimdi|now)(?!\p{L})/u;
+// The director's override of the quality gate's stop (owner, 27 Nov 2026: "Ben yönetmen olarak son kararı vereceğim").
+const FORCE_WORD = /(?<!\p{L})(?:yine|gene)\s+de(?!\p{L})|(?<!\p{L})anyway(?!\p{L})/u;
 
 /**
  * A "kısa"/"short"/"shorts" video without a number: a 60-second vertical Short (owner, 23 Nov 2026, "bütün planları
@@ -202,8 +204,8 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   if (STATUS.test(lower)) return { kind: "status" };
   const p = PUBLISH_TR.exec(lower) ?? PUBLISH_APPROVE_TR.exec(lower) ?? PUBLISH_EN.exec(t.toLowerCase());
   if (p) {
-    const words = (p[1] ?? "").replace(/(?<!\p{L})(?:hemen|şimdi|now|youtube['’]?a)(?!\p{L})/gu, " ").replace(/\s+/g, " ").trim();
-    return { kind: "publish", words, hemen: NOW_WORD.test(lower) };
+    const words = (p[1] ?? "").replace(/(?<!\p{L})(?:hemen|şimdi|now|youtube['’]?a|anyway)(?!\p{L})|(?<!\p{L})(?:yine|gene)\s+de(?!\p{L})/gu, " ").replace(/\s+/g, " ").trim();
+    return { kind: "publish", words, hemen: NOW_WORD.test(lower), ...(FORCE_WORD.test(lower) ? { zorla: true } : {}) };
   }
   const m = ORDER_TR.exec(lower) ?? ORDER_TR_COLON.exec(lower) ?? ORDER_EN.exec(t.toLowerCase());
   if (!m?.[1]) return null;
@@ -259,7 +261,12 @@ export async function approveFromChat(workRoot: string, intent: Extract<AyasVide
   if (pick.length > 1) return `Hangisini yükleyeyim? ${list(pick)}. Konunun adıyla söyle (ör. "${pick[0]!.konu.split(/\s+/).slice(0, 2).join(" ")} videosunu yükle").`;
   const order = pick[0]!;
   if (order.yayin && order.yayin.durum !== "hata") return `"${order.konu}":${publishLine(order, now)}`;
-  approvePublish(order, orders, intent.hemen, now);
+  try {
+    approvePublish(order, orders, intent.hemen, now, { zorla: intent.zorla === true });
+  } catch (e) {
+    if (!(e as Error).message.startsWith("YOUTUBE_QUALITY_BLOCKED")) throw e;
+    return `"${order.konu}" yüklenmedi: kalite kapısı yayını durdurdu (${order.kalite?.puan.toFixed(1) ?? "?"}/10). Engeller: ${order.kalite?.engeller.slice(0, 3).join(" · ") ?? "?"}. Ayrıntı yapım klasöründeki KALITE_KAPISI.md'de. Yönetmen olarak yine de yüklenmesini istersen "${order.konu.split(/\s+/).slice(0, 2).join(" ")} videosunu yine de yükle" yaz.`;
+  }
   await saveOrder(all.find((x) => x.order === order)!.file, order);
   const when = order.yayin!.yayinZamani ? `${slotText(order.yayin!.yayinZamani)} (New York 15:00) yayına çıkacak; o zamana kadar kanalda özel durur, yalnız sen görürsün` : "yüklenince hemen yayında olacak";
   return `Onayını aldım: "${order.konu}" (${videoKind(order.sure) === "short" ? "Short" : "uzun video"}) YouTube'a yüklenecek ve ${when}.${order.durum === "uyariyla_teslim" ? " Not: kalite beyni bu videoyu uyarıyla teslim etmişti." : ""} Yükleme bitince "video durumu"nda bağlantısı görünür.`;

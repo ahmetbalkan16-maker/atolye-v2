@@ -117,3 +117,61 @@ export function layoutFaults(file: LayoutFile, skip?: (frame: number) => boolean
   }
   return faults.sort((a, b) => a.from - b.from);
 }
+
+/**
+ * The parts of a vertical frame YouTube's Shorts player covers (owner, 27 Nov 2026, the quality standard: "Shorts
+ * arayüzünün kapatabileceği alanlara önemli yazılar yerleştirilmemeli"): the title, channel and sound row along the
+ * bottom, the like/comment/share column on the right, the search bar on top. Shares of the frame.
+ */
+export const SHORTS_UI = { bottom: 0.2, top: 0.07, right: 0.11, rightFrom: 0.45, rightTo: 0.9 } as const;
+/** A box with at least this share of its area under the player's controls is hidden. */
+export const SHORTS_UI_COVER_SHARE = 0.5;
+
+/** The share of a box under the Shorts player's controls (0 on a horizontal frame). */
+export function shortsUiCover(b: V3LayoutBox, width: number, height: number): number {
+  if (height <= width || b.w <= 0 || b.h <= 0) return 0;
+  const zones: V3LayoutBox[] = [
+    { tur: b.tur, ad: "", x: 0, y: height * (1 - SHORTS_UI.bottom), w: width, h: height * SHORTS_UI.bottom },
+    { tur: b.tur, ad: "", x: 0, y: 0, w: width, h: height * SHORTS_UI.top },
+    { tur: b.tur, ad: "", x: width * (1 - SHORTS_UI.right), y: height * SHORTS_UI.rightFrom, w: width * SHORTS_UI.right, h: height * (SHORTS_UI.rightTo - SHORTS_UI.rightFrom) },
+  ];
+  const area = (z: V3LayoutBox) => {
+    const w = Math.min(b.x + b.w, z.x + z.w) - Math.max(b.x, z.x);
+    const h = Math.min(b.y + b.h, z.y + z.h) - Math.max(b.y, z.y);
+    return w > 0 && h > 0 ? w * h : 0;
+  };
+  // The zones overlap only at the right column's foot, which the bottom band already holds (rightTo < 1 - bottom is not
+  // assumed): the larger of the summed and the single areas is never above the box.
+  return Math.min(1, zones.reduce((s, z) => s + area(z), 0) / (b.w * b.h));
+}
+
+/** Text the Shorts player hides, each only when it lasts MIN_PROBES probes in a row (a passing move is not a fault). */
+export function shortsUiFaults(file: LayoutFile, skip?: (frame: number) => boolean): LayoutFault[] {
+  if (file.height <= file.width) return [];
+  const seen = new Map<string, { frames: number[]; ayrinti: string }>();
+  for (const f of [...file.kareler].sort((a, b) => a.kare - b.kare)) {
+    if (skip?.(f.kare)) continue;
+    for (const b of f.ogeler) {
+      const share = shortsUiCover(b, file.width, file.height);
+      if (share < SHORTS_UI_COVER_SHARE) continue;
+      const key = `${b.tur}|${b.ad}`;
+      const s = seen.get(key) ?? { frames: [], ayrinti: `${named(b)} Shorts arayüzünün altında kalıyor (%${Math.round(share * 100)})` };
+      s.frames.push(f.kare);
+      seen.set(key, s);
+    }
+  }
+  const faults: LayoutFault[] = [];
+  for (const s of seen.values()) {
+    let run: number[] = [];
+    const close = () => {
+      if (run.length >= MIN_PROBES) faults.push({ tur: "kenar", from: run[0]! / file.fps, to: (run[run.length - 1]! + file.every) / file.fps, ayrinti: s.ayrinti });
+      run = [];
+    };
+    for (const fr of s.frames) {
+      if (run.length && fr - run[run.length - 1]! !== file.every) close();
+      run.push(fr);
+    }
+    close();
+  }
+  return faults.sort((a, b) => a.from - b.from);
+}

@@ -16,7 +16,14 @@ export const BAR_W = 860;
  * The bar's top: under the date stamp in a Short's narrow frame, where the two meet (the Kosovo march as a Short: the
  * second side's name "SERBS" ran under "June 1389").
  */
-export const barTop = (W: number, H: number) => (W < H ? 150 : 66);
+export const barTop = (W: number, H: number) => (W < H ? 240 : 66);
+
+/**
+ * The date plate's top: below YouTube's Shorts top bar (search, menu) in a vertical frame — owner, 27 Nov 2026, the
+ * quality standard: "Shorts arayüzünün kapatabileceği alanlara önemli yazılar yerleştirilmemeli"; the Iran, Cajamarca and
+ * Stalingrad Shorts' dates stood at 30–94 px, under the player's icons. A 16:9 frame keeps 30.
+ */
+export const dateTop = (W: number, H: number) => (W < H ? 150 : 30);
 
 /** The date plate's width for a date's text. */
 export const plateWidth = (text: string) => Math.max(150, text.length * 25 + 56);
@@ -37,7 +44,7 @@ function markBoxes(map: Pick<V3GeoMap, "dates" | "strength">, frame: number, W: 
   // `barFrom`: the bar's box whenever any of its entries is on from that frame on (the legend's one place), else now.
   const barOn = (map.strength ?? []).some((s) => (barFrom !== undefined ? s.end === undefined || s.end > barFrom : s.start <= frame && (s.end === undefined || frame < s.end)));
   return [
-    ...(map.dates?.length ? [{ x0: W - 56 * u - plateWidth(map.dates.reduce((a, d) => (d.text.length > a.length ? d.text : a), "")) * u, y0: 0, x1: W, y1: 110 * u }] : []),
+    ...(map.dates?.length ? [{ x0: W - 56 * u - plateWidth(map.dates.reduce((a, d) => (d.text.length > a.length ? d.text : a), "")) * u, y0: 0, x1: W, y1: (dateTop(W, H) + 80) * u }] : []),
     ...(barOn ? [{ x0: (W - BAR_W * u) / 2 - 12 * u, y0: 0, x1: (W + BAR_W * u) / 2 + 12 * u, y1: (barTop(W, H) + 84) * u }] : []),
   ];
 }

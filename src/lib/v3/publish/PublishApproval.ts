@@ -18,8 +18,12 @@ export function takenSlots(kind: VideoKind, others: readonly ProductionOrder[]):
  * Approves a delivered video: it takes the next free weekly slot of its kind (or none with `hemen`). A video already
  * approved, uploading or on the channel is left alone; a stopped one ("hata") may be approved again.
  */
-export function approvePublish(order: ProductionOrder, others: readonly ProductionOrder[], hemen: boolean, now = new Date()): ProductionOrder {
+export function approvePublish(order: ProductionOrder, others: readonly ProductionOrder[], hemen: boolean, now = new Date(), opts: { readonly zorla?: boolean } = {}): ProductionOrder {
   if (!isDelivered(order)) throw new Error("YOUTUBE_NOT_DELIVERED: video teslim edilmeden yüklenmez");
+  // A historical or technical publishing error found by the quality gate is never uploaded on a plain approval (owner,
+  // 27 Nov 2026: "giderilmeden video yayınlanmaya hazır kabul edilmemeli"); the owner, the director, may still say
+  // "yine de yükle" ("Ben yönetmen olarak son kararı vereceğim").
+  if (order.kalite?.karar === "engelli" && !opts.zorla) throw new Error(`YOUTUBE_QUALITY_BLOCKED: kalite kapısı yayını durdurdu — ${order.kalite.engeller.slice(0, 3).join(" · ")}`);
   if (order.yayin && order.yayin.durum !== "hata") throw new Error(`YOUTUBE_ALREADY: bu videonun yayını zaten "${order.yayin.durum}"`);
   const kind = videoKind(order.sure);
   order.yayin = hemen ? { durum: "onaylandi", onay: now.toISOString(), hemen: true } : { durum: "onaylandi", onay: now.toISOString(), yayinZamani: nextSlot(kind, takenSlots(kind, others.filter((o) => o.id !== order.id)), now) };

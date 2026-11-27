@@ -6,7 +6,7 @@ import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { type CouncilLog, readJsonAnswer } from "./Council";
 import { exampleDir, type Lesson, recall, remember } from "./ExperienceMemory";
-import { type LayoutFault, type LayoutFile, layoutFaults } from "./LayoutCheck";
+import { type LayoutFault, type LayoutFile, layoutFaults, shortsUiFaults } from "./LayoutCheck";
 import { mapFramingFaults } from "./MapFramingCheck";
 import { type PixelFault, pixelFaults, scanVideo } from "./PixelCheck";
 
@@ -272,6 +272,19 @@ export async function layoutReview(input: { readonly file: string; readonly plan
   const faults = layoutFaults(data, layoutSkip(input.plan));
   for (const x of faults) input.council.find({ beyin: "kalite", onem: x.to - x.from >= MEASURED_FAULT_S ? "eksik" : "uyari", baslik: LAYOUT_TITLES[x.tur].baslik, ayrinti: x.ayrinti, oneri: LAYOUT_TITLES[x.tur].oneri, tur: "kod", yer: span(x.from, x.to) });
   return faults.length + framing.length;
+}
+
+/**
+ * Text under the Shorts player's own controls (LayoutCheck.shortsUiFaults; owner, 27 Nov 2026, the quality standard):
+ * each lasting one is a warning for the quality gate's subtitle-and-text area. Kept apart from layoutReview so the
+ * retouch round's fault count is the one it always was. Undefined without the render's boxes or on a horizontal frame.
+ */
+export async function shortsUiReview(input: { readonly file: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots">; readonly council: CouncilLog }): Promise<readonly LayoutFault[] | undefined> {
+  const data = existsSync(input.file) ? (JSON.parse(await fs.readFile(input.file, "utf8")) as LayoutFile) : undefined;
+  if (!data?.kareler.length || data.height <= data.width) return undefined;
+  const faults = shortsUiFaults(data, layoutSkip(input.plan));
+  for (const x of faults) input.council.find({ beyin: "kalite", onem: "uyari", baslik: "yazı Shorts arayüzünün altında", ayrinti: x.ayrinti, oneri: "yazıyı alt %20, üst %7 ve sağ buton sütunu dışına al (LayoutCheck.SHORTS_UI)", tur: "kod", yer: span(x.from, x.to) });
+  return faults;
 }
 
 /** The pixel check over every frame of the finished video: dark bands, a moment of land painted as sea, a flash of black. */

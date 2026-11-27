@@ -3,7 +3,7 @@ import { Easing, interpolate, spring } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
-import { BAR_W, barTop, dotLegend, type HudCards, LEGEND_DOT_STEP, legendScaleText, plateWidth } from "./hudLayout";
+import { BAR_W, barTop, dotLegend, type HudCards, LEGEND_DOT_STEP, legendScaleText, plateWidth, dateTop } from "./hudLayout";
 import type { TiltLayer, Up } from "./tilt";
 
 /**
@@ -258,7 +258,7 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
   const plate = (text: string, dy: number, alpha: number, key: string) => {
     const w = plateWidth(text) * u;
     const x = W - 46 * u - w;
-    const y = 30 * u + dy;
+    const y = dateTop(W, H) * u + dy;
     return (
       <g key={key} {...yer("hud", text)} opacity={alpha}>
         <rect x={x} y={y} width={w} height={64 * u} rx={8 * u} fill={PARCHMENT} stroke={SEPIA} strokeWidth={3 * u} />
