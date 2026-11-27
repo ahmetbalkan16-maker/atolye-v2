@@ -16,8 +16,24 @@
  */
 
 import type { LearnedSecurityCheck } from "../../security-watch/LearnedChecks";
+import {
+  matchAdvisories, newerSecurityReleases, RESEARCH_SOURCES,
+  type AdvisoryHit, type AdvisorySeverity, type ComponentUpdatePath, type SecurityResearchFacts, type SecurityResearchSummary,
+} from "./SecurityResearch";
 
 export type SecuritySeverity = "kritik" | "yuksek" | "orta" | "dusuk";
+
+/** Structured detail of a research finding (an advisory that affects an installed version), for the improvement needs. */
+export interface SecurityThreat {
+  readonly advisoryId: string;
+  readonly url: string;
+  readonly component: string;
+  readonly label: string;
+  readonly installed: string;
+  readonly vulnerable: string;
+  readonly fixed: string | null;
+  readonly via: ComponentUpdatePath;
+}
 
 export interface SecurityFinding {
   /** Stable id: the same problem keeps the same id across runs (the case library keys on it). */
@@ -31,6 +47,8 @@ export interface SecurityFinding {
   readonly advice: string;
   /** True when only the owner may carry out the fix (closing a port, rotating a key…). */
   readonly ownerAction: boolean;
+  /** Set on `tehdit:` findings (security research, 2026-11-27). */
+  readonly threat?: SecurityThreat;
 }
 
 /** A measurement that may have failed: `null` value with a reason means "could not measure". */
@@ -55,6 +73,19 @@ export interface FirewallAllowRule {
 export interface SecretHit {
   readonly file: string;
   readonly kind: string;
+  /** Gitleaks: the line and the (short) commit it was found in; the value itself is never kept. */
+  readonly line?: number;
+  readonly commit?: string;
+}
+
+/** Which secret scanner produced the `secrets` fact (owner 2026-11-27: Gitleaks, with the built-in patterns as fallback). */
+export interface SecretScannerFacts {
+  readonly tool: "gitleaks" | "yerlesik";
+  readonly version: string | null;
+  /** Gitleaks over the whole history ("tam") or only the commits since its last scan ("artimli"). */
+  readonly mode?: "tam" | "artimli";
+  /** Why Gitleaks did not run (absent, hash mismatch, failed, timed out). */
+  readonly reason?: string;
 }
 
 export interface VulnerabilityCount {
@@ -90,6 +121,10 @@ export interface SecurityWatchFacts {
   readonly openSensitiveRoutes: Measured<readonly string[]>;
   /** Length of the passcode (never the passcode), and whether the gate is enforced. */
   readonly accessKey: Measured<{ readonly length: number; readonly enforced: boolean }>;
+  /** The daily internet research: our installed components, the advisories read for them, the sources' state. */
+  readonly research: Measured<SecurityResearchFacts>;
+  /** Which scanner produced `secrets`. */
+  readonly secretScanner: Measured<SecretScannerFacts>;
 }
 
 /** Ports that must never face a network the owner does not control: the app, SMB/NetBIOS, RDP, Ollama. */
@@ -137,6 +172,31 @@ export function vetLearnedChecks(checks: readonly LearnedSecurityCheck[]): { rea
     if (status === "aktif") active.push(check);
   }
   return { active, verdicts };
+}
+
+const THREAT_SEVERITY: Readonly<Record<AdvisorySeverity, SecuritySeverity>> = { critical: "kritik", high: "yuksek", medium: "orta", low: "dusuk", unknown: "orta" };
+
+/** One advisory affecting one installed component (several installed versions are listed together). */
+function threatFinding(id: string, group: readonly AdvisoryHit[]): SecurityFinding {
+  const h = group[0]!;
+  const a = h.advisory;
+  const c = h.component;
+  const versions = [...new Set(group.map((g) => g.component.version))].join(", ");
+  const fix = h.fixed;
+  const advice = !fix
+    ? `Düzeltilmiş sürüm henüz yok. Tavsiyeyi oku (${a.url}) ve önerilen geçici önlemi uygula; Bekçi her gün yeniden bakar.`
+    : c.via === "radar"
+      ? `Güncelleme Radarı'ndan ${c.label} ${fix} (ya da daha yeni) sürümünü "Onayla ve dene" ile dene, geçerse uygula.`
+      : c.via === "paket"
+        ? `${c.name} dolaylı/küçük bir paket: ${fix} veya üstüne çıkması için onaylı bir geliştirme oturumunda paketleri güncelle (npm update ${c.name}).`
+        : `${c.label} programını ${fix} veya daha yeni bir sürüme güncelle (kurulum senin işin).`;
+  return {
+    id, severity: THREAT_SEVERITY[a.severity], ownerAction: true,
+    title: `Yeni güvenlik açığı bizi etkiliyor: ${c.label} ${versions}${a.summary ? ` — ${a.summary}` : ""}`.slice(0, 220),
+    evidence: `${a.id}${a.aliases.length ? ` (${a.aliases.join(", ")})` : ""} · kurulu ${versions} · etkilenen ${h.vulnerable} · düzeltilmiş ${fix ?? "yok"} · ${RESEARCH_SOURCES[a.source]?.label ?? a.source} · ${a.url}`.slice(0, 400),
+    advice,
+    threat: { advisoryId: a.id, url: a.url, component: c.name, label: c.label, installed: c.version, vulnerable: h.vulnerable, fixed: fix, via: c.via },
+  };
 }
 
 /**
@@ -195,7 +255,33 @@ export function evaluateSecurityWatch(facts: SecurityWatchFacts, nowIso: string,
   // Secrets in Git.
   const secrets = facts.secrets.value;
   if (secrets && secrets.length > 0) {
-    out.push({ id: "sir:git", severity: "kritik", title: "Git'e şifre/anahtar biçiminde bir şey girmiş", evidence: secrets.slice(0, 8).map((s) => `${s.file} (${s.kind})`).join(", "), advice: "Anahtarı hemen değiştir (eskisi artık açıkta sayılır), dosyadan çıkar.", ownerAction: true });
+    const where = (s: SecretHit) => `${s.file}${s.line ? `:${s.line}` : ""} (${s.kind}${s.commit ? `, commit ${s.commit}` : ""})`;
+    const inHistory = secrets.some((s) => s.commit);
+    out.push({ id: "sir:git", severity: "kritik", title: "Git'e şifre/anahtar biçiminde bir şey girmiş", evidence: secrets.slice(0, 8).map(where).join(", "), advice: `Anahtarı hemen değiştir (eskisi artık açıkta sayılır), dosyadan çıkar.${inHistory ? " Git geçmişindeki bir anahtar silinse de geçmişte kalır: değiştirdikten sonra bu bulgunun parmak izini .gitleaksignore'a ekle." : ""}`, ownerAction: true });
+  }
+  const scanner = facts.secretScanner.value;
+  if (scanner && scanner.tool === "yerlesik") {
+    out.push({ id: "sir:yedek-tarama", severity: "dusuk", title: "Gitleaks çalışmadı; şifre taraması yalnız yerleşik desenlerle yapıldı", evidence: scanner.reason ?? "neden bilinmiyor", advice: "npx tsx scripts/ayas-security-tools-install.ts ile Gitleaks'i kur (indirilen dosyanın SHA-256'sı doğrulanır). O zamana kadar Git geçmişi taranmaz, yalnız çalışma kopyası.", ownerAction: true });
+  }
+
+  // Security research (2026-11-27): advisories that affect an installed version, security releases of our programs.
+  const research = facts.research.value;
+  if (research) {
+    const { hits, unreadable } = matchAdvisories(research.inventory, research.advisories);
+    const byId = new Map<string, AdvisoryHit[]>();
+    for (const h of hits) byId.set(`tehdit:${h.advisory.id}:${h.component.name}`, [...(byId.get(`tehdit:${h.advisory.id}:${h.component.name}`) ?? []), h]);
+    for (const [id, group] of byId) out.push(threatFinding(id, group));
+    for (const r of newerSecurityReleases(research.inventory, research.releases)) {
+      out.push({ id: `surum:${r.component}:${r.version}`, severity: "orta", title: `Yeni sürüm bir güvenlik düzeltmesi bildiriyor: ${r.label} ${r.version}`, evidence: `kurulu ${r.installed} · ${r.tag} (${r.publishedAt.slice(0, 10)}) · notlarda "${r.marker}" · ${r.url}`, advice: `${r.label} programını ${r.version} sürümüne güncelle (kurulum senin işin); önce sürüm notunu oku.`, ownerAction: true });
+    }
+    if (unreadable.length > 0) {
+      out.push({ id: "arastirma:okunamadi", severity: "dusuk", title: `${unreadable.length} güvenlik tavsiyesinin sürüm aralığı okunamadı`, evidence: unreadable.slice(0, 6).join(", "), advice: "Bunlar ne temiz ne açık sayıldı; tavsiyeyi elle oku. Tekrar ederse sürüm okuyucusu geliştirilmeli.", ownerAction: false });
+    }
+    for (const s of research.sources) {
+      if (s.ok) continue;
+      const label = (RESEARCH_SOURCES as Record<string, { label: string }>)[s.id]?.label ?? (s.id === "yerel" ? "Bu bilgisayardaki bir program sürümü" : "Araştırma süreci");
+      out.push({ id: `olculemedi:arastirma:${s.id}`, severity: "dusuk", title: `${label} ölçülemedi`, evidence: `${s.error ?? "okunamadı"}; son başarılı okuma: ${s.okAt ?? "yok"}`, advice: "Bekçi hız sınırına uyarak yeniden dener; bu arada bu kaynaktaki yeni açıklar görünmez (eski liste korunur).", ownerAction: false });
+    }
   }
 
   // Known vulnerabilities in shipped packages.
@@ -222,6 +308,7 @@ export function evaluateSecurityWatch(facts: SecurityWatchFacts, nowIso: string,
     ["giris", "Giriş kayıtları", facts.login], ["port", "Açık portlar", facts.ports], ["guvenlik-duvari", "Güvenlik duvarı", facts.firewall],
     ["sir", "Şifre taraması", facts.secrets], ["acik", "Paket açıkları", facts.vulnerabilities], ["canli", "Canlı sürüm bütünlüğü", facts.liveIntegrity],
     ["rota", "Rota koruması", facts.openSensitiveRoutes], ["anahtar", "Giriş şifresi", facts.accessKey],
+    ["arastirma", "Güvenlik araştırması (internet)", facts.research], ["tarayici", "Şifre tarayıcısı", facts.secretScanner],
   ] as const) {
     const f = unmeasured(id, what, m);
     if (f) out.push(f);
@@ -240,6 +327,10 @@ export interface SecurityWatchReport {
   readonly exam?: SecurityExamResult;
   /** Verdict on every learned check (switched-off ones are shown to the owner). */
   readonly learned?: readonly LearnedCheckVerdict[];
+  /** The internet research's state for the Güvenlik panel (2026-11-27). */
+  readonly research?: SecurityResearchSummary;
+  /** Which secret scanner ran last. */
+  readonly scanner?: SecretScannerFacts;
 }
 
 /** Turkish one-line status for the rail / Control Center. */
@@ -270,13 +361,40 @@ export const CLEAN_FACTS: SecurityWatchFacts = {
   liveIntegrity: ok({ snapshot: "ayas-live-abc", modified: [], headMatches: true }),
   openSensitiveRoutes: ok([]),
   accessKey: ok({ length: 32, enforced: true }),
+  research: ok(examResearch({})),
+  secretScanner: ok({ tool: "gitleaks", version: "8.30.1", mode: "tam" }),
 };
+
+/**
+ * The research of a clean machine: it reads advisories that do NOT affect what is installed (fixed in the installed
+ * version, another major line, a version below ours), so the clean exam also proves that those are ignored.
+ */
+function examResearch(installed: { readonly next?: string; readonly node?: string }): SecurityResearchFacts {
+  return {
+    inventory: [
+      { ecosystem: "npm", name: "next", version: installed.next ?? "16.4.6", label: "Next.js", via: "radar" },
+      { ecosystem: "npm", name: "react", version: "19.2.4", label: "React", via: "radar" },
+      { ecosystem: "node", name: "node", version: installed.node ?? "26.13.1", label: "Node.js", via: "kurulum" },
+      { ecosystem: "go", name: "github.com/ollama/ollama", version: "0.40.6", label: "Ollama", via: "kurulum" },
+    ],
+    advisories: [
+      { id: "GHSA-sinav-0001-next", aliases: [], source: "github-npm", severity: "critical", summary: "sınav: middleware atlatma", url: "https://github.com/advisories/GHSA-sinav-0001-next", affects: [{ ecosystem: "npm", name: "next", vulnerable: ">= 16.0.0, <= 16.4.4", fixed: "16.4.5" }, { ecosystem: "npm", name: "next", vulnerable: "<= 15.5.28", fixed: "15.5.29" }] },
+      { id: "CVE-2026-0000001", aliases: [], source: "node-core", severity: "high", summary: "sınav: Brotli taşması", url: "https://nodejs.org/en/blog/vulnerability/sinav", affects: [{ ecosystem: "node", name: "node", vulnerable: "22.x || 24.x || 26.x", fixed: null, patchedRange: "^22.23.4 || ^24.22.1 || ^26.12.1" }], environments: ["all"] },
+      { id: "CVE-2026-0000002", aliases: [], source: "node-core", severity: "high", summary: "sınav: yalnız Linux", url: "https://nodejs.org/en/blog/vulnerability/sinav-linux", affects: [{ ecosystem: "node", name: "node", vulnerable: "26.x", fixed: null }], environments: ["linux"] },
+      { id: "GHSA-sinav-0002-olla", aliases: [], source: "github-go", severity: "critical", summary: "sınav: eski Ollama", url: "https://github.com/advisories/GHSA-sinav-0002-olla", affects: [{ ecosystem: "go", name: "github.com/ollama/ollama", vulnerable: "<= 0.13.5", fixed: null }] },
+    ],
+    releases: [],
+    sources: (Object.keys(RESEARCH_SOURCES) as (keyof typeof RESEARCH_SOURCES)[]).map((id) => ({ id, ok: true, at, okAt: at })),
+  };
+}
 
 export interface SecurityExamCase {
   readonly name: string;
   readonly facts: Partial<SecurityWatchFacts>;
-  /** The finding id that must appear. */
-  readonly expect: string;
+  /** The finding id that must appear (`null` for a case that must stay quiet). */
+  readonly expect: string | null;
+  /** A finding id that must NOT appear (an advisory that does not affect the installed version). */
+  readonly forbid?: string;
 }
 
 export const SECURITY_EXAM_CASES: readonly SecurityExamCase[] = [
@@ -291,6 +409,13 @@ export const SECURITY_EXAM_CASES: readonly SecurityExamCase[] = [
   { name: "açık hassas rota", facts: { openSensitiveRoutes: ok(["/api/ayas/chat"]) }, expect: "rota:acik" },
   { name: "kapı kapalı", facts: { accessKey: ok({ length: 0, enforced: false }) }, expect: "anahtar:kapali" },
   { name: "ölçülemeyen port", facts: { ports: { value: null, at, error: "powershell yok" } }, expect: "olculemedi:port" },
+  // Security research (2026-11-27): an advisory that affects the installed version must be caught; one that does not
+  // (fixed in ours) must stay quiet; a research that could not run is reported, never clean.
+  { name: "etkileyen paket açığı", facts: { research: ok(examResearch({ next: "16.4.4" })) }, expect: "tehdit:GHSA-sinav-0001-next:next" },
+  { name: "Node.js çekirdek açığı", facts: { research: ok(examResearch({ node: "26.10.0" })) }, expect: "tehdit:CVE-2026-0000001:node" },
+  { name: "düzeltilmiş sürüm kurulu", facts: { research: ok(examResearch({ next: "16.4.5" })) }, expect: null, forbid: "tehdit:GHSA-sinav-0001-next:next" },
+  { name: "araştırma yapılamadı", facts: { research: { value: null, at, error: "api.github.com yanıt vermedi" } }, expect: "olculemedi:arastirma" },
+  { name: "Gitleaks çalışmadı", facts: { secretScanner: ok({ tool: "yerlesik", version: null, reason: "gitleaks kurulu değil" }) }, expect: "sir:yedek-tarama" },
 ];
 
 export interface SecurityExamResult {
@@ -307,7 +432,7 @@ export function runSecurityExam(nowIso: string): SecurityExamResult {
   const missed: string[] = [];
   for (const c of SECURITY_EXAM_CASES) {
     const found = evaluateSecurityWatch({ ...CLEAN_FACTS, ...c.facts }, "2026-11-26T12:00:00.000Z");
-    if (!found.some((f) => f.id === c.expect)) missed.push(c.name);
+    if ((c.expect !== null && !found.some((f) => f.id === c.expect)) || (c.forbid && found.some((f) => f.id === c.forbid))) missed.push(c.name);
   }
   const falseAlarms = evaluateSecurityWatch(CLEAN_FACTS, "2026-11-26T12:00:00.000Z").length;
   return { at: nowIso, passed: SECURITY_EXAM_CASES.length - missed.length, total: SECURITY_EXAM_CASES.length, missed, falseAlarms };

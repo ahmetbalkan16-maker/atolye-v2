@@ -36,7 +36,7 @@ export function SecurityWatchPanel() {
   return (
     <section className="bc-security-watch" data-testid="bc-security-watch" aria-label="Bekçi — güvenlik beyni">
       <h3>Bekçi — güvenlik beyni</h3>
-      <p className="bc-security-watch__lead">Bu bilgisayarı yalnız içeriden ölçer (ağ taraması yapmaz). Kendi başına yalnız kaba kuvvet denemesinde şifre girişini kilitler; geri kalan her işi sana bırakır.</p>
+      <p className="bc-security-watch__lead">Bu bilgisayarı yalnız içeriden ölçer (ağ taraması yapmaz); her gün internetteki resmî güvenlik tavsiyelerini kurulu sürümlerimizle karşılaştırır (dışarıya yalnız paket adı ve sürümü gider). Kendi başına yalnız kaba kuvvet denemesinde şifre girişini kilitler; geri kalan her işi sana bırakır.</p>
       {failed && <p role="alert">Bekçi okunamadı: {failed}</p>}
       {!view && !failed && <p>Okunuyor…</p>}
       {view?.error && <p role="alert">Rapor okunamadı: {view.error}</p>}
@@ -60,6 +60,19 @@ export function SecurityWatchPanel() {
                 </li>
               ))}
             </ul>
+          )}
+          {report.scanner && (
+            <p className="bc-security-watch__meta" data-testid="bc-security-scanner">
+              Şifre taraması: {report.scanner.tool === "gitleaks" ? `Gitleaks ${report.scanner.version ?? ""} (tüm Git geçmişi) + yerleşik desenler` : `yalnız yerleşik desenler — ${report.scanner.reason ?? "Gitleaks çalışmadı"}`}
+            </p>
+          )}
+          {report.research && (
+            <details className="bc-security-watch__cases" data-testid="bc-security-research">
+              <summary>Güvenlik araştırması: {report.research.components} bileşen, {report.research.advisories} tavsiye okundu, {report.research.affecting === 0 ? "bizi etkileyen yok" : `${report.research.affecting} tanesi bizi etkiliyor`} ({when(report.research.checkedAt)})</summary>
+              <ul>
+                {report.research.sources.map((s) => <li key={s.id}>{s.ok ? "✓" : "✗"} {s.label}{s.okAt ? ` · son başarılı ${when(s.okAt)}` : ""}{s.error ? ` · ${s.error}` : ""}</li>)}
+              </ul>
+            </details>
           )}
         </>
       )}

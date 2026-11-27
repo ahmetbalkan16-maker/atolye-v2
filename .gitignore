@@ -236,3 +236,5 @@ __pycache__/
 
 # Security brain (Bekçi, 2026-11-26): reports, login lock state and its case library are local working state.
 /data/brain/security/
+# Bekçi's checksum-verified open-source tools (Gitleaks…), installed per machine by scripts/ayas-security-tools-install.ts.
+/bin/security-tools/

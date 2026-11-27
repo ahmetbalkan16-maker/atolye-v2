@@ -6,6 +6,7 @@
  *   watch-state.json   when each periodic check last ran, and the cached facts of the slower ones
  *   login-state.json   recent passcode failures and the brute-force lock (written by the login route)
  *   cases.jsonl        the case library: every finding when first seen and when it went away (append-only)
+ *   research.json      the daily security research: installed components, sources, ETags, advisories (2026-11-27)
  *
  * fs only (no process, no network), so the login route and the Brain console may import it.
  */
@@ -14,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { LOGIN_LOCK_FAILURES_PER_HOUR, LOGIN_LOCK_MINUTES, type LoginFacts, type SecurityFinding, type SecurityWatchReport } from "./SecurityWatchModel";
+import type { SecurityResearchState } from "./SecurityResearch";
 
 export const SECURITY_WATCH_DIR = path.join("data", "brain", "security");
 
@@ -47,6 +49,20 @@ export function readSecurityWatchReport(root: string = process.cwd()): SecurityW
 
 export function writeSecurityWatchReport(report: SecurityWatchReport, root: string = process.cwd()): void {
   writeJsonAtomic(path.join(securityWatchDir(root), "report.json"), report);
+}
+
+/**
+ * The research records (`research.json`): installed components, every source's last attempt and success, ETags and the
+ * advisories each request returned. `null` when research never ran; throws on an unreadable file (reported upstream).
+ */
+export function readSecurityResearchState(root: string = process.cwd()): SecurityResearchState | null {
+  const state = readJson<SecurityResearchState>(path.join(securityWatchDir(root), "research.json"));
+  if (state && (state.schemaVersion !== 1 || typeof state.sources !== "object" || !Array.isArray(state.inventory))) throw new Error("SECURITY_RESEARCH_INVALID");
+  return state;
+}
+
+export function writeSecurityResearchState(state: SecurityResearchState, root: string = process.cwd()): void {
+  writeJsonAtomic(path.join(securityWatchDir(root), "research.json"), state);
 }
 
 export function readWatchState<T extends object>(root: string = process.cwd()): T | null {
