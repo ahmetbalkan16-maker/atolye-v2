@@ -142,8 +142,8 @@
     "@huggingface/transformers": "^4.3.2",
     "next": "16.4.6",
     "onnxruntime-web": "^1.29.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "three": "0.170.0"
   },
   "devDependencies": {
