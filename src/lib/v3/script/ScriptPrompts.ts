@@ -744,6 +744,9 @@ PERIOD IMAGES AND SETS / ARKA PLAN
   Bellini", "Constantinople map Buondelmonti", "Ottoman miniature siege"); never a generic word such as "Palace".
 - "arka_plan_sorgusu.ara": 1–3 more searches with the historical names and spellings that old books, travellers and
   artists used ("Roumeli Hissar", "Castle of Europe Bosphorus", "Constantinople 1453 siege painting").
+- An ANCIENT story (before about 500 AD) has no period painting of its moment: a later European painting of the event is
+  refused as off-period. Name the SURVIVING ARTEFACTS of the period itself in "wiki" and "ara" — mosaics, reliefs,
+  sarcophagi, coins, busts, painted vases ("Alexander Mosaic", "Alexander Sarcophagus", "Immortals (Achaemenid Empire)").
 - "arka_plan_sorgusu.tasarim": the drawn set in English, 25–50 words: the place as it looked then — landscape, period
   architecture, ships or vehicles, objects, light and weather — then "no …" for the anachronisms to avoid. An empty place with
   open ground in front, never people (characters are drawn separately). Example: "Wooded hills on the European shore of the

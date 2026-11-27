@@ -747,7 +747,7 @@ async function main() {
     assert.deepEqual(backstoryPhrases("Atahualpa enters Cajamarca with 6,000 followers."), ["6,000 followers"]);
     // The writer is told in both languages: ~10 s, the badge's quip is no action, the main character may say the stakes.
     const en = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
-    for (const needle of ["by about\n  8 seconds", "THE MAP MOVES UNDER THE STAKES LINE", "a character's badge quip\n  is NOT the first action", "the MAIN CHARACTER may say this\n  line from their badge"]) assert.ok(en.includes(needle), needle);
+    for (const needle of ["by about\n  8 seconds", "THE MAP MOVES UNDER THE STAKES LINE", "Name the SURVIVING ARTEFACTS of the period itself", "a character's badge quip\n  is NOT the first action", "the MAIN CHARACTER may say this\n  line from their badge"]) assert.ok(en.includes(needle), needle);
     const tr = writingPrompt({ konu: "Stalingrad", donem: "1942", hedefSureSn: 60, ton: "mizahi", dil: "tr" }, CATALOG);
     for (const needle of ["en geç ~8. saniyede", "TEHLİKE SATIRININ ALTINDA HARİTA KIPIRDAR", "rozet\n  esprisi ilk hamle SAYILMAZ", "ANA KARAKTER de rozetinden"]) assert.ok(tr.includes(needle), needle);
   });
