@@ -149,16 +149,16 @@ scenario("the closing tempo: a Short's last 10 s get a picture change at least e
 scenario("the narrator over the music, from the mixer's stems: the dialogue-muted bed and the median gap where someone speaks", () => {
   const voice = Array.from({ length: 50 }, (_, i) => ({ t: i / 10, m: i < 40 ? -16 : -80 }));
   const quiet = voiceOverBed(voice, voice.map((p) => ({ t: p.t, m: -30 })));
-  assert.deepEqual(quiet, { farkLu: 14, yakinPay: 0, konusmaSn: 4 });
+  assert.deepEqual(quiet, { farkLu: 14, yakinPay: 0, konusmaSn: 4 }, "assert.deepEqual(quiet, { farkLu: 14, yakinPay: 0, konusmaSn: 4 })");
   const loud = voiceOverBed(voice, voice.map((p) => ({ t: p.t, m: -18 })));
-  assert.equal(loud!.farkLu, 2);
-  assert.equal(loud!.yakinPay, 1);
-  assert.equal(voiceOverBed(voice.slice(0, 5), []), undefined);
+  assert.equal(loud!.farkLu, 2, "assert.equal(loud!.farkLu, 2)");
+  assert.equal(loud!.yakinPay, 1, "assert.equal(loud!.yakinPay, 1)");
+  assert.equal(voiceOverBed(voice.slice(0, 5), []), undefined, "assert.equal(voiceOverBed(voice.slice(0, 5), []), undefined)");
   // The muted graph keeps every duck keyed by the voices and only silences them in the final sum.
   const g = { beds: ["[2:a]anull[m0]"], ambience: [], duration: 10 };
   const muted = mixGraph(g, { muteDialogue: true });
-  assert.ok(muted.includes("[dlg]volume=0[dlgm]"));
-  assert.ok(muted.at(-1)!.startsWith("[dlgm][ducked][fx]amix"));
+  assert.ok(muted.includes("[dlg]volume=0[dlgm]"), "assert.ok(muted.includes(\"[dlg]volume=0[dlgm]\"))");
+  assert.ok(muted.at(-1)!.startsWith("[dlgm][ducked][fx]amix"), "assert.ok(muted.at(-1)!.startsWith(\"[dlgm][ducked][fx]amix\"))");
   assert.deepEqual(mixGraph(g).filter((c) => !c.includes("dlgm")), mixGraph(g), "the normal mix is unchanged");
 });
 
