@@ -1,3 +1,15 @@
+## 27 Kasım 2026 (11) — Gaugamela tur 0 teslim (8,7/10), antik görsel araması, dolu dikey bantlar, puanlı müzik dengesi
+
+- Gaugamela Short tur 0 uyarıyla teslim (59,5 sn, kapı 8,7/10, engel yok; tur 1 benzerlik 7→6 düştü, seçilmedi). Görsel adımında
+  hiç gerçek görsel yoktu (17. yy tabloları dönem 3/10) → arama alanları dönem eserlerine yamalandı (Ölümsüzler kabartması,
+  İskender Lahdi, İskender Mozaiği), vaka el-20261127T155045-wbg3; 0954d823 yazar kuralı (MS 500 öncesi = dönem eserleri).
+- Mozaik s3'te seçildi ama plana girmedi: işaretli satır 1,8 sn, Director'ın harita-sonrası ≥1,5 sn penceresine sığmadı →
+  ara_goruntu_satir 0→1 yamalandı (episode.json + siparisli), render'dan yeniden çıkış bekliyor.
+- e7942f8f: müzik/anlatıcı puanlı (mikser sesleri susturulmuş ikinci fon render'ı, voiceOverBed ≥8 LU). b62b1a6b: dikey
+  Short karakter sahnesinde boş bantlar setin gök/zemin şeridiyle doluyor (önizlemeyle seçildi; büyütme/germe kötüydü).
+- Bekleyen: canlıya alma (canlı dala push otomatik denetimde reddedildi → owner onayı), sonra siparişi render'dan devam
+  ettir, en iyi kesimi Salı 1 Aralık 10:00Z (13:00 TR) için yükle (approvePublish + yayinZamani elle).
+
 ## 27 Kasım 2026 (10) — Daha güçlü Short kancası, kapanış temposu, açıklar kapandı; Gaugamela Short'u (Salı 13:00)
 
 - Owner: "açık kalanları da hallet, videoya giriş hook bunu daha da etkin hale gelmeli; konu Büyük İskender'in en ünlü savaşı;
