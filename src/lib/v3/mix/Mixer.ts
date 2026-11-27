@@ -108,8 +108,12 @@ export interface SfxCue {
 }
 
 export interface SfxCueOptions {
-  /** Whether the video is a vertical Short (Format.isShorts of its ordered length); default false. */
-  readonly short?: boolean;
+  /**
+   * The mix step's own cues (owner, 27 Nov 2026: "film gibi"; the same day: "bu geliştirmeler uzun videoda da olacak"):
+   * a drum hit opens the video and a silent hard cut gets an impact, in Shorts and long videos alike. Default false, so
+   * the other readers of these cues (OpeningRetouch.studioMade) keep their meaning.
+   */
+  readonly film?: boolean;
 }
 
 /** How far before its line the writer's effect sounds, so the narrator's first word does not cover it. */
@@ -118,13 +122,13 @@ export const SFX_LEAD_S = 0.3;
 export const SFX_REPEAT_WINDOW_S = 6;
 /** Effects with several recorded takes or period variants (the mixer plays them in turn): twelve falls are twelve swords. */
 const TAKES_IN_TURN: ReadonlySet<SfxId> = new Set<SfxId>(["kilic", "top_atisi"]);
-/** A Short's opening hit: the library's drum (no sting exists; see sfxCues). */
+/** The video's opening hit (Shorts and long videos): the library's drum (no sting exists; see sfxCues). */
 export const HOOK_STING: SfxId = "davul";
 /** Another impact within this long of the start already is the hook; none is added. */
 const HOOK_QUIET_S = 0.7;
 const HOOK_LIKE: ReadonlySet<SfxId> = new Set<SfxId>(["davul", "yumruk", "top_atisi", "kilic", "dusus", "cekic"]);
-/** What a hard cut in a Short that would pass in silence gets: a punch. */
-export const CUT_IMPACT: SfxId = "yumruk";
+/** What a hard cut that would pass in silence gets: a drum hit (a punch read as a joke on a king's flight). */
+export const CUT_IMPACT: SfxId = "davul";
 /** A cut counts as sounded when an effect lands within this long before it or after it. */
 const CUT_QUIET_BEFORE_S = 0.4;
 const CUT_QUIET_AFTER_S = 0.6;
@@ -165,15 +169,15 @@ export function sfxLibraryFiles(sfxDir: string, id: SfxId): string[] {
  *
  * Film-like sound (owner, 27 Nov 2026, Gaugamela Short: "Shorts should sound like a film"): a writer's effect sounds
  * SFX_LEAD_S before its line so the narrator's first word does not mask it; a unit's charge and a rout are heard; no
- * effect repeats more than twice within SFX_REPEAT_WINDOW_S (except those with several recorded takes); and in a
- * Short (`opts.short`: the mix step passes Format.isShorts of the ordered length; off by default so the other readers of
- * these cues, e.g. OpeningRetouch.studioMade, keep their meaning) a drum hit opens the video and a hard cut
- * (`gecis: "kes"`) that would pass in silence gets a short impact.
+ * effect repeats more than twice within SFX_REPEAT_WINDOW_S (except those with several recorded takes); and with
+ * `opts.film` (the mix step, Shorts and long videos; off by default so the other readers of these cues, e.g.
+ * OpeningRetouch.studioMade, keep their meaning) a drum hit opens the video and a hard cut (`gecis: "kes"`) that would
+ * pass in silence gets a drum hit.
  */
 export function sfxCues(episode: Episode, timeline: EpisodeTimeline, opts: SfxCueOptions = {}): SfxCue[] {
   const cues: SfxCue[] = [];
   const cuts: number[] = [];
-  const short = opts.short === true;
+  const film = opts.film === true;
   const lastScene = episode.sahneler.length - 1;
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si];
@@ -260,8 +264,8 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline, opts: SfxCu
       if (sunk) cues.push(...unitLossDelaysS(lost).map((d) => ({ t: sunk.start + d, id: down })));
     }
   });
-  if (short) {
-    // The hard cuts that would pass in silence get a short impact (a punch, the library's period-checked impact).
+  if (film) {
+    // The hard cuts that would pass in silence get a short impact.
     for (const t of cuts) if (!cues.some((c) => c.t > t - CUT_QUIET_BEFORE_S && c.t < t + CUT_QUIET_AFTER_S)) cues.push({ t, id: CUT_IMPACT });
     // The hook: a drum hit on the first frame. The library has no sting; a drum is the one existing effect that is an
     // impact and fits every age (a cannon is wrong before gunpowder, a punch or a thud reads as a joke).

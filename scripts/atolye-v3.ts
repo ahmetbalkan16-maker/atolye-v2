@@ -1240,7 +1240,8 @@ async function main() {
         }
       } else log(`  müzik: besteci ${composer.available() ? "kapalı (ATOLYE_V3_MUSIC_COMPOSER=0)" : "kurulu değil"}; kütüphane parçaları`);
       const sfxDir = path.join(paths.repoRoot, "public", "sfx");
-      const cues = sfxCues(episode, timeline);
+      // The mix's own film cues (hook hit, cut impacts) in Shorts and long videos alike (owner, 27 Nov 2026).
+      const cues = sfxCues(episode, timeline, { film: true });
       // The sound designer: period versions of the effects and a quiet ambience per scene (MOSS, local); whatever it
       // cannot make keeps the Kenney recording or stays silent.
       let periodSfx = new Map<SfxId, string>();

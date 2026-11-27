@@ -25,7 +25,7 @@ import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
 /** The older scenarios below describe a normal video: no Short's hook sting or cut impacts (those have their own scenarios). */
-const LONG = { short: false } as const;
+const LONG = { film: false } as const;
 async function scenario(name: string, fn: () => void | Promise<void>) {
   try {
     await fn();
@@ -209,11 +209,11 @@ async function main() {
     // 1. The hook: a Short opens on a drum hit at the first frame; a long video and an opening that already has an impact do not.
     const plain = { sahneler: [scene("a", "kes", [{}, {}])] } as unknown as Episode;
     const tlPlain = tlOf(10, [[0, 10]], [[0, 0.3, 3], [0, 3.2, 6]]);
-    assert.deepEqual(at(sfxCues(plain, tlPlain, { short: true })), [[HOOK_STING, 0]]);
+    assert.deepEqual(at(sfxCues(plain, tlPlain, { film: true })), [[HOOK_STING, 0]]);
     assert.deepEqual(at(sfxCues(plain, tlPlain)), [], "off unless the mix step says it is a Short (other readers of the cues keep their meaning)");
     assert.deepEqual(at(sfxCues(plain, tlPlain, LONG)), [], "a normal video has no hook sting");
     const own = { sahneler: [scene("a", "kes", [{ sfx: "davul" }, {}])] } as unknown as Episode;
-    assert.deepEqual(at(sfxCues(own, tlPlain, { short: true })), [["davul", 0]], "the writer's own drum is the hook, not doubled");
+    assert.deepEqual(at(sfxCues(own, tlPlain, { film: true })), [["davul", 0]], "the writer's own drum is the hook, not doubled");
 
     // 2. Units that charge, envelop or break are heard on their line (the Gaugamela charges were silent but for swords).
     const army = (yerler: readonly Record<string, unknown>[]) => ({ donem: "331 BC", sahneler: [scene("m", "kes", [{}, {}, {}, {}], { harita: { merkez: [43, 36], genislik_km: 40, birlikler: [{ taraf: "A", renk: "#c00", amblem: "kartal", sayi: 3, yerler }] } })] }) as unknown as Episode;
@@ -239,7 +239,7 @@ async function main() {
     // 5. A hard cut in a Short is punched unless something already sounds there; a slide has its whoosh instead.
     const cuts = { sahneler: [scene("a", "kes", [{}]), scene("b", "kes", [{}]), scene("c", "kes", [{ sfx: "pop" }]), scene("d", "kaydir", [{}])] } as unknown as Episode;
     const tlCuts = tlOf(20, [[0, 5], [5, 10], [10, 15], [15, 20]], [[0, 0.3, 4], [1, 5.3, 9], [2, 10.3, 14], [3, 15.3, 19]]);
-    assert.deepEqual(at(sfxCues(cuts, tlCuts, { short: true })), [[HOOK_STING, 0], [CUT_IMPACT, 5], ["pop", 10], ["whoosh", 14.88]], "b's cut is punched; c's writer effect already sounds; d has its whoosh");
+    assert.deepEqual(at(sfxCues(cuts, tlCuts, { film: true })), [[HOOK_STING, 0], [CUT_IMPACT, 5], ["pop", 10], ["whoosh", 14.88]], "b's cut is punched; c's writer effect already sounds; d has its whoosh");
     assert.deepEqual(at(sfxCues(cuts, tlCuts, LONG)), [["pop", 10], ["whoosh", 14.88]], "a normal video keeps its silent cuts");
 
     // 6. The writer's music mood wins over the scene's duygu when it names a mood the library knows.
