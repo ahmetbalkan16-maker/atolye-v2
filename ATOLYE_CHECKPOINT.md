@@ -1,3 +1,25 @@
+## 27 Kasım 2026 (13) — Gaugamela izlendi: giriş, anlatılanı gösterme, film sesi, deniz/hava; anlatım–harita senkronu (token durdurması)
+
+- Owner: "son videoyu izle … giriş çok önemli … ne anlattığını göstermesi gerekiyor … seslerine, efektlerine, geçişlerine bak,
+  film gibi … gemi, uçak, kuşatma da … anlatılanla senkronize, aynı anda değil anlatılana göre … uzun videoda da".
+- Bulgular (frcyPUbflsg): kapı kancaya 10/10 verdi ama ordular ilk kez 16 sn'de ekranda; Ölümsüzler kabartması tehlike
+  satırını örttü (4,3–8,6 sn); s3 "Darius flees / line falls apart" boş tarlada; dikey kadrajda rozet/halka kenarda kesik;
+  0–3 sn'de ses vuruşu yok, hücumlar sessiz, aynı düşüş sesi 3 kez, kral öldürülürken komik müzik.
+- Yapılan (hepsi claude/short-uc-gercek-gorsel'de, testli): c003dc9a açılış haritada kalır (OPENING_PICTURE_FLOOR,
+  keepOpeningOnMap), geniş haritada yürüyüş oku hamle sayılmaz, QC "Açılışta ilk hamle"/"Açılış resmi"; carryCloseArmies
+  (savaş sonraki yakın haritada sürer, bozgun anlatıldığı satırda); 557a30a5 dikey kamera durağı rozet/halkayı kadrajda tutar
+  (tallKeyCentre); cfb2bb88 toldNotShown → onarım isteği "TOLD BUT NOT SHOWN" + QC "Anlatım–harita senkronu"; ses (Sonnet
+  ajanı) ee4bac4f+678c20b2+d8115343: açılış davulu, kesmede davul, hücum/bozgun sesi, efekt 0,3 sn önden, tekrar sınırı,
+  yazarın müzik ruh hali, gemi topu ritmi + ıskalama sıçraması, uçaksavar, torpido/bomba vuruşu (film:true uzun videoda da);
+  a14609e4 (Sonnet) deniz/hava: uçak V/kademe, yatış, uçaksavar, su sütunu, yanan/batan gemi, aimShipsAtEnemy.
+- Testler: 27/27 smoke-v3, tsc kök+remotion, lint 0/0. Kalite beynine 2 kare öğretildi (boş savaş alanı, kesik rozet).
+- YARIM (canlıda DEĞİL, incelenmedi): claude/v3-deniz-hava d4a5de9a (gemi/uçak dizilişi dizilis + satır adımları + anıldığı
+  kelimede hareket; mapFleet.ts; director senaryosu yazılıyordu), claude/v3-kusatma 67daf257+9be24fc5 (top menzili, çatlayan/
+  yıkılan sur, harabe, duman, anlatılan sırayla olaylar; MapSiege.tsx). Worktree'ler D:\ÜRETİM\Atolye\gelistirme\claude-
+  {deniz-hava,kusatma,ses-film} (node_modules junction — silmeden önce junction'ı kaldır). Devam: her dalı
+  claude/short-uc-gercek-gorsel ile birleştir, testleri bitir, önce/sonra karelerine bak, sonra birleştir.
+- Sıradaki: yeni Short'u bu kodla üret ve kapının yeni satırlarını gerçek videoda gör.
+
 ## 27 Kasım 2026 (12) — Gaugamela Short YouTube'da planlı: frcyPUbflsg, Salı 1 Aralık 10:00Z (13:00 TR)
 
 - Canlı 3e00045c (owner "onay istediklerini yap"): dolu dikey bantlar, puanlı müzik dengesi, antik görsel kuralı; otomatik yayın PUBLISHED.
