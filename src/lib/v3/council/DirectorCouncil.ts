@@ -1,5 +1,5 @@
 import type { V3Landscape } from "../render/RenderPlanTypes";
-import { EFFECTS, EMOTIONS, type Episode, type EpisodeScene, GESTURES, LANDSCAPES, type LineAct, type SceneLine } from "../episode/EpisodeTypes";
+import { EFFECTS, EMOTIONS, type Episode, type EpisodeScene, GESTURES, LANDSCAPES, type LineAct, type SceneLine, SFX_IDS, SFX_NOTES, type SfxId } from "../episode/EpisodeTypes";
 import type { SourceBank } from "../script/ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { BRAIN_NAMES, type DebateEntry, readJsonAnswer } from "./Council";
@@ -82,7 +82,7 @@ export interface CriticReply {
 
 export type DirectorEdit =
   | { readonly tur: "satir"; readonly sahne: string; readonly satir: number; readonly talimat: string; readonly neden: string }
-  | { readonly tur: "oyun"; readonly sahne: string; readonly satir: number; readonly oyun: readonly LineAct[]; readonly neden: string }
+  | { readonly tur: "oyun"; readonly sahne: string; readonly satir: number; readonly oyun: readonly LineAct[]; readonly sfx?: SfxId; readonly neden: string }
   | { readonly tur: "set"; readonly sahne: string; readonly manzara?: V3Landscape; readonly tasarim?: string; readonly neden: string };
 
 /** A line the script writer rewrote on AYAS's order. */
@@ -176,7 +176,7 @@ export function compactScript(episode: Episode, times?: ScriptTimes): string {
       const stage = [...onStage(sc)];
       const head = `SCENE ${sc.id} — ${kind} — ${sc.mekan}${set}${stage.length ? ` — on stage: ${stage.join(", ")}` : ""}${t ? ` — ${t.start.toFixed(0)}–${t.end.toFixed(0)} s` : ""}`;
       const lines = sc.satirlar.map((l, li) => {
-        const extra = [l.jest ? `gesture ${l.jest}` : "", l.hareket ? `move ${l.hareket}` : "", l.balon ? `bubble "${l.balon}"` : "", l.oyun?.length ? `acts: ${l.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")).join("; ")}` : ""].filter(Boolean).join(", ");
+        const extra = [l.jest ? `gesture ${l.jest}` : "", l.hareket ? `move ${l.hareket}` : "", l.balon ? `bubble "${l.balon}"` : "", l.oyun?.length ? `acts: ${l.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")).join("; ")}` : "", l.sfx ? `sound ${l.sfx}` : ""].filter(Boolean).join(", ");
         return `  #${li} ${name(l.karakter)} (${l.duygu}): ${l.metin}${extra ? ` [${extra}]` : ""}`;
       });
       return [head, ...lines].join("\n");
@@ -208,11 +208,22 @@ export interface CouncilContext {
 const HUMOUR_RULE = "This is a humorous video: never make a line serious or take its joke out — a joke that falls flat is made funnier or subtler, and stays a joke; a grave moment is answered with a deadpan line, not with the humour removed.";
 const NUMBER_RULE = "Numbers, dates and measurements in the lines come from the verified source bank: never call them exaggerated or unclear, and never ask for one to be dropped or replaced by a vague phrase (\"tens of thousands\", \"high and thick\").";
 
+/**
+ * What the humourist can ask for and the studio can make. On the Iran war Short (27 Nov 2026) its notes asked for the
+ * X-Files theme, a "cha-ching" and a captain cartoon that no menu item could build; it now names one of our own sound
+ * effects for a gag and writes a pop-culture or modern comparison as our own line, never another work's tune or quote.
+ */
+export const HUMOUR_TOOLBOX = `YOUR TOOLBOX (what the studio can make):
+- A line ("satir"): a deadpan aside, an absurd modern comparison ("like your Wi-Fi dropping mid-game"), a character talking like a modern person, understatement, a callback to an earlier joke. Pop culture only as our own words (an everyday habit, a gadget, a meme-like phrase), never a film's, show's or song's title line, quote or theme tune — those cannot be used.
+- A sound on a line ("oyun", name it in "oneri" by its id): ${SFX_IDS.map((id) => `${id} (${SFX_NOTES[id]})`).join(", ")}. A sound lands at the start of the line; a line marked "sound" already has one.
+- An act ("oyun"): the characters on stage react with a gesture or a face while the line is said.`;
+
 export function criticPrompt(beyin: Critic, script: string, ctx: CouncilContext, lessons: readonly string[], example = "s1"): string {
   const bank = beyin === "arastirma" && ctx.kaynakSayilari?.length ? `\nVERIFIED IN THE SOURCE BANK (the script's numbers were checked against these):\n${ctx.kaynakSayilari.map((x) => `- ${x}`).join("\n")}\n${NUMBER_RULE}\n` : "";
   const humour = ctx.ton === "mizahi" ? `\n${HUMOUR_RULE}\n` : "";
+  const toolbox = beyin === "mizah" ? `\n${HUMOUR_TOOLBOX}\n` : "";
   return `You are ${CRITIC_ROLES[beyin]} in the council of an animated history video studio. AYAS, the director, will decide what to fix in this first cut of "${ctx.baslik}" (${Math.round(ctx.sureSn)} s, ${ctx.shorts ? "a YouTube Short, watched on a phone and shown as the whole 16:9 picture" : "a YouTube video"}). Judge it ONLY from your discipline; another brain covers the rest.
-${bank}${humour}
+${bank}${humour}${toolbox}
 ${((m) => (m.length ? `\nWHAT WAS MEASURED IN THE CUT:\n${m.map((x) => `- ${x}`).join("\n")}\n` : ""))([...(CRITIC_SEES[beyin].includes("tempo") ? (ctx.tempo ?? []) : []), ...(CRITIC_SEES[beyin].includes("qc") ? (ctx.qc ?? []).map((q) => `QC failed: ${q}`) : []), ...(CRITIC_SEES[beyin].includes("bulgular") ? (ctx.bulgular ?? []) : [])])}${lessons.length ? `\nYOUR LESSONS (earlier episodes, studied reference videos, the owner's rules):\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : ""}
 SCRIPT (#n = line number; "on stage" = who can act; acts = what characters do while a line is said):
 ${script}
@@ -280,7 +291,7 @@ ${script}
 
 Decide what to fix in ONE revision round, using ONLY these fixes:
 1. {"tur": "satir", "sahne", "satir", "talimat": "<English instruction to the script writer>"} — the writer rewrites that line, keeping its speaker and facts;
-2. {"tur": "oyun", "sahne", "satir", "oyun": [{"karakter", "jest", "duygu", "efekt"}]} — characters ON STAGE in that scene act during the line (the speaker's own entry sets the gesture and face it speaks with; one entry per character); jest: ${GESTURES.join(", ")}; duygu: ${EMOTIONS.join(", ")}; efekt: ${EFFECTS.join(", ")};
+2. {"tur": "oyun", "sahne", "satir", "oyun": [{"karakter", "jest", "duygu", "efekt"}], "sfx"} — characters ON STAGE in that scene act during the line (the speaker's own entry sets the gesture and face it speaks with; one entry per character); jest: ${GESTURES.join(", ")}; duygu: ${EMOTIONS.join(", ")}; efekt: ${EFFECTS.join(", ")}; optional "sfx": a sound at the start of a line that has none yet (any scene, "oyun" may then be empty): ${SFX_IDS.join(", ")};
 3. {"tur": "set", "sahne", "manzara", "tasarim"} — a stage scene gets another place: manzara one of ${LANDSCAPES.join(", ")}, and/or "tasarim" a new English description of the drawn place with NO people in it (the characters stand on the stage in front of it).
 On stage: ${stages || "nobody"}. "sahne" is the scene id exactly as written after SCENE (like "${exampleScene(episode)}"); "satir" is the line's number as a plain number.
 Faces, likeness and costumes are not yours to fix here: the retouch brain redesigns them by its own measures; never use a set or an act for them.
@@ -309,9 +320,11 @@ export function parseDecision(episode: Episode, text: string, maxEdits = MAX_EDI
     if (seen.has(key)) continue;
     if (e.tur === "satir" && li !== undefined && clip(e.talimat, 400)) {
       edits.push({ tur: "satir", sahne: sc.id, satir: li, talimat: clip(e.talimat, 400), neden });
-    } else if (e.tur === "oyun" && li !== undefined && Array.isArray(e.oyun)) {
+    } else if (e.tur === "oyun" && li !== undefined && (Array.isArray(e.oyun) || e.sfx !== undefined)) {
       const stage = onStage(sc);
-      const acts = (e.oyun as Record<string, unknown>[]).flatMap((a): LineAct[] => {
+      // A sound only where the line has none (a fight's sword or a fall's thud stays on its cue).
+      const sfx = SFX_IDS.includes(e.sfx as SfxId) && !sc.satirlar[li]!.sfx ? (e.sfx as SfxId) : undefined;
+      const acts = (Array.isArray(e.oyun) ? (e.oyun as Record<string, unknown>[]) : []).flatMap((a): LineAct[] => {
         const id = String(a?.karakter ?? "");
         if (!stage.has(id) || !visible.has(id)) return [];
         const act: LineAct = {
@@ -329,8 +342,8 @@ export function parseDecision(episode: Episode, text: string, maxEdits = MAX_EDI
         merged.set(a.karakter, had ? { ...a, ...had } : a);
       }
       const once = [...merged.values()];
-      if (!once.length) continue;
-      edits.push({ tur: "oyun", sahne: sc.id, satir: li, oyun: once, neden });
+      if (!once.length && !sfx) continue;
+      edits.push({ tur: "oyun", sahne: sc.id, satir: li, oyun: once, ...(sfx ? { sfx } : {}), neden });
     } else if (e.tur === "set" && isStage(sc)) {
       const manzara = LANDSCAPES.includes(e.manzara as V3Landscape) ? (e.manzara as V3Landscape) : undefined;
       const tasarim = clip(e.tasarim, 600);
@@ -528,6 +541,7 @@ export function applyEdits(episode: Episode, edits: readonly DirectorEdit[], rew
           const others = act.oyun.filter((a) => a.karakter !== l.karakter);
           if (own) out = { ...out, ...(own.jest ? { jest: own.jest } : {}), ...(own.duygu ? { duygu: own.duygu } : {}), ...(own.efekt ? { efekt: own.efekt } : {}) };
           if (others.length) out = { ...out, oyun: [...new Map([...(l.oyun ?? []), ...others].map((a) => [a.karakter, a] as const)).values()] };
+          if (act.sfx && !l.sfx) out = { ...out, sfx: act.sfx };
         }
         return out;
       });
@@ -564,7 +578,7 @@ export function editsStep(edits: readonly DirectorEdit[]): "ses" | "gorsel" | "r
 
 export function editLine(e: DirectorEdit): string {
   if (e.tur === "satir") return `${e.sahne}#${e.satir} satır yeniden yazılacak: ${e.talimat}`;
-  if (e.tur === "oyun") return `${e.sahne}#${e.satir} sahnede oynanacak: ${e.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")).join("; ")}`;
+  if (e.tur === "oyun") return `${e.sahne}#${e.satir} sahnede oynanacak: ${[...e.oyun.map((a) => [a.karakter, a.jest, a.duygu, a.efekt].filter(Boolean).join(" ")), ...(e.sfx ? [`${e.sfx} efekti`] : [])].join("; ")}`;
   return `${e.sahne} seti değişecek: ${[e.manzara, e.tasarim].filter(Boolean).join(" — ")}`;
 }
 

@@ -26,6 +26,32 @@ export const EYE_STYLES: readonly V3EyeStyle[] = ["nokta", "detayli"];
 export const AGES: readonly V3Age[] = ["genc", "orta", "yasli"];
 export const SFX_IDS = ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil", "yumruk", "dusus", "adim", "kapi", "para", "kagit", "basari", "hata", "su"] as const;
 
+/**
+ * What each sound effect sounds like, in English: the writer's sfx menu and the council's sound fix both read it, so
+ * a humour note asking for a "cha-ching" names `para` instead of a sound the studio does not have.
+ */
+export const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
+  whoosh: "swish, fast move",
+  pop: "comic pop",
+  boing: "cartoon boing",
+  kilic: "sword drawn",
+  top_atisi: "cannon shot",
+  davul: "war drum",
+  kalabalik: "crowd murmur",
+  cekic: "hammer on metal",
+  dalga: "sea waves on a shore",
+  su: "splashing through shallow water (wading, fording a river)",
+  zil: "bell",
+  yumruk: "punch",
+  dusus: "body falls, thud",
+  adim: "footsteps",
+  kapi: "door opens",
+  para: "coins",
+  kagit: "paper, book, scroll",
+  basari: "comic success sting",
+  hata: "comic failure sting (wah-wah)",
+};
+
 export type EpisodeTone = (typeof EPISODE_TONES)[number];
 export type SceneMood = (typeof SCENE_MOODS)[number];
 export type LineMove = (typeof MOVES)[number];

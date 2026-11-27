@@ -79,7 +79,7 @@ async function main() {
     const s = compactScript(episode, { scenes: [{ start: 0, end: 12 }, { start: 12, end: 40 }] });
     assert.match(s, new RegExp(`SCENE ${MAP} — map`));
     assert.match(s, new RegExp(`SCENE ${STAGE} — stage — .* — set: nehir_gecidi, roma, gece — on stage: legionary, caesar — 12–40 s`));
-    assert.match(s, /#3 caesar \(kararli\): The die is cast! \[gesture yumruk_kaldir, bubble "THE DIE IS CAST!"\]/);
+    assert.match(s, /#3 caesar \(kararli\): The die is cast! \[gesture yumruk_kaldir, bubble "THE DIE IS CAST!", sound davul\]/);
     assert.match(s, /#0 anlatici \(voice only\)/);
     assert.deepEqual([...onStage(episode.sahneler[0]!)], []);
     assert.deepEqual([...onStage(episode.sahneler[1]!)].sort(), ["caesar", "legionary"]);
@@ -145,6 +145,32 @@ async function main() {
     const capped = parseDecision(episode, JSON.stringify({ ozet: "", duzeltmeler: [0, 1, 2, 3, 4, 5].map((i) => ({ tur: "satir", sahne: STAGE, satir: i, talimat: "tighten" })) }), 3)!;
     assert.equal(capped.duzeltmeler.length, 3);
     assert.equal(parseDecision(episode, "nothing"), undefined);
+  });
+
+  await scenario("C2 the Iran war Short's humour notes (27 Nov 2026): the humourist sees our sound library, AYAS can put a sound on a quiet line", () => {
+    const ctx = { baslik: "", sureSn: 60, shorts: true, ton: "mizahi" };
+    assert.match(criticPrompt("mizah", "", ctx, []), /YOUR TOOLBOX[\s\S]*para \(coins\)[\s\S]*hata \(comic failure sting/);
+    assert.match(criticPrompt("mizah", "", ctx, []), /never a film's, show's or song's title line, quote or theme tune/);
+    assert.doesNotMatch(criticPrompt("kurgu", "", ctx, []), /YOUR TOOLBOX/);
+    const quiet = episode.sahneler[0]!.satirlar.findIndex((l) => !l.sfx);
+    assert.ok(quiet >= 0);
+    const d = parseDecision(episode, JSON.stringify({ ozet: "", duzeltmeler: [
+      // A sound alone on a map line (nobody on stage): kept.
+      { tur: "oyun", sahne: MAP, satir: quiet, sfx: "para", neden: "dünya paniğinde para sesi" },
+      // A line that already has its sound keeps it; an unknown sound is no fix.
+      { tur: "oyun", sahne: STAGE, satir: 3, sfx: "boing", neden: "x" },
+      { tur: "oyun", sahne: STAGE, satir: 0, sfx: "xfiles_theme", neden: "y" },
+    ] }))!;
+    assert.equal(d.duzeltmeler.length, 1);
+    assert.equal(d.elenen, 2);
+    const fix = d.duzeltmeler[0] as Extract<DirectorEdit, { tur: "oyun" }>;
+    assert.deepEqual([fix.sfx, fix.oyun], ["para", []]);
+    const fixed = applyEdits(episode, d.duzeltmeler, []);
+    assert.equal(fixed.sahneler[0]!.satirlar[quiet]!.sfx, "para");
+    assert.equal(fixed.sahneler[1]!.satirlar[3]!.sfx, "davul");
+    assertEpisode(fixed);
+    assert.equal(editsStep(d.duzeltmeler), "render");
+    assert.match(sessionDebate({ raporlar: [], yanitlar: [], puan: 6, karar: { ozet: "", duzeltmeler: d.duzeltmeler, yeniden: [] } } as never)[0]!.metin, /para efekti/);
   });
 
   await scenario("D rewrites: only ordered lines, sane length, a bubble only where one was; the fixed episode stays valid", () => {
