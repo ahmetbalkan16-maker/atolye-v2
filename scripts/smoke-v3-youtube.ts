@@ -174,14 +174,14 @@ function main() {
 
 ${promise}
 
-`);
+`, "assert.equal(descriptionLead(answer, promise), `${answer}\n\n${promise}\n\n`)");
     assert.equal(descriptionLead(answer), `${answer}
 
 `, "a long video or a goals file without the block: unchanged");
     assert.equal(descriptionLead("", promise), `${promise}
 
-`);
-    assert.equal(descriptionLead(undefined, undefined), "");
+`, "assert.equal(descriptionLead(\"\", promise), `${promise}\n\n`)");
+    assert.equal(descriptionLead(undefined, undefined), "", "assert.equal(descriptionLead(undefined, undefined), \"\")");
   });
 
   console.log(`V3 youtube smoke: PASS (${scenarios} scenarios)`);
