@@ -240,12 +240,14 @@ const SHORT_PICTURES: Readonly<Record<ScriptLanguage, string>> = {
   tr: `- GERÇEK DÖNEM GÖRSELLERİ (Gelibolu videosundaki gibi): sürenin yaklaşık %20'sinde ekranda o anın gerçek fotoğrafı,
   tablosu ya da gravürü. HER harita sahnesi "ara_goruntu_satir" ile bir ANLATICI satırını işaretler ve
   "arka_plan_sorgusu" o anın resmini arar; anlatıcının 1–3 önemli satırına da "gorseller" ekle (20. yüzyılda "film": true,
-  önce arşiv filmi aranır). Resim hiçbir zaman bir karakterin kendi satırının üstüne gelmez.
+  önce arşiv filmi aranır). 60 saniyelik Short da dahil her Short EN AZ 3 gerçek resim anı ister (işaretli harita satırları
+  + "gorseller"). Resim hiçbir zaman bir karakterin kendi satırının üstüne gelmez.
 `,
   en: `- REAL PERIOD PICTURES (like the Gallipoli video): about 20% of the running time shows the moment's real photograph,
   painting or engraving. EVERY map scene marks one NARRATOR line with "ara_goruntu_satir" and its "arka_plan_sorgusu"
   searches for that moment's picture; give 1–3 more key narrator lines "gorseller" ("film": true in the 20th century,
-  archive film is looked for first). A picture never covers a character's own line.
+  archive film is looked for first). Every Short, the 60 s one too, asks AT LEAST 3 real picture moments (marked map
+  lines + "gorseller"). A picture never covers a character's own line.
 `,
 };
 

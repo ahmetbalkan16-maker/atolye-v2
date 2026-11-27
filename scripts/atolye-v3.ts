@@ -64,7 +64,7 @@ import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePack
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { periodDressBlock, readAtlas } from "../src/lib/v3/costumes/PeriodAtlas";
 import { ensureEra, withArchive } from "../src/lib/v3/costumes/PeriodArchivist";
-import { beats, blankOpening, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, blankOpening, buildRenderPlan, HOOK_S, longestEmptyStretch, OPENING_HOLD_S, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, realPictureCount, type SceneInsert, SHORTS_PICTURE_SHARE_TARGET, shortShots, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -84,6 +84,7 @@ import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "..
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
+import { SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S } from "../src/lib/v3/script/MapRules";
 import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import { opensWithQuestion } from "../src/lib/v3/script/QuestionTitle";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -1472,6 +1473,8 @@ async function main() {
       row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(shortsMinS(target))} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
       ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%85–95 harita, çöp adam ve dönem görseli en çok ~%15–20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
+      // Real pictures in every Short, the 60 s one too (owner, 27 Nov 2026: "en azından 3 tane", "60 sn shortslarda da").
+      ...(shorts && target >= SHORT_SHARES_FROM_S ? [((n: number) => row(n >= SHORT_MIN_PICTURES, `Gerçek görseller: ${n} farklı gerçek fotoğraf/tablo/arşiv filmi ekranda (Short'ta en az ${SHORT_MIN_PICTURES}; tasarlanmış görsel ve harita sayılmaz)`))(realPictureCount(plan))] : []),
       // Both views over the maps, straight down and the 2.5D tilt (owner, 13 Nov 2026: "bu iki görünüşü de kullansın";
       // "uzun videolarda da olsun": a long video's every chapter). A standing note: no retouch round changes it.
       ((mix) => row(mix.every((m) => m.ikisi), `Harita görünüşleri: ${mix.length ? mix.map((m) => `${m.bolum ? `${m.bolum}: ` : ""}${m.dikey} sn düz, ${m.egik} sn eğik (2.5D)${m.ikisi ? "" : " — TEK GÖRÜNÜŞ"}`).join("; ") : "haritalı sahne yok"}`, false))(mapViewMix(plan)),

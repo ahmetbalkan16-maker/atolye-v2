@@ -691,6 +691,21 @@ export function pictureShares(plan: V3RenderPlan): { harita: number; sahne: numb
   return { harita: r(map), sahne: r(stage), gorsel: r(pictures) };
 }
 
+/**
+ * How many different real pictures (period photographs, paintings, engravings, archive film — never a designed picture of
+ * the moment, never a map) the finished video shows: its cutaways and its picture-only scenes, each picture once. The
+ * owner (27 Nov 2026): every Short shows at least MapRules.SHORT_MIN_PICTURES of them.
+ */
+export function realPictureCount(plan: V3RenderPlan): number {
+  const seen = new Set<string>();
+  for (const s of plan.shots) {
+    if (s.id === "kapak") continue;
+    for (const w of s.inserts ?? []) if (!DESIGNED_CAPTIONS.includes(w.caption ?? "") && !isMapPicture(w.caption)) seen.add(w.src);
+    if (!s.geoMap && !s.performers.length && !(s.extras ?? []).length && s.background.kind === "archival" && !/(harita|fotograf)-zemin\.png$/.test(s.background.src)) seen.add(s.background.src);
+  }
+  return seen.size;
+}
+
 /** How the narration names a side: the first five letters of its first real word ("Ottomans" → "ottom", "Serbian Coalition" → "serbi"). */
 export function sideStem(taraf: string): string | undefined {
   const w = taraf.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).find((x) => x.length >= 4 && !/^(army|forces?|troops|coalition|league|the)$/.test(x));

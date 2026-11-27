@@ -224,6 +224,19 @@ export const SHORT_SHARES_FROM_S = 30;
 export const SHORT_PICTURES_FROM_S = 90;
 
 /**
+ * Every Short (from SHORT_SHARES_FROM_S) asks at least this many real picture moments (owner, 27 Nov 2026: "shorts
+ * videolarında da gerçek fotoğraf kullanılsın, en azından 3 tane"): the 60 s Shorts since 23 Nov were under
+ * SHORT_PICTURES_FROM_S and asked none.
+ */
+export const SHORT_MIN_PICTURES = 3;
+
+/** The picture moments a script asks for: each map scene's marked line, each "gorseller" entry, each photo scene. */
+export function pictureMoments(episode: Episode): number {
+  const scenes = Array.isArray(episode?.sahneler) ? episode.sahneler : [];
+  return scenes.reduce((a, s) => a + (s.harita?.merkez && s.ara_goruntu_satir !== undefined ? 1 : 0) + (s.kip === "fotograf" ? 1 : 0) + (s.gorseller?.length ?? 0), 0);
+}
+
+/**
  * The owner's shares for a long video (23 Oct 2026, after DFT Tarih): ~75–80% map, ~15% stick figures, 6–10% period
  * pictures. Asked of each chapter of a long episode (two minutes or so): too much of it on the stage, or a mostly-map
  * chapter with no picture moment marked. A Short (`shorts`) is asked its own share (SHORT_MAP_SHARE).
@@ -242,6 +255,8 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
     // Real period pictures (owner, 11 Nov 2026, after the Gallipoli video): an unmarked map scene is never searched.
     const unmarked = total >= SHORT_PICTURES_FROM_S ? map.filter((s) => s.ara_goruntu_satir === undefined) : [];
     if (unmarked.length) return [`map scene${unmarked.length > 1 ? "s" : ""} ${unmarked.map((s) => `"${s.id}"`).join(", ")} mark${unmarked.length > 1 ? "" : "s"} no "ara_goruntu_satir": every map scene of a Short marks one narrator line whose moment gets its real period picture (and its "arka_plan_sorgusu" searches for it) — REAL PERIOD PICTURES`];
+    const asked = pictureMoments(episode);
+    if (total >= SHORT_SHARES_FROM_S && asked < SHORT_MIN_PICTURES) return [`this Short asks ${asked} real picture moment${asked === 1 ? "" : "s"} (at least ${SHORT_MIN_PICTURES}): mark a narrator line "ara_goruntu_satir" on the map scenes and give the key narrator lines "gorseller" — the moment's real photograph, painting or archive film, a few seconds each over the map narration — REAL PERIOD PICTURES`];
     return [];
   }
   if (total < 90) return [];
@@ -258,13 +273,16 @@ export function shareProblems(episode: Episode, shorts = false): string[] {
  * narrator line, or one with no search, stays as it is. Logged as a fix.
  */
 export function markMapPictures(episode: Episode, targetS: number): { episode: Episode; fixes: string[] } {
-  if (!isShorts(targetS) || targetS < SHORT_PICTURES_FROM_S) return { episode, fixes: [] };
+  if (!isShorts(targetS) || targetS < SHORT_SHARES_FROM_S) return { episode, fixes: [] };
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
   const fixes: string[] = [];
+  // A Short under SHORT_PICTURES_FROM_S marks only as many map scenes as it lacks for SHORT_MIN_PICTURES (owner, 27 Nov 2026).
+  let short = targetS >= SHORT_PICTURES_FROM_S ? Infinity : SHORT_MIN_PICTURES - pictureMoments(episode);
   const sahneler = episode.sahneler.map((s) => {
-    if (!s.harita?.merkez || s.ara_goruntu_satir !== undefined || !s.arka_plan_sorgusu?.en?.trim()) return s;
+    if (short <= 0 || !s.harita?.merkez || s.ara_goruntu_satir !== undefined || !s.arka_plan_sorgusu?.en?.trim()) return s;
     const satir = s.satirlar.findIndex((l) => !visible.has(l.karakter));
     if (satir < 0) return s;
+    short -= 1;
     fixes.push(`${s.id}: harita sahnesi dönem görseli satırı işaretlememişti; ${satir}. satır (anlatıcı) işaretlendi`);
     return { ...s, ara_goruntu_satir: satir };
   });

@@ -17,7 +17,7 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom } from "../src/lib/v3/director/Director";
+import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, noOpeningFlash, noShortShots, mapGlides, MAP_GLIDE_S, closeInsertTail, shortShots, placeCrowd, stageEmptyScenes, DESIGNED_CAPTIONS, isMapPicture, MAP_CAMERA_MOVE_S, MAP_SEEN_S, MAP_VIEW_HOLD_S, mapPictureFrom, realPictureCount } from "../src/lib/v3/director/Director";
 import { blankOpening, cameraChangeFrames, MAP_PULSE_S, MAP_PULSE_ZOOM, mapPulse, OPENING_CHANGE_S, OPENING_TEMPO_S, openingBeats, openingTempoGaps, pictureChangeFrames } from "../src/lib/v3/director/Director";
 import { MAP_STAGE_TALL, mapStageFor, outputFrame } from "../src/lib/v3/render/Format";
 import type { Episode, EpisodeScene, MapUnits, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
@@ -1419,14 +1419,23 @@ async function main() {
     // the map, at most one short payoff scene on stage; wholly on the map is no fault.
     assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }, true).some((p) => p.includes("map scenes take 33% of this Short") && p.includes("SHARES OF A SHORT")));
     assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true)[0]!.includes("at most one short character scene"), "the old character hook and payoff: 67% map is asked for more");
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 52), sized(stage, 8)] }, true), [], "the map and an 8 s payoff");
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 58), sized(map, 2)] }, true), [], "a Short wholly on the map");
+    // Every Short asks at least three real picture moments (owner, 27 Nov 2026): the marked map line + two "gorseller".
+    const rich = { ...map, gorseller: [{ satir: 0, en: "The army on the march, 1456" }, { satir: 2, en: "Siege of Belgrade, 1456" }] };
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(rich, 52), sized(stage, 8)] }, true), [], "the map and an 8 s payoff");
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(rich, 58), sized(map, 2)] }, true), [], "a Short wholly on the map");
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 52), sized(stage, 8)] }, true).some((p) => p.includes("asks 1 real picture moment (at least 3)")), "one picture is too few, the 60 s Short too");
     // Real period pictures in a 3-minute Short (owner, 11 Nov 2026, after the Gallipoli video): every map scene marks
     // its picture line; unmarked ones are asked for, then marked on their first narrator line as a last resort.
     const bare = { ...map, ara_goruntu_satir: undefined };
     assert.ok(shareProblems({ ...episode, sahneler: [sized(stage, 15), sized(bare, 150), sized(stage, 15)] }, true).some((p) => p.includes(`"${map.id}"`) && p.includes("REAL PERIOD PICTURES")));
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 15), sized(map, 150), sized(stage, 15)] }, true), []);
-    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(bare, 52), sized(stage, 8)] }, true), [], "a minute-long Short has no time for a picture on each map");
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 15), sized(rich, 150), sized(stage, 15)] }, true), []);
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(bare, 52), sized(stage, 8)] }, true).some((p) => p.includes("asks 0 real picture moments")), "a minute-long Short need not mark each map, but asks its three pictures");
+    // The last resort in a 60 s Short marks only as many map scenes as it lacks for three.
+    const bare60 = sized(bare, 20);
+    const sixty = markMapPictures({ ...episode, sahneler: [bare60, { ...bare60, id: "m2" }, { ...bare60, id: "m3" }, { ...bare60, id: "m4" }] }, 60);
+    assert.deepEqual(sixty.episode.sahneler.map((s) => s.ara_goruntu_satir), [0, 0, 0, undefined], "three marked, the fourth left");
+    const twoAsked = markMapPictures({ ...episode, sahneler: [{ ...bare60, gorseller: rich.gorseller }, { ...bare60, id: "m2" }, { ...bare60, id: "m3" }] }, 60);
+    assert.equal(twoAsked.fixes.length, 1, "two pictures asked already: one map scene marked");
     const quipFirst = { ...bare, satirlar: [{ karakter: speaker, metin: "Ready?", duygu: "mutlu" as const }, narrate("The army marches north.")] };
     const marked = markMapPictures({ ...episode, sahneler: [quipFirst, stage] }, 180);
     assert.equal(marked.episode.sahneler[0]!.ara_goruntu_satir, 1, "the narrator's line, never the character's");
@@ -1474,6 +1483,10 @@ async function main() {
     // A further picture on the opening line waits the same way.
     const extra = plan({ ...map, ara_goruntu_satir: undefined }, 7, { src: "bg/m1-donem.jpg" }, [{ satir: 0, src: "bg/m1-g1.jpg", caption: "Siege of Baghdad, 1638" }]).shot;
     assert.ok(extra.inserts!.length === 1 && extra.inserts![0]!.start >= mapPictureFrom(extra.geoMap!.camera, fps), JSON.stringify(extra.inserts));
+    // The real pictures a Short shows (owner, 27 Nov 2026: at least three): a designed picture is never counted.
+    const asPlan = (shot: typeof extra) => ({ shots: [shot] }) as unknown as Parameters<typeof realPictureCount>[0];
+    assert.equal(realPictureCount(asPlan(extra)), 1, "the real further picture counts");
+    assert.equal(realPictureCount(asPlan(plan(map, 7, { src: "bg/m1-an.png", caption: DESIGNED_CAPTIONS[0], designed: true }).shot)), 0, "a designed picture is not a real one");
     // The wide map's designed "illustration of the moment" was itself an old-style map of the region: never over a map.
     const asMap = { ...map, arka_plan_sorgusu: { ...map.arka_plan_sorgusu, an: "Map of the Ottoman and Safavid Empires in 1638, with Sultan Murad IV's army marching to Baghdad" } };
     assert.equal(plan(asMap, 7, { src: "bg/m1-an.png", caption: designedCaption("en"), designed: true }).shot.inserts!.length, 0, "a designed map over the map");
