@@ -9,10 +9,18 @@ import { splitDirections } from "../tts/StageDirections";
  * line at most. Measured from the episode JSON alone: no model, no files.
  */
 
-/** Seconds by which a Short's first action is on screen (the beat map's "ilk_hamle" ends here). */
-export const FIRST_ACTION_BY_S = 12;
-/** Spoken words before the first action at most: FIRST_ACTION_BY_S at the channel's ~2.5 spoken words a second. */
-export const FIRST_ACTION_MAX_WORDS = 30;
+/**
+ * Seconds by which a Short's first action is on screen (the beat map's "ilk_hamle" ends here). 12 s until 27 Nov 2026;
+ * 10 s since (owner, 27 Nov 2026: "insanları çekecek başlangıçlar yapmamız gerekiyor"; docs/v3/KANCA_ANALIZI_2026-11-27.md):
+ * on all ten measured Shorts the steepest early drop fell between 4.4 and 9.8 s, on a setup line while nothing happened on
+ * screen, and the three question Shorts made since 23 Nov showed their first move on the map only at 13.6–24 s.
+ */
+export const FIRST_ACTION_BY_S = 10;
+/**
+ * Spoken words before the first action at most: FIRST_ACTION_BY_S at the channel's ~2.4 spoken words a second — the
+ * question title (~10 words) and the stakes line (at most 12), so the action comes with the stakes line or the next one.
+ */
+export const FIRST_ACTION_MAX_WORDS = 24;
 /** The channel's spoken pace, for the seconds a count of words takes (HookFollow: 2.3–2.5 words a second). */
 const WORDS_PER_S = 2.4;
 
@@ -22,6 +30,8 @@ interface OpeningScene {
   readonly id?: string;
   readonly satirlar?: readonly OpeningLine[];
   readonly harita?: {
+    readonly oklar?: readonly { readonly satir?: number; readonly stil?: string }[];
+    readonly bolgeler?: readonly { readonly satir?: number; readonly yayilma?: { readonly satir?: number } }[];
     readonly savaslar?: readonly { readonly satir?: number }[];
     readonly birlikler?: readonly { readonly yerler?: readonly Step[] }[];
     readonly yanginlar?: readonly { readonly satir?: number }[];
@@ -42,7 +52,9 @@ const FIGHT_STEPS = new Set(["ilerle", "hucum", "kusat", "geri"]);
 
 /**
  * The lines of a scene on which something happens on screen: a battle mark, a unit's fighting step, a fire, a gun
- * firing, a ruler struck out, a white flag, a crowd charging or fleeing. (A march along a route is not one: it is the
+ * firing, a ruler struck out, a white flag, a crowd charging or fleeing, a move's arrow drawn on the map (not a "plan"
+ * arrow), a border appearing or spreading after the scene's first line (27 Nov 2026: the beat map's "a border
+ * changing"; the Stalingrad Short's pincer was two arrows and a pocket). (An army's march route is not one: it is the
  * backstory this rule keeps out of the opening.)
  */
 export function actionLines(scene: OpeningScene): Set<number> {
@@ -54,6 +66,11 @@ export function actionLines(scene: OpeningScene): Set<number> {
   for (const v of map?.araclar ?? []) if (typeof v.ates_satir === "number") out.add(v.ates_satir);
   for (const r of map?.rozetler ?? []) if (typeof r.x_satir === "number") out.add(r.x_satir);
   for (const t of map?.teslim ?? []) if (typeof t.satir === "number") out.add(t.satir);
+  for (const a of map?.oklar ?? []) if (typeof a.satir === "number" && a.stil !== "plan") out.add(a.satir);
+  for (const r of map?.bolgeler ?? []) {
+    if (typeof r.yayilma?.satir === "number") out.add(r.yayilma.satir);
+    else if (typeof r.satir === "number" && r.satir > 0) out.add(r.satir);
+  }
   for (const c of scene.kalabalik ?? []) if ((c.hareket?.tur === "hucum" || c.hareket?.tur === "kac") && typeof c.hareket.satir === "number") out.add(c.hareket.satir);
   return out;
 }
@@ -65,7 +82,7 @@ export function actionLines(scene: OpeningScene): Set<number> {
 const BACKSTORY: readonly RegExp[] = [
   /\b(crossed|marched|sailed|travell?ed|journeyed|arrived|reached|set (out|off)|had come)\b/,
   /\b(sent|dispatched|appointed|elected|raised an army)\b/,
-  /(\d[\d,.]*|\b(thousands?|hundreds?|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety))\s+(\S+\s+){0,2}(men|soldiers|troops|warriors|legions?|legionaries|ships|horsemen|cavalry|infantry|elephants)\b/,
+  /(\d[\d,.]*|\b(thousands?|hundreds?|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety))\s+(\S+\s+){0,2}(men|soldiers|troops|warriors|legions?|legionaries|ships|horsemen|cavalry|infantry|elephants|followers|guards|attendants)\b/,
   /\b(years?|months?|weeks?) (earlier|before|ago)\b|\bby the time\b|\bback in\b/,
   /\b(gecti|gectikten|asti|asarak|yurudu|yuruyerek|gonderdi|ulasti|vardi|yola cikti|secildi|atandi)\b/,
   /\b(yil|yillar|ay|aylar) once\b/,
@@ -81,22 +98,14 @@ export function backstoryPhrases(text: string): string[] {
   });
 }
 
-/**
- * The opening of a Short up to its first action: where that action is (the first line, after the hook, that a visible
- * character speaks or on which something happens on screen), the spoken words before it, and the narrator's lines
- * between the line after the hook and it that tell background. Undefined when nothing in the episode acts at all (not
- * measurable).
- */
-export function openingBeforeAction(episode: OpeningEpisode): {
-  readonly sahne: string;
-  readonly satir: number;
-  readonly kelime: number;
-  readonly arkaPlan: readonly { readonly sahne: string; readonly satir: number; readonly metin: string; readonly ifadeler: readonly string[] }[];
-} | undefined {
+type Backstory = { readonly sahne: string; readonly satir: number; readonly metin: string; readonly ifadeler: readonly string[] };
+
+/** The opening scanned up to its first action, or through the whole episode when nothing acts (`action` absent). */
+function scanOpening(episode: OpeningEpisode): { readonly action?: { readonly sahne: string; readonly satir: number }; readonly kelime: number; readonly arkaPlan: readonly Backstory[] } {
   const narrators = new Set((episode.oyuncu_kadrosu ?? []).filter((c) => c.gorunur === false).map((c) => c.id));
   let spoken = 0;
   let before = 0;
-  const backstory: { sahne: string; satir: number; metin: string; ifadeler: string[] }[] = [];
+  const backstory: Backstory[] = [];
   for (const s of episode.sahneler ?? []) {
     const acts = actionLines(s);
     for (const [i, l] of (s.satirlar ?? []).entries()) {
@@ -105,7 +114,7 @@ export function openingBeforeAction(episode: OpeningEpisode): {
       spoken++;
       const narrator = narrators.has(l.karakter);
       // The hook itself is not the first action, even when its speaker gestures (it is judged on its own: HookFollow).
-      if (spoken > 1 && (acts.has(i) || !narrator)) return { sahne: s.id ?? "?", satir: i + 1, kelime: before, arkaPlan: backstory };
+      if (spoken > 1 && (acts.has(i) || (!narrator && !s.harita))) return { action: { sahne: s.id ?? "?", satir: i + 1 }, kelime: before, arkaPlan: backstory };
       // The line after the hook is the stakes line (its own rules: HookFollow); later narrator lines are judged here.
       if (spoken > 2 && narrator) {
         const phrases = backstoryPhrases(speech);
@@ -114,17 +123,40 @@ export function openingBeforeAction(episode: OpeningEpisode): {
       before += wordCount(speech);
     }
   }
-  return undefined;
+  return { kelime: before, arkaPlan: backstory };
+}
+
+/**
+ * The opening of a Short up to its first action: where that action is (the first line, after the hook, on which
+ * something happens on screen, or that a visible character speaks on a stage), the spoken words before it, and the
+ * narrator's lines between the line after the hook and it that tell background. Undefined when nothing in the episode
+ * acts at all (not measurable). On a map a character's line is a badge's quip, not an action (27 Nov 2026: the
+ * Stalingrad, Cajamarca and Iran question Shorts passed this rule on a quip at 8.6–16.4 s while their maps showed their
+ * first move only at 13.6–24 s); on a stage it stays one — the clash of two characters the channel's best Short opened on.
+ */
+export function openingBeforeAction(episode: OpeningEpisode): {
+  readonly sahne: string;
+  readonly satir: number;
+  readonly kelime: number;
+  readonly arkaPlan: readonly Backstory[];
+} | undefined {
+  const o = scanOpening(episode);
+  return o.action ? { ...o.action, kelime: o.kelime, arkaPlan: o.arkaPlan } : undefined;
 }
 
 /**
  * The writer's repair ask for a Short that tells background before its first action, or reaches its first action only
  * after FIRST_ACTION_MAX_WORDS spoken words (ScriptEngine asks it with the hook asks in the repair and length rounds).
+ * A Short with a map where no line shows anything happening — only badge quips — is asked too (27 Nov 2026: a
+ * character's line on a map no longer counts as the first action); a stage-only episode with no action is not measured.
  */
 export function backstoryProblems(episode: OpeningEpisode): string[] {
-  const o = openingBeforeAction(episode);
-  if (!o || (!o.arkaPlan.length && o.kelime <= FIRST_ACTION_MAX_WORDS)) return [];
+  const o = scanOpening(episode);
+  if (!o.action && !(episode.sahneler ?? []).some((s) => s.harita)) return [];
+  if (o.action && !o.arkaPlan.length && o.kelime <= FIRST_ACTION_MAX_WORDS) return [];
   const told = o.arkaPlan.map((b) => `scene "${b.sahne}" line ${b.satir} ("${b.metin.slice(0, 70)}…": ${b.ifadeler.join(", ")})`).join("; ");
-  const late = `the first action comes at scene "${o.sahne}" line ${o.satir}, after ${o.kelime} spoken words (~${Math.round(o.kelime / WORDS_PER_S)} s; at most ${FIRST_ACTION_MAX_WORDS}, on screen by ~${FIRST_ACTION_BY_S} s)`;
-  return [`${told ? `background told before the first action — ${told}; ` : ""}${late}: in a Short the first action or clash comes right after the stakes line (a charge, the trap sprung, a fire, two characters clashing); marches, routes, troop counts, "X crossed the Alps", "Rome sent…" come AFTER the first clash, in one line at most — BACKSTORY FIRST`];
+  const late = o.action
+    ? `the first action comes at scene "${o.action.sahne}" line ${o.action.satir}, after ${o.kelime} spoken words (~${Math.round(o.kelime / WORDS_PER_S)} s; at most ${FIRST_ACTION_MAX_WORDS}, on screen by ~${FIRST_ACTION_BY_S} s)`
+    : `no line of the Short shows an action on screen (only badges speak; at most ${FIRST_ACTION_MAX_WORDS} spoken words before one, on screen by ~${FIRST_ACTION_BY_S} s)`;
+  return [`${told ? `background told before the first action — ${told}; ` : ""}${late}: in a Short the first action or clash comes right after the stakes line (a charge, the trap sprung, a fire, two characters clashing on a stage; on a map a move drawn on it — a unit's attack step, a move's arrow, a border spreading; a badge's quip is not the action); marches, routes, troop counts, "X crossed the Alps", "Rome sent…" come AFTER the first clash, in one line at most — BACKSTORY FIRST`];
 }

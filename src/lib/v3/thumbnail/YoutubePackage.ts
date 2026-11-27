@@ -22,6 +22,11 @@ export interface YoutubePackage {
   readonly denetim?: PackageCheck;
   /** The description's first lines against the chosen title (PackageLint.lintDescriptionLead); absent in older packages. */
   readonly aciklamaDenetim?: readonly PackageIssue[];
+  /**
+   * A Short's comment for the owner to pin by hand (27 Nov 2026; the YouTube API cannot pin one): the closing line's open
+   * question and the channel's promise (ChannelGoals.subscribeTexts). Absent when the closing line asks nothing.
+   */
+  readonly sabitYorum?: string;
 }
 
 /**
@@ -42,6 +47,15 @@ export function chapterScenes(episode: Pick<Episode, "sahneler">): { index: numb
 export function packageQuestion(episode: Pick<Episode, "soru">, shorts: boolean): string | undefined {
   const q = episode.soru?.trim();
   return shorts && q && !questionTitleFaults(q).some((x) => x === "yok" || x === "soru-degil" || x === "uzunluk") ? q : undefined;
+}
+
+/**
+ * The description's lead block: the package's hook sentences, then a Short's subscribe line (the channel's promise and
+ * days, ChannelGoals.subscribeTexts; owner, 27 Nov 2026) — under the question and its short answer, so the search
+ * keyword stays in the first 150 characters and the promise is the next thing a viewer who opens the description reads.
+ */
+export function descriptionLead(aciklamaGiris: string | undefined, subscribeLine?: string): string {
+  return [aciklamaGiris?.trim(), subscribeLine?.trim()].filter(Boolean).map((p) => `${p}\n\n`).join("");
 }
 
 /** A Short has no chapters (YouTube shows none) and "#Shorts" goes into its title and hashtags (owner, 2 Nov 2026). */

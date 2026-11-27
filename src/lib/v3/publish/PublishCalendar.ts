@@ -25,6 +25,22 @@ export function videoKind(sure: string): VideoKind {
  */
 export const WEEKLY_SLOTS: Readonly<Record<VideoKind, readonly number[]>> = { uzun: [4], short: [2, 4, 6] };
 export const SLOT_HOUR_NEW_YORK = 15;
+
+const DAY_NAMES: Readonly<Record<"tr" | "en", readonly string[]>> = {
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  tr: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"],
+};
+
+/**
+ * The calendar's days for a kind, as the viewer reads them ("Tue, Thu & Sat"; "Salı, Perşembe ve Cumartesi"), for the
+ * channel's subscribe promise (owner, 27 Nov 2026: "neredeyse hiç takip gelmiyor kanalımıza"): the description and the
+ * pinned comment promise exactly the days the uploader keeps, from WEEKLY_SLOTS — never a copy that can drift.
+ */
+export function slotDaysText(kind: VideoKind, dil: "tr" | "en"): string {
+  const names = WEEKLY_SLOTS[kind].map((d) => DAY_NAMES[dil][d]!);
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} ${dil === "en" ? "&" : "ve"} ${names.at(-1)}`;
+}
 const SLOT_LEAD_MS = 2 * 3_600_000;
 
 function newYorkClock(at: Date): { y: number; m: number; d: number; h: number; min: number } {

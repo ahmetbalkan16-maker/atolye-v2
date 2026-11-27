@@ -295,6 +295,9 @@ export function shortsShape(targetS: number): { readonly min: number; readonly m
  * (HookFollow.hookAnchor), and no background comes before the first action (ShortOpening.backstoryProblems). Since the
  * same day's study of Knowledgia's Shorts (owner: "bütün planları uygula") the hook is the Short's question title read
  * out first by the narrator over a map (QuestionTitle), the Short is told on vertical maps (~90%) and shows one big number.
+ * Since 27 Nov 2026 (owner: "insanları çekecek başlangıçlar yapmamız gerekiyor"; docs/v3/KANCA_ANALIZI_2026-11-27.md) the
+ * first action comes by ~10 s and shows on the map itself (a badge's quip is not one), and the stakes line may be the
+ * main character's own, as in the channel's best Short.
  */
 const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
   tr: (b, words) => `
@@ -311,10 +314,15 @@ YOUTUBE SHORTS — bu, telefonda akışta dik izlenen ${b.hedefSureSn} saniye ya
 - Kancadan hemen sonraki satır izleyiciyi tutar: en fazla ${HOOK_FOLLOW_MAX_WORDS} kelimeyle ne olduğu ve neyin tehlikede olduğu (kim
   ne istiyor, ne ters gitmek üzere). Tarih, saat ya da "yer, tarih" ile AÇILMAZ — "yer_tarih" kartı nerede ve ne zaman
   olduğunu zaten gösteriyor; önemli bir tarih sonraki bir satıra girer. (Kanalın 45–56 sn'lik Short'larında izleyicinin
-  yaklaşık yarısı tam bu satırda, 4–12. saniyede kaydırdı.)
-- İlk hamleden önce geçmiş YOK: tehlike satırından hemen sonra ilk hamle ya da çatışma ekrandadır (en geç ~12. saniyede:
-  bir hücum, kurulan tuzağın kapanması, bir yangın, iki karakterin çatışması). Geçmiş — yürüyüşler, yollar, asker
-  sayıları, "X Alpleri aştı", "Roma … gönderdi" — ilk çatışmadan SONRA ve en çok tek satırla gelir.
+  yaklaşık yarısı tam bu satırda, 4–12. saniyede kaydırdı.) Bu satırı anlatıcı yerine ANA KARAKTER de rozetinden kendi
+  sesiyle söyleyebilir: kazanmak ya da kaybetmek üzere olduğu şeyi söyleyen kısa, somut bir replik (kanalın en iyi
+  Short'u, Caesar, "Twenty? I've seen farmhands go for more than that!" diye açıldı).
+- İlk hamleden önce geçmiş YOK: tehlike satırından hemen sonra ilk hamle ya da çatışma ekrandadır (en geç ~10. saniyede:
+  bir hücum, kurulan tuzağın kapanması, bir yangın, sahnede iki karakterin çatışması). Haritada bir karakterin rozet
+  esprisi ilk hamle SAYILMAZ: hamle haritanın kendisinde görünür — bir birliğin hücum adımı, bir hamle oku, bir yangın,
+  yayılan bir sınır. (Ölçülen on Short'un hepsinde en dik erken düşüş 4–10. saniyede, ekranda hiçbir şey olmazken
+  söylenen bir hazırlık satırındaydı.) Geçmiş — yürüyüşler, yollar, asker sayıları, "X Alpleri aştı", "Roma … gönderdi"
+  — ilk çatışmadan SONRA ve en çok tek satırla gelir.
 - Soruyu TEK açık bir olay zinciriyle cevapla (2–4 neden ya da adım, sonucuyla) — bütün bir savaşın ya da hayatın dökümü değil.${b.hedefSureSn > 90 ? " Süre uzun olduğu için o anın hazırlığını, kendisini ve sonucunu anlat — yine tek olay, başka olaya geçme." : ""}
 - TEK BÜYÜK SAYI: hikâyenin en çarpıcı sayısı bir kez ekranda büyük görünür — o satırda bir "sayac" bilgi kartı ya da
   haritada "guc" çubuğu. Soru başlığında bir sayı varsa ekrandaki büyük sayı ve anlatımdaki her sayı AYNI sayıdır (aynı
@@ -348,10 +356,15 @@ YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, w
 - The line right after the hook keeps the scroller: what is happening and what is at stake in at most ${HOOK_FOLLOW_MAX_WORDS} words
   (who wants what, what is about to go wrong). It NEVER opens on a date, a time or "place, date" — the "yer_tarih" card
   already shows where and when; a date that matters goes in a later line. (On our 45–56 s Shorts about half the viewers
-  swiped away on exactly this line, between 4 and 12 seconds.)
+  swiped away on exactly this line, between 4 and 12 seconds.) Instead of the narrator, the MAIN CHARACTER may say this
+  line from their badge, in their own voice: a short, concrete line of what they are about to win or lose (our best
+  Short, Caesar's, opened on "Twenty? I've seen farmhands go for more than that!").
 - NO backstory before the first action: right after the stakes line the first action or clash is on screen (by about
-  12 seconds: a charge, the trap sprung, a fire, two characters clashing). Background — marches, routes, troop counts,
-  "X crossed the Alps", "Rome sent…" — comes AFTER the first clash, in one line at most.
+  10 seconds: a charge, the trap sprung, a fire, two characters clashing on a stage). On a map a character's badge quip
+  is NOT the first action: the action shows on the map itself — a unit's attack step, a move's arrow, a fire, a border
+  spreading. (On all ten Shorts we measured, the steepest early drop fell between 4 and 10 seconds, on a setup line said
+  while nothing happened on screen.)
+  Background — marches, routes, troop counts, "X crossed the Alps", "Rome sent…" — comes AFTER the first clash, in one line at most.
 - Answer the question with ONE clear chain of events (2–4 causes or steps, with the outcome) — never a whole war's or a whole life's chronicle.${b.hedefSureSn > 90 ? " With this length, tell that moment's build-up, the moment itself and its outcome — still one event, never a second one." : ""}
 - ONE BIG NUMBER: the story's most striking number is shown big on screen once — a "sayac" info card on that line, or the
   map's "guc" bar. If the question title has a number, the big on-screen number and every spoken figure for that thing are

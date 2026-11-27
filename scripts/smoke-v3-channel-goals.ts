@@ -20,8 +20,11 @@ import { allLessons } from "../src/lib/v3/council/ExperienceMemory";
 import { AFTER_HOOK_S, analyticsRecord, channelSummary, dueMoments, episodeTimeline, feedCurve, holdAfterHook, isoDurationS, organicViews, retentionDrops, retentionLessons, viewSplit } from "../src/lib/v3/publish/ChannelAnalyticsMap";
 import {
   channelGoalNote, evaluatePerformance, latestPerVideo, loadChannelGoals, nextShortTargets, openingChecks, parseChannelGoals,
-  PERFORMANCE_METRICS, performanceLessons, pilotTrends, recordViewRatio, scenePlanCheck, shortBeatRule, shortBeats, type VideoPerformanceRecord, viewTargetSeconds,
+  PERFORMANCE_METRICS, performanceLessons, pilotTrends, recordViewRatio, scenePlanCheck, shortBeatRule, shortBeats, subscribeTexts, type VideoPerformanceRecord, viewTargetSeconds,
 } from "../src/lib/v3/publish/ChannelGoals";
+import { slotDaysText } from "../src/lib/v3/publish/PublishCalendar";
+import { closingQuestion } from "../src/lib/v3/script/ClosingLine";
+import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { keepRound, restoreRound } from "../src/lib/v3/council/RetouchBrain";
 import { judgeAndTeach, linkCandidates, linkOrder, loadTimeline, ordersWithPackages } from "../src/lib/v3/publish/ChannelLearning";
 import { BASIC_METRICS, RECONNECT_NOTICE, youtubeAnalyticsTick } from "../src/lib/v3/publish/YoutubeAnalytics";
@@ -167,13 +170,13 @@ async function main() {
 
   await scenario("C the Short beat map: 0–3 s question stays, the rest keeps its share; the writer gets it for a Short only", () => {
     // Since 23 Nov 2026 (owner, after Knowledgia's Shorts): a ~60 s reference, the question title read out at 0–3 s.
-    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 7], ["ilk_hamle", 7, 10], ["neden", 10, 23], ["doruk", 23, 38], ["final", 38, 45]]);
-    assert.deepEqual(shortBeats(goals, 60).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 12], ["neden", 12, 30], ["doruk", 30, 50], ["final", 50, 60]], "the 60 s default is the map itself");
+    assert.deepEqual(shortBeats(goals, 45).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 7], ["ilk_hamle", 7, 8], ["neden", 8, 23], ["doruk", 23, 38], ["final", 38, 45]]);
+    assert.deepEqual(shortBeats(goals, 60).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 10], ["neden", 10, 30], ["doruk", 30, 50], ["final", 50, 60]], "the 60 s default is the map itself");
     // The 90 s default (owner, 23 Nov 2026): the hook, the stakes and the first action keep their seconds — scaled as
     // before, the stakes ran 2–16 s and the first action came at ~23 s, in the window where half the viewers swipe away.
-    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 12], ["neden", 12, 41], ["doruk", 41, 74], ["final", 74, 90]]);
-    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [3, 8, 12], `${t} s`);
-    assert.match(shortBeatRule(goals, 90, "en"), /8–12 s the first action on the map[^;]*no backstory before it/);
+    assert.deepEqual(shortBeats(goals, 90).map((b) => [b.id, b.basSn, b.bitSn]), [["soru", 0, 3], ["baglam", 3, 8], ["ilk_hamle", 8, 10], ["neden", 10, 42], ["doruk", 42, 74], ["final", 74, 90]]);
+    for (const t of [60, 90, 120, 180]) assert.deepEqual(shortBeats(goals, t).slice(0, 3).map((b) => b.bitSn), [3, 8, 10], `${t} s`);
+    assert.match(shortBeatRule(goals, 90, "en"), /8–10 s the first action on the map itself, by 10 s[^;]*a badge's quip is not one; no backstory before it/);
     // The question shapes that drew most, best first (soruKaliplari).
     assert.match(shortBeatRule(goals, 60, "en"), /\n- QUESTION SHAPES \(most watched first; take the one that fits the topic\): "How was X formed \/ How did X grow so fast\?" \(e\.g\. "How was Switzerland Formed\?"\), "Why didn't X happen\?/);
     const b30 = shortBeats(goals, 30);
@@ -562,6 +565,26 @@ async function main() {
     assert.equal(JSON.parse(readFileSync(path.join(caesar, "plan.json"), "utf8")).plan.durationInFrames, 1269, "the plan is not restored");
     assert.deepEqual([(await loadTimeline(caesar))!.sureSn, (await loadTimeline(caesar, 45))!.sureSn, (await loadTimeline(caesar, 42))!.sureSn], [42.3, 45, 42.3]);
     assert.ok(existsSync(path.join(cikti2, "plan.json")));
+  });
+
+  await scenario("S subscribers (owner, 27 Nov 2026: 1 subscriber from ~14,900 views): the channel's promise and the calendar's days in a Short's description, a pinned comment on the closing line's open question", () => {
+    // The days come from the uploader's own calendar (Tue, Thu, Sat at 15:00 New York), never a copy.
+    assert.deepEqual([slotDaysText("short", "en"), slotDaysText("short", "tr"), slotDaysText("uzun", "en")], ["Tue, Thu & Sat", "Salı, Perşembe ve Cumartesi", "Thu"]);
+    const ep = (last: string) => ({ sahneler: [{ satirlar: [{ karakter: "anlatici", metin: "x" }] }, { satirlar: [{ karakter: "caesar", metin: "Done." }, { karakter: "caesar", metin: last }] }] }) as unknown as Pick<Episode, "sahneler">;
+    assert.equal(closingQuestion(ep("So who blinks first now? Subscribe to Crowns & Doodles and find out.")), "So who blinks first now?");
+    assert.equal(closingQuestion(ep("(grinning) We won. But will Rome forgive me? Subscribe to Crowns & Doodles!")), "But will Rome forgive me?");
+    assert.equal(closingQuestion(ep("Subscribe to Crowns & Doodles — who wins next?")), undefined, "a question after the invitation is not the opening question");
+    assert.equal(closingQuestion(ep("Who blinks first now?")), undefined, "no invitation");
+    const en = subscribeTexts(goals, "en", "So who blinks first now?");
+    assert.equal(en.aciklama, "Crowns & Doodles: history's most insane moments, told on a map in about a minute. A new one every Tue, Thu & Sat — subscribe so you don't miss the next.");
+    assert.equal(en.sabitYorum, "So who blinks first now? Tell us in the comments 👇 A new insane history moment every Tue, Thu & Sat — subscribe so you don't miss it.");
+    assert.ok(!/[{}]/.test(`${en.aciklama}${en.sabitYorum}`), "no placeholder left");
+    const tr = subscribeTexts(goals, "tr", "Peki şimdi kim geri adım atacak?");
+    assert.match(tr.aciklama!, /Her Salı, Perşembe ve Cumartesi yenisi/);
+    assert.match(tr.sabitYorum!, /^Peki şimdi kim geri adım atacak\? Yorumlarda yaz/);
+    // Without a question there is nothing to answer: no pinned comment; a goals file without the block adds nothing.
+    assert.deepEqual(Object.keys(subscribeTexts(goals, "en")), ["aciklama"]);
+    assert.deepEqual(subscribeTexts({ ...goals, abonelik: undefined }, "en", "Who?"), {});
   });
 
   console.log(`PASS (${scenarios} scenarios)`);
