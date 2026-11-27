@@ -852,51 +852,135 @@ function addMeetingTable(box: ReturnType<typeof makeBoxFactory>, parent: THREE.O
   for (let i = 0; i < 3; i += 1) box(parent, "whiteboard marker", whiteboardX - 0.22 + i * 0.22, 1.0, z - 2.82, 0.15, 0.025, 0.025, mat(["#4a6e78", "#a05f55", "#51565a"][i]!, 0.54));
 }
 
-function addPlantAndWindows(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D) {
-  const frame = mat("#5b4c3e", 0.5, 0.14);
-  const glass = new THREE.MeshStandardMaterial({ color: "#98b8aa", transparent: true, opacity: 0.38, roughness: 0.26, metalness: 0.08 });
-  for (let i = 0; i < 10; i += 1) {
-    const x = -10.6 + i * 3.5;
-    const foliage = mat(i % 2 ? "#75966d" : "#5e815f", 0.96);
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.68 + (i % 3) * 0.08, 10, 7), foliage);
-    crown.name = "garden tree beyond the windows";
-    crown.position.set(x, 1.55 + (i % 2) * 0.2, -8.22);
-    parent.add(crown);
-  }
-  // Owner 2026-11-26 ("karşı duvar tuğla örme"): the far wall is laid brick with four framed windows on the garden.
+/**
+ * Owner 2026-11-27 ("karşı duvarın içinde ağaç gibi yuvarlak şeyler var onları kaldır, sadece tuğla duvar dursun; tuğlanın
+ * yüzeyine orta tarafına ışıklı YouTube Atölye Üretim Merkezi yaz, şık olsun"): the garden tree crowns poked through the
+ * far wall, so they and the windows are gone; the wall is one run of laid brick with a lit sign in its middle.
+ * Returns the sign's glowing materials and its wash light so the day/night cycle can brighten them after dusk.
+ */
+function addBrickWallAndSign(box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, textures: THREE.Texture[]) {
   const brick = makeBrickTexture();
-  const brickWall = (name: string, x: number, y: number, sx: number, sy: number) => {
-    const map = brick.clone();
-    map.repeat.set(sx / 1.2, sy / 0.6);
-    map.needsUpdate = true;
-    box(parent, name, x, y, -8.1, sx, sy, 0.24, new THREE.MeshStandardMaterial({ map, roughness: 0.9, metalness: 0 }));
-  };
-  // The wall runs the whole widened building; every back-row room has its own window.
+  textures.push(brick);
   const wallFrom = BUILDING_X0 + 0.02;
   const wallTo = BUILDING_X1 - 0.02;
   const wallHeight = 4.04;
-  const sillY = 0.95;
-  const headY = 3.25;
-  const windows = Array.from({ length: COLUMNS }, (_, col) => officeCell(col, 0).cx);
-  const windowWidth = 2.6;
-  let cursor = wallFrom;
-  for (const wx of windows) {
-    const left = wx - windowWidth / 2;
-    const right = wx + windowWidth / 2;
-    brickWall("brick wall pier", (cursor + left) / 2, wallHeight / 2, left - cursor, wallHeight);
-    brickWall("brick wall under window", wx, sillY / 2, windowWidth, sillY);
-    brickWall("brick wall over window", wx, (headY + wallHeight) / 2, windowWidth, wallHeight - headY);
-    box(parent, "office window glass", wx, (sillY + headY) / 2, -8.1, windowWidth, headY - sillY, 0.05, glass);
-    box(parent, "window frame upright", left + 0.06, (sillY + headY) / 2, -8.0, 0.12, headY - sillY, 0.16, frame);
-    box(parent, "window frame upright", right - 0.06, (sillY + headY) / 2, -8.0, 0.12, headY - sillY, 0.16, frame);
-    box(parent, "window frame mullion", wx, (sillY + headY) / 2, -8.0, 0.08, headY - sillY, 0.14, frame);
-    box(parent, "window frame crossbar", wx, 2.45, -8.0, windowWidth, 0.08, 0.14, frame);
-    box(parent, "window frame head", wx, headY - 0.05, -8.0, windowWidth, 0.1, 0.16, frame);
-    box(parent, "window stone sill", wx, sillY + 0.03, -7.93, windowWidth + 0.2, 0.07, 0.26, mat("#cfc6b6", 0.7));
-    cursor = right;
+  const wallLength = wallTo - wallFrom;
+  brick.repeat.set(wallLength / 1.2, wallHeight / 0.6);
+  brick.needsUpdate = true;
+  box(parent, "brick back wall", (wallFrom + wallTo) / 2, wallHeight / 2, -8.1, wallLength, wallHeight, 0.24,
+    new THREE.MeshStandardMaterial({ map: brick, roughness: 0.9, metalness: 0 }));
+  return addWallSign(box, parent, textures, (wallFrom + wallTo) / 2, 3.18, -7.98);
+}
+
+/** The lit sign: a slim dark backplate with a brass edge, glowing letters on it and a soft halo washing the brick. */
+function addWallSign(
+  box: ReturnType<typeof makeBoxFactory>, parent: THREE.Object3D, textures: THREE.Texture[], x: number, y: number, z: number,
+) {
+  const width = 10.4;
+  const height = 1.36;
+  box(parent, "wall sign brass edge", x, y, z + 0.015, width + 0.1, height + 0.1, 0.03, mat("#b08a4f", 0.34, 0.78));
+  box(parent, "wall sign backplate", x, y, z + 0.04, width, height, 0.04, mat("#1d2226", 0.55, 0.35));
+  const letters = makeSignTexture();
+  textures.push(letters);
+  const face = new THREE.MeshBasicMaterial({ map: letters, transparent: true, toneMapped: false, depthWrite: false });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(width - 0.16, height - 0.12), face);
+  sign.name = "wall sign glow letters";
+  sign.position.set(x, y, z + 0.066);
+  parent.add(sign);
+  const halo = makeHaloTexture();
+  textures.push(halo);
+  const haloMaterial = new THREE.MeshBasicMaterial({
+    map: halo, transparent: true, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.25,
+  });
+  const haloMesh = new THREE.Mesh(new THREE.PlaneGeometry(width + 2.6, height + 1.5), haloMaterial);
+  haloMesh.name = "wall sign glow halo";
+  haloMesh.position.set(x, y, z + 0.006);
+  parent.add(haloMesh);
+  const wash = new THREE.PointLight("#ffc98a", 0, 7.5, 1.6);
+  wash.position.set(x, y - 0.3, z + 1.3);
+  parent.add(wash);
+  return { face, halo: haloMaterial, wash };
+}
+
+function makeSignTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("2D canvas unavailable for the wall sign");
+  const font = "'Segoe UI', 'Helvetica Neue', Arial, system-ui, sans-serif";
+  // A red play badge, then "YouTube" in white, a thin brass rule, then the studio's name in warm neon.
+  const glow = (color: string, blur: number) => { context.shadowColor = color; context.shadowBlur = blur; };
+  const mid = canvas.height / 2;
+  const badgeH = 150;
+  const badgeW = 214;
+  const badgeX = 44;
+  const badgeY = mid - badgeH / 2;
+  glow("rgba(255,60,60,0.9)", 34);
+  context.fillStyle = "#ff2a2a";
+  context.beginPath();
+  context.roundRect(badgeX, badgeY, badgeW, badgeH, 42);
+  context.fill();
+  context.shadowBlur = 0;
+  context.fillStyle = "#ffffff";
+  context.beginPath();
+  context.moveTo(badgeX + 84, badgeY + 40);
+  context.lineTo(badgeX + 84, badgeY + badgeH - 40);
+  context.lineTo(badgeX + 152, mid);
+  context.closePath();
+  context.fill();
+  context.textBaseline = "middle";
+  glow("rgba(255,255,255,0.85)", 22);
+  context.fillStyle = "#ffffff";
+  context.font = `700 150px ${font}`;
+  const brandX = badgeX + badgeW + 30;
+  context.fillText("YouTube", brandX, mid + 4);
+  const afterYoutube = brandX + context.measureText("YouTube").width + 40;
+  context.shadowBlur = 0;
+  context.fillStyle = "#c9a464";
+  context.fillRect(afterYoutube, mid - 74, 6, 148);
+  glow("rgba(255,176,82,0.95)", 30);
+  context.fillStyle = "#ffdcaa";
+  const nameX = afterYoutube + 44;
+  context.font = `600 104px ${font}`;
+  drawSpaced(context, "ATÖLYE ÜRETİM MERKEZİ", nameX, mid + 4, canvas.width - nameX - 40, 10);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Letter-spaced text, shrunk to fit `maxWidth` when the device font runs wider. */
+function drawSpaced(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, spacing: number) {
+  const chars = Array.from(text);
+  const natural = chars.reduce((sum, ch) => sum + context.measureText(ch).width, 0) + spacing * (chars.length - 1);
+  const scale = Math.min(1, maxWidth / natural);
+  context.save();
+  context.translate(x, y);
+  context.scale(scale, 1);
+  let cursor = 0;
+  for (const ch of chars) {
+    context.fillText(ch, cursor, 0);
+    cursor += context.measureText(ch).width + spacing;
   }
-  brickWall("brick wall pier", (cursor + wallTo) / 2, wallHeight / 2, wallTo - cursor, wallHeight);
-  brick.dispose();
+  context.restore();
+}
+
+function makeHaloTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("2D canvas unavailable for the sign halo");
+  const gradient = context.createRadialGradient(256, 64, 8, 256, 64, 256);
+  gradient.addColorStop(0, "rgba(255,190,120,0.9)");
+  gradient.addColorStop(0.45, "rgba(255,150,80,0.35)");
+  gradient.addColorStop(1, "rgba(255,120,60,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 512, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 function addCourtyardDecoration(
@@ -1257,7 +1341,9 @@ function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THR
   for (const x of [-12, -4, 4, 12, 20]) {
     box(parent, "street lamp pole", x, 1.6, 9.55, 0.1, 3.2, 0.1, pole);
     box(parent, "street lamp arm", x, 3.15, 9.85, 0.08, 0.08, 0.7, pole);
-    box(parent, "street lamp head", x, 3.08, 10.2, 0.3, 0.1, 0.42, mat("#fff4d0", 0.3));
+    // A faint emissive the day/night cycle turns up after dusk.
+    box(parent, "street lamp head", x, 3.08, 10.2, 0.3, 0.1, 0.42,
+      new THREE.MeshStandardMaterial({ color: "#fff4d0", roughness: 0.3, emissive: "#ffd890", emissiveIntensity: 0.05 }));
   }
   // Traffic: cars on all four streets, keeping to their lane, looping along the street.
   const traffic: { axis: "x" | "z"; lane: number; dir: 1 | -1; speed: number; offset: number; color: string }[] = [
@@ -2062,6 +2148,80 @@ function moveOnPath(worker: WorkerRig, dt: number): boolean {
   return worker.pathIndex >= worker.path.length;
 }
 
+/**
+ * Owner 2026-11-27 ("gündüz ve gece döngüsü olsun"): a whole day passes in DAY_CYCLE_S seconds, starting at the viewer's
+ * real local hour. The sun arcs over the building and warms at dawn and dusk; at night a cool moon light stays, the sky
+ * darkens, lamps, screens and street lights glow brighter and the wall sign lights the brick. `?saat=<0–24>` in the
+ * address holds one hour (for a look at the night, or a screenshot).
+ */
+const DAY_CYCLE_S = 240;
+const SKY_DAY = new THREE.Color("#e9ede6");
+const SKY_DUSK = new THREE.Color("#f1c9a2");
+const SKY_NIGHT = new THREE.Color("#1a2236");
+const SUN_DAY = new THREE.Color("#fff1dc");
+const SUN_DUSK = new THREE.Color("#ffad72");
+const MOON = new THREE.Color("#9fb4e6");
+const HEMI_DAY = new THREE.Color("#fffaf0");
+const HEMI_NIGHT = new THREE.Color("#55648f");
+
+function makeDayNightCycle(
+  scene: THREE.Scene, renderer: THREE.WebGLRenderer, skyLight: THREE.HemisphereLight, keyLight: THREE.DirectionalLight,
+  fillLight: THREE.DirectionalLight, sign: ReturnType<typeof addWallSign>,
+) {
+  const held = Number.parseFloat(new URLSearchParams(window.location.search).get("saat") ?? "");
+  const startDate = new Date();
+  const startHour = Number.isFinite(held) ? ((held % 24) + 24) % 24 : startDate.getHours() + startDate.getMinutes() / 60;
+  // Every lit material (lamps, screens, status lights, street lamps) keeps its day glow and gains more after dusk.
+  const glowing: { material: THREE.MeshStandardMaterial; base: number }[] = [];
+  const seen = new Set<THREE.Material>();
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      if (seen.has(material) || !(material instanceof THREE.MeshStandardMaterial)) continue;
+      seen.add(material);
+      if (material.emissive.getHex() !== 0 && material.emissiveIntensity > 0) glowing.push({ material, base: material.emissiveIntensity });
+    }
+  });
+  const sky = scene.background instanceof THREE.Color ? scene.background : new THREE.Color();
+  scene.background = sky;
+  const sunColor = new THREE.Color();
+  const hemiColor = new THREE.Color();
+  let lastNight = -1;
+  let lastHour = -1;
+  return (now: number) => {
+    const hour = Number.isFinite(held) ? startHour : (startHour + (now / DAY_CYCLE_S) * 24) % 24;
+    if (Math.abs(hour - lastHour) < 0.004) return;
+    lastHour = hour;
+    const angle = ((hour - 6) / 24) * Math.PI * 2;
+    const elevation = Math.sin(angle); // 1 at noon, 0 at 06/18, −1 at midnight
+    const day = THREE.MathUtils.smoothstep(elevation, -0.12, 0.3);
+    const night = 1 - day;
+    const dusk = Math.max(0, 1 - Math.abs(elevation) / 0.32) * (1 - night * 0.4);
+    // Sky: day blue-grey → warm at dusk/dawn → deep navy at night.
+    sky.copy(SKY_NIGHT).lerp(SKY_DAY, day).lerp(SKY_DUSK, dusk * 0.7);
+    // The sun crosses east → west; at night the same light is the moon, low and cool.
+    const sunUp = Math.max(0.25, Math.abs(elevation));
+    const across = Math.cos(angle) * (elevation >= 0 ? 1 : -1);
+    keyLight.position.set(BUILDING_CX + across * 18, 8 + sunUp * 20, 12);
+    sunColor.copy(MOON).lerp(SUN_DAY, day).lerp(SUN_DUSK, dusk * 0.8);
+    keyLight.color.copy(sunColor);
+    keyLight.intensity = THREE.MathUtils.lerp(0.42, 1.7, day);
+    hemiColor.copy(HEMI_NIGHT).lerp(HEMI_DAY, day);
+    skyLight.color.copy(hemiColor);
+    skyLight.intensity = THREE.MathUtils.lerp(0.55, 1.75, day);
+    fillLight.intensity = THREE.MathUtils.lerp(0.18, 0.55, day);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.14, 0.42, day);
+    renderer.toneMappingExposure = THREE.MathUtils.lerp(1.0, 1.08, day);
+    if (Math.abs(night - lastNight) < 0.002) return;
+    lastNight = night;
+    for (const { material, base } of glowing) material.emissiveIntensity = base + night * 1.25;
+    // The sign is lit all day (soft) and glows at night: brighter letters, a halo and a warm wash on the brick.
+    sign.face.color.setScalar(THREE.MathUtils.lerp(0.8, 1, night));
+    sign.halo.opacity = THREE.MathUtils.lerp(0.16, 0.9, night);
+    sign.wash.intensity = THREE.MathUtils.lerp(0.4, 7, night);
+  };
+}
+
 function buildOfficeScene(
   container: HTMLDivElement,
   selectedRef: { current: PreviewBrainId },
@@ -2085,7 +2245,8 @@ function buildOfficeScene(
   };
   aimCamera();
   // Bright, soft daylight: the key light sits on the camera side so the faces we see are lit, not the backs.
-  scene.add(new THREE.HemisphereLight("#fffaf0", "#b9ad98", 1.75));
+  const skyLight = new THREE.HemisphereLight("#fffaf0", "#b9ad98", 1.75);
+  scene.add(skyLight);
   const keyLight = new THREE.DirectionalLight("#fff1dc", 1.7);
   keyLight.position.set(BUILDING_CX + 14, 26, 12);
   keyLight.castShadow = true;
@@ -2132,7 +2293,7 @@ function buildOfficeScene(
   const room = new THREE.Group();
   scene.add(room);
   addFloorAndZones(box, room, textures, carpetTexture);
-  addPlantAndWindows(box, room);
+  const wallSign = addBrickWallAndSign(box, room, textures);
   addCourtyardDecoration(box, sphere, room);
   const driveStreet = addSiteAndStreet(box, room);
 
@@ -2252,6 +2413,7 @@ function buildOfficeScene(
     object.castShadow = !SHADOWLESS_NAME.test(object.name);
     object.receiveShadow = true;
   });
+  const applyDayNight = makeDayNightCycle(scene, renderer, skyLight, keyLight, fillLight, wallSign);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const selectable = workers.map((worker) => worker.root);
@@ -2544,9 +2706,54 @@ function buildOfficeScene(
     event.preventDefault();
     zoomGoal = THREE.MathUtils.clamp(zoomGoal * (event.deltaY < 0 ? 1.15 : 1 / 1.15), 0.5, 3.5);
   };
-  const onPointerDown = (event: PointerEvent) => { drag = { x: event.clientX, y: event.clientY, moved: false }; };
-  const onPointerUp = () => { suppressClick = drag?.moved ?? false; drag = null; renderer.domElement.style.cursor = "grab"; };
+  // Owner 2026-11-27 ("pc de yakınlaştırma ve uzaklaştırma yapıldı ama telefon için yapılmadı"): on a touch screen two
+  // fingers pinch the zoom (same 0.5×–3.5× range as the wheel), one finger pans, a quick double tap goes home.
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch: { distance: number; zoom: number } | null = null;
+  let lastTapAt = 0;
+  const touchDistance = () => {
+    const [a, b] = [...touches.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.pointerType === "touch") {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (touches.size === 2) {
+        pinch = { distance: Math.max(1, touchDistance()), zoom: zoomGoal };
+        if (drag) drag.moved = true; // a pinch is never a tap on a worker
+        return;
+      }
+      if (touches.size > 2) return;
+    }
+    drag = { x: event.clientX, y: event.clientY, moved: false };
+  };
+  const onPointerUp = (event: PointerEvent) => {
+    if (event.pointerType === "touch") {
+      touches.delete(event.pointerId);
+      if (pinch) {
+        if (touches.size < 2) pinch = null;
+        // The finger still down continues as a pan from where it is now, without a jump.
+        const rest = [...touches.values()][0];
+        drag = rest ? { x: rest.x, y: rest.y, moved: true } : null;
+        suppressClick = true;
+        return;
+      }
+      if (!drag?.moved && event.type === "pointerup") {
+        if (event.timeStamp - lastTapAt < 320) { onDoubleClick(); lastTapAt = 0; } else lastTapAt = event.timeStamp;
+      }
+    }
+    suppressClick = drag?.moved ?? false;
+    drag = null;
+    renderer.domElement.style.cursor = "grab";
+  };
   const onDragMove = (event: PointerEvent) => {
+    if (event.pointerType === "touch" && touches.has(event.pointerId)) {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch) {
+        if (touches.size >= 2) zoomGoal = THREE.MathUtils.clamp(pinch.zoom * (touchDistance() / pinch.distance), 0.5, 3.5);
+        return;
+      }
+    }
     if (!drag || (event.buttons & 1) === 0) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
@@ -2581,6 +2788,7 @@ function buildOfficeScene(
   renderer.domElement.addEventListener("pointermove", onDragMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
   renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
   renderer.domElement.addEventListener("click", onClick);
   renderer.domElement.addEventListener("dblclick", onDoubleClick);
@@ -2621,6 +2829,7 @@ function buildOfficeScene(
     if (frameMs < 100) adaptResolution(frameMs);
     const now = (performance.now() - clockStart) / 1000;
     driveStreet(now);
+    applyDayNight(now);
     updateSelection();
     glideCamera();
     dispatchLoungeBreaks(now);
@@ -2640,6 +2849,7 @@ function buildOfficeScene(
     renderer.domElement.removeEventListener("pointermove", onDragMove);
     renderer.domElement.removeEventListener("pointerdown", onPointerDown);
     window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
     renderer.domElement.removeEventListener("wheel", onWheel);
     renderer.domElement.removeEventListener("click", onClick);
     renderer.domElement.removeEventListener("dblclick", onDoubleClick);
@@ -2684,7 +2894,7 @@ export function AtolyeOffice3DScene({ selectedBrainId, onSelectBrain, statuses =
   return <>
     <div ref={mountRef} className="oop-office-3d-mount" role="img" aria-label="Tek katlı Atölye Ofisi; her çalışanın eşit büyüklükte kendi odası var, AYAS’ın odası ortada ve en büyüğü; çalışanlar koridorlarda buluşur, AYAS’a rapor götürür, toplantı ve dinlenme odalarını sırayla kullanır." />
     <div className="oop-office-legend" aria-label="Durum renkleri">{LEGEND.map((status) =>
-      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek: yakınlaş/uzaklaş · sürükle: gez · çift tık: genel görünüm</span></div>
+      <span key={status}><i style={{ background: STATUS_COLOR[status] }} />{OFFICE_STATUS_LABEL[status]}</span>)}<span className="oop-legend-hint">tekerlek / iki parmak: yakınlaş · sürükle: gez · çift tık: genel görünüm</span></div>
     <div className="oop-office-3d-note">{new Set(WORKERS.map((worker) => worker.brainId)).size} ÇALIŞAN · {sourceLabel}</div>
     <div className="oop-office-sr-list" aria-label="Ofisteki çalışan profilleri">{WORKERS.map((worker) => {
       const profile = getPreviewBrain(worker.brainId);
