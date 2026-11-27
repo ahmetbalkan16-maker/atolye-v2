@@ -38,7 +38,7 @@ import { closeBox, closeSiteLookup, type LibraryBox, libraryBoxFor, placeWall, p
 import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/SiegeMap";
 import { ambushMapLacks, isAmbushMap, toldFog } from "../src/lib/v3/maps/AmbushMap";
 import { landOf } from "../src/lib/v3/maps/LandUnits";
-import { directBattleMaps, keepOpeningOnMap, mapProblems, markMapPictures, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
+import { directBattleMaps, keepOpeningOnMap, mapProblems, markMapPictures, toldNotShown, settleFallMarks, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, joinRings, riversFromOverpass, closeCoastFor, closeRiversFor, coastBox, coastBoxes, coastFile, coveringCoastBox, inland, keepCoastBox, riverBoxes, riverFile, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -1960,6 +1960,14 @@ async function main() {
     assert.deepEqual(ch.kamera, [], "a 2 km camera key would show grass between the armies");
     assert.ok(carried.fixes.some((x) => x.startsWith("s-flee: yakın harita boştu")), carried.fixes.join(" | "));
     assert.equal(validateEpisode(carried.episode).ok, true, JSON.stringify(validateEpisode(carried.episode).errors.slice(0, 2)));
+    // Told but not shown (owner, 27 Nov 2026: "anlatılanla senkronize"): the empty field telling a collapse is asked; once
+    // the armies are carried and rout on that line, nothing is; a line telling only an intent never is.
+    const raw = { ...ep, oyuncu_kadrosu: cast, sahneler: [battle, after] };
+    assert.deepEqual(toldNotShown(raw).map((t) => [t.sahne, t.satir]), [["y1", 0], ["s-flee", 1]], "before the director's pass the charge has no arrow yet either");
+    assert.deepEqual(toldNotShown(carried.episode), []);
+    assert.ok(mapProblems(raw).some((p) => p.includes('scene "s-flee" line 1') && p.includes("TOLD BUT NOT SHOWN")));
+    const intent = { ...after, satirlar: [narrate("Mehmed wants to attack the Serbian line."), narrate("Night falls.")] };
+    assert.deepEqual(toldNotShown({ ...raw, sahneler: [battle, intent] }).filter((t) => t.sahne === "s-flee"), [], "a wish is no move");
     // Not carried: a scene with its own units, a wide map, a field far away.
     assert.equal(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle, { ...after, harita: { ...after.harita, merkez: [23, 44] as [number, number] } }] }).episode.sahneler[1]!.harita!.birlikler, undefined, "another field");
     assert.equal(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle, { ...after, harita: { ...after.harita, genislik_km: 900 } }] }).episode.sahneler[1]!.harita!.birlikler, undefined, "a wide map");

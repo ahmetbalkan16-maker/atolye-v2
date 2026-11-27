@@ -85,7 +85,7 @@ import { DESCRIPTION_MAX_BYTES, fitDescriptionReport, REQUIRED_CREDIT } from "..
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { closingQuestion, ensureClosingLine } from "../src/lib/v3/script/ClosingLine";
-import { OPENING_PICTURE_FLOOR, SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S } from "../src/lib/v3/script/MapRules";
+import { OPENING_PICTURE_FLOOR, SHORT_MIN_PICTURES, SHORT_SHARES_FROM_S, toldNotShown } from "../src/lib/v3/script/MapRules";
 import { openingScreenChecks } from "../src/lib/v3/script/ShortOpening";
 import { episodeNames, hookFollowLine } from "../src/lib/v3/script/HookFollow";
 import { opensWithQuestion } from "../src/lib/v3/script/QuestionTitle";
@@ -1483,6 +1483,8 @@ async function main() {
       // The owner's shares for a long video (23 Oct 2026) and for a Short (3 Nov 2026); a trial in between is only reported.
       ((s, t) => row(!t || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= t[k][0] && s[k] <= t[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (${shorts ? "Short'ta hedef ~%85–95 harita, çöp adam ve dönem görseli en çok ~%15–20" : "uzun videoda hedef ~%75–80 / ~%15 / %6–10"})`))(pictureShares(plan), shorts ? SHORTS_PICTURE_SHARE_TARGET : target >= 600 ? PICTURE_SHARE_TARGET : undefined),
       // Real pictures in every Short, the 60 s one too (owner, 27 Nov 2026: "en azından 3 tane", "60 sn shortslarda da").
+      // Told moves the map does not show (owner, 27 Nov 2026: "anlatılanla senkronize"), in every video.
+      ((t) => row(!t.length, `Anlatım–harita senkronu: ${t.length ? `${t.length} anlatılan hamle haritada görünmüyor — ${t.slice(0, 3).map((x) => `${x.sahne} ${x.satir + 1}. satır ("${x.metin.slice(0, 50)}")`).join("; ")}` : "anlatılan her hamle kendi satırında haritada"} (hücum, bozgun, ateş, batış, gedik anlatıldığı satırda görünür)`))(toldNotShown(episode)),
       ...(shorts && target >= SHORT_SHARES_FROM_S ? [((n: number) => row(n >= SHORT_MIN_PICTURES, `Gerçek görseller: ${n} farklı gerçek fotoğraf/tablo/arşiv filmi ekranda (Short'ta en az ${SHORT_MIN_PICTURES}; tasarlanmış görsel ve harita sayılmaz)`))(realPictureCount(plan))] : []),
       // Both views over the maps, straight down and the 2.5D tilt (owner, 13 Nov 2026: "bu iki görünüşü de kullansın";
       // "uzun videolarda da olsun": a long video's every chapter). A standing note: no retouch round changes it.

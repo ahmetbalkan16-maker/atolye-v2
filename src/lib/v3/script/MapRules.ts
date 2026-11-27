@@ -4,6 +4,7 @@ import { isShorts } from "../render/Format";
 import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
+import { mapActionLines } from "../maps/MapBuilder";
 import { isSiegeMap, shipLacks, siegeMapLacks, siegePlaceKey } from "../maps/SiegeMap";
 import { ambushMapLacks, fogLacks } from "../maps/AmbushMap";
 import { type LandTest, unitsOnWater } from "../maps/LandUnits";
@@ -688,6 +689,34 @@ export function carryCloseArmies(episode: Episode): { episode: Episode; fixes: s
   return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
+/** A line telling a wish or a plan, not a move: wants to, plans to, tries to, would, will (English and Turkish). */
+const INTENT = /\b(?:wants? to|wanted to|plans? to|planned to|hopes? to|tries to|tried to|would|will|intends? to|orders? .{0,30} to|or (?:we|they|else)|threaten(?:s|ed)?|ultimatum)\b|istiyor|planlıyor|niyet|tehdit/iu;
+
+/** A told move at sea, in the air or at a wall: fires, opens fire, sinks, torpedoes, bombs, shells, breaches. */
+const FIRE_TOLD = /\b(?:fir(?:e|es|ed|ing)|open(?:s|ed)? fire|sink(?:s)?|sank|sunk|(?<!anti-)torpedo(?:es|ed)?|bomb(?:s|ed)?|shell(?:s|ed)?|breach(?:es|ed)?|blast(?:s|ed)?|pound(?:s|ed)?)\b|ateş aç|batır|battı|bombala|gedik|dövd/iu;
+
+/**
+ * The narrator's lines on a battle map that tell a move — a charge, a rout, a march into battle, a ship firing or
+ * sinking, a plane's attack, a wall breached — on which nothing on that map moves (owner, 27 Nov 2026: "hepsinin
+ * anlatılanla konumlandırılmaları, taktik becerileri anlatılanla senkronize olacak; aynı anda değil, anlatılana göre
+ * hareket edip konumlanacak"). A map counts as a battle map when it carries units, vehicles, armies or walls; the camera
+ * alone is no move, nor is the line its real picture covers; a close map counts even with nothing on it (the Gaugamela
+ * Short's empty field). A line telling only an intent ("Paulus wants to break out") asks nothing. Pure: the episode alone.
+ */
+export function toldNotShown(episode: Episode): { sahne: string; satir: number; metin: string }[] {
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+  return episode.sahneler.flatMap((s) => {
+    const h = s.harita;
+    const close = h?.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM;
+    if (!h?.merkez || !(close || h.birlikler?.length || h.araclar?.length || h.ordular?.length || h.surlar?.length)) return [];
+    const acts = new Set(mapActionLines({ ...h, kamera: undefined }));
+    const pictured = new Set([s.ara_goruntu_satir, ...(s.gorseller ?? []).map((g) => g.satir)].filter((x): x is number => typeof x === "number"));
+    return s.satirlar.flatMap((l, i) =>
+      !visible.has(l.karakter) && !acts.has(i) && !pictured.has(i) && !INTENT.test(l.metin) && (ADVANCE.test(l.metin) || ROUT.test(l.metin) || FIRE_TOLD.test(l.metin)) ? [{ sahne: s.id, satir: i, metin: l.metin }] : [],
+    );
+  });
+}
+
 /** A wound told: wounded, injured, carried off (English and Turkish stems). */
 const WOUNDED = /\b(?:wounded|injured|carried (?:off|away)|struck down)\b|yaralan/iu;
 
@@ -880,6 +909,11 @@ export function mapProblems(episode: unknown, ctx: MapRuleContext = {}): string[
   if (!routes && moving >= 2) out.push(`the story moves between places (${moving} lines tell a voyage, march, crossing or invasion) but no map shows the route: tell each crossing or campaign on a map scene with its route drawn (oklar, or a rozet with "yol" + "yol_satir") — SCENE KIND BY SCALE`);
   out.push(...climaxProblems(scenes));
   out.push(...laterAtlasProblems(episode as Episode));
-  if (Array.isArray((episode as Episode).oyuncu_kadrosu)) out.push(...unplacedSpeakers(episode as Episode));
+  if (Array.isArray((episode as Episode).oyuncu_kadrosu)) {
+    out.push(...unplacedSpeakers(episode as Episode));
+    // Told moves the map does not show (owner, 27 Nov 2026), at most three asks.
+    for (const t of toldNotShown(episode as Episode).slice(0, 3))
+      out.push(`scene "${t.sahne}" line ${t.satir} tells "${t.metin.slice(0, 70)}" but nothing on its map moves on that line: give the side, ship, plane or gun the line names its step, route, attack, fire or losses ON THAT LINE (one by one in the order told, never all at once) — TOLD BUT NOT SHOWN`);
+  }
   return out;
 }

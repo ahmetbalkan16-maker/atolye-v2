@@ -238,6 +238,8 @@ const ROW_RULES: readonly RowRule[] = [
   // screen at 16 s): weighted like the question, so a hook that shows nothing cannot score as a strong one.
   { test: /^Açılışta ilk hamle:/, stage: "sahneler", area: "kanca", weight: 3 },
   { test: /^Açılış resmi:/, stage: "kurgu", area: "kanca", weight: 2 },
+  // Told moves shown on their own line (owner, 27 Nov 2026: "anlatılanla senkronize; aynı anda değil, anlatılana göre").
+  { test: /^Anlatım–harita senkronu:/, stage: "sahneler", area: "harita", weight: 3 },
   { test: /^Soru başlık:/, stage: "senaryo", area: "tutma" },
   { test: /^Sahne planı/, stage: "sahneler", area: "hikaye" },
   { test: /^Short açılışı/, stage: "animasyon", area: "kanca" },
