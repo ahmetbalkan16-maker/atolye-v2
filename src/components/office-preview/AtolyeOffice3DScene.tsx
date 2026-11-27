@@ -67,6 +67,13 @@ type WorkerRig = {
   tripKind: "task" | "lounge" | "meeting";
   meetingSeatIndex?: number;
   meetingRoute?: THREE.Vector3[];
+  /** The pose last drawn (joint values) and the pose key it came from, for cross-fading a pose change. */
+  pose?: Float32Array;
+  poseKey?: string;
+  poseFrom?: Float32Array;
+  poseBlendAt?: number;
+  /** A facing the worker turns toward smoothly while standing or sitting (never snapped). */
+  yawGoal?: number;
 };
 
 const FLOOR_Y = 0;
@@ -888,6 +895,96 @@ function mergeStaticMeshes(group: THREE.Group): THREE.Group {
   return merged;
 }
 
+/** Names of the meshes that only receive shadows (floors, rugs, flat labels, glows); everything else casts one. */
+const SHADOWLESS_NAME = /floor|carpet|rug|aisle|path|shadow|glow|ring|glass|slab|trim|lawn|asphalt|stripe|sidewalk|curb|mat$/i;
+
+/** Materials that draw the same: `mat()` makes a new material per call, so identity alone merges almost nothing. */
+function materialSignature(material: THREE.Material): string | null {
+  if (material.type !== "MeshStandardMaterial" || material.transparent) return null;
+  const m = material as THREE.MeshStandardMaterial;
+  return [m.color.getHexString(), m.roughness, m.metalness, m.emissive.getHexString(), m.emissiveIntensity, m.envMapIntensity,
+    m.map?.uuid ?? "", m.normalMap?.uuid ?? "", m.roughnessMap?.uuid ?? "", m.side, m.flatShading, m.vertexColors, m.opacity,
+    m.alphaTest, m.depthWrite, m.polygonOffset, m.polygonOffsetFactor, m.polygonOffsetUnits].join("|");
+}
+
+/**
+ * Owner 2026-11-27 ("hareketler çok kasıyor"): the office drew ~2,650 separate meshes every frame, a CPU load a phone
+ * cannot carry at 60 fps. Every still, opaque mesh of the room (not the workers, their chairs or the driving cars) is
+ * baked into one mesh per look and shadow rule. A bucket whose geometries cannot be merged keeps its original meshes.
+ */
+function mergeRoomStatics(room: THREE.Group) {
+  room.updateMatrixWorld(true);
+  const toRoom = new THREE.Matrix4().copy(room.matrixWorld).invert();
+  const buckets = new Map<string, { material: THREE.Material; casts: boolean; meshes: THREE.Mesh[] }>();
+  const moving = (object: THREE.Object3D): boolean => {
+    for (let o: THREE.Object3D | null = object; o && o !== room; o = o.parent) if (o.userData.moving) return true;
+    return false;
+  };
+  room.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || Array.isArray(object.material) || moving(object)) return;
+    const signature = materialSignature(object.material);
+    if (!signature) return;
+    const casts = !SHADOWLESS_NAME.test(object.name);
+    const key = `${signature}|${casts}`;
+    const bucket = buckets.get(key) ?? { material: object.material, casts, meshes: [] as THREE.Mesh[] };
+    bucket.meshes.push(object);
+    buckets.set(key, bucket);
+  });
+  for (const bucket of buckets.values()) {
+    if (bucket.meshes.length < 2) continue;
+    const parts = bucket.meshes.map((mesh) => {
+      const geometry = (mesh.geometry as THREE.BufferGeometry).clone();
+      geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRoom, mesh.matrixWorld));
+      return geometry.index ? geometry.toNonIndexed() : geometry;
+    });
+    const geometry = mergeGeometries(parts, false);
+    for (const part of parts) part.dispose();
+    if (!geometry) continue;
+    const merged = new THREE.Mesh(geometry, bucket.material);
+    merged.name = bucket.casts ? "merged still solids" : "merged floor surfaces";
+    for (const mesh of bucket.meshes) mesh.removeFromParent();
+    room.add(merged);
+  }
+}
+
+/**
+ * The same for an articulated figure (a worker, a chair): the leaf meshes under one joint move together, so those that
+ * look alike are merged into one mesh in that joint's own frame. The hierarchy — and so every animation — is unchanged;
+ * meshes the frame loop changes by themselves (`keep`: mouth, rings, status disc) stay apart.
+ */
+function mergeRigidParts(root: THREE.Object3D, keep: ReadonlySet<THREE.Object3D>) {
+  const joints: THREE.Object3D[] = [];
+  root.traverse((object) => { if (!(object instanceof THREE.Mesh)) joints.push(object); });
+  for (const joint of joints) {
+    const buckets = new Map<string, { material: THREE.Material; casts: boolean; meshes: THREE.Mesh[] }>();
+    for (const child of joint.children) {
+      if (!(child instanceof THREE.Mesh) || child.children.length || keep.has(child) || Array.isArray(child.material)) continue;
+      const signature = materialSignature(child.material);
+      if (!signature) continue;
+      const casts = !SHADOWLESS_NAME.test(child.name);
+      const key = `${signature}|${casts}`;
+      const bucket = buckets.get(key) ?? { material: child.material, casts, meshes: [] as THREE.Mesh[] };
+      bucket.meshes.push(child);
+      buckets.set(key, bucket);
+    }
+    for (const bucket of buckets.values()) {
+      if (bucket.meshes.length < 2) continue;
+      const parts = bucket.meshes.map((mesh) => {
+        mesh.updateMatrix();
+        const geometry = (mesh.geometry as THREE.BufferGeometry).clone().applyMatrix4(mesh.matrix);
+        return geometry.index ? geometry.toNonIndexed() : geometry;
+      });
+      const geometry = mergeGeometries(parts, false);
+      for (const part of parts) part.dispose();
+      if (!geometry) continue;
+      const merged = new THREE.Mesh(geometry, bucket.material);
+      merged.name = bucket.casts ? bucket.meshes[0]!.name : "merged flat part";
+      for (const mesh of bucket.meshes) mesh.removeFromParent();
+      joint.add(merged);
+    }
+  }
+}
+
 function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THREE.Object3D) {
   const parent = new THREE.Group();
   parent.name = "city site";
@@ -1028,6 +1125,7 @@ function addSiteAndStreet(box: ReturnType<typeof makeBoxFactory>, scenePart: THR
     // Local +x is the car's front: +x → 0, −x → π, +z → −π/2, −z → π/2.
     car.rotation.y = item.axis === "x" ? (item.dir > 0 ? 0 : Math.PI) : (item.dir > 0 ? -Math.PI / 2 : Math.PI / 2);
     car.position.set(item.axis === "x" ? 0 : item.lane, 0.02, item.axis === "x" ? item.lane : 0);
+    car.userData.moving = true;
     scenePart.add(car);
     return { ...item, car };
   });
@@ -1375,7 +1473,69 @@ function sitPose(worker: WorkerRig, blend: number) {
   worker.body.rotation.x = -0.06 * blend;
 }
 
+/**
+ * Owner 2026-11-27: "ofiste hareket eden beyinlerin hareketleri çok kasıyor, akıcı değil". Each stage used to write its
+ * pose straight onto the joints, so a change of stage (walk → talk, sit → meeting speaker, talk ↔ listen) jumped in one
+ * frame. `setPose` now computes the stage's target pose and, for POSE_BLEND_S after the pose changes, cross-fades from
+ * the pose last drawn. Within one pose nothing is smoothed, so the walk cycle keeps its full swing.
+ */
+const POSE_BLEND_S = 0.32;
+
+function poseJoints(w: WorkerRig): number[] {
+  return [
+    w.body.rotation.x, w.body.rotation.y, w.body.rotation.z, w.head.rotation.x, w.head.rotation.y,
+    w.leftArm.rotation.x, w.leftArm.rotation.y, w.leftArm.rotation.z, w.rightArm.rotation.x, w.rightArm.rotation.y, w.rightArm.rotation.z,
+    w.leftElbow.rotation.x, w.leftElbow.rotation.z, w.rightElbow.rotation.x, w.rightElbow.rotation.z,
+    w.leftLeg.rotation.x, w.rightLeg.rotation.x, w.leftLeg.position.y, w.rightLeg.position.y,
+    w.leftKnee.rotation.x, w.rightKnee.rotation.x, w.mouth.scale.y, w.root.position.y,
+  ];
+}
+
+function writePoseJoints(w: WorkerRig, v: ArrayLike<number>) {
+  let i = 0;
+  w.body.rotation.set(v[i++]!, v[i++]!, v[i++]!);
+  w.head.rotation.x = v[i++]!; w.head.rotation.y = v[i++]!;
+  w.leftArm.rotation.set(v[i++]!, v[i++]!, v[i++]!);
+  w.rightArm.rotation.set(v[i++]!, v[i++]!, v[i++]!);
+  w.leftElbow.rotation.x = v[i++]!; w.leftElbow.rotation.z = v[i++]!;
+  w.rightElbow.rotation.x = v[i++]!; w.rightElbow.rotation.z = v[i++]!;
+  w.leftLeg.rotation.x = v[i++]!; w.rightLeg.rotation.x = v[i++]!;
+  w.leftLeg.position.y = v[i++]!; w.rightLeg.position.y = v[i++]!;
+  w.leftKnee.rotation.x = v[i++]!; w.rightKnee.rotation.x = v[i++]!;
+  w.mouth.scale.y = v[i++]!; w.root.position.y = v[i++]!;
+}
+
 function setPose(worker: WorkerRig, stage: Stage, progress: number, now: number, gait: number) {
+  const key = computePose(worker, stage, progress, now, gait);
+  const target = poseJoints(worker);
+  if (worker.pose && worker.poseKey !== undefined && worker.poseKey !== key) {
+    worker.poseFrom = Float32Array.from(worker.pose);
+    worker.poseBlendAt = now;
+  }
+  worker.poseKey = key;
+  const since = worker.poseBlendAt === undefined ? Infinity : now - worker.poseBlendAt;
+  if (worker.poseFrom && since < POSE_BLEND_S) {
+    const t = ease(since / POSE_BLEND_S);
+    const from = worker.poseFrom;
+    for (let i = 0; i < target.length; i += 1) target[i] = from[i]! + (target[i]! - from[i]!) * t;
+    writePoseJoints(worker, target);
+  } else {
+    worker.poseFrom = undefined;
+  }
+  worker.pose = Float32Array.from(target);
+}
+
+/** Turns a standing or seated worker toward `yawGoal` at a natural speed (shortest way round). */
+function turnTowardGoal(worker: WorkerRig, dt: number) {
+  if (worker.yawGoal === undefined) return;
+  const diff = Math.atan2(Math.sin(worker.yawGoal - worker.root.rotation.y), Math.cos(worker.yawGoal - worker.root.rotation.y));
+  if (Math.abs(diff) < 0.004) { worker.root.rotation.y = worker.yawGoal; worker.yawGoal = undefined; return; }
+  worker.root.rotation.y += diff * Math.min(1, dt * 6);
+}
+
+/** Writes the stage's target pose onto the joints; returns the pose key (a change starts a cross-fade). */
+function computePose(worker: WorkerRig, stage: Stage, progress: number, now: number, gait: number): string {
+  let key: string = stage;
   const blinkPhase = (now + worker.gait * 0.17) % 4.4;
   const blink = blinkPhase < 0.13 ? Math.sin((blinkPhase / 0.13) * Math.PI) : 0;
   const eyeOpening = 1 - blink * 0.9;
@@ -1486,6 +1646,7 @@ function setPose(worker: WorkerRig, stage: Stage, progress: number, now: number,
     sitPose(worker, 1);
     // Seated discussion: speakers take turns; the speaker gestures and talks, the others nod.
     const speaking = Math.floor((now + worker.gait * 3.1) / 2.6) % 3 === 0;
+    key = speaking ? "meeting:speaks" : "meeting:listens";
     worker.body.rotation.x = speaking ? 0.05 : 0.02;
     worker.head.rotation.x = Math.sin(now * (speaking ? 3 : 1.1) + worker.gait) * (speaking ? 0.08 : 0.05);
     worker.leftArm.rotation.x = -0.75 + (speaking ? Math.sin(now * 3.4 + worker.gait) * 0.3 : 0);
@@ -1507,8 +1668,10 @@ function setPose(worker: WorkerRig, stage: Stage, progress: number, now: number,
   else if (stage === "rest" || stage === "work" || stage === "meeting") worker.root.position.y = FLOOR_Y + seatOffset;
   else if (stage === "rise") worker.root.position.y = FLOOR_Y + seatOffset * (1 - ease(progress));
   else if (stage === "sit") worker.root.position.y = FLOOR_Y + seatOffset * ease(progress);
-  else worker.root.position.y = FLOOR_Y;
+  // The walk keeps its own small step bob (set above); it used to be overwritten here.
+  else if (stage !== "walk-out" && stage !== "walk-back") worker.root.position.y = FLOOR_Y;
   if (worker.chair) worker.chair.position.z = worker.spec.z + (stage === "rise" ? ease(progress) * 0.4 : stage === "sit" ? (1 - ease(progress)) * 0.4 : 0);
+  return key;
 }
 
 function pathBetween(from: THREE.Vector3, to: THREE.Vector3, spec?: WorkerSpec): THREE.Vector3[] {
@@ -1608,6 +1771,7 @@ function facingYaw(dx: number, dz: number): number {
 }
 
 function moveOnPath(worker: WorkerRig, dt: number): boolean {
+  worker.yawGoal = undefined;
   let remaining = dt * 1.25;
   while (remaining > 0 && worker.pathIndex < worker.path.length) {
     const next = worker.path[worker.pathIndex]!;
@@ -1773,6 +1937,10 @@ function buildOfficeScene(
   scene.add(workerLayer);
   const startedAt = performance.now() / 1000;
   const workers = WORKERS.map((spec, index) => makeHumanWorker(box, sphere, workerLayer, spec, index, startedAt));
+  for (const worker of workers) {
+    mergeRigidParts(worker.root, new Set<THREE.Object3D>([worker.mouth, worker.selectedRing, worker.statusDisc]));
+    if (worker.chair) mergeRigidParts(worker.chair, new Set());
+  }
   const pairMembers = new Map<string, WorkerRig[]>();
   for (const worker of workers) {
     if (!worker.spec.pair) continue;
@@ -1796,15 +1964,23 @@ function buildOfficeScene(
   });
   const headPoint = new THREE.Vector3();
   const projected = new THREE.Vector3();
+  // The overlay's size is measured on resize only: reading clientWidth every frame after the previous frame's style
+  // writes forced a layout per frame. A transform that did not change is not written again.
+  let overlayWidth = Math.max(1, container.clientWidth);
+  let overlayHeight = Math.max(1, container.clientHeight);
+  const lastTransform = new WeakMap<HTMLElement, string>();
   const place = (element: HTMLElement, world: THREE.Vector3, width: number, height: number) => {
     projected.copy(world).project(camera);
     const x = ((projected.x + 1) / 2) * width;
     const y = ((1 - projected.y) / 2) * height;
-    element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    const transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    if (lastTransform.get(element) === transform) return;
+    lastTransform.set(element, transform);
+    element.style.transform = transform;
   };
   const updateOverlay = () => {
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const width = overlayWidth;
+    const height = overlayHeight;
     for (const { tag, at } of roomTags) place(tag, at, width, height);
     for (const entry of workerTags) {
       const status = statusRef.current[entry.worker.spec.brainId] ?? "bekliyor";
@@ -1816,18 +1992,18 @@ function buildOfficeScene(
         disc.color.set(STATUS_COLOR[status]);
         disc.opacity = status === "bekliyor" ? 0 : 0.5;
       }
-      entry.tag.classList.toggle("is-selected", entry.worker.spec.brainId === selectedRef.current);
+      const selected = entry.worker.spec.brainId === selectedRef.current;
+      if (entry.tag.classList.contains("is-selected") !== selected) entry.tag.classList.toggle("is-selected", selected);
       entry.worker.head.getWorldPosition(headPoint);
       headPoint.y += 0.42;
       place(entry.tag, headPoint, width, height);
     }
   };
+  mergeRoomStatics(room);
   // Everything standing on the floor casts a shadow; floors, rugs, flat labels and glows only receive them.
   scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    const name = object.name;
-    const flat = /floor|carpet|rug|aisle|path|shadow|glow|ring|glass|slab|trim|lawn|asphalt|stripe|sidewalk|curb|mat$/i.test(name);
-    object.castShadow = !flat;
+    object.castShadow = !SHADOWLESS_NAME.test(object.name);
     object.receiveShadow = true;
   });
   const raycaster = new THREE.Raycaster();
@@ -1852,6 +2028,8 @@ function buildOfficeScene(
     camera.bottom = -frustumHeight / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
+    overlayWidth = width;
+    overlayHeight = height;
   };
   resize();
   const resizeObserver = new ResizeObserver(resize);
@@ -1951,8 +2129,7 @@ function buildOfficeScene(
       mate.stageAt = now;
       worker.talkStarted = true;
       mate.talkStarted = true;
-      worker.root.rotation.y = facingYaw(mate.root.position.x - worker.root.position.x, mate.root.position.z - worker.root.position.z);
-      mate.root.rotation.y = facingYaw(worker.root.position.x - mate.root.position.x, worker.root.position.z - mate.root.position.z);
+      // Both turn to each other over the first frames of the talk (the talk stage turns them), never in one frame.
     } else {
       worker.stage = "wait";
       worker.stageAt = now;
@@ -1960,6 +2137,7 @@ function buildOfficeScene(
   };
 
   const updateWorker = (worker: WorkerRig, now: number, dt: number) => {
+    if (worker.stage !== "walk-out" && worker.stage !== "walk-back") turnTowardGoal(worker, dt);
     // Work given to a worker away from its desk (meeting, break, chat) calls it straight back to the desk.
     const called = statusRef.current[worker.spec.brainId];
     if ((called === "calisiyor" || called === "denetliyor" || called === "yonetiyor")
@@ -1995,8 +2173,9 @@ function buildOfficeScene(
     if (worker.stage === "rise") {
       const progress = Math.min(1, (now - worker.stageAt) / 0.78);
       setPose(worker, "rise", progress, now, 0);
+      // Turns toward the first step while standing up; the walk finishes any turn that is left.
+      if (worker.path[1]) worker.yawGoal = facingYaw(worker.path[1].x - worker.root.position.x, worker.path[1].z - worker.root.position.z);
       if (progress >= 1) {
-        worker.root.rotation.y = facingYaw(worker.path[1]!.x - worker.root.position.x, worker.path[1]!.z - worker.root.position.z);
         worker.stage = "walk-out";
         worker.stageAt = now;
       }
@@ -2010,12 +2189,13 @@ function buildOfficeScene(
           const seat = MEETING_SEATS[worker.meetingSeatIndex ?? 0]!;
           worker.stage = "meeting";
           worker.stageAt = now;
-          worker.root.position.set(seat.x, FLOOR_Y, seat.z);
-          worker.root.rotation.y = seat.yaw;
+          worker.root.position.x = seat.x;
+          worker.root.position.z = seat.z;
+          worker.yawGoal = seat.yaw;
         } else if (worker.tripKind === "lounge") {
           worker.stage = "lounge";
           worker.stageAt = now;
-          worker.root.rotation.y = 0;
+          worker.yawGoal = 0;
         } else if (worker.spec.pair) startPairTalk(worker, now);
         else { worker.stage = "inspect"; worker.stageAt = now; }
       }
@@ -2070,7 +2250,7 @@ function buildOfficeScene(
       const arrived = moveOnPath(worker, dt);
       setPose(worker, "walk-back", 1, now, worker.gait);
       if (arrived) {
-        worker.root.rotation.y = worker.spec.homeYaw ?? Math.PI;
+        worker.yawGoal = worker.spec.homeYaw ?? Math.PI;
         if (worker.tripKind === "meeting") {
           if (worker.meetingSeatIndex !== undefined) meetingAssignments.delete(worker.meetingSeatIndex);
           worker.meetingSeatIndex = undefined;
@@ -2179,19 +2359,47 @@ function buildOfficeScene(
   renderer.domElement.addEventListener("click", onClick);
   renderer.domElement.addEventListener("dblclick", onDoubleClick);
 
+  // Owner 2026-11-27 ("hareketler çok kasıyor"): the loop used to skip frames under 33 ms, which on a 60 Hz screen drew
+  // at uneven 33/50 ms steps. Now every display frame is drawn and motion follows the real frame time. The costly
+  // part — the 4096² soft shadow map — is redrawn at most every SHADOW_EVERY_MS (walking shadows lag invisibly), and a
+  // machine that cannot keep up lowers the drawing resolution step by step instead of stuttering.
+  const SHADOW_EVERY_MS = 32;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+  let lastShadowAt = 0;
+  const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  let pixelRatio = maxPixelRatio;
+  let slowFrames = 0;
+  let fastFrames = 0;
+  const adaptResolution = (frameMs: number) => {
+    if (frameMs > 24) { slowFrames += 1; fastFrames = 0; } else if (frameMs < 14) { fastFrames += 1; slowFrames = Math.max(0, slowFrames - 1); }
+    if (slowFrames >= 45 && pixelRatio > 1) {
+      pixelRatio = Math.max(1, Math.round((pixelRatio - 0.25) * 100) / 100);
+      slowFrames = 0;
+      renderer.setPixelRatio(pixelRatio);
+      resize();
+    } else if (fastFrames >= 240 && pixelRatio < maxPixelRatio) {
+      pixelRatio = Math.min(maxPixelRatio, pixelRatio + 0.25);
+      fastFrames = 0;
+      renderer.setPixelRatio(pixelRatio);
+      resize();
+    }
+  };
   const animate = (timestamp: number) => {
     if (stopped) return;
     frame = requestAnimationFrame(animate);
-    if (!visible || document.hidden) return;
-    if (timestamp - previous < 33) return;
-    const dt = Math.min(0.06, previous ? (timestamp - previous) / 1000 : 1 / 30);
+    if (!visible || document.hidden) { previous = 0; return; }
+    const frameMs = previous ? timestamp - previous : 1000 / 60;
+    const dt = Math.min(0.05, frameMs / 1000);
     previous = timestamp;
+    if (frameMs < 100) adaptResolution(frameMs);
     const now = (performance.now() - clockStart) / 1000;
     driveStreet(now);
     updateSelection();
     glideCamera();
     dispatchLoungeBreaks(now);
     for (const worker of workers) updateWorker(worker, now, dt);
+    if (timestamp - lastShadowAt >= SHADOW_EVERY_MS) { renderer.shadowMap.needsUpdate = true; lastShadowAt = timestamp; }
     renderer.render(scene, camera);
     updateOverlay();
   };
