@@ -11,10 +11,11 @@ import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary"
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { brokenStretches, CLEAN_LOWPASS_HZ, cleanupFilter, declickClip, fadeClipEdges, heldTones, HORN_LOW_HZ, HORN_MIN_S, HORN_SHARE, hornProblems, LINE_PROMINENCE_DB, MAX_NOTCHES, ticks, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { armsOf } from "../src/lib/v3/episode/Period";
+import { shellOutcome, TORPEDO_EVERY_S, TORPEDO_RUN_S } from "../remotion-v3/src/scene/mapEffects";
 import { fitLossDelaysS, LOSS_TAIL_S, unitLossDelaysS } from "../src/lib/v3/maps/MapBuilder";
 import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
 import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
-import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles, writerMusicMood, HOOK_STING, CUT_IMPACT, SFX_LEAD_S } from "../src/lib/v3/mix/Mixer";
+import { AMBIENCE_FADE_S, AMBIENCE_LUFS, ambienceChain, ambienceRuns, FADE_CURVE, LOOP_SEAM_S, loopSeamFilter, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_DUCK_RATIO, EFFECT_DUCK_THRESHOLD, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, mixGraph, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles, SHOT_EVERY_S, SHOT_FLIGHT_S, flakCues, vehicleFireCues, writerMusicMood, HOOK_STING, CUT_IMPACT, SFX_LEAD_S } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, HORN_WORDS, longerRequest, MIN_PIECE_REQUEST_S, periodInstruments, PIECE_PAUSE_KEEP_S, pieceProblems, pieceShapeFilter, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, HIT_SECONDS, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodHitRequest, periodSfxPrompt, repeatFilter, SfxDesigner, SFX_SEED_TRIES, soundKey, type SoundOutcome, soundProblems, type SoundRequest } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
@@ -179,7 +180,7 @@ async function main() {
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
     // The token lost on the last line falls inside the 4-second scene (owner, 12 Nov 2026: Cannae's falls came after the
     // cut): its sword, 2.4 s in, used to ring at 4.4 s, after the scene; pressed in, it joins the battle's opening clash.
-    assert.deepEqual(sfxCues(siege, tlSiege, LONG).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["top_atisi", 4.6]]);
+    assert.deepEqual(sfxCues(siege, tlSiege, LONG).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.3], ["su", 3.1], ["top_atisi", 3.4], ["kilic", 3.4]]);
     // The losses keep their pace when they fit the scene and are pressed together when they do not, always ending before it.
     assert.deepEqual(fitLossDelaysS([2.4, 3.4], 10), [2.4, 3.4], "room enough: as before");
     assert.deepEqual(fitLossDelaysS([2.4, 3.4], undefined), [2.4, 3.4]);
@@ -252,6 +253,53 @@ async function main() {
     assert.equal(sceneMusicMood(undefined, "hafif"), "dramatic");
     assert.equal(writerMusicMood("hafif"), undefined);
     assert.equal(writerMusicMood("dramatik"), "dramatic");
+  });
+
+  await scenario("E4 naval and air battles (28 Nov 2026): shells follow the drawn cadence with a splash per miss, flak is a light barrage, a torpedo or bomb has its strike, a sinking ship settles with a thud", () => {
+    const veh = (extra: Record<string, unknown>) => ({ tur: "gemi", renk: "#c00", konum: [10, 40], satir: 0, ...extra });
+    const sc = (araclar: readonly Record<string, unknown>[]) => ({ donem: "1941", sahneler: [{ id: "n", satirlar: [{ karakter: "anlatici", metin: "a", duygu: "notr" }, { karakter: "anlatici", metin: "b", duygu: "notr" }, { karakter: "anlatici", metin: "c", duygu: "notr" }], harita: { merkez: [10, 40], genislik_km: 100, araclar } }] }) as unknown as Episode;
+    const tl = { duration: 20, scenes: [{ sceneIndex: 0, start: 0, end: 20 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0.3, end: 4 }, { sceneIndex: 0, lineIndex: 1, start: 5, end: 9 }, { sceneIndex: 0, lineIndex: 2, start: 10, end: 14 }] } as unknown as EpisodeTimeline;
+    const r1 = (x: number) => Math.round(x * 10) / 10;
+    // A ship firing at another side's ship from line 1 (vehicle 0: its first shot lands on the line start): one boom per drawn shot, every other one softer.
+    const barrage = sc([veh({ hedef: [10.1, 40.05], ates_satir: 1 }), veh({ renk: "#00c", konum: [10.1, 40.05] })]);
+    const shots = Array.from({ length: 6 }, (_, k) => 5 + k * SHOT_EVERY_S);
+    for (const opts of [LONG, { film: true }]) {
+      const booms = sfxCues(barrage, tl, opts).filter((c) => c.id === "top_atisi");
+      assert.deepEqual(booms.map((c) => r1(c.t)), shots.map(r1), "six shells, 1.1 s apart: the repeat limit and the de-dup do not eat a barrage");
+      assert.deepEqual(booms.map((c) => c.gain ?? 1), [1, 0.6, 1, 0.6, 1, 0.6]);
+    }
+    // A splash where the renderer's shellOutcome says the shell fell short or over (four in ten strike).
+    const misses = shots.filter((_, k) => !shellOutcome(k).hit).map((t) => r1(t + SHOT_FLIGHT_S + 0.1));
+    assert.ok(misses.length > 0 && misses.length < 6, "the seeds give some hits and some misses");
+    const splashes = sfxCues(barrage, tl, LONG).filter((c) => c.id === "su").map((c) => r1(c.t));
+    assert.ok(splashes.length > 0 && splashes.every((t) => misses.includes(t)), `splashes ${splashes} only at misses ${misses}`);
+    // At a shore (no ship near the target) every shell is just a boom.
+    assert.ok(!sfxCues(sc([veh({ hedef: [10.4, 40.4], ates_satir: 1 })]), tl, LONG).some((c) => c.id === "su"), "no splash when no ship is aimed at");
+    // The guns stop with the scene.
+    assert.ok(vehicleFireCues(barrage.sahneler[0]!, 0, 5, 7).every((c) => c.t < 6.9));
+
+    // Torpedo planes at a ship: a splash as each drops, a strike as it runs in; flak round the raid, low.
+    const raid = sc([veh({ renk: "#00c", konum: [10, 40] }), veh({ tur: "ucak", konum: [9.8, 40], hedef: [10.01, 40.01], satir: 0, ates_satir: 1 })]);
+    const raidCues = sfxCues(raid, tl, LONG);
+    const strikes = raidCues.filter((c) => c.id === "top_atisi" && c.gain === undefined).map((c) => r1(c.t));
+    assert.ok(strikes.length >= 2 && strikes.every((t) => t >= 5 + TORPEDO_RUN_S - 0.1 && t < 5.3 + 2 * TORPEDO_EVERY_S + TORPEDO_RUN_S + 0.1), `strikes ${strikes}`);
+    assert.ok(raidCues.some((c) => c.id === "su" && c.t > 5.2 && c.t < 5.7), "a splash as the torpedo enters the water");
+    const flak = raidCues.filter((c) => c.gain === 0.25);
+    assert.ok(flak.length >= 5 && flak.every((c) => c.t >= 2 - 1e-9 && c.t < 12) && flak[0]!.t === 2, `flak from 3 s before the raid: ${flak.map((c) => r1(c.t))}`);
+    assert.ok(flak.every((c, i) => i === 0 || c.t - flak[i - 1]!.t >= 1.19), "light, not a clatter");
+    // No ship on the map: no flak, bombs blast where they land (0.7 s after each drop).
+    const bombers = sc([veh({ tur: "ucak", konum: [9.8, 40], hedef: [10.4, 40.4], ates_satir: 1 })]);
+    const bombCues = sfxCues(bombers, tl, LONG);
+    assert.ok(!bombCues.some((c) => c.gain === 0.25), "no ship, no flak");
+    assert.deepEqual(bombCues.filter((c) => c.id === "top_atisi").map((c) => r1(c.t)).slice(0, 2), [r1(5 + (Math.sin(0) * 0) + SHOT_FLIGHT_S), r1(5 + SHOT_EVERY_S + SHOT_FLIGHT_S)]);
+    assert.deepEqual(flakCues(bombers.sahneler[0]!, 0, () => ({ start: 5 }), 20, 0), []);
+
+    // A ship lost: the splash and, as the hull settles, a low thud.
+    const sunk = sc([veh({ kayip: 1, kayip_satir: 1 })]);
+    const down = sfxCues(sunk, tl, LONG);
+    const d = unitLossDelaysS(1)[0]!;
+    assert.ok(down.some((c) => c.id === "su" && r1(c.t) === r1(5 + d)));
+    assert.ok(down.some((c) => c.id === "dusus" && c.gain === 0.5 && c.t > 5 + d), "the hull settling");
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {
