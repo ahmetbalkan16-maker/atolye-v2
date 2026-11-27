@@ -329,7 +329,10 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
 - Son, başa bağlanır: davetten hemen önceki satır sorunun cevabını tek cümlede, sorunun kendi sözleriyle söyler; video
   başa döndüğünde soru yeniden anlam kazanır.
 - EN SON satırı ANA KARAKTER (en çok konuşan görünür karakter, son sahnede) kendi üslubuyla söyler: izleyiciyi kanalımız
-  Crowns & Doodles'a abone olmaya davet eden, konuya bağlı, sıcak ve esprili bir cümle (en fazla 14 kelime).`,
+  Crowns & Doodles'a abone olmaya davet eden, konuya bağlı, sıcak ve esprili bir cümle. Bu satır konuyla ilgili merak
+  uyandıran AÇIK bir soruyla başlar — hikâyenin bıraktığı, henüz cevaplanmamış bir soru (ne olacak, kim geri adım atacak,
+  bu neyi değiştirdi); kaynak bankasında olmayan bir olay uydurmaz — sonra daveti söyler (toplam en fazla 20 kelime).
+  Böylece Short soruyla açılır ve soruyla kapanır.`,
   en: (b, words) => `
 
 YOUTUBE SHORT — this is a YouTube Short of ${b.hedefSureSn} seconds or less, watched upright on a phone in a feed: every map is drawn vertically and fills the screen; a character scene is shown whole across the middle of the screen with the question written above it. Where these rules differ from the rules above or below, these win:
@@ -364,8 +367,11 @@ ${b.kisaZamanHaritasi ?? ""}${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARE
 - The end ties back to the start: the line just before the invitation answers the question in one sentence, in the
   question's own words, so when the Short starts over the question lands again.
 - The VERY LAST line is spoken by the MAIN CHARACTER (the visible character with the most lines, on stage in the last
-  scene), in their own voice: a warm, witty invitation to subscribe to our channel Crowns & Doodles, tied to the topic,
-  at most 14 words.`,
+  scene), in their own voice: a warm, witty invitation to subscribe to our channel Crowns & Doodles, tied to the topic.
+  The line OPENS with one intriguing, OPEN question about the topic — one the story leaves unanswered (what happens
+  next, who backs down first, what it changed) and that invents no event outside the source bank — then gives the
+  invitation, at most 20 words in all ("So who blinks first now? Subscribe to Crowns & Doodles and find out."). So the
+  Short opens on a question and closes on one.`,
 };
 
 function bankText(bank: SourceBank | undefined): string {
