@@ -297,6 +297,21 @@ export function transitionFrames(shot: { readonly transitionIn: V3Transition; re
  */
 export const WALL_RING_GAP = 0.7;
 export const WALL_RING_BULGE = 0.3;
+/** How a vehicle group is arranged on the map (SceneMap araclar[].dizilis). */
+export type V3VehicleFormation = "hat" | "kol" | "kademe" | "v";
+
+type VehicleShape = { readonly path: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number; readonly legs?: readonly { readonly start: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[] };
+
+/** Every point of a vehicle group's way, first route and later steps (framing and label avoidance read this, not `path`). */
+export function vehiclePoints(v: VehicleShape): { x: number; y: number }[] {
+  return [...v.path, ...(v.legs ?? []).flatMap((l) => l.path)].map((p) => ({ x: p.x, y: p.y }));
+}
+
+/** The frames a vehicle group sets off or changes its step. */
+export function vehicleMoveFrames(v: VehicleShape): number[] {
+  return [...(v.moveStart !== undefined ? [v.moveStart] : []), ...(v.legs ?? []).map((l) => l.start)];
+}
+
 export function wallIsRing(points: readonly { readonly x: number; readonly y: number }[]): boolean {
   if (points.length < 3) return false;
   let length = 0;
@@ -508,6 +523,24 @@ export interface V3GeoMap {
     /** Seconds after `lossStart` at which each lost one goes down, the group's last first (the leader holds out longest). */
     readonly lossStart?: number;
     readonly losses?: readonly number[];
+    /**
+     * Owner, 27 Nov 2026 ("gemilerin sıralanması anlatıldığı şekilde gitmesi ve hareket etmesi"): how the group is
+     * arranged (hat: a line abreast, kol: a column on the leader's path, kademe: an echelon, v: a V). A group with a
+     * `formation` or `legs` is drawn by remotion-v3 scene/mapFleet; without either, exactly as it always was.
+     */
+    readonly formation?: V3VehicleFormation;
+    /**
+     * The group's later steps, in order (a turn, a new route, a new arrangement, fire at another target): from `start`
+     * (the word that tells it) it goes along `path` — whose first point is where the group is expected to be, the
+     * renderer starts from where it really is — takes `formation` and fires at `target` from `fireStart`.
+     */
+    readonly legs?: readonly {
+      readonly start: number;
+      readonly path: readonly { readonly x: number; readonly y: number }[];
+      readonly formation?: V3VehicleFormation;
+      readonly target?: { readonly x: number; readonly y: number };
+      readonly fireStart?: number;
+    }[];
   }[];
   /**
    * Owner, 12 Nov 2026 ("Kings and Generals"-like; on by default since 13 Nov 2026): the close battle map's ground and

@@ -3,6 +3,7 @@ import { periodEndYear } from "../episode/Period";
 import { isShorts } from "../render/Format";
 import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
+import { wordStem } from "../maps/NarratedMoves";
 import { distanceKm } from "../maps/PlaceCheck";
 import { isSiegeMap, shipLacks, siegeMapLacks, siegePlaceKey } from "../maps/SiegeMap";
 import { ambushMapLacks, fogLacks } from "../maps/AmbushMap";
@@ -441,7 +442,7 @@ export function aimShipsAtEnemy(episode: Episode): { episode: Episode; fixes: st
     if (!h?.araclar?.length || !h.genislik_km || h.genislik_km > SHIP_DUEL_MAP_KM) return s;
     let changed = false;
     const araclar = h.araclar.map((a, i) => {
-      if (!SHIP_KINDS.has(a.tur) || a.tur === "denizalti" || a.hedef) return a;
+      if (!SHIP_KINDS.has(a.tur) || a.tur === "denizalti" || a.hedef || a.yerler?.some((y) => y.hedef)) return a;
       const foes = h.araclar!.filter((o, oi) => oi !== i && SHIP_KINDS.has(o.tur) && o.renk.toLowerCase() !== a.renk.toLowerCase() && distanceKm(a.konum, o.konum) <= SHIP_GUN_RANGE_KM);
       const foe = foes.sort((x, y) => distanceKm(a.konum, x.konum) - distanceKm(a.konum, y.konum))[0];
       if (!foe) return a;
@@ -452,6 +453,31 @@ export function aimShipsAtEnemy(episode: Episode): { episode: Episode; fixes: st
     return changed ? { ...s, harita: { ...h, araclar } } : s;
   });
   return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
+/** A narrator's word of a ship or plane group doing something: turning, dashing, forming up, attacking, firing. */
+const GROUP_ACTS = /(?:^|[^\p{L}])(?:turn\p{L}*|veer\p{L}*|swing\p{L}*|wheel\p{L}*|dash\p{L}*|rac(?:e|es|ed|ing)|charg\p{L}*|advanc\p{L}*|sail\p{L}*|steam\p{L}*|head(?:s|ed|ing)?|mov(?:e|es|ed|ing)|split\p{L}*|attack\p{L}*|strik\p{L}*|struck|fires?|fired|firing|bomb\p{L}*|torpedo\p{L}*|retreat\p{L}*|withdr\p{L}+|circl\p{L}*|slip\p{L}*|fall(?:s|ing)? back|pull(?:s|ed|ing)? back|form(?:s|ed|ing)? (?:a |up|into)|line[sd]? up|sweep\p{L}*|dive[sd]?|diving|climb\p{L}*|break(?:s|ing)? (?:off|away))(?!\p{L})/iu;
+
+/**
+ * A named group told doing something on a line where the data has nothing for it (owner, 27 Nov 2026: "gemilerin sıralanması
+ * anlatıldığı şekilde gitmesi ve hareket etmesi"): a vehicle group with an "ad" whose words a narrator line names together
+ * with a word of turning, dashing, forming up, attacking or firing — after it appears — and that has no step, route, fire or
+ * loss on that line is asked for its "yerler" step. One line per group, the first such line; a group with no "ad" is not
+ * asked (nothing says which words name it).
+ */
+export function vehicleStepProblems(s: Episode["sahneler"][number]): string[] {
+  const h = s.harita;
+  if (!h?.araclar?.length) return [];
+  const out: string[] = [];
+  h.araclar.forEach((a, i) => {
+    if (!a.ad) return;
+    const names = new Set(a.ad.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4).map(wordStem));
+    if (!names.size) return;
+    const has = (l: number) => a.satir === l || (a.yol?.length && (a.yol_satir ?? a.satir) === l) || (a.hedef && (a.ates_satir ?? a.yol_satir ?? a.satir) === l) || a.kayip_satir === l || (a.yerler ?? []).some((y) => y.satir === l || y.ates_satir === l);
+    const line = s.satirlar.findIndex((l, li) => l.karakter === "anlatici" && li >= a.satir && !has(li) && GROUP_ACTS.test(l.metin) && l.metin.split(/[^\p{L}\p{N}’']+/u).some((w) => names.has(wordStem(w))));
+    if (line >= 0) out.push(`map scene "${s.id}": line ${line} tells "${a.ad}" on the move ("${s.satirlar[line]!.metin.slice(0, 70)}") but araclar[${i}] has nothing on that line: give it a "yerler" step {"satir": ${line}, "konum" or "yol": where it goes, "dizilis": "hat" (line abreast) | "kol" (column) | "kademe" | "v", "hedef": what it fires at} — VEHICLE STEPS`);
+  });
+  return out;
 }
 
 /** The words a narrator names a vehicle group by (ships are named on every naval line, so they are not looked for). */
@@ -855,6 +881,7 @@ export function mapProblems(episode: unknown, ctx: MapRuleContext = {}): string[
     const h = s.harita;
     if (!h?.merkez &&/\b(map|harita)\b/i.test(s.mekan ?? "")) out.push(`scene "${s.id}" is set on a map ("mekan": "${s.mekan}") but has no "harita": give it one (merkez, genislik_km, and what moves on it — MAP NARRATION)`);
     if (h?.merkez) {
+      out.push(...vehicleStepProblems(s));
       if (!mapLives(h)) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
       if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) {
         const place = siegePlaceKey(h);

@@ -44,15 +44,16 @@ function unit(from: P, to: P, fallback: P): P {
 }
 
 /** Does a vehicle group's target lie on a ship (a ship of another vehicle group within `reach`)? */
-export function shipTargeted(map: V3GeoMap, vi: number, reach: number): boolean {
+export function shipTargeted(map: V3GeoMap, vi: number, reach: number, aim?: P): boolean {
   const v = map.vehicles?.[vi];
-  if (!v || !v.target) return false;
-  return (map.vehicles ?? []).some((o, oi) => oi !== vi && WATER_KINDS.has(o.kind) && o.path.some((q) => Math.hypot(q.x - v.target!.x, q.y - v.target!.y) <= reach));
+  const target = aim ?? v?.target;
+  if (!v || !target) return false;
+  return (map.vehicles ?? []).some((o, oi) => oi !== vi && WATER_KINDS.has(o.kind) && [...o.path, ...(o.legs ?? []).flatMap((l) => l.path)].some((q) => Math.hypot(q.x - target.x, q.y - target.y) <= reach));
 }
 
 /** Does a plane's target lie on a ship (a ship of another vehicle group within `reach`)? Then it drops torpedoes. */
-export function torpedoTarget(map: V3GeoMap, vi: number, reach: number): boolean {
-  return map.vehicles?.[vi]?.kind === "ucak" && shipTargeted(map, vi, reach);
+export function torpedoTarget(map: V3GeoMap, vi: number, reach: number, aim?: P): boolean {
+  return map.vehicles?.[vi]?.kind === "ucak" && shipTargeted(map, vi, reach, aim);
 }
 
 /**
@@ -74,6 +75,8 @@ export function raidOf(map: V3GeoMap, vi: number, fps: number): { at: P; frame: 
   const v = map.vehicles?.[vi];
   if (!v || v.kind !== "ucak") return undefined;
   if (v.target && v.fireStart !== undefined) return { at: v.target, frame: v.fireStart };
+  const attack = (v.legs ?? []).find((l) => l.target && l.fireStart !== undefined);
+  if (attack) return { at: attack.target!, frame: attack.fireStart! };
   const sunk = (map.vehicles ?? [])
     .flatMap((o) => (WATER_KINDS.has(o.kind) && o.color !== v.color && o.lossStart !== undefined && o.losses?.length ? [{ at: o.path[0]!, frame: o.lossStart + Math.round(Math.min(...o.losses) * fps) }] : []))
     .filter((s) => v.start <= s.frame && (v.end === undefined || v.end > s.frame))

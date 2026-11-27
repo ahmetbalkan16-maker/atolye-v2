@@ -22,7 +22,7 @@ import { knownRemedy } from "../src/lib/v3/council/RepairBrain";
 import { sideColours, tooClose } from "../src/lib/v3/script/SideColours";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, fitBattleMap, resolveTactics, siegeOrder } from "../src/lib/v3/maps/Tactics";
-import { aimPlanesAtShips, aimShipsAtEnemy, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
+import { aimPlanesAtShips, aimShipsAtEnemy, directBattleMaps, livenStillMaps, mapProblems, markOnePicture, openOpeningMap, vehicleStepProblems, vehiclesOnToldLine } from "../src/lib/v3/script/MapRules";
 import { STATE_COLOURS, TOLD_WORDS } from "../src/lib/v3/maps/MapBuilder";
 import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
 import { AMOUNT_COLOURS, addToldStrengths, namesSide, toldAmountCard, toldNumbers, toldStrengthCard } from "../src/lib/v3/script/ToldNumbers";
@@ -2205,6 +2205,37 @@ The '''siege of Baghdad''' ({{Langx|fa|محاصره بغداد}}) in the winter 
     assert.equal(alone([{ ...us, tur: "kadirga" as const }, { ...jp, tur: "kadirga" as const }], "1571"), 2, "Lepanto's galleys carried cannon");
     // The map built from it: both groups fire at each other's drawn position and the Mixer hears the guns.
     assert.ok(directBattleMaps(ep).fixes.some((f) => f.includes("en yakın düşman gemisine ateş eder")));
+  });
+
+  await scenario("the writer is asked for a named group's step when a narrator line tells it on the move (owner, 27 Nov 2026: \"gemilerin sıralanması anlatıldığı şekilde gitmesi ve hareket etmesi\"): \"the British destroyers dash ahead\" with nothing for them on that line", async () => {
+    const line = (metin: string, karakter = "anlatici") => ({ karakter, metin, duygu: "notr" as const });
+    const base = episode();
+    const destroyers = { tur: "gemi" as const, renk: "#2e4a7d", sayi: 4, konum: [159.9, -9.2] as [number, number], satir: 0, ad: "British destroyers", yol: [[159.9, -9.2], [160.0, -9.2]] as [number, number][], yol_satir: 1 };
+    const scene = { ...base.sahneler[0]!, id: "s3-fleets", satirlar: [line("Two fleets meet in the dark."), line("The British destroyers dash ahead in column."), line("Admiral Callaghan swears.", "callaghan"), line("Then the British destroyers turn north and open fire.")], harita: { merkez: [160, -9.2] as [number, number], genislik_km: 20, araclar: [destroyers] } };
+    const ask = vehicleStepProblems(scene as never);
+    assert.equal(ask.length, 1, ask.join(" | "));
+    assert.ok(ask[0]!.includes("line 3") && ask[0]!.includes("\"yerler\"") && ask[0]!.includes("VEHICLE STEPS") && ask[0]!.includes("araclar[0]"), "line 1 has its route; line 3 turns and fires with nothing: asked for line 3 only");
+    // A step on that line answers it, so does fire at a target there.
+    assert.equal(vehicleStepProblems({ ...scene, harita: { ...scene.harita, araclar: [{ ...destroyers, yerler: [{ satir: 3, yol: [[160.0, -9.25]] as [number, number][] }] }] } } as never).length, 0);
+    assert.equal(vehicleStepProblems({ ...scene, harita: { ...scene.harita, araclar: [{ ...destroyers, hedef: [160.1, -9.2] as [number, number], ates_satir: 3 }] } } as never).length, 0, "fire on that line answers it");
+    // Not asked: no name to tell it by, a line before the group appears, a character's line, a line that names no one, no motion word.
+    assert.equal(vehicleStepProblems({ ...scene, harita: { ...scene.harita, araclar: [{ ...destroyers, ad: undefined }] } } as never).length, 0, "no \"ad\": nothing says which words name it");
+    assert.equal(vehicleStepProblems({ ...scene, harita: { ...scene.harita, araclar: [{ ...destroyers, satir: 3, yol: undefined, yol_satir: undefined }] } } as never).length, 0, "appears on that very line");
+    assert.equal(vehicleStepProblems({ ...scene, satirlar: [line("Two fleets meet."), line("The British destroyers dash ahead.", "callaghan"), line("The cruisers turn north.")] } as never).length, 0, "a character's words and other groups' are not it");
+    assert.equal(vehicleStepProblems({ ...scene, satirlar: [line("Two fleets meet."), line("The British destroyers are old."), line("The British destroyers sit in the dark.")] } as never).length, 0, "no motion word");
+    assert.equal(vehicleStepProblems({ ...scene, harita: { ...scene.harita, araclar: [] } } as never).length, 0);
+    // It reaches the writer through mapProblems, and the old groups (no "ad") are never asked.
+    assert.ok(mapProblems({ ...base, sahneler: [scene] }).some((p) => p.includes("VEHICLE STEPS")));
+    assert.ok(!mapProblems({ ...base, sahneler: [{ ...scene, harita: { ...scene.harita, araclar: [{ ...destroyers, ad: undefined }] } }] }).some((p) => p.includes("VEHICLE STEPS")));
+    // The writer's prompt tells the fields.
+    const prompt = writingPrompt({ konu: "Guadalcanal", donem: "1942", hedefSureSn: 150, ton: "mizahi", dil: "en" }, CATALOG);
+    assert.ok(prompt.includes("\"dizilis\"") && prompt.includes("\"yerler\"") && prompt.includes("SHIPS AND PLANES MOVE AS THE NARRATION TELLS IT"), "the prompt names the fields and the rule");
+    // A group with its own fire step is not aimed by the studio's duel rule.
+    const stepFire = { ...destroyers, yerler: [{ satir: 3, hedef: [160.2, -9.2] as [number, number] }] };
+    const foe = { tur: "gemi" as const, renk: "#444444", sayi: 2, konum: [159.96, -9.2] as [number, number], satir: 0 };
+    const aimed = aimShipsAtEnemy({ ...base, donem: "1942", sahneler: [{ ...scene, harita: { ...scene.harita, araclar: [stepFire, foe] } }] } as never);
+    assert.equal(aimed.episode.sahneler[0]!.harita!.araclar![0]!.hedef, undefined, "a group whose steps fire keeps its own targets");
+    assert.ok(aimed.episode.sahneler[0]!.harita!.araclar![1]!.hedef, "the foe, with none, answers");
   });
 
   await scenario("the Baghdad Short's two greens (owner, 13 Nov 2026, \"haritada ülkelerin rengi aynı\"): a side too close to another shown with it is recoloured everywhere, a side keeps one colour and its shades", () => {

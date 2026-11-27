@@ -590,7 +590,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // a palisade and ditch drawn step by step, its length in km written by itself; later entries build it stage by stage
     "araclar": [{"tur": "gemi" | "kadirga" | "yelkenli" | "suvari" | "fil" | "top" | "tank" | "ucak" | "denizalti",
         "renk": "#…", "sayi": 1–6, "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …], "yol_satir": 2,
-        "hedef": [lon, lat], "ates_satir": 3, "kayip": 2, "kayip_satir": 4}]
+        "hedef": [lon, lat], "ates_satir": 3, "kayip": 2, "kayip_satir": 4,
+        "ad": "British destroyers", "dizilis": "hat" | "kol" | "kademe" | "v",
+        "yerler": [{"satir": 3, "konum": [lon, lat], "yol": [[lon, lat], …], "dizilis": "kol", "hedef": [lon, lat], "ates_satir": 3}]}]
         // ships, cavalry, guns, tanks, planes travel their route and fire at "hedef" — only what the period had ("gemi"
         // is drawn as the period's ship). A ship whose route crosses land is HAULED over it on rollers by its crew (the
         // 1453 fleet over the hill behind Galata): give the real land route and the camera follows. "kayip" of them are
@@ -600,6 +602,14 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // (the group holds off the ship, flak bursts round it), and that ship's "kayip" is on the line it is hit. Warships
         // with no "hedef" fire at the nearest enemy ship by themselves; the guns' flash, smoke and the shells' splashes,
         // a hit ship's fire, listing and sinking, its smoke and oil slick are drawn — never ask for them in words.
+        // SHIPS AND PLANES MOVE AS THE NARRATION TELLS IT: name each group ("ad": "British destroyers", "the second wave") with the
+        // words the narrator uses for it, and give it a "yerler" step on EVERY later line that tells it moving, turning,
+        // forming up or attacking ("konum"/"yol": where it goes from where it is; "dizilis": "hat" a line abreast that turns
+        // together, "kol" a column with each ship on the leader's path, "kademe" an echelon, "v" planes in a V; "hedef": what it
+        // fires at). A group sets off on the WORD that names it, one group after the other in the order told; a group the
+        // line does not tell stays where it is. Example: line 1 "The British destroyers dash ahead in column." line 2 "The
+        // cruiser line turns north." → destroyers {"ad": "British destroyers", "dizilis": "kol", "yol": […], "yol_satir": 1}
+        // and cruisers {"ad": "British cruisers", "dizilis": "hat", "konum": …, "satir": 0, "yerler": [{"satir": 2, "yol": [… north …]}]}.
 CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's fall, cut from the wide map to a close map of
   that place: "genislik_km" 4–60, "kamera" keys 3–30 km (the painted battle maps of the history channels). The usual flow:
   wide map (the march there) → close map (the field or the walls, the armies, the guns, the ships) → a character scene

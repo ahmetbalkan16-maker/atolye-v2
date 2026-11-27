@@ -208,3 +208,77 @@ export function narrateMoves<S extends MoveStep, U extends MoveUnit<S>>(units: r
   });
   return { units: out, moved };
 }
+
+/** Words a vehicle kind is told by (English and Turkish stems): "the fleet", "the bombers". */
+const VEHICLE_WORDS: Readonly<Record<string, string>> = {
+  gemi: "ships?|fleet|vessels?|warships?|battleships?|cruisers?|destroyers?|squadron|flotilla|line|gemi\\p{L}*|donanma\\p{L}*",
+  kadirga: "galleys?|ships?|fleet|vessels?|squadron|flotilla|kadırga\\p{L}*|gemi\\p{L}*|donanma\\p{L}*",
+  yelkenli: "ships?|fleet|vessels?|frigates?|squadron|line|yelkenli\\p{L}*|gemi\\p{L}*|donanma\\p{L}*",
+  denizalti: "submarines?|subs?|u-boats?|denizaltı\\p{L}*",
+  ucak: "planes?|aircraft|bombers?|fighters?|biplanes?|squadron|wave|uçak\\p{L}*|bombardıman\\p{L}*",
+  suvari: KIND_WORDS.suvari!,
+  fil: "elephants?|fil(?:ler\\p{L}*)?",
+  top: KIND_WORDS.topcu!,
+  tank: "tanks?|panzers?|tank\\p{L}*",
+};
+
+/** A vehicle group's steps for narrateLegs: the line each is told on and whether it moves the group (a new route). */
+export interface LegGroup {
+  readonly name?: string;
+  readonly side: string;
+  readonly kind?: string;
+  readonly steps: readonly { readonly line: number; readonly moves: boolean }[];
+}
+
+/**
+ * When each step of the narrated vehicle groups begins (owner, 27 Nov 2026: "aynı anda değil, anlatılana göre hareket
+ * edip konumlanacak"): a step that moves its group begins on the word that names the group in its line (its own name's
+ * words, then the words its side's groups share, then its kind — "the fleet", "the bombers"), the named ones in the order
+ * told; the groups the line does not name follow one after another, NEXT_MOVE_S apart; a step that only turns, rearranges
+ * or fires begins on its group's word or the line's first frame. A group with no step on a line holds: it is not here.
+ * Key `${group}|${step}`, value the frame. Pure: the line timings are MapBuilder's.
+ */
+export function narrateLegs(groups: readonly LegGroup[], times: LineTimes, fps: number): Map<string, number> {
+  const words = unitWords(groups.map((g) => ({ name: g.name, side: g.side })));
+  const byLine = new Map<number, { gi: number; si: number; moves: boolean }[]>();
+  groups.forEach((g, gi) => g.steps.forEach((st, si) => (byLine.get(st.line) ?? byLine.set(st.line, []).get(st.line)!).push({ gi, si, moves: st.moves })));
+  const out = new Map<string, number>();
+  for (const [line, list] of byLine) {
+    const from = times.start(line);
+    const end = times.end(line);
+    const within = (f: number | undefined) => (f !== undefined && f >= from && (end === undefined || f <= end) ? f : undefined);
+    const own = list.map((m) => (words[m.gi]!.own ? within(times.told(line, words[m.gi]!.own!)) : undefined));
+    const told = list.map((m, k) => {
+      if (own[k] !== undefined) return own[k];
+      const w = words[m.gi]!;
+      const taken = list.some((o, j) => j !== k && own[j] !== undefined && (words[o.gi]!.groupStems ?? []).some((s) => w.groupStems?.includes(s)));
+      const group = w.group && !taken && groups[m.gi]!.name ? within(times.told(line, w.group)) : undefined;
+      if (group !== undefined) return group;
+      // The kind's word names a group only when it has a name of its own to be told apart by.
+      const kind = groups[m.gi]!.name && groups[m.gi]!.kind && VEHICLE_WORDS[groups[m.gi]!.kind!] ? within(times.told(line, new RegExp(`^(?:${VEHICLE_WORDS[groups[m.gi]!.kind!]})$`, "iu"))) : undefined;
+      return kind;
+    });
+    const movers = list.map((m, k) => ({ ...m, at: told[k] })).filter((m) => m.moves);
+    const named = movers.filter((m) => m.at !== undefined).sort((a, b) => a.at! - b.at!);
+    const unnamed = movers.filter((m) => m.at === undefined);
+    let cursor = from;
+    let word: number | undefined;
+    let wordAt = from;
+    for (const m of named) {
+      if (m.at !== word) {
+        word = m.at;
+        wordAt = Math.max(m.at!, cursor);
+        cursor = wordAt + Math.round(NEXT_MOVE_S * fps);
+      }
+      out.set(`${m.gi}|${m.si}`, wordAt);
+    }
+    for (const m of unnamed) {
+      out.set(`${m.gi}|${m.si}`, cursor);
+      cursor += Math.round(NEXT_MOVE_S * fps);
+    }
+    list.forEach((m, k) => {
+      if (!m.moves) out.set(`${m.gi}|${m.si}`, told[k] ?? from);
+    });
+  }
+  return out;
+}

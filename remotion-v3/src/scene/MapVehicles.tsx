@@ -4,6 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { Burst } from "./MapUnits";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
+import { fleetLeader, fleetMembers, isFleet } from "./mapFleet";
 import { bankOf, COLUMN_S, flakAt, flakWindow, flaresAt, isNightMap, landRings, muzzleFx, oilSlick, onLand, planeSlot, raidOf, shellOutcome, shipTargeted, SHIP_SINK_S, sinkPose, TORPEDO_EVERY_S, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoDropAt, torpedoStart, torpedoTarget, WATER_KINDS, waterColumn, WRECK_S, wreckSmoke } from "./mapEffects";
 
 /**
@@ -342,11 +343,18 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         const route = smoothPoints(v.path, 10);
         const plane = v.kind === "ucak";
         // Planes sent at a ship drop torpedoes (Taranto, 11 Nov 2026): a wake runs to it instead of a bomb falling.
-        const torpedo = plane && torpedoTarget(map, vi, S * 6);
+        // A group with an arrangement or later steps (SceneMap araclar[].dizilis / yerler) is placed by mapFleet; the rest as ever.
+        const fleet = isFleet(v);
+        const speed = plane ? 0.6 : 1;
+        const fl = fleet ? fleetLeader(v, route, frame, fps, travelS, speed) : undefined;
+        // What it aims at now: the target of the step in effect.
+        const aimed = fl ? fl.target : v.target;
+        const aimedFrom = fl ? fl.fireStart : v.fireStart;
+        const torpedo = plane && torpedoTarget(map, vi, S * 6, aimed);
         // Shells and bombs at a ship: some strike it, the rest fall in the sea beside it (shellOutcome).
-        const shipShot = !torpedo && shipTargeted(map, vi, S * 6);
+        const shipShot = !torpedo && shipTargeted(map, vi, S * 6, aimed);
         const travel = v.moveStart === undefined ? 0 : travelS(route, v.moveStart) * (plane ? 0.6 : 1);
-        const { p, heading, moving, t } = placeAt(v, route, frame, fps, travel);
+        const { p, heading, moving, t } = fl ? { p: fl.p, heading: fl.heading, moving: fl.moving, t: fl.t } : placeAt(v, route, frame, fps, travel);
         const dir = { x: Math.cos(heading), y: Math.sin(heading) };
         // Torpedo planes hold off the ship they attack and drop from there (Taranto, 27 Nov 2026 audit: the group came to a stop
         // on top of the battleships it was attacking), easing back as they arrive; the others are where the route puts them.
@@ -361,7 +369,16 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         const length = pathLength(route);
         const gap = v.moveStart !== undefined && length > 0 ? (S * (v.overland?.length ? 3.6 : 2.4)) / length : 0;
         const span = 1 + (v.count - 1) * gap;
-        const members = Array.from({ length: v.count }, (_, i) => {
+        // Torpedo planes hold off their ship in every step that has one, as the first route's do.
+        const led = (f: number) => {
+          const st = fleetLeader(v, route, f, fps, travelS, speed);
+          const off = torpedo && st.target ? S * 3.5 * (st.t * st.t * (3 - 2 * st.t)) : 0;
+          return off ? { ...st, p: { x: st.p.x - Math.cos(st.heading) * off, y: st.p.y - Math.sin(st.heading) * off } } : st;
+        };
+        const fleetBank = fleet && plane && moving ? bankOf(led(frame - 4).heading, led(frame + 4).heading) : 0;
+        const members = fleet
+          ? fleetMembers(v, led, frame, fps, S).map((m) => ({ x: m.x, y: m.y, heading: m.heading, hauled: m.leg === 0 && m.t > 0 && m.t < 1 && (v.overland ?? []).some((o) => m.t > o.from && m.t < o.to), going: m.going, bank: fleetBank }))
+          : Array.from({ length: v.count }, (_, i) => {
           // Planes fly abreast in a V behind their leader, waiting, under way or arrived — not in the one file ships keep
           // (27 Nov 2026 audit: the Swordfish crossed the map nose to tail like a train, then piled on the ships).
           if (plane) {
@@ -378,8 +395,8 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
           const w = !gap || ti <= 0 || ti >= 1 ? 1 : Math.max(0, 1 - Math.min(ti, 1 - ti) / 0.08);
           const hauled = (v.overland ?? []).some((o) => f > o.from && f < o.to) && f > 0 && f < 1;
           return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving, bank: 0 };
-        });
-        const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * (FIRE_S + (torpedo ? TORPEDO_RUN_S + COLUMN_S : 0))) && !moving;
+          });
+        const firing = aimed && aimedFrom !== undefined && frame >= aimedFrom && frame < aimedFrom + Math.round(fps * (FIRE_S + (torpedo ? TORPEDO_RUN_S + COLUMN_S : 0))) && !moving;
         const flak = plane && gun ? flakWindow(map, vi, fps) : undefined;
         // The frame a member is lost at: the group's last ones first.
         const downAt = (mi: number) => {
@@ -487,7 +504,7 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
             })}
             {firing
               ? members.map((m, mi) => {
-                  const local = (frame - v.fireStart!) / fps - mi * 0.37 - rand(vi * 13 + mi) * 0.3;
+                  const local = (frame - aimedFrom!) / fps - mi * 0.37 - rand(vi * 13 + mi) * 0.3;
                   if (local < 0 || (downAt(mi) ?? Infinity) <= frame) return null;
                   const every = torpedo ? TORPEDO_EVERY_S : SHOT_EVERY_S;
                   const shot = Math.floor(local / every);
@@ -498,7 +515,7 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
                   // A shot at a ship strikes it or falls short or over beside it (shellOutcome); at the shore it falls where it falls.
                   const outcome = shipShot ? shellOutcome(vi * 101 + mi * 11 + shot) : undefined;
                   const spread = outcome ? { x: outcome.dx * S, y: outcome.dy * S } : { x: (rand(vi * 31 + mi * 7 + shot) - 0.5) * S * 2.2 * aim, y: (rand(vi * 17 + mi * 3 + shot) - 0.5) * S * 1.4 * aim };
-                  const hit = { x: v.target!.x + spread.x, y: v.target!.y + spread.y };
+                  const hit = { x: aimed!.x + spread.x, y: aimed!.y + spread.y };
                   if (torpedo) {
                     // Dropped short of the ship, the torpedo runs in; where it strikes, a burst and a water column.
                     const from = torpedoStart(hit, muzzle, S * 5, land);

@@ -69,6 +69,11 @@ export function lineAction(map: SceneMap, line: number): ActingPlace[] {
     if (a.yol?.length && (a.yol_satir ?? a.satir) === line) put(reach, a.konum, end);
     if (a.kayip_satir === line) put(reach, end);
     if (a.hedef && (a.ates_satir ?? a.yol_satir ?? a.satir) === line) put(reach, end, a.hedef);
+    // Its later steps (a turn, a new route, other fire): where it goes and what it fires at.
+    for (const y of a.yerler ?? []) {
+      if (y.satir === line) put(reach, ...(y.konum ? [y.konum] : []), ...(y.yol?.length ? [y.yol[y.yol.length - 1]!] : []));
+      if (y.hedef && (y.ates_satir ?? y.satir) === line) put(reach, y.hedef);
+    }
   }
   for (const o of map.ordular ?? []) {
     if (o.satir === line) put(BADGE_REACH_PX, o.konum);
@@ -150,7 +155,7 @@ export function frameLineAction(map: SceneMap, win: FrameWindow): { map: SceneMa
   if (!map.merkez || !map.genislik_km) return { map, lines: [] };
   const close = map.genislik_km <= CLOSE_MAP_MAX_KM && win.width < 1;
   const used = [
-    ...(map.araclar ?? []).flatMap((a) => [a.satir, a.yol_satir, a.kayip_satir, a.ates_satir]),
+    ...(map.araclar ?? []).flatMap((a) => [a.satir, a.yol_satir, a.kayip_satir, a.ates_satir, ...(a.yerler ?? []).flatMap((y) => [y.satir, y.ates_satir])]),
     ...(map.ordular ?? []).flatMap((o) => [o.satir, o.yol_satir]),
     ...(map.rozetler ?? []).flatMap((r) => [r.satir, r.yol_satir]),
     ...(map.birlikler ?? []).flatMap((u) => u.yerler.map((y) => y.satir)),
@@ -230,6 +235,10 @@ export function actionAt(m: V3GeoMap, frame: number, width: number, height: numb
     if (v.moveStart === frame) [v.path[0], end].forEach((p) => put(name, p, reach));
     if (v.lossStart !== undefined && v.lossStart === frame) put(name, end, reach);
     if (v.fireStart === frame) [end, v.target].forEach((p) => put(name, p, reach));
+    for (const l of v.legs ?? []) {
+      if (l.start === frame) l.path.forEach((p) => put(name, p, reach));
+      if (l.fireStart === frame) [l.path[l.path.length - 1], l.target].forEach((p) => put(name, p, reach));
+    }
   }
   for (const un of m.units ?? []) for (const st of un.steps) if (st.start === frame) st.points.forEach((p) => put(un.name ?? un.side, p, VEHICLE_TOKEN_PX));
   for (const b of m.badges ?? []) {
@@ -253,7 +262,9 @@ export function standingAt(m: V3GeoMap, frame: number, width: number, height: nu
   const where = <P>(path: readonly P[], moveStart: number | undefined) => (moveStart !== undefined && frame >= moveStart ? path[path.length - 1] : path[0]);
   const out: ActionMark[] = [];
   for (const v of m.vehicles ?? []) {
-    const p = where(v.path, v.moveStart);
+    // A group with later steps stands at the end of the last one begun.
+    const leg = [...(v.legs ?? [])].reverse().find((l) => l.start <= frame);
+    const p = leg ? leg.path[leg.path.length - 1] : where(v.path, v.moveStart);
     if (up(v) && p) out.push({ name: `${v.kind} ×${v.count}`, ...s(p), reach: shipReachPx(v.count) * u });
   }
   for (const b of m.badges ?? []) {
@@ -267,7 +278,7 @@ export function standingAt(m: V3GeoMap, frame: number, width: number, height: nu
 /** Every frame something on a built map acts (actionAt's events), in order. */
 export function actionFrames(m: V3GeoMap): number[] {
   const all = [
-    ...(m.vehicles ?? []).flatMap((v) => [v.start, v.moveStart, v.lossStart, v.fireStart]),
+    ...(m.vehicles ?? []).flatMap((v) => [v.start, v.moveStart, v.lossStart, v.fireStart, ...(v.legs ?? []).flatMap((l) => [l.start, l.fireStart])]),
     ...(m.units ?? []).flatMap((un) => un.steps.map((st) => st.start)),
     ...(m.badges ?? []).flatMap((b) => [b.start, b.moveStart]),
     ...(m.battles ?? []).map((b) => b.start),

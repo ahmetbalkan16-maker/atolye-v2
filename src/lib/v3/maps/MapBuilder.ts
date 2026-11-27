@@ -5,7 +5,7 @@ import type { V3GeoMap, V3StrengthSide } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { castleRing, castleStyleFor, kmBetween } from "./CastleShapes";
 import { nameBox, placeCloseLabels } from "./CloseLabels";
-import { narrateMoves, type StepSource } from "./NarratedMoves";
+import { narrateLegs, narrateMoves, type StepSource } from "./NarratedMoves";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
 import type { SideBadge } from "./MapSpeakers";
@@ -1348,6 +1348,68 @@ export function seawardStart(map: SceneMap, a: MapVehicle, ships: readonly (read
   return nearest;
 }
 
+/** One vehicle group as the plan carries it (V3GeoMap.vehicles[]). */
+type VehiclePlan = NonNullable<V3GeoMap["vehicles"]>[number];
+
+/**
+ * The narrated vehicle groups (owner, 27 Nov 2026: "gemilerin sıralanması anlatıldığı şekilde gitmesi ve hareket etmesi",
+ * then "aynı anda değil, anlatılana göre hareket edip konumlanacak"): a group's `dizilis` becomes its formation, its
+ * `yerler` steps become legs (each from where the group will be: a new route, a turn, a new formation, other fire), and a
+ * group with an `ad` or steps sets off, turns and fires on the word that names it (NarratedMoves.narrateLegs: the named
+ * groups in the order told, the others after them; a group with nothing on a line holds). A map with none of the new
+ * fields comes back as it was (the same objects).
+ */
+export function narratedVehicles(map: SceneMap, written: readonly VehiclePlan[], toPx: (p: readonly [number, number]) => XY, aimAt: (p: readonly [number, number]) => readonly [number, number], lineStart: (index: number | undefined, order: number) => number, opts: GeoMapOptions): VehiclePlan[] {
+  const given = map.araclar ?? [];
+  if (!given.some((a) => a.ad !== undefined || a.dizilis !== undefined || a.yerler?.length)) return [...written];
+  const fps = opts.fps ?? 30;
+  const same = (p: XY, q: XY) => Math.hypot(p.x - q.x, p.y - q.y) < 0.5;
+  const plans = given.map((a, i) => {
+    const w = written[i]!;
+    let at: XY = w.path[w.path.length - 1]!;
+    const legs: { line: number; ates: number; route: XY[]; moves: boolean; dizilis?: NonNullable<VehiclePlan["formation"]>; target?: XY }[] = [];
+    [...(a.yerler ?? [])]
+      .map((y, k) => ({ y, k }))
+      .sort((p, q) => p.y.satir - q.y.satir || p.k - q.k)
+      .forEach(({ y }) => {
+        const pts = [...(y.konum ? [y.konum] : []), ...(y.yol ?? [])].map((p) => toPx(p));
+        const route = [at, ...pts].filter((p, k, all) => k === 0 || !same(p, all[k - 1]!));
+        const moves = route.length >= 2;
+        if (!moves && !y.dizilis && !y.hedef) return;
+        legs.push({ line: y.satir, ates: y.ates_satir ?? y.satir, route, moves, ...(y.dizilis ? { dizilis: y.dizilis } : {}), ...(y.hedef ? { target: toPx(aimAt(y.hedef)) } : {}) });
+        if (moves) at = route[route.length - 1]!;
+      });
+    const narrated = a.ad !== undefined || legs.length > 0;
+    return { a, w, legs, narrated };
+  });
+  const starts = narrateLegs(
+    plans.map((p) => ({
+      ...(p.a.ad !== undefined ? { name: p.a.ad } : {}),
+      side: p.a.renk,
+      kind: p.a.tur,
+      steps: p.narrated ? [...(p.w.moveStart !== undefined ? [{ line: p.a.yol_satir ?? p.a.satir, moves: true }] : []), ...p.legs.map((l) => ({ line: l.line, moves: l.moves }))] : [],
+    })),
+    { start: (l) => lineStart(l, 0), end: (l) => opts.lineEnd?.(l), told: (l, word) => opts.toldAt?.(l, word) },
+    fps,
+  );
+  return plans.map(({ a, w, legs, narrated }, gi) => {
+    const first = narrated && w.moveStart !== undefined ? Math.max(w.start, starts.get(`${gi}|0`) ?? w.moveStart) : w.moveStart;
+    let prev = first ?? w.start;
+    const built = legs.map((l, k) => {
+      const si = (w.moveStart !== undefined ? 1 : 0) + k;
+      const start = Math.max(prev + 1, w.start, starts.get(`${gi}|${si}`) ?? lineStart(l.line, gi));
+      prev = start;
+      return {
+        start,
+        path: l.route,
+        ...(l.dizilis ? { formation: l.dizilis } : {}),
+        ...(l.target ? { target: l.target, fireStart: Math.max(start, toldStart(opts, lineStart, l.ates, gi, TOLD_WORDS.ates, start)) } : {}),
+      };
+    });
+    return { ...w, ...(a.dizilis ? { formation: a.dizilis } : {}), ...(first !== undefined ? { moveStart: first } : {}), ...(built.length ? { legs: built } : {}) };
+  });
+}
+
 /** A plane's route from `start`: the writer's first point, where it stood at the plane's written place, moves with it. */
 function routeFrom(a: MapVehicle, start: readonly [number, number], way: readonly (readonly [number, number])[]): readonly (readonly [number, number])[] {
   const kx = 111.32 * Math.max(0.2, Math.cos((a.konum[1] * Math.PI) / 180));
@@ -1390,6 +1452,7 @@ export function withShipsAfloat(map: SceneMap, data: MapData, width: number, hei
       konum: [starts[i]![0], starts[i]![1]] as [number, number],
       ...(a.tur === "ucak" && a.yol?.length ? { yol: (starts[i] !== a.konum ? [starts[i]!, ...routeFrom(a, starts[i]!, a.yol)] : a.yol).map((p, k, all) => (k === all.length - 1 ? xy(p) : ([p[0], p[1]] as [number, number]))) } : {}),
       ...(a.hedef ? { hedef: xy(a.hedef) } : {}),
+      ...(a.yerler?.length ? { yerler: a.yerler.map((y) => (y.hedef ? { ...y, hedef: xy(y.hedef) } : y)) } : {}),
     })),
     ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: xy(r.konum) })) } : {}),
   };
@@ -2144,9 +2207,12 @@ function projectGeoMap(
   });
   // A ship goes down no sooner than the shots aimed at it land (the Taranto Short, 11 Nov 2026: the battleship sank on the
   // line before the torpedo planes reached her), as a place catches fire (fires, below).
-  const vehicles = written.map((w) => {
+  const narratedWritten = narratedVehicles(map, written, (p) => toPx(p), aimAt, lineStart, opts);
+  // Every shot a group fires: its first target and each later step's.
+  const shotsOf = (v: VehiclePlan) => [...(v.target && v.fireStart !== undefined ? [{ at: v.target, from: v.fireStart }] : []), ...(v.legs ?? []).flatMap((l) => (l.target && l.fireStart !== undefined ? [{ at: l.target, from: l.fireStart }] : []))];
+  const vehicles = narratedWritten.map((w) => {
     const at = w.path[w.path.length - 1];
-    const land = at && w.lossStart !== undefined && SHIPS.has(w.kind) ? written.filter((o) => o !== w && o.target && o.fireStart !== undefined && Math.hypot(o.target.x - at.x, o.target.y - at.y) <= 40).map((o) => o.fireStart! + Math.round(FIRE_LANDS_S * (opts.fps ?? 30))) : [];
+    const land = at && w.lossStart !== undefined && SHIPS.has(w.kind) ? narratedWritten.filter((o) => o !== w).flatMap(shotsOf).filter((o) => Math.hypot(o.at.x - at.x, o.at.y - at.y) <= 40).map((o) => o.from + Math.round(FIRE_LANDS_S * (opts.fps ?? 30))) : [];
     return land.length && Math.min(...land) > w.lossStart! ? { ...w, lossStart: Math.min(...land) } : w;
   });
   const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart, opts.year, tilt !== undefined ? mapWorld(map, width, height, false).view : undefined) : undefined;
@@ -2280,7 +2346,7 @@ function projectGeoMap(
     ...(close?.walls ?? []).flatMap((w) => [...w.points, ...w.towers, ...w.gates].map((q) => ({ q, w: 1 }))),
     ...(close?.buildings ?? []).map((q) => ({ q, w: 2 })),
     ...(map.sehirler ?? []).map((c) => ({ q: toPx(c.konum), w: 2 })),
-    ...vehicles.flatMap((a) => [a.path[0], a.path[a.path.length - 1], a.target].flatMap((q) => (q ? [{ q, w: 1 }] : []))),
+    ...vehicles.flatMap((a) => [a.path[0], a.path[a.path.length - 1], a.target, ...(a.legs ?? []).flatMap((l) => [l.path[l.path.length - 1], l.target])].flatMap((q) => (q ? [{ q, w: 1 }] : []))),
   ];
   // While they speak, the badge and room for its bubble over it (~240 px) stay inside the view the camera rests on for
   // each of their lines (Belgrade: the camera closed in on the castle and left the defender's badge at the top edge).
@@ -2389,7 +2455,7 @@ function projectGeoMap(
   const fires = (map.yanginlar ?? []).map((y, i) => {
     const at = toPx(y.konum);
     const size = r1((y.km ?? fireKm) * pxPerKm);
-    const shotsLand = vehicles.filter((v) => v.target && v.fireStart !== undefined && Math.hypot(v.target.x - at.x, v.target.y - at.y) <= Math.max(size, 40)).map((v) => v.fireStart! + Math.round(FIRE_LANDS_S * (opts.fps ?? 30)));
+    const shotsLand = vehicles.flatMap(shotsOf).filter((v) => Math.hypot(v.at.x - at.x, v.at.y - at.y) <= Math.max(size, 40)).map((v) => v.from + Math.round(FIRE_LANDS_S * (opts.fps ?? 30)));
     return { ...at, start: toldStart(opts, lineStart, y.satir, i, TOLD_WORDS.yangin, shotsLand.length ? Math.min(...shotsLand) : 0), ...(y.bitis_satir !== undefined ? { end: lineStart(y.bitis_satir, i) } : {}), size };
   });
   const glows = (map.vurgular ?? []).flatMap((g, i): NonNullable<V3GeoMap["glows"]>[number][] => {

@@ -32,6 +32,7 @@ import {
   UNIT_MOVES,
   UNIT_WINGS,
   TRANSITIONS,
+  VEHICLE_FORMATIONS,
   VEHICLE_KINDS,
   VEHICLES,
   WEATHERS,
@@ -463,6 +464,18 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if ((a.kayip === undefined) !== (a.kayip_satir === undefined)) err("HARITA_ARAC", ap, "kayip ile kayip_satir birlikte verilir");
         (Array.isArray(a.yol) ? a.yol : []).forEach((pt, k) => lonLat(pt, `${ap}.yol[${k}]`));
         if (a.hedef !== undefined) lonLat(a.hedef, `${ap}.hedef`);
+        str(a, "ad", ap, { max: 60, optional: true });
+        oneOf(a, "dizilis", ap, VEHICLE_FORMATIONS, true);
+        (arr(a, "yerler", ap, true) ?? []).forEach((y, yi) => {
+          const yp = `${ap}.yerler[${yi}]`;
+          if (!isObj(y)) return err("HARITA_ARAC", yp, "nesne bekleniyor");
+          if (y.satir === undefined) err("HARITA_ARAC", yp, "satir gerekli");
+          for (const key of ["satir", "ates_satir"]) lineIndex(y, key, yp);
+          if (y.konum !== undefined) lonLat(y.konum, `${yp}.konum`);
+          (Array.isArray(y.yol) ? y.yol : []).forEach((pt, k) => lonLat(pt, `${yp}.yol[${k}]`));
+          if (y.hedef !== undefined) lonLat(y.hedef, `${yp}.hedef`);
+          oneOf(y, "dizilis", yp, VEHICLE_FORMATIONS, true);
+        });
         // A tank at Constantinople is no history (owner: nothing meaningless on screen).
         const year = typeof ep.donem === "string" ? periodEndYear(ep.donem) : undefined;
         if (kind && year !== undefined && (year < VEHICLES[kind][0] || year > VEHICLES[kind][1])) err("HARITA_ARAC_DONEM", `${ap}.tur`, `${kind} ${year} yılına uymuyor (${VEHICLES[kind][0]}–${VEHICLES[kind][1]})`);

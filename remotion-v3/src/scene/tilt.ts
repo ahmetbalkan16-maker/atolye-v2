@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
+import { type V3GeoMap, vehiclePoints } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { badgeExtent } from "./hudLayout";
 import { cameraAt } from "./mapCamera";
 
@@ -358,7 +358,7 @@ export function tiltItems(map: V3GeoMap, fps: number, W: number, H: number): { f
     for (const v of map.vehicles ?? []) {
       if (v.start >= to || (v.end !== undefined && v.end <= from)) continue;
       const room = (VEHICLE_ROOM_1080 + Math.ceil((Math.max(1, v.count) - 1) / 2) * VEHICLE_ROW_1080) * u;
-      for (const p of v.path) add(p.x, p.y, room, room, room, room, true);
+      for (const p of vehiclePoints(v)) add(p.x, p.y, room, room, room, room, true);
     }
     for (const ar of map.arrows ?? []) {
       if (ar.plan || ar.start >= to || (ar.end !== undefined && ar.end <= from) || ar.points.length < 2) continue;

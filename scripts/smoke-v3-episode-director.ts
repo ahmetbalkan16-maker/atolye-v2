@@ -21,7 +21,7 @@ import { autoSlots, autoTransition, BODY_HALF, beats, buildRenderPlan, toldWordA
 import { blankOpening, cameraChangeFrames, MAP_PULSE_S, MAP_PULSE_ZOOM, mapPulse, OPENING_CHANGE_S, OPENING_TEMPO_S, openingBeats, openingTempoGaps, pictureChangeFrames } from "../src/lib/v3/director/Director";
 import { MAP_STAGE_TALL, mapStageFor, outputFrame } from "../src/lib/v3/render/Format";
 import type { Episode, EpisodeScene, MapUnits, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
-import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition } from "../src/lib/v3/render/RenderPlanTypes";
+import { TRANSITION_S, transitionFrames, type V3GeoMap, type V3Insert, type V3Transition, vehicleMoveFrames, vehiclePoints } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, lengthTopS, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { designedCaption, maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
@@ -59,7 +59,7 @@ import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
 import { wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { LABEL_CHAR_W } from "../src/lib/v3/maps/LabelText";
-import { narrateMoves, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
+import { narrateMoves, NEXT_MOVE_S, unitWords, wordStem } from "../src/lib/v3/maps/NarratedMoves";
 import { portraitRetry } from "../src/lib/v3/faces/LikenessDesigner";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { chiefOnPart, colourName, historianOnPart, lessonBlock, qualifyParts, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
@@ -3984,6 +3984,77 @@ async function main() {
     assert.equal(mapWorld(map, 1920, 1080).keys[1]!.view.lon0, 39.6);
     const apart = { ...map, rozetler: [{ karakter: "a", konum: [30, 36], satir: 0 }, { karakter: "b", konum: [50, 36], satir: 0 }] } as typeof map;
     assert.equal(mapWorld(apart, 1080, 1920).keys[1]!.view.lon0, 39.6);
+  });
+
+  await scenario("narrated ship and plane groups (owner, 27 Nov 2026: \"gemilerin sıralanması anlatıldığı şekilde gitmesi ve hareket etmesi\", \"aynı anda değil, anlatılana göre hareket edip konumlanacak\"): a group sets off on the word that names it, the named groups one after the other in the order told, a group a line does not tell holds, a group nobody named follows the named ones; old groups are built exactly as before", () => {
+    const data = { land: [], lakes: [], rivers: [], countries: new Map() } as never;
+    const lines = ["The fleets close in.", "The German cruisers turn south while the British destroyers dash ahead.", "Later the Italian transports wait.", "The British destroyers turn north."];
+    const at = (l: number, i: number) => l * 100 + 10 + i * 10;
+    // The frame a word is told: the first word of line `l` the regex matches (map events land on the word that tells them).
+    const toldAt = (l: number | undefined, w: RegExp) => {
+      const words = (lines[l ?? 0] ?? "").split(/[^\p{L}\p{N}’']+/u).filter(Boolean);
+      const i = words.findIndex((x) => w.test(x));
+      return i < 0 ? undefined : at(l ?? 0, i);
+    };
+    const opts = { fps: 30, toldAt, lineEnd: (l: number) => l * 100 + 90 };
+    const start = (i: number | undefined, order: number) => (i !== undefined ? i * 100 : 1000 + order);
+    const german = { tur: "gemi" as const, renk: "#444444", sayi: 3, konum: [159.9, -9.2] as [number, number], satir: 0, ad: "German cruisers", yol: [[159.9, -9.2], [159.9, -9.25]] as [number, number][], yol_satir: 1 };
+    const british = { tur: "gemi" as const, renk: "#2e4a7d", sayi: 4, konum: [160.1, -9.2] as [number, number], satir: 0, ad: "British destroyers", dizilis: "kol" as const, yol: [[160.1, -9.2], [160.0, -9.2]] as [number, number][], yol_satir: 1, yerler: [{ satir: 3, yol: [[160.0, -9.25]] as [number, number][], dizilis: "hat" as const }] };
+    const italian = { tur: "gemi" as const, renk: "#8a6", sayi: 2, konum: [160.0, -9.1] as [number, number], satir: 0, ad: "Italian transports" };
+    const map = (araclar: SceneMap["araclar"]): SceneMap => ({ merkez: [160, -9.2], genislik_km: 20, araclar });
+    const built = buildGeoMap(map([german, british, italian]), data, 1920, 1080, start, opts);
+    const [g, b, it] = built.vehicles!;
+    // The named groups set off on their words, in the order told: the Germans on "German" (word 1), the British on "British" (word 7).
+    assert.equal(g!.moveStart, at(1, 1), "the German cruisers on the word that names them");
+    assert.ok(b!.moveStart! >= at(1, 7), "the British destroyers on their own word...");
+    assert.ok(b!.moveStart! >= g!.moveStart! + Math.round(NEXT_MOVE_S * 30), "...after the Germans are well under way (told order, never together)");
+    assert.equal(b!.formation, "kol");
+    assert.equal(b!.legs!.length, 1);
+    assert.equal(b!.legs![0]!.formation, "hat");
+    assert.equal(b!.legs![0]!.start, at(3, 1), "the later step on the word that names the group in its line (British, word 1 of line 3)");
+    assert.ok(b!.legs![0]!.start > b!.moveStart!, "steps stay in order");
+    assert.deepEqual(b!.legs![0]!.path[0], b!.path[b!.path.length - 1], "a step goes on from where the group was to stand");
+    assert.equal(it!.moveStart, undefined, "a group with nothing told on a line holds: no route, no step");
+    assert.equal(it!.legs, undefined);
+    // The same story told the other way round: the order follows the narration, not the data.
+    lines[1] = "The British destroyers dash ahead while the German cruisers turn south.";
+    const flipped = buildGeoMap(map([german, british, italian]), data, 1920, 1080, start, opts).vehicles!;
+    assert.equal(flipped[1]!.moveStart, at(1, 1), "now the British first");
+    assert.ok(flipped[0]!.moveStart! >= flipped[1]!.moveStart! + Math.round(NEXT_MOVE_S * 30), "and the Germans after them");
+    lines[1] = "The ranks move out.";
+    // A named group the line does not name follows the named ones: here neither is named by its own words.
+    const quiet = buildGeoMap(map([{ ...german, ad: "Odd squadron" }, { ...british, ad: "Other flotilla", yerler: undefined }]), data, 1920, 1080, start, opts).vehicles!;
+    assert.ok(quiet[0]!.moveStart! >= 100 && quiet[1]!.moveStart! >= quiet[0]!.moveStart! + Math.round(NEXT_MOVE_S * 30) - 1, `unnamed groups move one after the other: ${quiet.map((v) => v.moveStart)}`);
+    lines[1] = "The German cruisers turn south while the British destroyers dash ahead.";
+    // An untold group holds even when others move on its line: its position is its first point, nothing drifts.
+    const grouped = buildGeoMap(map([german, italian]), data, 1920, 1080, start, opts).vehicles!;
+    assert.deepEqual(grouped[1]!.path.length, 1);
+    assert.equal(grouped[1]!.moveStart, undefined);
+    // Old groups (no ad, no dizilis, no yerler) are built exactly as before, alone or beside narrated ones: the move on their line's first frame.
+    const oldGroup = { tur: "gemi" as const, renk: "#c0392b", sayi: 3, konum: [159.8, -9.15] as [number, number], satir: 0, yol: [[159.8, -9.15], [159.85, -9.15]] as [number, number][], yol_satir: 1 };
+    const alone = buildGeoMap(map([oldGroup]), data, 1920, 1080, start, opts).vehicles![0]!;
+    const beside = buildGeoMap(map([german, oldGroup, british]), data, 1920, 1080, start, opts).vehicles![1]!;
+    assert.deepEqual(beside, alone, "an old group is the same with narrated groups beside it");
+    assert.deepEqual(Object.keys(alone).sort(), ["color", "count", "kind", "moveStart", "path", "start"], "no new field on an old group");
+    assert.equal(alone.moveStart, 100, "the first frame of its line, as before");
+    // A group with only an arrangement is not retimed.
+    const formed = buildGeoMap(map([{ ...oldGroup, dizilis: "hat" as const }]), data, 1920, 1080, start, opts).vehicles![0]!;
+    assert.equal(formed.formation, "hat");
+    assert.equal(formed.moveStart, 100);
+    // A step that only fires or changes the arrangement still counts; one that changes nothing is dropped.
+    const fire = buildGeoMap(map([{ ...british, yerler: [{ satir: 3, hedef: [159.9, -9.2] as [number, number], ates_satir: 3 }, { satir: 2 }] }]), data, 1920, 1080, start, opts).vehicles![0]!;
+    assert.equal(fire.legs!.length, 1);
+    assert.ok(fire.legs![0]!.target && fire.legs![0]!.fireStart! >= fire.legs![0]!.start);
+    assert.equal(fire.legs![0]!.path.length, 1, "no new route: it only turns and fires");
+    // Framing and labels see the later steps' places.
+    assert.ok(vehiclePoints(built.vehicles![1]!).length > built.vehicles![1]!.path.length);
+    assert.deepEqual(vehicleMoveFrames(built.vehicles![1]!), [b!.moveStart, b!.legs![0]!.start]);
+    assert.ok(actionFrames(built).includes(b!.legs![0]!.start), "the camera can act on a later step");
+    // The episode validator accepts the new fields and refuses a wrong arrangement.
+    const ok = validateEpisode({ ...sampleEpisode(), sahneler: [{ ...sampleEpisode().sahneler[0]!, harita: map([british]) }] } as never);
+    assert.ok(ok.ok || !ok.errors.some((e) => /dizilis|yerler|araclar\[0\]\.ad/.test(e.path)), ok.ok ? "" : ok.errors.map((e) => `${e.path}: ${e.message}`).join(" | "));
+    const bad = validateEpisode({ ...sampleEpisode(), sahneler: [{ ...sampleEpisode().sahneler[0]!, harita: map([{ ...british, dizilis: "daire" as never }]) }] } as never);
+    assert.ok(!bad.ok && bad.errors.some((e) => e.path.includes("dizilis")), "an unknown arrangement is refused");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

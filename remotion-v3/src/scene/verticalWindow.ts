@@ -173,6 +173,11 @@ export function mapBeats(map: V3GeoMap, fps: number): MapBeat[] {
     const end = v.path[v.path.length - 1];
     setOut(v.start, v.moveStart, v.path);
     if (v.target && end) add(v.fireStart, [end, v.target]);
+    // Its later steps: where each sets off and goes, and what it fires at.
+    for (const l of v.legs ?? []) {
+      if (l.path.length > 1) setOut(l.start, l.start, l.path);
+      if (l.target) add(l.fireStart, [l.path[l.path.length - 1]!, l.target]);
+    }
     // When the first one goes down, not when the losses' clock starts (the Zanzibar Short's royal yacht sank off the
     // window, 2.4 s after its beat).
     if (end && v.lossStart !== undefined && v.losses?.length) add(v.lossStart + Math.round(Math.min(...v.losses) * fps), [end]);

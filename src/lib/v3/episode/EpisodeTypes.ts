@@ -362,6 +362,40 @@ export interface MapVehicle {
    */
   readonly kayip?: number;
   readonly kayip_satir?: number;
+  /**
+   * How the group is named in the narration (owner, 27 Nov 2026: "gemilerin sıralanması anlatıldığı şekilde gitmesi ve
+   * hareket etmesi"): "British destroyers", "the second wave". The group sets off, turns or fires on the word that names
+   * it (NarratedMoves.narrateLegs); the groups a line does not name follow the named ones. Without it the group moves on
+   * its line's first frame, as before.
+   */
+  readonly ad?: string;
+  /**
+   * How a group of ships, planes or guns is arranged: `hat` a line abreast (turns together), `kol` a column, each
+   * ship on the leader's path behind it, `kademe` an echelon (a diagonal), `v` a V behind the leader. Absent: the
+   * drawing it always had (a group with `yerler`: a column, planes a V).
+   */
+  readonly dizilis?: VehicleFormation;
+  /**
+   * The group on later lines (owner, 27 Nov 2026: "the British line turns north", "the destroyers dash ahead in
+   * column", "the second wave splits and attacks from the east"): on line `satir` it goes to `konum` and along `yol`
+   * from where it is, takes a new `dizilis` and/or fires at `hedef` (from `ates_satir`, default `satir`). A step with
+   * none of these changes nothing.
+   */
+  readonly yerler?: readonly MapVehicleStep[];
+}
+
+/** How a vehicle group is arranged (MapVehicle.dizilis). */
+export const VEHICLE_FORMATIONS = ["hat", "kol", "kademe", "v"] as const;
+export type VehicleFormation = (typeof VEHICLE_FORMATIONS)[number];
+
+/** One later step of a vehicle group (MapVehicle.yerler). */
+export interface MapVehicleStep {
+  readonly satir: number;
+  readonly konum?: readonly [number, number];
+  readonly yol?: readonly [number, number][];
+  readonly dizilis?: VehicleFormation;
+  readonly hedef?: readonly [number, number];
+  readonly ates_satir?: number;
 }
 
 /** Emblems a side's tokens can carry (drawn in the studio's flat style; no real flags of ancient states exist). */

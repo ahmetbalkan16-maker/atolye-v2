@@ -1,4 +1,4 @@
-import type { V3GeoMap, V3LabelSpot } from "../render/RenderPlanTypes";
+import { type V3GeoMap, type V3LabelSpot, vehiclePoints } from "../render/RenderPlanTypes";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
 
 /**
@@ -211,7 +211,7 @@ function marksOf(m: V3GeoMap, close: Close, relief: boolean): Obstacle[] {
   for (const v of m.vehicles ?? []) {
     const rows = Math.ceil((v.count - 1) / 2);
     const s = { x0: -55 - rows * 45, y0: -40 - rows * 35, x1: 55 + rows * 45, y1: 40 + rows * 35 };
-    for (const p of samples(v.path, u * 4)) out.push({ x: p.x, y: p.y, s, from: v.start, to: v.end ?? Infinity, weight: 3 + v.count });
+    for (const p of samples(v.legs?.length ? vehiclePoints(v) : v.path, u * 4)) out.push({ x: p.x, y: p.y, s, from: v.start, to: v.end ?? Infinity, weight: 3 + v.count });
   }
   // A badge's portrait and name scroll count as much as a city's name: the speakers talk from them (Belgrade: the
   // defender's scroll lay over "Belgrade Fortress"), at their real size — a fixed 150 px box let "HOUSE OF WONDERS"

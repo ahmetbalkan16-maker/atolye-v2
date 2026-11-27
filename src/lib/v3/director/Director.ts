@@ -1285,7 +1285,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     if (geo && tracks.size === 1) {
       const [loneId, lt] = [...tracks.entries()][0]!;
       if (!slots.get(loneId)?.mount) {
-        const events = (geo.vehicles ?? []).flatMap((v) => [v.lossStart !== undefined ? { at: v.lossStart, loss: true } : undefined, v.fireStart !== undefined ? { at: v.fireStart, loss: false } : undefined]).filter((e): e is { at: number; loss: boolean } => !!e).sort((a, b) => a.at - b.at);
+        const events = (geo.vehicles ?? []).flatMap((v) => [v.lossStart !== undefined ? { at: v.lossStart, loss: true } : undefined, v.fireStart !== undefined ? { at: v.fireStart, loss: false } : undefined, ...(v.legs ?? []).map((l) => (l.fireStart !== undefined ? { at: l.fireStart, loss: false } : undefined))]).filter((e): e is { at: number; loss: boolean } => !!e).sort((a, b) => a.at - b.at);
         for (const e of events) {
           const marks = actionAt(geo, e.at, MW, MH);
           if (!marks.length || e.at >= duration - 2) continue;

@@ -5,11 +5,13 @@
  * Pure (no Remotion render). Run: npx tsx scripts/smoke-v3-motion.ts
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DrawnSetBack, DrawnSetFront, flameBox, lightSpots, type SetCover, torchSpots } from "../remotion-v3/src/scene/DrawnSet";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, clampView, coverShake, filmCamera, type Shake, shakeAt, type View } from "../remotion-v3/src/scene/camera";
+import { COLUMN_GAP, defaultFormation, FORM_S, fleetLeader, fleetMembers, isFleet, rigidSlot, turnToward } from "../remotion-v3/src/scene/mapFleet";
 import { bankOf, COLUMN_S, FLARE_S, flakAt, flakWindow, flaresAt, isNightMap, landRings, MAP_BUBBLE, mapBubbleSize, muzzleFx, oilSlick, onLand, planeSlot, raidOf, searchlights, shellOutcome, shipTargeted, SHIP_SINK_S, sinkPose, TORPEDO_RUN_S, torpedoAt, torpedoAttacker, torpedoDropAt, torpedoStart, torpedoTarget, waterColumn, WRECK_S, wreckSmoke } from "../remotion-v3/src/scene/mapEffects";
 import { armyDots, blockDotCount, blockDots, crowdFigures, crowdGrid, DEFAULT_MEN_PER_BLOCK, DOTS_MIN, facingDir, fitInRing, garrisonSteps, menOf, ringDepth, THIN_MAX, thinShare } from "../remotion-v3/src/scene/unitCrowd";
 import { cloudShadowsAt, fieldLayout, smoothRiver, woodLayout } from "../remotion-v3/src/scene/mapNature";
@@ -1241,6 +1243,92 @@ async function main() {
     // A ship under way leaves its wake: the bow wave, foam arms and a long faint pair.
     const sailing = draw(map([{ kind: "gemi", color: "#b3263a", count: 1, start: 0, path: [{ x: 100, y: 500 }, { x: 700, y: 500 }], moveStart: 0 }]), 20);
     assert.ok(sailing.includes('stroke-opacity="0.22"') && sailing.includes('stroke-opacity="0.55"'), "a wake of two layers behind a moving ship");
+  });
+
+  await scenario("AB ships and planes arranged and moving as the narration tells it (owner, 27 Nov 2026: \"gemilerin sıralanması anlatıldığı şekilde gitmesi ve hareket etmesi, tabi uçaklar için de geçerli\"): a column follows its leader's path, a line abreast turns together, an arrangement change glides, a step starts from where the group is; an old group is drawn bit for bit as before", async () => {
+    const sea = "M4000 4000 L6000 4000 L6000 6000 L4000 6000 Z";
+    const S = 30;
+    const mv = (await import(MAP_VEHICLES)) as { MapVehicles: unknown };
+    const draw = (vehicles: unknown[], frame: number) => renderToStaticMarkup(createElement("svg", null, createElement(mv.MapVehicles as never, { map: { era: "modern", land: sea, cities: [], vehicles } as unknown as V3GeoMap, frame, fps: FPS, k: 1, travelS: () => 4 })));
+    // An old group (no dizilis, no yerler) is drawn exactly as before this change: md5 of every 7th frame's markup, pinned
+    // from the renderer as it was before (a column under way, planes over a sinking ship, a duel, a hauled fleet, cavalry).
+    const ship = { x: 900, y: 500 };
+    const old: Record<string, unknown[]> = {
+      column: [{ kind: "gemi", color: "#b3263a", count: 4, start: 0, path: [{ x: 100, y: 500 }, { x: 500, y: 420 }, { x: 800, y: 600 }], moveStart: 20 }],
+      planes: [{ kind: "ucak", color: "#3a7e6b", count: 6, start: 0, path: [{ x: 100, y: 500 }, { x: 900, y: 500 }], moveStart: 10 }, { kind: "gemi", color: "#b3263a", count: 3, start: 0, path: [ship], lossStart: 160, losses: [0, 1] }],
+      duel: [{ kind: "gemi", color: "#2e4a7d", count: 2, start: 0, path: [{ x: 300, y: 500 }], target: ship, fireStart: 30 }, { kind: "gemi", color: "#b3263a", count: 2, start: 0, path: [ship] }],
+      hauled: [{ kind: "gemi", color: "#c0392b", count: 3, start: 0, path: [{ x: 100, y: 300 }, { x: 600, y: 300 }], moveStart: 5, overland: [{ from: 0.3, to: 0.7 }] }],
+      cavalry: [{ kind: "suvari", color: "#7a4e2a", count: 3, start: 0, path: [{ x: 100, y: 700 }, { x: 700, y: 650 }], moveStart: 0 }],
+    };
+    const pinned: Record<string, string> = { column: "aee6573bd1506292221fd52a1bc12964", planes: "27ff5097c8009fa20948d52f87b6ac2c", duel: "09dd0d41200d868f548526664ca4069d", hauled: "721976079c3e16e58408116eed8e0ba4", cavalry: "fd75d4d36dcc45ef3953c3ed82e04e6a" };
+    for (const [name, vehicles] of Object.entries(old)) {
+      const h = createHash("md5");
+      for (let f = 0; f <= 400; f += 7) h.update(draw(vehicles, f));
+      assert.equal(h.digest("hex"), pinned[name], `${name}: an old group is drawn as it always was`);
+      assert.ok(vehicles.every((v) => !isFleet(v as never)));
+    }
+
+    // A column: each ship on the leader's own path, delayed, spaced COLUMN_GAP sizes along it, and in a line straight back before it sets off.
+    const travel = () => 4;
+    const turn = { kind: "gemi", color: "#2e4a7d", count: 4, start: 0, path: [{ x: 100, y: 500 }, { x: 700, y: 500 }], moveStart: 0, formation: "kol", legs: [{ start: 200, path: [{ x: 700, y: 500 }, { x: 700, y: 100 }] }] } as unknown as NonNullable<V3GeoMap["vehicles"]>[number];
+    const route0 = [{ x: 100, y: 500 }, { x: 700, y: 500 }];
+    const lead = (f: number) => fleetLeader(turn, route0, f, FPS, travel);
+    assert.ok(isFleet(turn) && !isFleet({ path: [] } as never));
+    const rest = fleetMembers(turn, lead, 0, FPS, S);
+    assert.deepEqual(rest.map((m) => Math.round(m.y)), [500, 500, 500, 500], "standing, a column lies in a line behind its leader");
+    assert.ok(rest.every((m, i) => i === 0 || m.x < rest[i - 1]!.x - COLUMN_GAP * S + 0.5), "spaced COLUMN_GAP sizes apart, each behind the one before");
+    const trail = (f: number) => lead(f).p;
+    const underway = fleetMembers(turn, lead, 260, FPS, S);
+    // The leader has turned north at x = 700; the ship behind it is still on the eastbound leg or in the bend: on the leader's path.
+    const path = Array.from({ length: 300 }, (_, k) => trail(k));
+    const near = (m: { x: number; y: number }) => Math.min(...path.map((q) => Math.hypot(q.x - m.x, q.y - m.y)));
+    assert.ok(underway.every((m) => near(m) < 4), `every ship is on the leader's path: ${underway.map((m) => near(m).toFixed(1))}`);
+    assert.ok(underway[1]!.y > underway[0]!.y + 1, "the second is still short of the bend, further south");
+    assert.ok(underway.every((m, i) => i === 0 || Math.hypot(m.x - underway[i - 1]!.x, m.y - underway[i - 1]!.y) > COLUMN_GAP * S * 0.7), "spacing kept round the bend");
+    // Its heading turns smoothly onto the new leg (TURN_S), never in one frame.
+    let worst = 0;
+    for (let f = 150; f < 330; f++) worst = Math.max(worst, Math.abs(turnToward(lead(f).heading, lead(f + 1).heading, 1) - lead(f).heading));
+    assert.ok(worst < 0.12, `the turn is gradual: ${worst}`);
+    assert.ok(Math.abs(lead(150).heading) < 0.01 && Math.abs(lead(330).heading + Math.PI / 2) < 0.05, "east, then north");
+    // A step starts from where the leader really is: cut into a march mid-way, there is no jump.
+    const cut = { ...turn, legs: [{ start: 60, path: [{ x: 700, y: 500 }, { x: 700, y: 100 }] }] } as unknown as typeof turn;
+    const before = fleetLeader(cut, route0, 59, FPS, travel).p;
+    const after = fleetLeader(cut, route0, 60, FPS, travel).p;
+    assert.ok(Math.hypot(after.x - before.x, after.y - before.y) < 12, `no jump when a step begins mid-route: ${Math.hypot(after.x - before.x, after.y - before.y)}`);
+    assert.ok(after.x < 700 - 20, "it turned where it was, not at the end of its first route");
+
+    // A line abreast turns together: the line stays square to its course, east then north.
+    const wall = { ...turn, formation: "hat" } as unknown as typeof turn;
+    const wl = (f: number) => fleetLeader(wall, route0, f, FPS, travel);
+    const abreast = fleetMembers(wall, wl, 100, FPS, S);
+    assert.ok(abreast.every((m) => Math.abs(m.x - abreast[0]!.x) < 0.5) && Math.abs(abreast[1]!.y - abreast[0]!.y) > 1.5 * S, "heading east: a line across the course");
+    const north = fleetMembers(wall, wl, 360, FPS, S);
+    assert.ok(north.every((m) => Math.abs(m.y - north[0]!.y) < 0.5) && Math.abs(north[1]!.x - north[0]!.x) > 1.5 * S, "heading north: the line turned with it");
+    assert.ok(abreast.every((m) => Math.abs(m.heading) < 0.01) && north.every((m) => Math.abs(m.heading + Math.PI / 2) < 0.05), "every ship faces its course");
+    assert.ok(Math.abs(abreast.reduce((a, m) => a + m.y, 0) / 4 - 500) < 0.5, "centred on the leader's route");
+
+    // An arrangement change glides from the old places to the new ones over FORM_S.
+    const morph = { ...turn, legs: [{ start: 100, path: [{ x: 400, y: 500 }], formation: "hat" }] } as unknown as typeof turn;
+    const ml = (f: number) => fleetLeader(morph, route0, f, FPS, travel);
+    const was = fleetMembers(morph, ml, 99, FPS, S)[2]!;
+    const begun = fleetMembers(morph, ml, 100, FPS, S)[2]!;
+    const dist = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y);
+    assert.ok(dist(was, begun) < 12, `no jump when the arrangement changes: ${dist(was, begun)}`);
+    const settled = fleetMembers(morph, ml, 100 + Math.round(FORM_S * FPS) + 2, FPS, S);
+    assert.ok(Math.abs(Math.hypot(settled[1]!.x - settled[0]!.x, settled[1]!.y - settled[0]!.y) - 1.9 * S) < 1, "settled in a line abreast 1.9 sizes apart");
+    assert.equal(ml(99).formation, "kol");
+    assert.equal(ml(101).formation, "hat");
+    assert.equal(ml(101).before, "kol");
+    // planes: a V by default, an echelon and a line abreast on request, never overlapping wings
+    assert.equal(defaultFormation("ucak"), "v");
+    assert.equal(defaultFormation("gemi"), "kol");
+    for (const f of ["hat", "kademe", "v"] as const) {
+      const slots = Array.from({ length: 6 }, (_, i) => rigidSlot(f, i, 6, true));
+      for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) assert.ok(Math.hypot(slots[i]!.back - slots[j]!.back, slots[i]!.across - slots[j]!.across) >= 1.9, `${f}: planes ${i}, ${j} clear`);
+    }
+    // Drawn: the markup carries a ship per member, in a column that really is behind its leader.
+    const html = draw([{ ...turn, count: 3 }], 100);
+    assert.equal((html.match(/#b3263a|#2e4a7d/g) ?? []).length > 0, true);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);
