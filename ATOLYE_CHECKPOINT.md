@@ -1,10 +1,10 @@
 ## 27 Kasım 2026 (7) — Her Short'ta (60 sn dahil) en az 3 gerçek görsel; sistem taraması temiz
 
 - Owner: "shorts videolarında da gerçek fotoğraf kullanılsın, en azından 3 tane", "60 sn shortslarda da çalışsın".
-  Kök neden: resim kuralı  ile kapılıydı; 23 Kasım'dan beri varsayılan 60 sn Short hiç resim istemiyordu.
-- 6256ba80:  +  (işaretli harita satırı +  + fotoğraf sahnesi);
-   30 sn'den itibaren her Short'ta en az 3 ister;  son çare 90 sn altında da eksik kadar harita
-  sahnesi işaretler; yazar talimatı;  + QC satırı "Gerçek görseller" (tasarlanmış görsel/harita sayılmaz).
+  Kök neden: resim kuralı `SHORT_PICTURES_FROM_S = 90` ile kapılıydı; 23 Kasım'dan beri varsayılan 60 sn Short hiç resim istemiyordu.
+- 6256ba80: `MapRules.SHORT_MIN_PICTURES = 3` + `pictureMoments` (işaretli harita satırı + `gorseller` + fotoğraf sahnesi);
+  `shareProblems` 30 sn'den itibaren her Short'ta en az 3 ister; `markMapPictures` son çare 90 sn altında da eksik kadar harita
+  sahnesi işaretler; yazar talimatı; `Director.realPictureCount` + QC satırı "Gerçek görseller" (tasarlanmış görsel/harita sayılmaz).
   Kanıt: smoke-v3-episode-director 90 PASS, smoke-v3-script 67, motion 29, channel-goals 20; tsc temiz; lint 0/0.
 - Sistem taraması: geliştirme kuyruğu boş (66 yapıldı), izleyici çalışıyor, ofis da0e7a39 zaten canlıydı (07:01), Graphify CURRENT.
   YouTube izni ~3 Aralık'ta düşer (Testing). Kanal dili owner tarafından ayarlandı.
