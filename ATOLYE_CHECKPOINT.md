@@ -1,3 +1,17 @@
+## 27 Kasım 2026 (7) — Her Short'ta (60 sn dahil) en az 3 gerçek görsel; sistem taraması temiz
+
+- Owner: "shorts videolarında da gerçek fotoğraf kullanılsın, en azından 3 tane", "60 sn shortslarda da çalışsın".
+  Kök neden: resim kuralı  ile kapılıydı; 23 Kasım'dan beri varsayılan 60 sn Short hiç resim istemiyordu.
+- 6256ba80:  +  (işaretli harita satırı +  + fotoğraf sahnesi);
+   30 sn'den itibaren her Short'ta en az 3 ister;  son çare 90 sn altında da eksik kadar harita
+  sahnesi işaretler; yazar talimatı;  + QC satırı "Gerçek görseller" (tasarlanmış görsel/harita sayılmaz).
+  Kanıt: smoke-v3-episode-director 90 PASS, smoke-v3-script 67, motion 29, channel-goals 20; tsc temiz; lint 0/0.
+- Sistem taraması: geliştirme kuyruğu boş (66 yapıldı), izleyici çalışıyor, ofis da0e7a39 zaten canlıydı (07:01), Graphify CURRENT.
+  YouTube izni ~3 Aralık'ta düşer (Testing). Kanal dili owner tarafından ayarlandı.
+- Sıradaki: 2026 İran savaşı Short'u (owner token yenilenince başlatacak). Portreler Wikipedia'da mevcut: Trump, Ali/Mücteba Hamaney,
+  Netanyahu, Pezeşkiyan, Hegseth, Arakçi, al-Sudani. Ön çizim yapılmadı: çizim sipariş zincirine bağlı ve kütüphane kaydı siparişin
+  dönem yazısıyla eşleşiyor. Dikkat: mizah sivil ölümlere dokunmaz; sayılar sabit Wikipedia sürümünden; resimler ABD ordusu (PD)/Commons.
+
 ## 27 Kasım 2026 (6) — Atölye ofisi genişledi: herkese eşit oda, büyük AYAS odası (toplu canlı almayı bekliyor)
 
 - Owner: "otoparkı ve arabaları kaldır yola kadar ofisi genişlet herkese bir oda ver ve odalar aynı büyüklükte olsun sadece
