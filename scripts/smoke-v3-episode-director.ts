@@ -33,6 +33,7 @@ import { badgeRoom, chapterOf, CLOSE_MAP_TILT_DEG, closeMapTilt, closeUnitStyle,
 import { TILT_GLIDE_S, TILT_WORLD_PAST, tiltAt, tiltProject, tiltSeen, tiltShare } from "../remotion-v3/src/scene/tilt";
 import { actionFrames, behindFigure, besideAction, clearAtEveryStop, frameLineAction, framesAction, lineAction, loneMisses, loneWindowCentre, shortWindow, standingAt } from "../src/lib/v3/maps/UnitFraming";
 import { mapFramingFaults, mapViewMix } from "../src/lib/v3/council/MapFramingCheck";
+import { shortsUiCover } from "../src/lib/v3/council/LayoutCheck";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { closeBox, closeSiteLookup, type LibraryBox, libraryBoxFor, placeWall, prepareCloseMaps, snapMapToRealWall, siteFromNominatim, siteFromOverpass, standingIn, tagYear } from "../src/lib/v3/maps/CloseSite";
 import { fillSiegeMap, shipLacks, siegeMapLacks } from "../src/lib/v3/maps/SiegeMap";
@@ -3744,6 +3745,13 @@ async function main() {
     const barLater = { ...marks, strength: [{ ...marks.strength![0]!, start: 100, end: 200 }] } as V3GeoMap;
     const places = [30, 150, 260].map((f) => dotLegend(barLater, f, 1080, 1920)!.y0);
     assert.ok(places.every((y) => y === places[0]) && places[0]! >= hudBoxes(barLater, 150, 1080, 1920)[1]!.y1, JSON.stringify(places));
+    // A Short with no strength bar (Gaugamela, 27 Nov 2026): the corner legend stood at 30 px, 88 % under the player's
+    // top bar; now it starts below it, and a 16:9 legend keeps its place.
+    const barless = { ...marks, strength: undefined } as V3GeoMap;
+    const shortLegend = dotLegend(barless, 30, 1080, 1920)!;
+    const legendBox = { tur: "hud", ad: "legend", x: shortLegend.x0, y: shortLegend.y0, w: shortLegend.x1 - shortLegend.x0, h: shortLegend.y1 - shortLegend.y0 } as Parameters<typeof shortsUiCover>[0];
+    assert.equal(shortsUiCover(legendBox, 1080, 1920), 0, JSON.stringify(shortLegend));
+    assert.equal(dotLegend(barless, 30, 1920, 1080)!.y0, 30, "a 16:9 legend as before");
   });
 
   await scenario("a close map's coast never runs a straight shore from a stray coast piece to the box's corner (tilted 1453, 13 Nov 2026), and a flat map keeps the coast the library already holds", async () => {
